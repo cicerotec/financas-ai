@@ -33,6 +33,8 @@ Atenção: no ambiente do Claude os dados entregues pelo banco chegam **congelad
 | `oculto` | booleano | quando verdadeiro, some do histórico e não entra em saldos |
 | `criadoEm` | texto ISO | presente em importações e transferências |
 | `transferParId` | texto | liga as duas pontas de uma transferência entre bancos |
+| `faturaAjuste` | -1, 0 ou 1 | só em status de crédito: 1 = a compra vai para a fatura seguinte à da data; -1 = para a anterior; ausente = pela data (CRÉDITO EX antigo sem esse campo conta como 1) |
+| `valorEstimado` | booleano | só em status de crédito: valor ainda estimado (ex.: compra em dólar); vira falso quando o valor real é corrigido |
 
 No arquivo exportado cada lançamento traz também o campo `id` (o id do documento).
 
@@ -46,11 +48,14 @@ No arquivo exportado cada lançamento traz também o campo `id` (o id do documen
   - `estiloCor`: `"linha"`, `"faixa"`, `"ambos"` (padrão) ou `"nenhum"`
 - `config/tags`: `{ usadas: [lista de textos] }`, todas as tags conhecidas.
 - `config/combos`: `{ lista: [ { tags: [textos] } ] }`, combos de tags salvos pelo usuário. Combos "sugeridos" não são guardados: o app os recalcula contando conjuntos de tags repetidos nos lançamentos.
+- `config/cartoes`: `{ porBanco: { "<banco>": { diaPadrao: número, faturas: { "AAAA-MM": { fechamento: "AAAA-MM-DD", valorBanco: número } } } } }`. A presença do banco aqui o marca como cartão. `AAAA-MM` é o mês em que a fatura fecha. `fechamento` é opcional e, se faltar, vale o dia da fatura anterior que tiver um (ou `diaPadrao`). `valorBanco` é o total que o app do cartão mostra, usado na conferência.
 - `config/saldos`: `{ porBanco: { "<banco>": { saldoInicial: número, dataInicio: "AAAA-MM-DD" } } }`.
 
 ## Regras de negócio que o código aplica
 - **Saldo de um banco** = `saldoInicial` + soma dos lançamentos daquele banco que: não estão ocultos, têm status com `afetaSaldoBanco = true` e têm `dataEvento` a partir de `dataInicio`. Entrada soma e saída subtrai.
 - **Transferência entre bancos** cria dois lançamentos com status `CONTAS`: uma saída no banco de origem e uma entrada no de destino, com o mesmo `transferParId`.
+- **Faturas do cartão:** a fatura que fecha no mês M cobre as compras de crédito do dia seguinte ao fechamento da fatura anterior até o dia de fechamento de M, inclusive. Cada fatura tem a própria data de fechamento. O ajuste `faturaAjuste` empurra a compra para a fatura vizinha. Compras de crédito = status que começam com CRÉDITO (sem acento na comparação), não ocultas e com "conta como real"; estorno (`tipo = entrada`) subtrai.
+- **Conferência da fatura fechada:** diferença = total calculado − `valorBanco`. Candidatos: registros (1 a 3) até 5 dias do corte cuja soma é igual à diferença; se o calculado for maior, tiram-se da fatura; se for menor, buscam-se nas faturas vizinhas.
 - **Detecção de duplicado** ao salvar: mesma combinação de status, descrição (sem maiúsculas e sem espaços nas pontas), valor com 2 casas, banco e `dataEvento`.
 - **Cor de um status**: `statusCor[status]`; se não houver, uma cor padrão por nome do status; se também não houver, cinza.
 
@@ -66,7 +71,8 @@ No arquivo exportado cada lançamento traz também o campo `id` (o id do documen
     "config/listas": { ... },
     "config/tags": { ... },
     "config/combos": { ... } ,
-    "config/saldos": { ... }
+    "config/saldos": { ... },
+    "config/cartoes": { ... }
   }
 }
 ```

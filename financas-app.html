@@ -76,6 +76,28 @@ select[multiple]{min-height:70px;}
 .dropdown-panel label{display:flex;align-items:center;gap:6px;padding:5px 2px;font-size:13px;cursor:pointer;}
 .dropdown-panel label input{width:auto;}
 svg text{fill:var(--text);font-size:10px;}
+
+.sd-row{display:flex;align-items:center;gap:10px;padding:0 4px;min-height:48px;border-top:1px solid var(--border);cursor:pointer;}
+.sd-nome{flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sd-sub{font-size:11px;color:var(--muted);}
+.sd-val{font-size:17px;font-weight:600;white-space:nowrap;}
+.sd-val.neg{color:var(--expense);}
+.sd-val.carr{color:var(--muted);}
+.sd-fora{opacity:.6;}
+.sd-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.sd-tile{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;cursor:pointer;}
+.sd-tile.aberto{border-color:var(--accent);}
+.sd-tile .sd-nome{font-size:12px;color:var(--muted);flex:none;}
+.sd-painel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin:6px 0 8px;}
+
+.fx-rec{border-top:1px solid var(--border);padding:7px 2px;cursor:pointer;}
+.fx-rec.fora{opacity:.6;}
+.fx-lin{display:flex;gap:8px;align-items:center;}
+.fx-d{font-size:12px;color:var(--muted);width:42px;}
+.fx-t{flex:1;font-size:14px;min-width:0;}
+.fx-v{font-size:14px;font-weight:600;white-space:nowrap;}
+.fx-tag{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;margin:3px 0 0 50px;display:inline-block;}
+.fx-acoes{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px 50px;}
 </style>
 </head>
 <body>
@@ -104,6 +126,12 @@ svg text{fill:var(--text);font-size:10px;}
   <div class="card" id="formCard">
     <label>Status</label>
     <select id="fStatus"></select>
+    <div id="fFaturaWrap" class="hidden">
+      <label>Fatura do cartão</label>
+      <select id="fFatura"><option value="0">Pela data (padrão)</option><option value="1">Próxima fatura</option><option value="-1">Fatura anterior</option></select>
+      <p class="muted" id="fFaturaDica"></p>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" id="fEstimado" style="width:auto;"> Valor estimado (ex.: compra em dólar; corrijo quando a fatura fechar)</label>
+    </div>
 
     <label>Tipo</label>
     <div class="row">
@@ -192,6 +220,11 @@ svg text{fill:var(--text);font-size:10px;}
     <p class="muted">Como as cores dos status aparecem no Histórico. A cor de cada status você escolhe na bolinha, no cartão Status logo abaixo.</p>
     <div class="tags" id="estiloCorBtns"></div>
     <div id="prevCor" style="margin-top:10px;"></div>
+    <div class="muted" style="margin-top:14px;">Layout dos saldos</div>
+    <div class="tags" id="layoutSaldosBtns"></div>
+    <div class="muted" style="margin-top:14px;">Ordem dos saldos</div>
+    <div class="tags" id="ordemSaldosBtns"></div>
+    <div id="ordemManualLista"></div>
   </div>
   <div class="card">
     <b>Status</b>
@@ -225,18 +258,39 @@ svg text{fill:var(--text);font-size:10px;}
 </section>
 
 <section id="tab-cartao" class="hidden">
-  <div class="card">
-    <p class="muted">Total gasto no crédito (status que começam com CRÉDITO), por banco, nos últimos 3 meses.</p>
-    <div id="cartaoResumo"></div>
+  <div class="card" style="text-align:center;margin-bottom:8px;">
+    <div class="muted">Faturas abertas</div>
+    <div id="cartaoTotal" style="font-size:32px;font-weight:600;line-height:1.2;margin:2px 0;">···</div>
+    <div class="muted" id="cartaoSub"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:0 2px 4px;">
+    <span class="muted">Toque num cartão para ver as faturas</span>
+    <button class="ghost" id="btnAtualizarCartao" style="padding:4px 10px;">Atualizar ⟳</button>
+  </div>
+  <div id="listaCartoes"></div>
+  <div class="card" id="novoCartaoCard">
+    <b>Adicionar cartão</b>
+    <p class="muted">Escolha o banco ou conta que é cartão de crédito e o dia de fechamento da fatura atual. Depois você ajusta o fechamento de cada fatura, que muda todo mês.</p>
+    <div class="row">
+      <div><label>Banco / conta</label><select id="ncBanco"></select></div>
+      <div><label>Dia do fechamento</label><input type="number" id="ncDia" min="1" max="31" placeholder="ex: 25"></div>
+    </div>
+    <p class="muted" id="ncMsg"></p>
+    <button class="primary" id="btnAddCartao">Adicionar</button>
   </div>
 </section>
 
 <section id="tab-saldos" class="hidden">
-  <div class="card">
-    <p class="muted">Defina, uma única vez por banco, o saldo que a conta tinha numa data de início (o mesmo que você via no extrato naquele dia). A partir daí, o saldo atual é sempre calculado pelos lançamentos reais — nunca precisa repetir mês a mês.</p>
+  <div class="card" style="text-align:center;margin-bottom:8px;">
+    <div class="muted">Saldo total</div>
+    <div id="saldoTotal" style="font-size:32px;font-weight:600;line-height:1.2;margin:2px 0;">···</div>
+    <div class="muted" id="saldoSub"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:0 2px 4px;">
+    <span class="muted">Toque num banco para configurar</span>
+    <button class="ghost" id="btnRecalcularSaldos" style="padding:4px 10px;">Atualizar ⟳</button>
   </div>
   <div id="listaSaldos"></div>
-  <button class="primary" id="btnRecalcularSaldos">Calcular saldos atuais</button>
 </section>
 
 <section id="tab-importar" class="hidden">
@@ -312,6 +366,36 @@ function seloStatus(status){
 }
 let tagsUsadas = [];
 let saldosConfig = {};
+let layoutSaldos = 'linhas';
+let ordemSaldos = 'lista';
+let ordemManual = [];
+let timerOrdem = null;
+let saldosAtuais = {};
+let saldosCarregando = false;
+let saldosUltimaCalc = 0;
+let saldoAberto = -1;
+let rascunhoSaldo = null;
+let msgSaldo = '';
+function ehCredito(status){ return normStatus(status).startsWith('CREDITO'); }
+function ehCreditoEX(status){ return /^CREDITO\s*EX$/.test(normStatus(status)); }
+function ajusteEfetivo(l){ if(typeof l.faturaAjuste==='number') return l.faturaAjuste; return ehCreditoEX(l.status) ? 1 : 0; }
+function chipFatura(l){
+  if(!l.status || !ehCredito(l.status)) return '';
+  const a = ajusteEfetivo(l);
+  if(!a) return '';
+  return ` <span style="font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;">foi para a ${a>0?'próxima':'anterior'} fatura</span>`;
+}
+function chipEstimado(l){
+  if(!l.status || !ehCredito(l.status) || l.valorEstimado!==true) return '';
+  return ' <span style="font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;">valor estimado</span>';
+}
+function atualizarCampoFatura(){
+  const w = document.getElementById('fFaturaWrap');
+  if(!w) return;
+  const st = document.getElementById('fStatus').value;
+  w.classList.toggle('hidden', !ehCredito(st));
+  document.getElementById('fFaturaDica').textContent = ehCreditoEX(st) ? 'Registros com status CRÉDITO EX já vão para a próxima fatura.' : '';
+}
 let lancamentosCache = [];
 let modoMesEspecifico = false;
 let lancamentosMes = [];
@@ -417,6 +501,9 @@ async function init(){
       if(d && d.afetaSaldoBanco) afetaSaldoBanco = clonar(d.afetaSaldoBanco);
       if(d && d.statusCor) statusCor = clonar(d.statusCor);
       if(d && d.estiloCor) estiloCor = d.estiloCor;
+      if(d && d.layoutSaldos) layoutSaldos = d.layoutSaldos;
+      if(d && d.ordemSaldos) ordemSaldos = d.ordemSaldos;
+      if(d && Array.isArray(d.ordemManual)) ordemManual = clonar(d.ordemManual);
       if(!listas.status.includes('CREDITANDO')){ listas.status.push('CREDITANDO'); salvarListas(); }
       renderListas();
       renderSaldos();
@@ -444,6 +531,7 @@ async function init(){
     db.collection("lancamentos").orderBy("dataEvento","desc").limit(1000).onSnapshot(snap=>{
       lancamentosCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
       try{ renderTagPicker(); }catch(e){}
+      cartaoUltimaCalc = 0;
       renderHistorico();
       renderCartao();
     }, ()=>{ document.getElementById('listaLancamentos').innerHTML = '<p class="muted">Sem acesso ao histórico nesta visualização.</p>'; });
@@ -462,7 +550,8 @@ function setupTabs(){
       b.classList.add('active');
       document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
       document.getElementById('tab-'+b.dataset.tab).classList.remove('hidden');
-      if(b.dataset.tab==='saldos') carregarSaldosConfig();
+      if(b.dataset.tab==='saldos') carregarSaldosConfig().then(()=>carregarSaldos(false));
+      if(b.dataset.tab==='cartao') carregarCartoesConfig().then(()=>carregarCartoes(false));
     });
   });
 }
@@ -471,6 +560,7 @@ function renderListas(){
   const fStatus=document.getElementById('fStatus'), fBanco=document.getElementById('fBanco');
   const tOrig=document.getElementById('tBancoOrigem'), tDest=document.getElementById('tBancoDestino');
   [fStatus].forEach(sel=>{ sel.innerHTML = listas.status.map(s=>`<option>${s}</option>`).join(''); });
+  atualizarCampoFatura();
   [fBanco,tOrig,tDest].forEach(sel=>{ sel.innerHTML = listas.banco.map(s=>`<option>${s}</option>`).join(''); });
   // tira da seleção qualquer status que não existe mais
   filStatusSelecionados = new Set([...filStatusSelecionados].filter(s=>listas.status.includes(s)));
@@ -522,6 +612,39 @@ function renderAparencia(){
     `<span class="tag ${estiloCor===k?'on':''}" data-estilo-cor="${k}">${t}</span>`).join('');
   document.getElementById('prevCor').innerHTML = listas.status.slice(0,3).map(st=>
     `<div class="item" style="${estiloItemCor(st)}"><div class="item-top"><span class="item-desc">Exemplo de lançamento</span><span class="valor saida">-R$ 10,00</span></div><div class="item-meta">${seloStatus(st)} · Banco</div></div>`).join('');
+  document.getElementById('layoutSaldosBtns').innerHTML = [['linhas','Uma linha por banco'],['tiles','Quadradinhos']].map(([k,t])=>
+    `<span class="tag ${layoutSaldos===k?'on':''}" data-layout-saldos="${k}">${t}</span>`).join('');
+  document.getElementById('ordemSaldosBtns').innerHTML = [['lista','Ordem da lista'],['valor','Maior saldo'],['manual','Manual']].map(([k,t])=>
+    `<span class="tag ${ordemSaldos===k?'on':''}" data-ordem-saldos="${k}">${t}</span>`).join('');
+  const manualEl = document.getElementById('ordemManualLista');
+  if(ordemSaldos==='manual'){
+    const ef = ordemManualEfetiva();
+    manualEl.innerHTML = '<p class="muted" style="margin:8px 0 2px;">Use as setas para mover cada banco.</p>' + ef.map((n,i)=>
+      `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:14px;">${n}</span>` +
+      `<button class="ghost" data-ord-up="${i}" aria-label="Subir ${n}" style="padding:4px 12px;" ${i===0?'disabled':''}>▲</button>` +
+      `<button class="ghost" data-ord-dn="${i}" aria-label="Descer ${n}" style="padding:4px 12px;" ${i===ef.length-1?'disabled':''}>▼</button></div>`).join('');
+  } else manualEl.innerHTML = '';
+  document.querySelectorAll('[data-ordem-saldos]').forEach(b=>b.onclick=()=>{
+    const novo = b.dataset.ordemSaldos;
+    if(novo==='manual' && !ordemManual.length) ordemManual = indicesOrdenados().map(i=>listas.banco[i]);
+    ordemSaldos = novo;
+    salvarListas(); renderAparencia(); renderSaldos();
+  });
+  const mover = (i,d)=>{
+    const ef = ordemManualEfetiva();
+    const j = i+d;
+    if(j<0 || j>=ef.length) return;
+    [ef[i], ef[j]] = [ef[j], ef[i]];
+    ordemManual = ef;
+    agendarSalvarOrdem(); renderAparencia(); renderSaldos();
+  };
+  document.querySelectorAll('[data-ord-up]').forEach(b=>b.onclick=()=>mover(parseInt(b.dataset.ordUp,10),-1));
+  document.querySelectorAll('[data-ord-dn]').forEach(b=>b.onclick=()=>mover(parseInt(b.dataset.ordDn,10),1));
+  document.querySelectorAll('[data-layout-saldos]').forEach(b=>b.onclick=()=>{
+    layoutSaldos = b.dataset.layoutSaldos;
+    saldoAberto = -1;
+    salvarListas(); renderAparencia(); renderSaldos();
+  });
   document.querySelectorAll('[data-estilo-cor]').forEach(b=>b.onclick=()=>{
     estiloCor = b.dataset.estiloCor;
     salvarListas(); renderAparencia(); renderHistorico();
@@ -530,7 +653,7 @@ function renderAparencia(){
 
 async function salvarListas(){
   if(!db) return;
-  await db.doc("config/listas").set({...listas, statusReal, afetaSaldoBanco, statusCor, estiloCor});
+  await db.doc("config/listas").set({...listas, statusReal, afetaSaldoBanco, statusCor, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
 }
 function removerDaLista(tipo,valor){
   listas[tipo] = listas[tipo].filter(x=>x!==valor);
@@ -638,6 +761,21 @@ async function garantirTags(novasTags){
 }
 
 function setupHandlers(){
+  document.getElementById('fStatus').addEventListener('change', ()=>{
+    document.getElementById('fFatura').value = ehCreditoEX(document.getElementById('fStatus').value) ? '1' : '0';
+    atualizarCampoFatura();
+  });
+  document.getElementById('listaCartoes').addEventListener('click', onCartaoClick);
+  document.getElementById('listaCartoes').addEventListener('input', e=>{
+    if(e.target.id!=='cBanco') return;
+    const b = cartoesVisiveis[cartaoAberto];
+    const conf = document.getElementById('cConf');
+    if(!b || !conf) return;
+    const raw = e.target.value.trim();
+    conf.innerHTML = conferenciaHtml(b, e.target.dataset.ym, raw==='' ? null : parseFloat(raw));
+  });
+  document.getElementById('btnAtualizarCartao').addEventListener('click', ()=>carregarCartoes(true));
+  document.getElementById('btnAddCartao').addEventListener('click', adicionarCartaoUI);
   document.getElementById('tagBusca').addEventListener('input', e=>{ tagBusca = e.target.value; renderTagPicker(); });
   document.getElementById('tagArea').addEventListener('click', e=>{
     const el = e.target.closest('[data-tag],[data-combo],[data-todas],#btnSalvarCombo');
@@ -787,7 +925,7 @@ Responda SOMENTE em JSON, sem markdown, no formato:
 {"status":"...", "tipo":"entrada"|"saida", "valor":number, "descricao":"...", "banco":"...", "tags":["..."], "dataEvento":"AAAA-MM-DDTHH:MM:SS (hora local do usuário, SEM Z, SEM fuso)"}
 Se não souber o banco com certeza, deixe banco como "".`;
     const res = await sample.json(prompt, {modelTier:"quick"});
-    if(res.status) document.getElementById('fStatus').value = res.status;
+    if(res.status){ document.getElementById('fStatus').value = res.status; document.getElementById('fFatura').value = ehCreditoEX(res.status)?'1':'0'; atualizarCampoFatura(); }
     if(res.tipo) document.getElementById('fTipo').value = res.tipo;
     if(res.valor) document.getElementById('fValor').value = res.valor;
     if(res.descricao) document.getElementById('fDesc').value = res.descricao;
@@ -830,6 +968,10 @@ async function salvarLancamento(){
     tags: tags,
     excluirDoTotal: /^CONTAS$|^TRANSFERINDO$/i.test(statusEscolhido)
   };
+  if(ehCredito(statusEscolhido)){
+    doc.faturaAjuste = parseInt(document.getElementById('fFatura').value,10) || 0;
+    doc.valorEstimado = document.getElementById('fEstimado').checked;
+  }
   const jaExiste = lancamentosCache.some(l=>l.id!==editandoId && chaveLancamento(l)===chaveLancamento(doc));
   if(jaExiste && !(await confirmarModal("Já existe um lançamento igual (mesmo status, descrição, valor, banco e data). Salvar mesmo assim?"))) return;
   if(editandoId){
@@ -852,6 +994,9 @@ function limparFormulario(){
   document.getElementById('fData').value = nowLocalInput();
   tagsSelecionadas = new Set();
   tagBusca = ''; document.getElementById('tagBusca').value = '';
+  document.getElementById('fFatura').value = ehCreditoEX(document.getElementById('fStatus').value) ? '1' : '0';
+  document.getElementById('fEstimado').checked = false;
+  atualizarCampoFatura();
   renderTagPicker();
 }
 
@@ -891,7 +1036,7 @@ function renderHistorico(){
   el.innerHTML = lista.map(l=>`
     <div class="item ${l.oculto?'oculto':''}" style="${estiloItemCor(l.status)}">
       <div class="item-top"><span class="item-desc">${l.descricao}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
-      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)} · ${l.banco||'-'} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+t).join(' '):''}</div>
+      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)} · ${l.banco||'-'} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+t).join(' '):''}</div>
       ${l.nota?`<div class="item-meta">${l.nota}</div>`:''}
       <div class="item-acoes">
         <button data-acao="editar" data-id="${l.id}">✏️ Editar</button>
@@ -920,6 +1065,9 @@ function iniciarEdicao(id){
   if(!l) return;
   editandoId = id;
   document.getElementById('fStatus').value = l.status;
+  document.getElementById('fFatura').value = String(ajusteEfetivo(l));
+  document.getElementById('fEstimado').checked = l.valorEstimado === true;
+  atualizarCampoFatura();
   document.getElementById('fTipo').value = l.tipo;
   document.getElementById('fValor').value = l.valor;
   document.getElementById('fDesc').value = l.descricao;
@@ -945,6 +1093,9 @@ function iniciarCopia(id){
   document.getElementById('btnCancelarEdicao').classList.add('hidden');
   document.getElementById('notaLivre').value = '';
   document.getElementById('fStatus').value = l.status;
+  document.getElementById('fFatura').value = ehCreditoEX(l.status) ? '1' : '0';
+  document.getElementById('fEstimado').checked = false;
+  atualizarCampoFatura();
   document.getElementById('fTipo').value = l.tipo;
   document.getElementById('fValor').value = l.valor;
   document.getElementById('fDesc').value = l.descricao;
@@ -1103,121 +1254,642 @@ async function carregarSaldosConfig(){
   try{
     const snap = await db.doc("config/saldos").get();
     const d = snap.data();
-    saldosConfig = (d && d.porBanco) || {};
+    saldosConfig = clonar((d && d.porBanco) || {});
   }catch(e){
     console.error('Falha ao carregar config/saldos', e);
   }
   renderSaldos();
 }
 
+function ordemManualEfetiva(){
+  const nomes = listas.banco;
+  const base = ordemManual.filter(n=>nomes.includes(n));
+  nomes.forEach(n=>{ if(!base.includes(n)) base.push(n); });
+  return base;
+}
+function indicesOrdenados(){
+  const idx = listas.banco.map((_,i)=>i);
+  if(ordemSaldos==='valor'){
+    const v = i=>{ const r = saldosAtuais[listas.banco[i]]; return r ? r.saldo : -Infinity; };
+    return idx.sort((a,b)=> (v(b)-v(a)) || (a-b));
+  }
+  if(ordemSaldos==='manual'){
+    const ef = ordemManualEfetiva();
+    return idx.sort((a,b)=> ef.indexOf(listas.banco[a]) - ef.indexOf(listas.banco[b]));
+  }
+  return idx;
+}
+function agendarSalvarOrdem(){
+  clearTimeout(timerOrdem);
+  timerOrdem = setTimeout(()=>salvarListas(), 600);
+}
+function totalSaldos(){
+  let t = 0, n = 0, fora = 0, incompleto = false;
+  listas.banco.forEach(b=>{
+    const cfg = saldosConfig[b] || {};
+    const r = saldosAtuais[b];
+    if(cfg.foraDoTotal){ fora++; return; }
+    if(r){ t += r.saldo; n++; if(r.incompleto || r.erro) incompleto = true; }
+  });
+  return {t, n, fora, incompleto};
+}
+function classeVal(r){ return 'sd-val' + (!r ? ' carr' : (saldosCarregando ? ' carr' : (r.saldo<0 ? ' neg' : ''))); }
+function textoVal(r){ return r ? (r.erro ? 'erro' : fmtMoeda(r.saldo)) + (r.incompleto ? ' ⚠' : '') : '···'; }
+function painelSaldoHtml(i){
+  const b = listas.banco[i];
+  const cfg = saldosConfig[b] || {saldoInicial:0, dataInicio:''};
+  const d = (rascunhoSaldo && rascunhoSaldo.idx===i) ? rascunhoSaldo : {si:String(cfg.saldoInicial||0), di:cfg.dataInicio||'', entra:!cfg.foraDoTotal};
+  return `<div class="sd-painel">
+    <b>Configurar ${b}</b>
+    <div class="row" style="margin-top:8px;">
+      <div><label>Saldo inicial (o que a conta tinha na data abaixo)</label><input type="number" step="0.01" id="sInicial" value="${d.si}"></div>
+      <div><label>Data de início (AAAA-MM-DD)</label><input type="text" inputmode="numeric" placeholder="2026-09-01" id="sData" value="${d.di}"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;"><input type="checkbox" id="sEntra" style="width:auto;" ${d.entra?'checked':''}> Entra no total</label>
+    <p class="muted" id="sMsg" style="margin-top:6px;">${msgSaldo||''}</p>
+    <button class="primary" id="btnSalvarSaldo" data-i="${i}">Salvar</button>
+  </div>`;
+}
 function renderSaldos(){
   const el = document.getElementById('listaSaldos');
   if(!el) return;
-  if(!listas.banco.length){ el.innerHTML = '<p class="muted">Cadastre bancos na aba Listas primeiro.</p>'; return; }
-  el.innerHTML = listas.banco.map(banco=>{
-    const cfg = saldosConfig[banco] || {saldoInicial:0, dataInicio:''};
-    return `
-    <div class="card" style="margin-bottom:8px;">
-      <b>${banco}</b>
-      <div class="row">
-        <div><label>Saldo inicial (o que a conta tinha na data abaixo)</label><input type="number" step="0.01" data-banco-saldo="${banco}" value="${cfg.saldoInicial||0}"></div>
-        <div><label>Data de início (formato AAAA-MM-DD)</label><input type="text" inputmode="numeric" placeholder="2026-09-01" data-banco-data="${banco}" value="${cfg.dataInicio||''}"></div>
-      </div>
-      <p class="muted" style="margin-top:2px;" id="erroData-${CSS.escape(banco)}"></p>
-      <button class="primary" data-salvar-saldo="${banco}" style="margin-top:8px;">Salvar e calcular saldo atual</button>
-      <p class="muted" id="saldoAtual-${CSS.escape(banco)}">Saldo atual: ainda não calculado</p>
-    </div>`;
-  }).join('');
-  el.querySelectorAll('[data-salvar-saldo]').forEach(btn=>btn.addEventListener('click', ()=>salvarConfigSaldo(btn.dataset.salvarSaldo)));
+  const sI = document.getElementById('sInicial');
+  if(sI && saldoAberto>=0){
+    rascunhoSaldo = {idx:saldoAberto, si:sI.value, di:document.getElementById('sData').value, entra:document.getElementById('sEntra').checked};
+  }
+  if(!listas.banco.length){
+    el.innerHTML = '<p class="muted">Cadastre bancos na aba Listas primeiro.</p>';
+    document.getElementById('saldoTotal').textContent = '···';
+    document.getElementById('saldoSub').textContent = '';
+    return;
+  }
+  const tot = totalSaldos();
+  const te = document.getElementById('saldoTotal');
+  te.textContent = tot.n ? fmtMoeda(tot.t) : '···';
+  te.className = (tot.n && !saldosCarregando && tot.t<0) ? 'sd-val neg' : '';
+  te.style.fontSize = '32px';
+  const hora = saldosUltimaCalc ? new Date(saldosUltimaCalc).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+  document.getElementById('saldoSub').textContent = saldosCarregando ? 'Calculando...' :
+    `${listas.banco.length} banco${listas.banco.length>1?'s':''}${tot.fora?` · ${tot.fora} fora do total`:''}${tot.incompleto?' · ⚠ confira':''}${hora?` · atualizado ${hora}`:''}`;
+  let h = '';
+  if(layoutSaldos==='tiles'){
+    h += '<div class="sd-tiles">' + indicesOrdenados().map(i=>{
+      const b = listas.banco[i];
+      const cfg = saldosConfig[b], r = saldosAtuais[b];
+      return `<div class="sd-tile ${saldoAberto===i?'aberto':''} ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${b}${cfg&&cfg.foraDoTotal?' · fora':''}</div><div class="${classeVal(r)}">${textoVal(r)}</div></div>`;
+    }).join('') + '</div>';
+    if(saldoAberto>=0 && listas.banco[saldoAberto]!==undefined) h += painelSaldoHtml(saldoAberto);
+  } else {
+    h += indicesOrdenados().map(i=>{
+      const b = listas.banco[i];
+      const cfg = saldosConfig[b], r = saldosAtuais[b];
+      const dica = !cfg ? 'defina o saldo inicial' : (cfg.foraDoTotal ? 'fora do total' : '');
+      return `<div class="sd-row ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${b}${dica?`<div class="sd-sub">${dica}</div>`:''}</div><div class="${classeVal(r)}">${textoVal(r)}</div><span class="muted">${saldoAberto===i?'▴':'▾'}</span></div>` +
+        (saldoAberto===i ? painelSaldoHtml(i) : '');
+    }).join('');
+  }
+  el.innerHTML = h;
+  el.querySelectorAll('[data-sd]').forEach(x=>x.addEventListener('click', ()=>{
+    const i = parseInt(x.dataset.sd,10);
+    saldoAberto = (saldoAberto===i) ? -1 : i;
+    rascunhoSaldo = null; msgSaldo = '';
+    renderSaldos();
+  }));
+  const bs = document.getElementById('btnSalvarSaldo');
+  if(bs) bs.addEventListener('click', ()=>salvarConfigSaldo(parseInt(bs.dataset.i,10)));
 }
-
-async function salvarConfigSaldo(banco){
+async function salvarConfigSaldo(i){
   if(!db) return;
-  const saldoInicial = parseFloat(document.querySelector(`[data-banco-saldo="${CSS.escape(banco)}"]`).value) || 0;
-  const dataInicioTexto = document.querySelector(`[data-banco-data="${CSS.escape(banco)}"]`).value.trim();
-  const erroEl = document.getElementById(`erroData-${CSS.escape(banco)}`);
-  const msgEl = document.getElementById(`saldoAtual-${CSS.escape(banco)}`);
+  const banco = listas.banco[i];
+  if(banco===undefined) return;
+  const saldoInicial = parseFloat(document.getElementById('sInicial').value) || 0;
+  const dataInicioTexto = document.getElementById('sData').value.trim();
+  const entra = document.getElementById('sEntra').checked;
+  const msgEl = document.getElementById('sMsg');
   let dataInicio = '';
   if(dataInicioTexto){
     const m = dataInicioTexto.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if(!m){
-      if(erroEl) erroEl.textContent = '⚠️ Data inválida. Digite exatamente no formato AAAA-MM-DD, ex: 2026-09-01.';
-      return;
-    }
+    if(!m){ msgEl.textContent = '⚠️ Data inválida. Digite exatamente no formato AAAA-MM-DD, ex: 2026-09-01.'; return; }
     const [_, ano, mes, dia] = m;
     dataInicio = `${ano}-${mes.padStart(2,'0')}-${dia.padStart(2,'0')}`;
   }
-  if(erroEl) erroEl.textContent = '';
   try{
-    if(msgEl) msgEl.textContent = 'Salvando...';
+    msgEl.textContent = 'Salvando...';
     const ref = db.doc("config/saldos");
-    // lê o que REALMENTE está no banco (não a variável local) e mescla só este banco
+    // lê o que REALMENTE está no banco e mescla só este banco
     const atual = await ref.get();
-    const porBancoAtual = (atual.data() && atual.data().porBanco) || {};
-    const porBanco = {...porBancoAtual, [banco]: {saldoInicial, dataInicio}};
-    await ref.set({porBanco});
-    // confere lendo de volta do banco
+    const porBancoAtual = clonar((atual.data() && atual.data().porBanco) || {});
+    const nova = {saldoInicial, dataInicio};
+    if(!entra) nova.foraDoTotal = true;
+    await ref.set({porBanco: {...porBancoAtual, [banco]: nova}});
+    // confere lendo de volta
     const conferido = await ref.get();
-    const gravado = conferido.data() && conferido.data().porBanco && conferido.data().porBanco[banco];
-    if(!gravado || gravado.dataInicio!==dataInicio || gravado.saldoInicial!==saldoInicial){
-      if(msgEl) msgEl.textContent = '⚠️ O banco de dados NÃO guardou o valor enviado. Enviado: ' + JSON.stringify({saldoInicial,dataInicio}) + ' | Guardado: ' + JSON.stringify(gravado);
+    const g = conferido.data() && conferido.data().porBanco && conferido.data().porBanco[banco];
+    if(!g || g.dataInicio!==dataInicio || g.saldoInicial!==saldoInicial || !!g.foraDoTotal!==!entra){
+      msgEl.textContent = '⚠️ O banco de dados NÃO guardou o valor enviado. Enviado: ' + JSON.stringify(nova) + ' | Guardado: ' + JSON.stringify(g);
       return;
     }
-    saldosConfig = conferido.data().porBanco;
-    if(msgEl) msgEl.textContent = 'Calculando saldo atual...';
-    const saldo = await calcularSaldoBanco(banco);
-    if(msgEl) msgEl.textContent = `Saldo atual: ${fmtMoeda(saldo)} ✓ gravado e conferido no banco (saldo inicial ${fmtMoeda(saldoInicial)}, a partir de ${dataInicio || 'o início'})`;
+    saldosConfig = clonar(conferido.data().porBanco);
+    rascunhoSaldo = null;
+    msgSaldo = 'Salvo ✓';
+    saldosAtuais[banco] = await calcularSaldoBanco(banco);
+    saldosUltimaCalc = Date.now();
+    renderSaldos();
   }catch(e){
-    if(msgEl) msgEl.textContent = '⚠️ Erro ao salvar: ' + (e && (e.code||'')) + ' ' + (e && (e.message||e));
+    msgEl.textContent = '⚠️ Erro ao salvar: ' + (e && (e.code||'')) + ' ' + (e && (e.message||e));
   }
 }
-
 async function calcularSaldoBanco(banco){
   const cfg = saldosConfig[banco] || {saldoInicial:0, dataInicio:''};
-  const snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get();
   const dataInicioMs = cfg.dataInicio ? new Date(cfg.dataInicio+"T00:00:00").getTime() : null;
+  let docs = [], incompleto = false;
+  try{
+    const todos = new Map();
+    let cursor = null;
+    for(let i=0;i<500;i++){
+      let q = db.collection("lancamentos").where("banco","==",banco).orderBy("dataEvento","desc");
+      if(cursor) q = q.where("dataEvento","<=",cursor);
+      const snap = await q.limit(1000).get();
+      let novos = 0;
+      snap.docs.forEach(d=>{ if(!todos.has(d.id)){ todos.set(d.id, d.data()); novos++; } });
+      if(snap.docs.length<1000) break;
+      const ultima = snap.docs[snap.docs.length-1].data().dataEvento;
+      if(dataInicioMs!=null && new Date(ultima).getTime()<dataInicioMs) break; // o resto é anterior ao início
+      if(novos===0){ incompleto = true; break; }
+      cursor = ultima;
+    }
+    docs = [...todos.values()];
+  }catch(e){
+    console.error('Leitura paginada falhou, usando consulta simples', e);
+    const snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get();
+    docs = snap.docs.map(d=>d.data());
+    incompleto = snap.docs.length>=1000;
+  }
   let soma = 0;
-  snap.docs.forEach(d=>{
-    const l = d.data();
+  docs.forEach(l=>{
     if(l.oculto) return;
     if(!afetaSaldo(l.status)) return;
     if(dataInicioMs!=null && new Date(l.dataEvento).getTime() < dataInicioMs) return;
     soma += l.tipo==='entrada' ? l.valor : -l.valor;
   });
-  return (cfg.saldoInicial||0) + soma;
+  return {saldo:(cfg.saldoInicial||0)+soma, incompleto};
 }
-
-async function recalcularTodosSaldos(){
-  const btn = document.getElementById('btnRecalcularSaldos');
-  btn.disabled = true; btn.textContent = 'Calculando...';
-  for(const banco of listas.banco){
-    const el = document.getElementById(`saldoAtual-${CSS.escape(banco)}`);
-    if(el) el.textContent = 'Calculando...';
-    const saldo = await calcularSaldoBanco(banco);
-    if(el) el.textContent = `Saldo atual: ${fmtMoeda(saldo)}`;
+async function carregarSaldos(forcar){
+  if(!db || saldosCarregando) return;
+  if(!forcar && Date.now()-saldosUltimaCalc<30000) return;
+  saldosCarregando = true; renderSaldos();
+  try{
+    await Promise.all(listas.banco.map(async b=>{
+      try{ saldosAtuais[b] = await calcularSaldoBanco(b); }
+      catch(e){ console.error('Falha ao calcular saldo de '+b, e); saldosAtuais[b] = {saldo:0, erro:true}; }
+    }));
+    saldosUltimaCalc = Date.now();
+  } finally {
+    saldosCarregando = false; renderSaldos();
   }
-  btn.disabled = false; btn.textContent = 'Calcular saldos atuais';
 }
+function recalcularTodosSaldos(){ return carregarSaldos(true); }
 document.getElementById('btnRecalcularSaldos').addEventListener('click', recalcularTodosSaldos);
 
-function renderCartao(){
-  const el = document.getElementById('cartaoResumo');
-  const tresMeses = {};
-  lancamentosCache.filter(l=>l.status && l.status.toUpperCase().startsWith('CREDITO') && l.tipo==='saida' && ehStatusReal(l.status)).forEach(l=>{
-    const d = new Date(l.dataEvento);
-    const chave = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    tresMeses[l.banco] = tresMeses[l.banco] || {};
-    tresMeses[l.banco][chave] = (tresMeses[l.banco][chave]||0) + l.valor;
+// ===== CARTÃO: faturas por data de fechamento =====
+let cartoesConfig = {};
+let cartaoDados = {};
+let cartaoAberto = -1;
+let cartaoSel = 0;
+let cartaoJanela = 0;
+let cartaoRecSel = null;
+let cartaoCarregando = false;
+let cartaoUltimaCalc = 0;
+let cartoesVisiveis = [];
+let msgCartao = '';
+let rascunhoFech = null;
+let filaCartao = Promise.resolve();
+const MESES_ABREV = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function pad2(n){ return String(n).padStart(2,'0'); }
+function chaveDia(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function addMesYm(ym,n){ const [y,m]=ym.split('-').map(Number); const d=new Date(y,m-1+n,1); return d.getFullYear()+'-'+pad2(d.getMonth()+1); }
+function diasNoMes(ym){ const [y,m]=ym.split('-').map(Number); return new Date(y,m,0).getDate(); }
+function addDiaChave(k,n){ const [y,m,d]=k.split('-').map(Number); return chaveDia(new Date(y,m-1,d+n)); }
+function fmtDiaMes(k){ return k.slice(8,10)+'/'+k.slice(5,7); }
+function fmtDataCompleta(k){ return k.slice(8,10)+'/'+k.slice(5,7)+'/'+k.slice(0,4); }
+function rotuloFatura(off, ym){
+  if(off===-1) return 'Anterior';
+  if(off===0) return 'Atual';
+  if(off===1) return 'Próxima';
+  return MESES_ABREV[parseInt(ym.slice(5,7),10)-1]+'/'+ym.slice(2,4);
+}
+function fechamentoDe(card, ym){
+  const f = card.faturas && card.faturas[ym];
+  if(f && f.fechamento) return f.fechamento;
+  let dia = card.diaPadrao || 1;
+  for(let i=1;i<=60;i++){
+    const g = card.faturas && card.faturas[addMesYm(ym,-i)];
+    if(g && g.fechamento){ dia = parseInt(g.fechamento.slice(8,10),10); break; }
+  }
+  return ym+'-'+pad2(Math.min(dia, diasNoMes(ym)));
+}
+function periodoFatura(card, ym){ return { ini: addDiaChave(fechamentoDe(card, addMesYm(ym,-1)),1), fim: fechamentoDe(card, ym) }; }
+function faturaBase(card, k){ const ym = k.slice(0,7); return k <= fechamentoDe(card, ym) ? ym : addMesYm(ym,1); }
+function faturaAtual(card){ const hoje = chaveDia(new Date()); const ym = hoje.slice(0,7); return hoje <= fechamentoDe(card, ym) ? ym : addMesYm(ym,1); }
+function diasAte(k){
+  const h = new Date(); const a = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+  const [y,m,d] = k.split('-').map(Number);
+  return Math.round((new Date(y,m-1,d) - a)/86400000);
+}
+function cartoesLista(){ return listas.banco.filter(b=>cartoesConfig[b]); }
+function registrosCartao(banco){
+  const card = cartoesConfig[banco], dados = cartaoDados[banco];
+  if(!card || !dados) return [];
+  return dados.docs.filter(l=>l.status && ehCredito(l.status) && !l.oculto && ehStatusReal(l.status)).map(l=>{
+    const d = chaveDia(new Date(l.dataEvento));
+    const base = faturaBase(card, d);
+    const aj = ajusteEfetivo(l);
+    return {id:l.id, t:l.descricao||'', d, v:(l.tipo==='entrada'?-1:1)*l.valor, base, aj, eff:addMesYm(base, aj), est:l.valorEstimado===true, bruto:l.valor};
   });
-  const bancos = Object.keys(tresMeses);
-  if(!bancos.length){ el.innerHTML = '<p class="muted">Nenhum lançamento de crédito ainda.</p>'; return; }
-  el.innerHTML = bancos.map(b=>{
-    const meses = Object.keys(tresMeses[b]).sort().slice(-3);
-    return `<div class="summary" style="margin-bottom:8px;">
-      <div class="card" style="text-align:left;flex:0 0 90px;"><b>${b}</b></div>
-      ${meses.map(m=>`<div class="card"><div class="num">${fmtMoeda(tresMeses[b][m])}</div><div class="muted">${m}</div></div>`).join('')}
-    </div>`;
-  }).join('');
+}
+function totalFatura(recs, ym){ return Math.round(recs.filter(r=>r.eff===ym).reduce((s,r)=>s+r.v,0)*100)/100; }
+function desdeNecessario(card){
+  const atual = faturaAtual(card);
+  const maisAntiga = addMesYm(atual, Math.min(cartaoJanela-1, -1));
+  return periodoFatura(card, addMesYm(maisAntiga,-1)).ini;
+}
+async function lerLancamentosBanco(banco, desdeChave){
+  const desdeMs = new Date(desdeChave+'T00:00:00').getTime();
+  const todos = new Map();
+  let incompleto = false, cursor = null;
+  try{
+    for(let i=0;i<500;i++){
+      let q = db.collection("lancamentos").where("banco","==",banco).orderBy("dataEvento","desc");
+      if(cursor) q = q.where("dataEvento","<=",cursor);
+      const snap = await q.limit(1000).get();
+      let novos = 0;
+      snap.docs.forEach(d=>{ if(!todos.has(d.id)){ todos.set(d.id, {id:d.id, ...clonar(d.data())}); novos++; } });
+      if(snap.docs.length<1000) break;
+      const ultima = snap.docs[snap.docs.length-1].data().dataEvento;
+      if(new Date(ultima).getTime()<desdeMs) break;
+      if(novos===0){ incompleto = true; break; }
+      cursor = ultima;
+    }
+  }catch(e){
+    console.error('Leitura paginada falhou (cartão), usando consulta simples', e);
+    const snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get();
+    todos.clear();
+    snap.docs.forEach(d=>todos.set(d.id, {id:d.id, ...clonar(d.data())}));
+    incompleto = snap.docs.length>=1000;
+  }
+  return {docs:[...todos.values()], incompleto};
+}
+async function carregarCartoesConfig(){
+  if(!db) return;
+  try{
+    const snap = await db.doc("config/cartoes").get();
+    const d = snap.data();
+    cartoesConfig = clonar((d && d.porBanco) || {});
+  }catch(e){ console.error('Falha ao carregar config/cartoes', e); }
+  renderCartao();
+}
+async function carregarBancoCartao(b){
+  const card = cartoesConfig[b];
+  const desde = desdeNecessario(card);
+  try{
+    const r = await lerLancamentosBanco(b, desde);
+    cartaoDados[b] = {desde, docs:r.docs, incompleto:r.incompleto};
+  }catch(e){
+    console.error('Falha ao ler lançamentos de '+b, e);
+    cartaoDados[b] = {desde, docs:[], incompleto:true, erro:true};
+  }
+}
+async function carregarCartoes(forcar){
+  if(!db || cartaoCarregando) return;
+  const lista = cartoesLista();
+  if(!forcar && Date.now()-cartaoUltimaCalc<30000 && lista.every(b=>cartaoDados[b])){ renderCartao(); return; }
+  cartaoCarregando = true; renderCartao();
+  try{
+    await Promise.all(lista.map(carregarBancoCartao));
+    cartaoUltimaCalc = Date.now();
+  } finally { cartaoCarregando = false; renderCartao(); }
+}
+async function garantirDadosBanco(b){
+  const card = cartoesConfig[b], d = cartaoDados[b];
+  if(d && d.desde <= desdeNecessario(card)) return;
+  cartaoCarregando = true; renderCartao();
+  try{ await carregarBancoCartao(b); } finally { cartaoCarregando = false; renderCartao(); }
+}
+function igualProfundo(a,b){
+  if(a===b) return true;
+  if(typeof a!=='object' || typeof b!=='object' || !a || !b) return false;
+  const ka = Object.keys(a), kb = Object.keys(b);
+  if(ka.length!==kb.length) return false;
+  return ka.every(k=>igualProfundo(a[k], b[k]));
+}
+function atualizarConfigCartoes(mutador){
+  const exec = async ()=>{
+    const ref = db.doc("config/cartoes");
+    const snap = await ref.get();
+    const pb = clonar((snap.data() && snap.data().porBanco) || {});
+    mutador(pb);
+    await ref.set({porBanco: pb});
+    const conf = await ref.get();
+    const g = clonar((conf.data() && conf.data().porBanco) || {});
+    if(!igualProfundo(g, pb)) throw new Error('O banco de dados não guardou a configuração enviada.');
+    cartoesConfig = g;
+  };
+  const p = filaCartao.then(exec);
+  filaCartao = p.catch(()=>{});
+  return p;
+}
+async function ajustarFatura(id, n){
+  await db.collection("lancamentos").doc(id).update({faturaAjuste:n});
+  Object.values(cartaoDados).forEach(d=>{ const it = d.docs.find(x=>x.id===id); if(it) it.faturaAjuste = n; });
+  const c = lancamentosCache.find(x=>x.id===id); if(c) c.faturaAjuste = n;
+  aplicarLocal(id, {faturaAjuste:n});
+}
+function valorBancoDe(card, ym){
+  const f = card.faturas && card.faturas[ym];
+  return (f && typeof f.valorBanco==='number') ? f.valorBanco : null;
+}
+function monthsDiff(a, b){ return (parseInt(a.slice(0,4),10)-parseInt(b.slice(0,4),10))*12 + (parseInt(a.slice(5,7),10)-parseInt(b.slice(5,7),10)); }
+function diaNum(k){ const [y,m,d] = k.split('-').map(Number); return Math.round(new Date(y,m-1,d)/86400000); }
+let cartaoCands = [];
+function candidatosFatura(b, ym, d){
+  const card = cartoesConfig[b], per = periodoFatura(card, ym), recs = registrosCartao(b);
+  const MARGEM = 5;
+  const distCorte = r => Math.min(Math.abs(diaNum(r.d)-diaNum(per.ini)), Math.abs(diaNum(r.d)-diaNum(per.fim)));
+  let pool;
+  if(d>0) pool = recs.filter(r=>r.eff===ym);
+  else pool = recs.filter(r=>Math.abs(monthsDiff(r.eff, ym))===1);
+  pool = pool.filter(r=>r.v>0 && distCorte(r)<=MARGEM).sort((a,c)=>distCorte(a)-distCorte(c)).slice(0,30);
+  const alvo = Math.round(Math.abs(d)*100);
+  const cents = r=>Math.round(r.v*100);
+  const achados = [];
+  const n = pool.length;
+  for(let i=0;i<n;i++){
+    if(cents(pool[i])===alvo) achados.push([pool[i]]);
+    for(let j=i+1;j<n;j++){
+      if(cents(pool[i])+cents(pool[j])===alvo) achados.push([pool[i],pool[j]]);
+      for(let k=j+1;k<n;k++){
+        if(cents(pool[i])+cents(pool[j])+cents(pool[k])===alvo) achados.push([pool[i],pool[j],pool[k]]);
+      }
+    }
+  }
+  const res = [];
+  achados.sort((a,c)=> a.length-c.length || a.reduce((s,r)=>s+distCorte(r),0)-c.reduce((s,r)=>s+distCorte(r),0));
+  for(const arr of achados){
+    let acoes, rotulo;
+    if(d>0){
+      const dirs = arr.map(r=> Math.abs(diaNum(r.d)-diaNum(per.fim)) <= Math.abs(diaNum(r.d)-diaNum(per.ini)) ? 1 : -1);
+      acoes = arr.map((r,i)=>({id:r.id, aj:monthsDiff(addMesYm(ym, dirs[i]), r.base)}));
+      rotulo = dirs.every(x=>x===1) ? 'Passar para a próxima fatura' : (dirs.every(x=>x===-1) ? 'Trazer para a anterior' : 'Tirar desta fatura');
+    } else {
+      acoes = arr.map(r=>({id:r.id, aj:monthsDiff(ym, r.base)}));
+      rotulo = 'Trazer para esta fatura';
+    }
+    if(acoes.some(a=>Math.abs(a.aj)>1)) continue;
+    res.push({recs:arr, acoes, rotulo});
+    if(res.length>=5) break;
+  }
+  return res;
+}
+function conferenciaHtml(b, ym, vb){
+  const card = cartoesConfig[b];
+  const per = periodoFatura(card, ym);
+  const fechada = chaveDia(new Date()) > per.fim;
+  const recs = registrosCartao(b);
+  const total = totalFatura(recs, ym);
+  cartaoCands = [];
+  if(vb===null || isNaN(vb)) return '<p class="muted">Digite o valor do app do cartão e salve para conferir.</p>';
+  const d = Math.round((total - vb)*100)/100;
+  if(d===0) return '<p style="color:var(--income);font-weight:600;margin:6px 0;">Bateu ✓</p>';
+  let h = `<p style="color:var(--expense);font-weight:600;margin:6px 0;">Diferença de ${fmtMoeda(Math.abs(d))} (${d>0?'o calculado é maior':'o calculado é menor'})</p>`;
+  const nEst = recs.filter(r=>r.eff===ym && r.est).length;
+  if(nEst) h += `<p class="muted">Há ${nEst} compra${nEst>1?'s':''} com valor estimado. Corrija ${nEst>1?'os valores':'o valor'} abaixo antes de procurar outras causas.</p>`;
+  if(!fechada) return h + '<p class="muted">Fatura ainda aberta: a conferência fica mais confiável depois do fechamento.</p>';
+  cartaoCands = candidatosFatura(b, ym, d);
+  if(cartaoCands.length){
+    h += '<div class="muted" style="margin-top:6px;">Registros perto do corte que explicam a diferença:</div>';
+    h += cartaoCands.map((c,i)=>`<div class="sd-painel" style="margin:6px 0;padding:8px;"><div style="font-size:13px;">${c.recs.map(r=>`${r.t} <span class="muted">${fmtDiaMes(r.d)} · ${fmtMoeda(r.v)}</span>`).join(' + ')}</div><button class="ghost" data-cand="${i}" style="margin-top:6px;font-size:12px;padding:4px 10px;">${c.rotulo}</button></div>`).join('');
+  } else {
+    h += `<p class="muted">Nenhum registro perto do corte bate com ${fmtMoeda(Math.abs(d))}.${d<0?' Pode ser anuidade, juros, IOF ou uma compra não registrada.':' Pode ser um valor registrado a mais ou um registro duplicado.'}</p>`;
+    if(d<0) h += `<button class="ghost" data-regdif="${ym}" style="font-size:12px;padding:4px 10px;">Registrar a diferença como lançamento</button>`;
+  }
+  return h;
+}
+function painelCartaoHtml(i){
+  const b = cartoesVisiveis[i], card = cartoesConfig[b], dados = cartaoDados[b];
+  if(!dados) return '<div class="sd-painel"><p class="muted">Carregando faturas...</p></div>';
+  const at = faturaAtual(card);
+  const offs = [cartaoJanela-1, cartaoJanela, cartaoJanela+1];
+  if(!offs.includes(cartaoSel)) cartaoSel = cartaoJanela;
+  const ym = addMesYm(at, cartaoSel);
+  const per = periodoFatura(card, ym);
+  const fechada = chaveDia(new Date()) > per.fim;
+  const recs = registrosCartao(b);
+  const total = totalFatura(recs, ym);
+  const fechValor = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym) ? rascunhoFech.f : per.fim;
+  let h = '<div class="sd-painel">';
+  h += '<div class="tags" style="align-items:center;margin-top:0;">'
+    + `<span class="tag" data-janela="-1" aria-label="Faturas mais antigas">‹</span>`
+    + offs.map(o=>`<span class="tag ${cartaoSel===o?'on':''}" data-chip="${o}">${rotuloFatura(o, addMesYm(at,o))}</span>`).join('')
+    + `<span class="tag" data-janela="1" aria-label="Faturas mais novas">›</span></div>`;
+  h += `<p class="muted" style="margin:8px 0 4px;">Período: ${fmtDataCompleta(per.ini)} a ${fmtDataCompleta(per.fim)} · ${fechada?'fechada':'aberta'}</p>`;
+  h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${fechValor}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
+  h += `<p class="muted" id="cMsg">${msgCartao||''}</p>`;
+  h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(total)}${dados.incompleto?' ⚠':''}</span></div>`;
+  const vb = valorBancoDe(card, ym);
+  const vbTxt = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym && rascunhoFech.vb!==undefined) ? rascunhoFech.vb : (vb===null ? '' : String(vb));
+  h += `<label>Valor no app do cartão (para conferir)</label><div class="row"><input type="number" step="0.01" id="cBanco" data-ym="${ym}" value="${vbTxt}"><button class="ghost" id="btnSalvarBanco" data-ym="${ym}">Salvar</button></div>`;
+  h += `<div id="cConf">${conferenciaHtml(b, ym, vbTxt==='' ? null : parseFloat(vbTxt))}</div>`;
+  const est = recs.filter(r=>r.eff===ym && r.est);
+  if(est.length){
+    h += '<div style="margin:8px 0;"><div class="muted">Valores estimados (corrija com o valor real em reais):</div>' + est.map(r=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t">${r.t}</span><input type="number" step="0.01" id="est-${r.id}" value="${r.bruto}" style="flex:0 0 96px;width:96px;"><button class="ghost" data-est="${r.id}" style="padding:4px 10px;">Corrigir</button></div>`).join('') + '</div>';
+  }
+  const lista = recs.filter(r=>r.base===ym || r.eff===ym).sort((a,c)=> a.d<c.d?-1 : a.d>c.d?1 : 0);
+  if(!lista.length) h += '<p class="muted">Nenhuma compra nesta fatura.</p>';
+  lista.forEach(r=>{
+    const fora = r.eff!==ym;
+    let tag = '';
+    if(fora) tag = `<span class="fx-tag">foi para a ${r.eff>ym?'próxima':'anterior'} fatura</span>`;
+    else if(r.base!==ym) tag = `<span class="fx-tag">veio da ${r.base<ym?'anterior':'próxima'} fatura</span>`;
+    const estTag = r.est ? '<span class="fx-tag" style="margin-left:6px;">valor estimado</span>' : '';
+    h += `<div class="fx-rec ${fora?'fora':''}" data-rec="${r.id}"><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${r.t}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.v)}</span></div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
+    if(cartaoRecSel===r.id){
+      const ops = [[0,'Pela data (normal)'],[1,'Passar para a próxima fatura'],[-1,'Trazer para a anterior']].filter(o=>o[0]!==r.aj);
+      h += '<div class="fx-acoes">' + ops.map(o=>`<button class="ghost" data-ajuste="${r.id}|${o[0]}" style="font-size:12px;padding:4px 10px;">${o[1]}</button>`).join('') + '</div>';
+    }
+    h += '</div>';
+  });
+  h += `<div style="margin-top:12px;"><button class="ghost" data-rm="${i}" style="font-size:12px;">Remover este cartão</button></div></div>`;
+  return h;
+}
+function renderCartao(){
+  const el = document.getElementById('listaCartoes');
+  if(!el) return;
+  const cf = document.getElementById('cFech');
+  if(cf && cartaoAberto>=0 && cartoesVisiveis[cartaoAberto]){ const cb = document.getElementById('cBanco'); rascunhoFech = {b:cartoesVisiveis[cartaoAberto], ym:cf.dataset.ym, f:cf.value, vb:cb?cb.value:undefined}; }
+  cartoesVisiveis = cartoesLista();
+  const n = cartoesVisiveis.length;
+  let total = 0, minDias = null;
+  cartoesVisiveis.forEach(b=>{
+    const card = cartoesConfig[b];
+    const at = faturaAtual(card);
+    total += totalFatura(registrosCartao(b), at);
+    const dd = diasAte(fechamentoDe(card, at));
+    if(minDias===null || dd<minDias) minDias = dd;
+  });
+  const temDados = cartoesVisiveis.some(b=>cartaoDados[b]);
+  document.getElementById('cartaoTotal').textContent = (n && temDados) ? fmtMoeda(total) : '···';
+  document.getElementById('cartaoSub').textContent = !n ? 'Adicione um cartão abaixo' : (cartaoCarregando ? 'Calculando...' :
+    `${n} ${n>1?'cartões':'cartão'} · próximo fechamento ${minDias===0?'hoje':'em '+minDias+' dia'+(Math.abs(minDias)===1?'':'s')}`);
+  let h = '';
+  cartoesVisiveis.forEach((b,i)=>{
+    const card = cartoesConfig[b], at = faturaAtual(card), dados = cartaoDados[b];
+    const fech = fechamentoDe(card, at), dd = diasAte(fech);
+    const val = dados ? fmtMoeda(totalFatura(registrosCartao(b), at)) + (dados.incompleto?' ⚠':'') : '···';
+    h += `<div class="sd-row" data-cartao="${i}"><div class="sd-nome">${b}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fech)} · ${dd===0?'hoje':'em '+dd+' dia'+(Math.abs(dd)===1?'':'s')}</div></div><div class="sd-val ${dados&&!cartaoCarregando?'':'carr'}">${val}</div><span class="muted">${cartaoAberto===i?'▴':'▾'}</span></div>`;
+    if(cartaoAberto===i) h += painelCartaoHtml(i);
+  });
+  if(!n) h = '<p class="muted" style="padding:6px 4px;">Nenhum cartão cadastrado ainda.</p>';
+  el.innerHTML = h;
+  // opções para adicionar cartão
+  const sel = document.getElementById('ncBanco');
+  if(sel){
+    const antes = sel.value;
+    const comCredito = new Set(lancamentosCache.filter(l=>l.status && ehCredito(l.status)).map(l=>l.banco));
+    const livres = listas.banco.filter(b=>!cartoesConfig[b]).sort((a,c)=>(comCredito.has(c)?1:0)-(comCredito.has(a)?1:0));
+    sel.innerHTML = livres.map(b=>`<option value="${b}">${b}${comCredito.has(b)?' (tem compras no crédito)':''}</option>`).join('');
+    if(livres.includes(antes)) sel.value = antes;
+  }
+}
+async function onCartaoClick(e){
+  if(e.target.closest('input')) return;
+  const el = e.target.closest('[data-cartao],[data-chip],[data-janela],[data-rec],[data-ajuste],#btnSalvarFech,[data-rm],[data-est],[data-cand],[data-regdif],#btnSalvarBanco');
+  if(!el) return;
+  if(el.dataset.est){
+    const id = el.dataset.est;
+    const n = parseFloat(document.getElementById('est-'+id).value);
+    if(!n || n<=0){ await avisar('Informe um valor válido.'); return; }
+    try{
+      await db.collection("lancamentos").doc(id).update({valor:n, valorEstimado:false});
+      Object.values(cartaoDados).forEach(d=>{ const it = d.docs.find(x=>x.id===id); if(it){ it.valor = n; it.valorEstimado = false; } });
+      const c = lancamentosCache.find(x=>x.id===id); if(c){ c.valor = n; c.valorEstimado = false; }
+      aplicarLocal(id, {valor:n, valorEstimado:false});
+    }catch(err){ await avisar('Não consegui corrigir o valor: ' + ((err&&(err.code||err.message))||err)); }
+    renderCartao(); return;
+  }
+  if(el.dataset.cand!==undefined){
+    const c = cartaoCands[parseInt(el.dataset.cand,10)];
+    if(!c) return;
+    try{ for(const a of c.acoes){ await ajustarFatura(a.id, a.aj); } }
+    catch(err){ await avisar('Não consegui ajustar a fatura: ' + ((err&&(err.code||err.message))||err)); }
+    cartaoRecSel = null; renderCartao(); return;
+  }
+  if(el.id==='btnSalvarBanco'){
+    const b = cartoesVisiveis[cartaoAberto];
+    const ym = el.dataset.ym;
+    const raw = document.getElementById('cBanco').value.trim();
+    const msgEl = document.getElementById('cMsg');
+    let v = null;
+    if(raw!==''){ v = parseFloat(raw); if(isNaN(v) || v<0){ msgEl.textContent = '⚠️ Valor inválido.'; return; } }
+    try{
+      msgEl.textContent = 'Salvando...';
+      await atualizarConfigCartoes(pb=>{
+        const c = pb[b]; if(!c) return;
+        c.faturas = c.faturas||{};
+        const cur = {...(c.faturas[ym]||{})};
+        if(v===null) delete cur.valorBanco; else cur.valorBanco = v;
+        if(Object.keys(cur).length) c.faturas[ym] = cur; else delete c.faturas[ym];
+      });
+      rascunhoFech = null; msgCartao = 'Salvo ✓';
+      renderCartao();
+    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + ((err&&(err.code||err.message))||err); }
+    return;
+  }
+  if(el.dataset.regdif){
+    const b = cartoesVisiveis[cartaoAberto], ym = el.dataset.regdif, card = cartoesConfig[b];
+    const vbN = parseFloat(document.getElementById('cBanco').value);
+    const falta = Math.round((vbN - totalFatura(registrosCartao(b), ym))*100)/100;
+    if(!(falta>0)) return;
+    const st = listas.status.find(x=>normStatus(x)==='CREDITO');
+    if(!st){ await avisar('Cadastre um status CRÉDITO na aba Listas para registrar a diferença.'); return; }
+    const per = periodoFatura(card, ym);
+    if(!(await confirmarModal(`Registrar um lançamento de ${fmtMoeda(falta)} em ${b}, em ${fmtDataCompleta(per.fim)} (fechamento), com status ${st}?`))) return;
+    try{
+      await db.collection("lancamentos").add({
+        status: st, tipo: 'saida', valor: falta,
+        descricao: 'Ajuste da fatura ' + rotuloFatura(2, ym) + ' (juros, anuidade ou IOF)',
+        nota: '', dataEvento: new Date(per.fim+'T12:00:00').toISOString(),
+        banco: b, tags: [], excluirDoTotal: false, faturaAjuste: 0, valorEstimado: false,
+        criadoEm: new Date().toISOString()
+      });
+      await carregarBancoCartao(b);
+    }catch(err){ await avisar('Não consegui registrar: ' + ((err&&(err.code||err.message))||err)); }
+    renderCartao(); return;
+  }
+  if(el.dataset.ajuste){
+    const [id, n] = el.dataset.ajuste.split('|');
+    cartaoRecSel = null;
+    try{ await ajustarFatura(id, parseInt(n,10)); }catch(err){ await avisar('Não consegui ajustar a fatura: ' + ((err&&(err.code||err.message))||err)); }
+    renderCartao(); return;
+  }
+  if(el.dataset.rec){ cartaoRecSel = (cartaoRecSel===el.dataset.rec) ? null : el.dataset.rec; renderCartao(); return; }
+  if(el.dataset.chip!==undefined){ cartaoSel = parseInt(el.dataset.chip,10); cartaoRecSel = null; msgCartao = ''; rascunhoFech = null; renderCartao(); return; }
+  if(el.dataset.janela!==undefined){
+    cartaoJanela += parseInt(el.dataset.janela,10);
+    cartaoSel = cartaoJanela; cartaoRecSel = null; msgCartao = ''; rascunhoFech = null;
+    const b = cartoesVisiveis[cartaoAberto];
+    renderCartao();
+    if(b) await garantirDadosBanco(b);
+    return;
+  }
+  if(el.dataset.cartao!==undefined){
+    const i = parseInt(el.dataset.cartao,10);
+    cartaoAberto = (cartaoAberto===i) ? -1 : i;
+    cartaoSel = 0; cartaoJanela = 0; cartaoRecSel = null; msgCartao = ''; rascunhoFech = null;
+    renderCartao();
+    return;
+  }
+  if(el.id==='btnSalvarFech'){
+    const b = cartoesVisiveis[cartaoAberto];
+    const ym = el.dataset.ym;
+    const valor = document.getElementById('cFech').value.trim();
+    const m = valor.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const msgEl = document.getElementById('cMsg');
+    if(!m){ msgEl.textContent = '⚠️ Data inválida. Use o formato AAAA-MM-DD, ex: 2026-09-25.'; return; }
+    const dt = new Date(+m[1], +m[2]-1, +m[3]);
+    if(dt.getFullYear()!==+m[1] || dt.getMonth()!==+m[2]-1 || dt.getDate()!==+m[3]){ msgEl.textContent = '⚠️ Essa data não existe.'; return; }
+    if(valor.slice(0,7)!==ym){ msgEl.textContent = '⚠️ O fechamento desta fatura precisa ser em ' + MESES_ABREV[parseInt(ym.slice(5,7),10)-1] + '/' + ym.slice(0,4) + '.'; return; }
+    try{
+      msgEl.textContent = 'Salvando...';
+      await atualizarConfigCartoes(pb=>{ const c = pb[b]; if(!c) return; c.faturas = c.faturas||{}; c.faturas[ym] = {...(c.faturas[ym]||{}), fechamento:valor}; });
+      rascunhoFech = null; msgCartao = 'Salvo ✓';
+      await garantirDadosBanco(b);
+      renderCartao();
+    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + ((err&&(err.code||err.message))||err); }
+    return;
+  }
+  if(el.dataset.rm!==undefined){
+    const b = cartoesVisiveis[parseInt(el.dataset.rm,10)];
+    if(!b) return;
+    if(!(await confirmarModal('Remover ' + b + ' da lista de cartões? Os lançamentos não são apagados, só as datas de fechamento configuradas.'))) return;
+    try{
+      await atualizarConfigCartoes(pb=>{ delete pb[b]; });
+      cartaoAberto = -1; renderCartao();
+    }catch(err){ await avisar('Não consegui remover: ' + ((err&&(err.code||err.message))||err)); }
+  }
+}
+async function adicionarCartaoUI(){
+  const banco = document.getElementById('ncBanco').value;
+  const dia = parseInt(document.getElementById('ncDia').value,10);
+  const msgEl = document.getElementById('ncMsg');
+  if(!banco){ msgEl.textContent = '⚠️ Escolha um banco ou conta.'; return; }
+  if(!dia || dia<1 || dia>31){ msgEl.textContent = '⚠️ Informe o dia do fechamento (1 a 31).'; return; }
+  try{
+    msgEl.textContent = 'Salvando...';
+    await atualizarConfigCartoes(pb=>{ if(!pb[banco]) pb[banco] = {diaPadrao:dia, faturas:{}}; });
+    document.getElementById('ncDia').value = '';
+    msgEl.textContent = 'Cartão adicionado ✓';
+    await carregarCartoes(true);
+  }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + ((err&&(err.code||err.message))||err); }
 }
 
 function normalizaCabecalho(s){
@@ -1449,7 +2121,7 @@ async function exportarDados(){
     const lancamentos = await lerTodosLancamentos(n=>{ statusEl.textContent = `Lendo lançamentos... ${n}`; });
     statusEl.textContent = "Lendo configurações...";
     const documentos = {};
-    for(const caminho of ["config/listas","config/tags","config/combos","config/saldos"]){
+    for(const caminho of ["config/listas","config/tags","config/combos","config/saldos","config/cartoes"]){
       const snap = await db.doc(caminho).get();
       documentos[caminho] = snap.data() ? clonar(snap.data()) : null;
     }
