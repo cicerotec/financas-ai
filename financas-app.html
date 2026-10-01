@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Finanças pessoais</title>
+<style>
+:root{
+  --bg:#f7f7f5; --card:#fff; --text:#1a1a1a; --muted:#6b6b6b; --border:#e3e2de;
+  --accent:#2f6f4f; --accent-ink:#fff; --danger:#b3413a; --income:#2f6f4f; --expense:#b3413a;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
+    --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
+  --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,sans-serif;min-height:100%;}
+header{position:sticky;top:0;padding:env(safe-area-inset-top,0px) 16px 10px;background:var(--bg);border-bottom:1px solid var(--border);z-index:5;}
+h1{font-size:18px;margin:10px 0 8px;}
+nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+nav button{border:1px solid var(--border);background:var(--card);color:var(--text);padding:7px 12px;border-radius:20px;font-size:13px;white-space:nowrap;cursor:pointer;}
+nav button.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+main{max-width:640px;margin:0 auto;padding:14px 16px 40px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;}
+textarea{min-height:60px;resize:vertical;}
+button.primary{background:var(--accent);color:var(--accent-ink);border:none;padding:11px 14px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-top:10px;}
+button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer;}
+.row{display:flex;gap:8px;}
+.row>*{flex:1;}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.tag{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:3px 9px;font-size:12px;cursor:pointer;}
+.tag.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+.item{border-bottom:1px solid var(--border);padding:10px 0;}
+.item:last-child{border-bottom:none;}
+.item-top{display:flex;justify-content:space-between;font-size:14px;}
+.item-desc{font-weight:600;}
+.item-meta{font-size:12px;color:var(--muted);margin-top:2px;}
+.item-acoes{display:flex;gap:6px;margin-top:6px;}
+.item-acoes button{border:1px solid var(--border);background:var(--bg);color:var(--text);padding:4px 9px;border-radius:6px;font-size:12px;cursor:pointer;}
+.item.oculto{opacity:0.55;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;max-width:360px;width:100%;}
+.modal-box p{margin:0 0 14px;font-size:14px;}
+.modal-botoes{display:flex;gap:8px;}
+.modal-botoes button{flex:1;}
+.valor.entrada{color:var(--income);font-weight:700;}
+.valor.saida{color:var(--expense);font-weight:700;}
+.muted{color:var(--muted);font-size:12px;}
+.pill-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.pill{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;position:relative;padding-right:26px;min-width:160px;}
+.pill button[data-del-status],.pill button[data-del-banco]{position:absolute;top:6px;right:8px;}
+.pill button{border:none;background:none;color:var(--danger);cursor:pointer;font-size:13px;padding:0;}
+.hidden{display:none !important;}
+.ai-preview{border:1px dashed var(--accent);border-radius:10px;padding:10px;margin-top:10px;}
+.summary{display:flex;gap:10px;}
+.summary .card{flex:1;text-align:center;}
+.summary .num{font-size:20px;font-weight:700;}
+select[multiple]{min-height:70px;}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.filters select{flex:1;min-width:110px;}
+.dropdown-btn{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dropdown-panel{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-top:4px;padding:8px;z-index:20;max-height:220px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,0.18);}
+.dropdown-panel .dropdown-actions{display:flex;justify-content:space-between;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.dropdown-panel .dropdown-actions button{background:none;border:none;color:var(--accent);cursor:pointer;padding:0;font-size:12px;}
+.dropdown-panel label{display:flex;align-items:center;gap:6px;padding:5px 2px;font-size:13px;cursor:pointer;}
+.dropdown-panel label input{width:auto;}
+svg text{fill:var(--text);font-size:10px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>💰 Finanças da Família</h1>
+  <nav>
+    <button data-tab="lancar" class="active">Lançar</button>
+    <button data-tab="historico">Histórico</button>
+    <button data-tab="listas">Listas</button>
+    <button data-tab="tendencias">Tendências</button>
+    <button data-tab="cartao">Cartão</button>
+    <button data-tab="saldos">Saldos</button>
+    <button data-tab="importar">Importar</button>
+  </nav>
+</header>
+<main>
+
+<section id="tab-lancar">
+  <div class="card">
+    <label>Descreva o lançamento (a IA preenche pra você)</label>
+    <textarea id="notaLivre" placeholder="Ex: paguei 87,40 no posto ontem no crédito, cartão santander"></textarea>
+    <button class="primary" id="btnIA">✨ Preencher com IA</button>
+    <p class="muted" id="iaStatus"></p>
+  </div>
+
+  <div class="card" id="formCard">
+    <label>Status</label>
+    <select id="fStatus"></select>
+
+    <label>Tipo</label>
+    <div class="row">
+      <select id="fTipo"><option value="saida">Saída (gasto)</option><option value="entrada">Entrada (receita)</option></select>
+      <input id="fValor" type="number" step="0.01" placeholder="Valor R$">
+    </div>
+
+    <label>Descrição</label>
+    <input id="fDesc" type="text" placeholder="Descrição do lançamento">
+
+    <label>Nota (detalhe extra, opcional)</label>
+    <textarea id="fNota"></textarea>
+
+    <div class="row">
+      <div><label>Data/hora do evento</label><input id="fData" type="datetime-local"></div>
+      <div><label>Banco</label><select id="fBanco"></select></div>
+    </div>
+
+    <label>Tags (toque num combo, busque ou digite abaixo para criar novas)</label>
+    <div id="tagArea">
+      <div id="tagCombos"></div>
+      <div class="tags" id="tagMarcadas"></div>
+      <input id="tagBusca" type="text" placeholder="Buscar tag..." style="margin-top:8px;">
+      <div class="tags" id="tagPicker"></div>
+    </div>
+    <input id="novaTagInput" type="text" placeholder="nova tag + Enter" style="margin-top:6px;">
+
+    <button class="primary" id="btnSalvar">Salvar lançamento</button>
+    <button class="ghost hidden" id="btnCancelarEdicao" style="width:100%;margin-top:6px;">Cancelar edição</button>
+    <button class="ghost" id="btnLimpar" style="width:100%;margin-top:6px;">Limpar formulário</button>
+  </div>
+
+  <div class="card">
+    <b>Transferência entre contas</b>
+    <p class="muted">Move dinheiro de uma conta sua para outra sem contar como gasto/receita real.</p>
+    <div class="row">
+      <div><label>De (banco)</label><select id="tBancoOrigem"></select></div>
+      <div><label>Para (banco)</label><select id="tBancoDestino"></select></div>
+    </div>
+    <label>Valor</label>
+    <input id="tValor" type="number" step="0.01">
+    <button class="primary" id="btnTransferir">Registrar transferência</button>
+  </div>
+</section>
+
+<section id="tab-historico" class="hidden">
+  <div class="card" style="margin-bottom:10px;">
+    <label>Buscar por texto (descrição ou nota) em todo o histórico</label>
+    <div class="row" style="flex-wrap:wrap;">
+      <input type="text" id="buscaTexto" placeholder="ex: farmácia, Kyla, Netflix..." style="flex:1;min-width:180px;">
+      <button class="primary" id="btnBuscarTexto" style="flex:0 0 auto;width:auto;margin-top:0;">Buscar</button>
+      <button class="ghost hidden" id="btnLimparBusca" style="flex:0 0 auto;">Voltar ao padrão</button>
+    </div>
+    <p class="muted" id="buscaTextoStatus" style="margin-top:6px;"></p>
+  </div>
+  <div class="filters">
+    <div style="flex:1;min-width:110px;position:relative;">
+      <button type="button" id="filStatusBtn" class="dropdown-btn">Status: todos</button>
+      <div id="filStatusPanel" class="dropdown-panel hidden"></div>
+    </div>
+    <div style="flex:1;min-width:110px;position:relative;">
+      <button type="button" id="filBancoBtn" class="dropdown-btn">Banco: todos</button>
+      <div id="filBancoPanel" class="dropdown-panel hidden"></div>
+    </div>
+    <select id="filTag"><option value="">Tag: todas</option></select>
+  </div>
+  <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);"><input type="checkbox" id="filMostrarOcultos" style="width:auto;"> mostrar ocultos</label>
+  <div class="row" style="margin-bottom:8px;">
+    <select id="filOrdenacao">
+      <option value="desc">Data: mais recente primeiro</option>
+      <option value="asc">Data: mais antiga primeiro</option>
+    </select>
+  </div>
+  <div class="row" style="margin-bottom:8px;">
+    <input type="month" id="filMesEspecifico">
+    <button class="ghost" id="btnBuscarMes">Buscar esse mês</button>
+    <button class="ghost hidden" id="btnLimparMes">Voltar ao padrão</button>
+  </div>
+  <p class="muted" id="contadorHistorico" style="margin:4px 0 8px;"></p>
+  <div class="card" id="listaLancamentos"><p class="muted">Carregando...</p></div>
+</section>
+
+<section id="tab-listas" class="hidden">
+  <div class="card">
+    <b>Aparência</b>
+    <p class="muted">Como as cores dos status aparecem no Histórico. A cor de cada status você escolhe na bolinha, no cartão Status logo abaixo.</p>
+    <div class="tags" id="estiloCorBtns"></div>
+    <div id="prevCor" style="margin-top:10px;"></div>
+  </div>
+  <div class="card">
+    <b>Status</b>
+    <p class="muted">O checkbox marca se esse status é dinheiro que já aconteceu de verdade (conta no saldo, cartão e tendências) ou só uma previsão/planejamento (não conta ainda).</p>
+    <div class="pill-list" id="pillStatus"></div>
+    <div class="row" style="margin-top:8px;"><input id="novoStatus" placeholder="novo status"><button class="ghost" id="btnAddStatus">Adicionar</button></div>
+  </div>
+  <div class="card">
+    <b>Bancos / contas</b>
+    <div class="pill-list" id="pillBanco"></div>
+    <div class="row" style="margin-top:8px;"><input id="novoBanco" placeholder="novo banco"><button class="ghost" id="btnAddBanco">Adicionar</button></div>
+  </div>
+  <div class="card">
+    <b>Tags</b>
+    <p class="muted">Excluir uma tag em uso avisa quantos lançamentos a usam e deixa você migrar pra outra.</p>
+    <div class="pill-list" id="pillTags"></div>
+  </div>
+  <div class="card">
+    <b>Combos de tags</b>
+    <p class="muted">Conjuntos de tags que você marca de uma vez no Lançar. Para criar, marque as tags no Lançar e toque em "Salvar seleção como combo".</p>
+    <div id="listaCombos"></div>
+  </div>
+</section>
+
+<section id="tab-tendencias" class="hidden">
+  <div class="card">
+    <label>Escolha uma tag</label>
+    <select id="tagChartSelect"></select>
+    <div id="chartArea" style="margin-top:10px;"></div>
+  </div>
+</section>
+
+<section id="tab-cartao" class="hidden">
+  <div class="card">
+    <p class="muted">Total gasto no crédito (status que começam com CRÉDITO), por banco, nos últimos 3 meses.</p>
+    <div id="cartaoResumo"></div>
+  </div>
+</section>
+
+<section id="tab-saldos" class="hidden">
+  <div class="card">
+    <p class="muted">Defina, uma única vez por banco, o saldo que a conta tinha numa data de início (o mesmo que você via no extrato naquele dia). A partir daí, o saldo atual é sempre calculado pelos lançamentos reais — nunca precisa repetir mês a mês.</p>
+  </div>
+  <div id="listaSaldos"></div>
+  <button class="primary" id="btnRecalcularSaldos">Calcular saldos atuais</button>
+</section>
+
+<section id="tab-importar" class="hidden">
+  <div class="card">
+    <p class="muted">O arquivo é lido aqui no seu navegador — não é enviado pra mim em nenhum momento. Funciona com a planilha no formato ST/DESCRIÇÃO/DIA/SEM/MES/DATA HORA/PAGO/RENDA/GASTOS/BANCO/TAG, uma aba por mês.</p>
+    <input type="file" id="arquivoImport" accept=".xlsx,.xls,.csv">
+    <button class="primary" id="btnProcessar">Processar arquivo</button>
+    <p class="muted" id="importStatus"></p>
+    <p class="muted">Se o seletor de arquivo não abrir (comum no app do celular), abra este link no navegador do telefone (Safari/Chrome) em vez de dentro do app da Claude, ou use a opção abaixo.</p>
+  </div>
+  <div class="card">
+    <b>Colar dados da planilha</b>
+    <p class="muted">Na aba do mês, no Google Sheets, selecione as células (do cabeçalho ST até o fim dos dados), copie (Ctrl+C ou Cmd+C) e cole aqui.</p>
+    <textarea id="textoColado" placeholder="Cole aqui..." style="min-height:120px;"></textarea>
+    <button class="primary" id="btnProcessarTexto">Processar texto colado</button>
+  </div>
+  <div class="card hidden" id="cardPreview">
+    <b>Prévia (<span id="qtdPreview"></span> lançamentos)</b>
+    <div id="listaPreview" style="max-height:300px;overflow-y:auto;margin-top:8px;"></div>
+    <button class="primary" id="btnConfirmarImport">Confirmar importação</button>
+    <button class="ghost" id="btnLimparPreview" style="width:100%;margin-top:6px;">Limpar prévia</button>
+  </div>
+  <div class="card">
+    <b>Exportar seus dados</b>
+    <p class="muted">Baixa tudo num arquivo .json: todos os lançamentos (sem limite de quantidade) e todas as configurações (listas, tags, combos, cores, flags dos status e saldos dos bancos). Sua cópia de segurança, fora da Anthropic.</p>
+    <button class="primary" id="btnExportar">Exportar dados</button>
+    <p class="muted" id="exportStatus"></p>
+  </div>
+</section>
+
+</main>
+
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal-box">
+    <p id="modalMsg"></p>
+    <div id="modalExtra"></div>
+    <div class="modal-botoes" id="modalBotoes">
+      <button class="ghost" id="modalCancelar">Cancelar</button>
+      <button class="primary" id="modalConfirmar">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let db = null, sample = null;
+let lancamentosParaImportar = [];
+let listas = { status: ["PAGO","PREVISTO","CREDITO IN","CREDITO EX","CONTAS","TRANSFERINDO","CREDITANDO"], banco: [] };
+let statusReal = { PREVISTO:false, TRANSFERINDO:false, CREDITANDO:false };
+function ehStatusReal(status){ return statusReal[status] !== false; }
+let afetaSaldoBanco = { PAGO:true, CONTAS:true };
+function afetaSaldo(status){ return afetaSaldoBanco[status] === true; }
+let statusCor = {};
+let estiloCor = 'ambos';
+let corAberta = null;
+const COR_PALETA = ['#639922','#BA7517','#378ADD','#7F77DD','#888780','#D85A30','#1D9E75','#D4537E','#E24B4A'];
+const COR_PADRAO = { 'PAGO':'#639922','PREVISTO':'#BA7517','CREDITO IN':'#378ADD','CREDITO EX':'#7F77DD','CONTAS':'#888780','TRANSFERINDO':'#888780','CREDITANDO':'#D85A30' };
+function normStatus(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }
+function corStatus(s){ return statusCor[s] || COR_PADRAO[normStatus(s)] || '#888780'; }
+function estiloItemCor(status){
+  const c = corStatus(status);
+  const tint = `background:color-mix(in srgb,${c} 16%,transparent);`;
+  const base = 'border:1px solid var(--border);padding:10px;margin-bottom:6px;';
+  if(estiloCor==='linha') return `${tint}${base}border-radius:8px;`;
+  if(estiloCor==='faixa') return `${base}border-left:4px solid ${c};border-radius:0;`;
+  if(estiloCor==='ambos') return `${tint}${base}border-left:4px solid ${c};border-radius:0;`;
+  return '';
+}
+function seloStatus(status){
+  if(estiloCor==='nenhum') return status;
+  const c = corStatus(status);
+  return `<span style="background:color-mix(in srgb,${c} 32%,transparent);padding:1px 7px;border-radius:8px;font-weight:600;color:var(--text);">${status}</span>`;
+}
+let tagsUsadas = [];
+let saldosConfig = {};
+let lancamentosCache = [];
+let modoMesEspecifico = false;
+let lancamentosMes = [];
+let modoBuscaTexto = false;
+let lancamentosBusca = [];
+let tagsSelecionadas = new Set();
+function clonar(x){ return x===undefined ? x : JSON.parse(JSON.stringify(x)); }
+let combosSalvos = [];
+let filaCombos = Promise.resolve();
+let combosVisiveis = [];
+let tagBusca = '';
+let tagsTodasAbertas = false;
+let filStatusSelecionados = new Set();
+let filBancoSelecionados = new Set();
+let editandoId = null;
+
+function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function nowLocalInput(){
+  const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+  return d.toISOString().slice(0,16);
+}
+
+async function avisar(msg){
+  return new Promise(resolve=>{
+    document.getElementById('modalMsg').textContent = msg;
+    document.getElementById('modalExtra').innerHTML = '';
+    document.getElementById('modalBotoes').innerHTML = '<button class="primary" id="modalOk" style="width:100%;">OK</button>';
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    document.getElementById('modalOk').onclick = ()=>{ document.getElementById('modalOverlay').classList.add('hidden'); resolve(); };
+  });
+}
+function confirmarModal(msg){
+  return new Promise(resolve=>{
+    document.getElementById('modalMsg').textContent = msg;
+    document.getElementById('modalExtra').innerHTML = '';
+    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Confirmar</button>';
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    const fechar = (v)=>{ document.getElementById('modalOverlay').classList.add('hidden'); resolve(v); };
+    document.getElementById('modalCancelar').onclick = ()=>fechar(false);
+    document.getElementById('modalConfirmar').onclick = ()=>fechar(true);
+  });
+}
+
+// Pede o que fazer com uma tag em uso: retorna null (cancelou), '' (só remover a tag,
+// sem substituir) ou o nome da tag nova pra migrar os lançamentos.
+function pedirNovaTagParaMigrar(tag, qtd, outrasTags){
+  return new Promise(resolve=>{
+    document.getElementById('modalMsg').textContent =
+      `${qtd} lançamento(s) usam a tag "${tag}". Escolha uma tag pra substituir (ou deixe em branco pra só remover essa tag desses lançamentos):`;
+    document.getElementById('modalExtra').innerHTML = `
+      <input type="text" id="modalNovaTag" list="modalListaTags" placeholder="nova tag (opcional)" style="margin-bottom:10px;">
+      <datalist id="modalListaTags">${outrasTags.map(t=>`<option value="${t}">`).join('')}</datalist>
+    `;
+    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Continuar</button>';
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    const fechar = (v)=>{ document.getElementById('modalOverlay').classList.add('hidden'); resolve(v); };
+    document.getElementById('modalCancelar').onclick = ()=>fechar(null);
+    document.getElementById('modalConfirmar').onclick = ()=>{
+      const v = document.getElementById('modalNovaTag').value.trim().replace(/^#/,'');
+      fechar(v);
+    };
+  });
+}
+
+async function excluirTag(tag){
+  if(!db) return;
+  const snap = await db.collection("lancamentos").where("tags","array-contains",tag).limit(1000).get();
+  const qtd = snap.docs.length;
+  let migrada = '';
+  if(qtd>0){
+    const novaTag = await pedirNovaTagParaMigrar(tag, qtd, tagsUsadas.filter(t=>t!==tag));
+    if(novaTag===null) return; // cancelou
+    migrada = novaTag || '';
+    for(const d of snap.docs){
+      const l = d.data();
+      const restante = new Set((l.tags||[]).filter(t=>t!==tag));
+      if(novaTag) restante.add(novaTag);
+      await db.collection("lancamentos").doc(d.id).update({tags:[...restante]});
+    }
+    if(novaTag && !tagsUsadas.includes(novaTag)) tagsUsadas.push(novaTag);
+  }
+  tagsUsadas = tagsUsadas.filter(t=>t!==tag);
+  await db.doc("config/tags").set({usadas:tagsUsadas});
+  combosSalvos = combosSalvos
+    .map(c=>({tags:[...new Set(c.tags.map(t=>t===tag ? migrada : t).filter(Boolean))]}))
+    .filter(c=>c.tags.length>=2);
+  await salvarCombos();
+  renderTagPicker(); renderTagFilter(); renderTagChartSelect();
+  renderGerenciarTags(); renderCombosLista();
+}
+
+async function init(){
+  db = await claude.use("db");
+  sample = await claude.use("sample");
+  document.getElementById('fData').value = nowLocalInput();
+
+  if(db){
+    db.doc("config/listas").onSnapshot(snap=>{
+      const d = snap.data();
+      if(d && d.status) listas.status = clonar(d.status);
+      if(d && d.banco) listas.banco = clonar(d.banco);
+      if(d && d.statusReal) statusReal = clonar(d.statusReal);
+      if(d && d.afetaSaldoBanco) afetaSaldoBanco = clonar(d.afetaSaldoBanco);
+      if(d && d.statusCor) statusCor = clonar(d.statusCor);
+      if(d && d.estiloCor) estiloCor = d.estiloCor;
+      if(!listas.status.includes('CREDITANDO')){ listas.status.push('CREDITANDO'); salvarListas(); }
+      renderListas();
+      renderSaldos();
+      try{ renderHistorico(); }catch(e){}
+    }, ()=>{ renderListas(); });
+
+    db.doc("config/tags").onSnapshot(snap=>{
+      const d = snap.data();
+      tagsUsadas = clonar((d && d.usadas) || []);
+      renderTagPicker();
+      renderTagFilter();
+      renderTagChartSelect();
+      renderGerenciarTags();
+    }, ()=>{});
+
+    db.doc("config/combos").onSnapshot(snap=>{
+      const d = snap.data();
+      combosSalvos = (d && Array.isArray(d.lista)) ? clonar(d.lista) : [];
+      renderTagPicker();
+      renderCombosLista();
+    }, ()=>{});
+
+    await carregarSaldosConfig();
+
+    db.collection("lancamentos").orderBy("dataEvento","desc").limit(1000).onSnapshot(snap=>{
+      lancamentosCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      try{ renderTagPicker(); }catch(e){}
+      renderHistorico();
+      renderCartao();
+    }, ()=>{ document.getElementById('listaLancamentos').innerHTML = '<p class="muted">Sem acesso ao histórico nesta visualização.</p>'; });
+  } else {
+    document.getElementById('iaStatus').textContent = "Banco de dados indisponível nesta visualização.";
+  }
+  renderListas();
+  setupTabs();
+  setupHandlers();
+}
+
+function setupTabs(){
+  document.querySelectorAll('nav button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
+      document.getElementById('tab-'+b.dataset.tab).classList.remove('hidden');
+      if(b.dataset.tab==='saldos') carregarSaldosConfig();
+    });
+  });
+}
+
+function renderListas(){
+  const fStatus=document.getElementById('fStatus'), fBanco=document.getElementById('fBanco');
+  const tOrig=document.getElementById('tBancoOrigem'), tDest=document.getElementById('tBancoDestino');
+  [fStatus].forEach(sel=>{ sel.innerHTML = listas.status.map(s=>`<option>${s}</option>`).join(''); });
+  [fBanco,tOrig,tDest].forEach(sel=>{ sel.innerHTML = listas.banco.map(s=>`<option>${s}</option>`).join(''); });
+  // tira da seleção qualquer status que não existe mais
+  filStatusSelecionados = new Set([...filStatusSelecionados].filter(s=>listas.status.includes(s)));
+  renderFilStatusDropdown();
+  filBancoSelecionados = new Set([...filBancoSelecionados].filter(b=>listas.banco.includes(b)));
+  renderFilBancoDropdown();
+
+  document.getElementById('pillStatus').innerHTML = listas.status.map(s=>
+    `<span class="pill">
+      <button data-del-status="${s}">✕</button>
+      <span style="display:flex;align-items:center;gap:6px;"><button data-cor-status="${s}" aria-label="Escolher cor de ${s}" style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${corStatus(s)};border:2px solid var(--border);padding:0;cursor:pointer;"></button><b>${s}</b></span>
+      ${corAberta===s?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${COR_PALETA.map(p=>`<button data-cor-pick="${p}" data-cor-st="${s}" aria-label="Cor ${p}" style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${p};border:${p===corStatus(s)?'2px solid var(--text)':'1px solid var(--border)'};padding:0;cursor:pointer;"></button>`).join('')}</div>`:''}
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+        <input type="checkbox" data-real-status="${s}" ${ehStatusReal(s)?'checked':''} style="width:auto;"> conta como real
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+        <input type="checkbox" data-afeta-status="${s}" ${afetaSaldo(s)?'checked':''} style="width:auto;"> afeta saldo do banco
+      </label>
+    </span>`).join('');
+  document.getElementById('pillBanco').innerHTML = listas.banco.map(s=>
+    `<span class="pill">${s} <button data-del-banco="${s}">✕</button></span>`).join('');
+
+  document.querySelectorAll('[data-del-status]').forEach(b=>b.onclick=()=>removerDaLista('status',b.dataset.delStatus));
+  document.querySelectorAll('[data-del-banco]').forEach(b=>b.onclick=()=>removerDaLista('banco',b.dataset.delBanco));
+  document.querySelectorAll('[data-real-status]').forEach(cb=>cb.onchange=()=>{
+    statusReal[cb.dataset.realStatus] = cb.checked;
+    salvarListas();
+  });
+  document.querySelectorAll('[data-afeta-status]').forEach(cb=>cb.onchange=()=>{
+    afetaSaldoBanco[cb.dataset.afetaStatus] = cb.checked;
+    salvarListas();
+  });
+  document.querySelectorAll('[data-cor-status]').forEach(b=>b.onclick=()=>{
+    corAberta = (corAberta===b.dataset.corStatus) ? null : b.dataset.corStatus;
+    renderListas();
+  });
+  document.querySelectorAll('[data-cor-pick]').forEach(b=>b.onclick=()=>{
+    statusCor[b.dataset.corSt] = b.dataset.corPick;
+    corAberta = null;
+    salvarListas(); renderListas(); renderHistorico();
+  });
+  renderAparencia();
+  renderCombosLista();
+}
+
+function renderAparencia(){
+  const op = [['linha','Linha inteira'],['faixa','Faixa + selo'],['ambos','Os dois juntos'],['nenhum','Sem cor']];
+  document.getElementById('estiloCorBtns').innerHTML = op.map(([k,t])=>
+    `<span class="tag ${estiloCor===k?'on':''}" data-estilo-cor="${k}">${t}</span>`).join('');
+  document.getElementById('prevCor').innerHTML = listas.status.slice(0,3).map(st=>
+    `<div class="item" style="${estiloItemCor(st)}"><div class="item-top"><span class="item-desc">Exemplo de lançamento</span><span class="valor saida">-R$ 10,00</span></div><div class="item-meta">${seloStatus(st)} · Banco</div></div>`).join('');
+  document.querySelectorAll('[data-estilo-cor]').forEach(b=>b.onclick=()=>{
+    estiloCor = b.dataset.estiloCor;
+    salvarListas(); renderAparencia(); renderHistorico();
+  });
+}
+
+async function salvarListas(){
+  if(!db) return;
+  await db.doc("config/listas").set({...listas, statusReal, afetaSaldoBanco, statusCor, estiloCor});
+}
+function removerDaLista(tipo,valor){
+  listas[tipo] = listas[tipo].filter(x=>x!==valor);
+  salvarListas(); renderListas();
+}
+
+function normTxt(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
+function chaveTags(a){ return [...a].sort().join('|'); }
+function contagemConjuntos(){
+  const m = new Map();
+  lancamentosCache.forEach(l=>{
+    const t = l.tags || [];
+    if(t.length < 2) return;
+    const k = chaveTags(t);
+    const e = m.get(k);
+    if(e) e.n++; else m.set(k, {tags:[...t], n:1});
+  });
+  return m;
+}
+function combosAtuaisLista(){
+  const conj = contagemConjuntos();
+  const salvos = combosSalvos.map(c=>({tags:c.tags, n:(conj.get(chaveTags(c.tags))||{}).n||0, salvo:true}));
+  const ks = new Set(salvos.map(c=>chaveTags(c.tags)));
+  const sug = [...conj.values()].filter(x=>x.n>=3 && !ks.has(chaveTags(x.tags)))
+    .sort((a,b)=>b.n-a.n).slice(0,5).map(x=>({tags:x.tags, n:x.n, salvo:false}));
+  return [...salvos, ...sug];
+}
+function salvarCombos(){
+  if(!db) return Promise.resolve();
+  const foto = clonar(combosSalvos);
+  filaCombos = filaCombos.then(()=>db.doc("config/combos").set({lista:foto})).catch(err=>{
+    console.error('Falha ao salvar combos', err);
+    avisar('Não consegui salvar os combos agora (' + ((err && err.code) || 'erro') + '). Tente de novo.');
+  });
+  return filaCombos;
+}
+function chipTag(t){
+  return `<span class="tag ${tagsSelecionadas.has(t)?'on':''}" data-tag="${t}">${t}</span>`;
+}
+function renderTagPicker(){
+  if(!document.getElementById('tagArea')) return;
+  combosVisiveis = combosAtuaisLista();
+  const sel = [...tagsSelecionadas];
+  const kSel = chaveTags(sel);
+  const temSugerido = combosVisiveis.some(c=>!c.salvo);
+  let h = '';
+  if(combosVisiveis.length){
+    h += `<div class="muted">Combos${temSugerido?' (tracejado = sugerido pelo histórico)':''}</div><div class="tags">` +
+      combosVisiveis.map((c,i)=>{
+        const on = sel.length===c.tags.length && chaveTags(c.tags)===kSel;
+        return `<span class="tag ${on?'on':''}" data-combo="${i}" style="border-radius:8px;${c.salvo?'':'border-style:dashed;'}">${c.tags.join(' · ')}${c.n?` <span style="font-size:11px;">${c.n}x</span>`:''}</span>`;
+      }).join('') + '</div>';
+  }
+  const jaSalvo = combosSalvos.some(c=>chaveTags(c.tags)===kSel);
+  if(sel.length>=2 && !jaSalvo) h += '<button class="ghost" id="btnSalvarCombo" style="margin-top:8px;">Salvar seleção como combo</button>';
+  document.getElementById('tagCombos').innerHTML = h;
+  document.getElementById('tagMarcadas').innerHTML = sel.length
+    ? '<span class="muted" style="align-self:center;">Marcadas:</span>' + sel.map(chipTag).join('') : '';
+  const q = normTxt(tagBusca.trim());
+  let l = '';
+  if(q){
+    const m = tagsUsadas.filter(t=>normTxt(t).includes(q));
+    l = m.length ? m.map(chipTag).join('') : '<span class="muted">Nenhuma tag encontrada. Digite abaixo e Enter para criar.</span>';
+  } else if(tagsTodasAbertas){
+    l = '<span data-todas="1" style="cursor:pointer;color:var(--accent);font-size:13px;width:100%;">Recolher ▴</span>' + tagsUsadas.map(chipTag).join('');
+  } else {
+    l = `<span data-todas="1" style="cursor:pointer;color:var(--accent);font-size:13px;">Todas as tags (${tagsUsadas.length}) ▾</span>`;
+  }
+  document.getElementById('tagPicker').innerHTML = l;
+}
+function renderCombosLista(){
+  const el = document.getElementById('listaCombos');
+  if(!el) return;
+  el.innerHTML = combosSalvos.map((c,i)=>
+    `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13px;">${c.tags.join(' · ')}</span><button class="ghost" data-del-combo="${i}">Excluir</button></div>`).join('')
+    || '<p class="muted">Nenhum combo salvo ainda.</p>';
+  el.querySelectorAll('[data-del-combo]').forEach(b=>b.onclick=()=>{
+    combosSalvos.splice(parseInt(b.dataset.delCombo,10),1);
+    salvarCombos(); renderCombosLista(); renderTagPicker();
+  });
+}
+function renderTagFilter(){
+  document.getElementById('filTag').innerHTML = '<option value="">Tag: todas</option>' + tagsUsadas.map(t=>`<option>${t}</option>`).join('');
+}
+function renderTagChartSelect(){
+  const sel = document.getElementById('tagChartSelect');
+  sel.innerHTML = tagsUsadas.map(t=>`<option>${t}</option>`).join('');
+  sel.onchange = ()=>desenharGrafico(sel.value);
+  if(tagsUsadas.length) desenharGrafico(sel.value);
+}
+function renderGerenciarTags(){
+  const el = document.getElementById('pillTags');
+  if(!el) return;
+  el.innerHTML = tagsUsadas.map(t=>
+    `<span class="pill" style="flex-direction:row;min-width:0;">#${t} <button data-del-tag="${t}">✕</button></span>`).join('')
+    || '<p class="muted">Nenhuma tag ainda.</p>';
+  el.querySelectorAll('[data-del-tag]').forEach(b=>b.onclick=()=>excluirTag(b.dataset.delTag));
+}
+
+async function garantirTags(novasTags){
+  const set = new Set(tagsUsadas);
+  let mudou = false;
+  novasTags.forEach(t=>{ if(t && !set.has(t)){ set.add(t); mudou = true; } });
+  if(mudou && db){ tagsUsadas = [...set]; await db.doc("config/tags").set({usadas:tagsUsadas}); }
+}
+
+function setupHandlers(){
+  document.getElementById('tagBusca').addEventListener('input', e=>{ tagBusca = e.target.value; renderTagPicker(); });
+  document.getElementById('tagArea').addEventListener('click', e=>{
+    const el = e.target.closest('[data-tag],[data-combo],[data-todas],#btnSalvarCombo');
+    if(!el) return;
+    if(el.dataset.tag!==undefined){
+      const t = el.dataset.tag;
+      tagsSelecionadas.has(t) ? tagsSelecionadas.delete(t) : tagsSelecionadas.add(t);
+      renderTagPicker(); return;
+    }
+    if(el.dataset.combo!==undefined){
+      const c = combosVisiveis[parseInt(el.dataset.combo,10)];
+      if(c){ tagsSelecionadas = new Set(c.tags); renderTagPicker(); }
+      return;
+    }
+    if(el.dataset.todas){ tagsTodasAbertas = !tagsTodasAbertas; renderTagPicker(); return; }
+    if(el.id==='btnSalvarCombo'){
+      combosSalvos.push({tags:[...tagsSelecionadas]});
+      salvarCombos(); renderTagPicker(); renderCombosLista();
+    }
+  });
+  document.getElementById('novaTagInput').addEventListener('keydown', e=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      const v = e.target.value.trim().replace(/^#/,'');
+      if(v){ tagsSelecionadas.add(v); garantirTags([v]); renderTagPicker(); e.target.value=''; }
+    }
+  });
+
+  document.getElementById('btnAddStatus').onclick = ()=>{
+    const v = document.getElementById('novoStatus').value.trim();
+    if(v && !listas.status.includes(v)){ listas.status.push(v); salvarListas(); renderListas(); document.getElementById('novoStatus').value=''; }
+  };
+  document.getElementById('btnAddBanco').onclick = ()=>{
+    const v = document.getElementById('novoBanco').value.trim();
+    if(v && !listas.banco.includes(v)){ listas.banco.push(v); salvarListas(); renderListas(); document.getElementById('novoBanco').value=''; }
+  };
+
+  document.getElementById('btnIA').onclick = preencherComIA;
+  document.getElementById('btnSalvar').onclick = salvarLancamento;
+  document.getElementById('btnCancelarEdicao').onclick = cancelarEdicao;
+  document.getElementById('btnLimpar').onclick = limparFormulario;
+  document.getElementById('btnTransferir').onclick = registrarTransferencia;
+
+  ['filTag'].forEach(id=>document.getElementById(id).addEventListener('change', renderHistorico));
+
+  document.getElementById('filStatusBtn').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.getElementById('filBancoPanel').classList.add('hidden');
+    document.getElementById('filStatusPanel').classList.toggle('hidden');
+  });
+  document.getElementById('filBancoBtn').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.getElementById('filStatusPanel').classList.add('hidden');
+    document.getElementById('filBancoPanel').classList.toggle('hidden');
+  });
+  document.addEventListener('click', (e)=>{
+    [['filStatusPanel','filStatusBtn'],['filBancoPanel','filBancoBtn']].forEach(([pid,bid])=>{
+      const painel = document.getElementById(pid);
+      const btn = document.getElementById(bid);
+      if(!painel.classList.contains('hidden') && !painel.contains(e.target) && e.target!==btn){
+        painel.classList.add('hidden');
+      }
+    });
+  });
+}
+
+function renderFilBancoDropdown(){
+  const btn = document.getElementById('filBancoBtn');
+  const painel = document.getElementById('filBancoPanel');
+  btn.textContent = filBancoSelecionados.size===0
+    ? 'Banco: todos'
+    : `Banco: ${[...filBancoSelecionados].join(', ')}`;
+  painel.innerHTML = `
+    <div class="dropdown-actions">
+      <button type="button" id="filBancoTodos">Marcar todos</button>
+      <button type="button" id="filBancoNenhum">Limpar</button>
+    </div>
+    ${listas.banco.map(b=>`
+      <label><input type="checkbox" data-fil-banco="${b}" ${filBancoSelecionados.has(b)?'checked':''}> ${b}</label>
+    `).join('')}
+  `;
+  painel.querySelectorAll('[data-fil-banco]').forEach(cb=>cb.addEventListener('change', ()=>{
+    cb.checked ? filBancoSelecionados.add(cb.dataset.filBanco) : filBancoSelecionados.delete(cb.dataset.filBanco);
+    renderFilBancoDropdown();
+    renderHistorico();
+  }));
+  document.getElementById('filBancoTodos').onclick = ()=>{
+    filBancoSelecionados = new Set(listas.banco);
+    renderFilBancoDropdown();
+    renderHistorico();
+  };
+  document.getElementById('filBancoNenhum').onclick = ()=>{
+    filBancoSelecionados = new Set();
+    renderFilBancoDropdown();
+    renderHistorico();
+  };
+}
+
+function renderFilStatusDropdown(){
+  const btn = document.getElementById('filStatusBtn');
+  const painel = document.getElementById('filStatusPanel');
+  btn.textContent = filStatusSelecionados.size===0
+    ? 'Status: todos'
+    : `Status: ${[...filStatusSelecionados].join(', ')}`;
+  painel.innerHTML = `
+    <div class="dropdown-actions">
+      <button type="button" id="filStatusTodos">Marcar todos</button>
+      <button type="button" id="filStatusNenhum">Limpar</button>
+    </div>
+    ${listas.status.map(s=>`
+      <label><input type="checkbox" data-fil-status="${s}" ${filStatusSelecionados.has(s)?'checked':''}> ${s}</label>
+    `).join('')}
+  `;
+  painel.querySelectorAll('[data-fil-status]').forEach(cb=>cb.addEventListener('change', ()=>{
+    cb.checked ? filStatusSelecionados.add(cb.dataset.filStatus) : filStatusSelecionados.delete(cb.dataset.filStatus);
+    renderFilStatusDropdown();
+    renderHistorico();
+  }));
+  document.getElementById('filStatusTodos').onclick = ()=>{
+    filStatusSelecionados = new Set(listas.status);
+    renderFilStatusDropdown();
+    renderHistorico();
+  };
+  document.getElementById('filStatusNenhum').onclick = ()=>{
+    filStatusSelecionados = new Set();
+    renderFilStatusDropdown();
+    renderHistorico();
+  };
+}
+
+async function preencherComIA(){
+  const nota = document.getElementById('notaLivre').value.trim();
+  const statusEl = document.getElementById('iaStatus');
+  if(!nota){ statusEl.textContent = "Escreva algo na nota primeiro."; return; }
+  if(!sample){ statusEl.textContent = "IA indisponível nesta visualização — preencha manualmente abaixo."; return; }
+  statusEl.textContent = "Pensando...";
+  try{
+    const hoje = nowLocalInput().replace('T',' ');
+    const prompt = `Extraia dados estruturados de um lançamento financeiro pessoal em português (Brasil).
+Texto do usuário: "${nota}"
+Data/hora local do usuário agora (já é hora local, sem fuso, não é UTC): ${hoje}
+Status possíveis: ${listas.status.join(", ")}
+Bancos conhecidos: ${listas.banco.join(", ") || "(nenhum ainda)"}
+Tags já usadas antes (reaproveite se fizer sentido, senão crie novas simples em minúsculas): ${tagsUsadas.join(", ") || "(nenhuma ainda)"}
+Conjuntos de tags frequentes (se o lançamento combinar com um deles, use o conjunto inteiro): ${combosAtuaisLista().map(c=>'['+c.tags.join(', ')+']').join(' ') || "(nenhum ainda)"}
+Responda SOMENTE em JSON, sem markdown, no formato:
+{"status":"...", "tipo":"entrada"|"saida", "valor":number, "descricao":"...", "banco":"...", "tags":["..."], "dataEvento":"AAAA-MM-DDTHH:MM:SS (hora local do usuário, SEM Z, SEM fuso)"}
+Se não souber o banco com certeza, deixe banco como "".`;
+    const res = await sample.json(prompt, {modelTier:"quick"});
+    if(res.status) document.getElementById('fStatus').value = res.status;
+    if(res.tipo) document.getElementById('fTipo').value = res.tipo;
+    if(res.valor) document.getElementById('fValor').value = res.valor;
+    if(res.descricao) document.getElementById('fDesc').value = res.descricao;
+    if(res.banco){
+      if(!listas.banco.includes(res.banco)){ listas.banco.push(res.banco); salvarListas(); renderListas(); }
+      document.getElementById('fBanco').value = res.banco;
+    }
+    if(res.dataEvento){
+      // já é hora local do usuário (sem Z) — só normaliza pro formato do campo
+      const s = String(res.dataEvento).replace('Z','').slice(0,16);
+      document.getElementById('fData').value = s;
+    }
+    document.getElementById('fNota').value = nota;
+    if(Array.isArray(res.tags)){
+      tagsSelecionadas = new Set(res.tags);
+      garantirTags(res.tags).then(renderTagPicker);
+      renderTagPicker();
+    }
+    statusEl.textContent = "Confira os campos abaixo e salve.";
+  }catch(err){
+    statusEl.textContent = "Não consegui interpretar agora (" + (err.code||'erro') + "). Preencha manualmente.";
+  }
+}
+
+async function salvarLancamento(){
+  if(!db){ await avisar("Banco de dados indisponível nesta visualização."); return; }
+  const valor = parseFloat(document.getElementById('fValor').value);
+  if(!valor || valor<=0){ await avisar("Informe um valor válido."); return; }
+  const tags = [...tagsSelecionadas];
+  await garantirTags(tags);
+  const statusEscolhido = document.getElementById('fStatus').value;
+  const doc = {
+    status: statusEscolhido,
+    tipo: document.getElementById('fTipo').value,
+    valor: valor,
+    descricao: document.getElementById('fDesc').value || "(sem descrição)",
+    nota: document.getElementById('fNota').value || "",
+    dataEvento: new Date(document.getElementById('fData').value).toISOString(),
+    banco: document.getElementById('fBanco').value,
+    tags: tags,
+    excluirDoTotal: /^CONTAS$|^TRANSFERINDO$/i.test(statusEscolhido)
+  };
+  const jaExiste = lancamentosCache.some(l=>l.id!==editandoId && chaveLancamento(l)===chaveLancamento(doc));
+  if(jaExiste && !(await confirmarModal("Já existe um lançamento igual (mesmo status, descrição, valor, banco e data). Salvar mesmo assim?"))) return;
+  if(editandoId){
+    await db.collection("lancamentos").doc(editandoId).update(doc);
+    aplicarLocal(editandoId, doc);
+    document.getElementById('iaStatus').textContent = "Edição salva ✓";
+    cancelarEdicao();
+  }else{
+    await db.collection("lancamentos").add({...doc, criadoEm: new Date().toISOString()});
+    document.getElementById('iaStatus').textContent = "Lançamento salvo ✓";
+    limparFormulario();
+  }
+}
+
+function limparFormulario(){
+  document.getElementById('notaLivre').value='';
+  document.getElementById('fValor').value='';
+  document.getElementById('fDesc').value='';
+  document.getElementById('fNota').value='';
+  document.getElementById('fData').value = nowLocalInput();
+  tagsSelecionadas = new Set();
+  tagBusca = ''; document.getElementById('tagBusca').value = '';
+  renderTagPicker();
+}
+
+async function registrarTransferencia(){
+  if(!db){ await avisar("Banco de dados indisponível nesta visualização."); return; }
+  const origem = document.getElementById('tBancoOrigem').value;
+  const destino = document.getElementById('tBancoDestino').value;
+  const valor = parseFloat(document.getElementById('tValor').value);
+  if(!origem || !destino || origem===destino || !valor || valor<=0){ await avisar("Confira os bancos e o valor."); return; }
+  const agora = new Date().toISOString();
+  const parId = "transf_" + Date.now();
+  await db.collection("lancamentos").add({status:"CONTAS", tipo:"saida", valor, descricao:`Transferência para ${destino}`, nota:"", dataEvento:agora, banco:origem, tags:[], criadoEm:agora, transferParId:parId});
+  await db.collection("lancamentos").add({status:"CONTAS", tipo:"entrada", valor, descricao:`Transferência de ${origem}`, nota:"", dataEvento:agora, banco:destino, tags:[], criadoEm:agora, transferParId:parId});
+  document.getElementById('tValor').value='';
+}
+
+function renderHistorico(){
+  const el = document.getElementById('listaLancamentos');
+  const fsList = [...filStatusSelecionados];
+  const fbList = [...filBancoSelecionados];
+  const ft = document.getElementById('filTag').value;
+  const mostrarOcultos = document.getElementById('filMostrarOcultos').checked;
+  const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache);
+  let lista = fonte.filter(l=>
+    (mostrarOcultos || !l.oculto) &&
+    (!fsList.length || fsList.includes(l.status)) && (!fbList.length || fbList.includes(l.banco)) && (!ft || (l.tags||[]).includes(ft)));
+  const ordem = document.getElementById('filOrdenacao').value;
+  lista = [...lista].sort((a,b)=> ordem==='asc'
+    ? new Date(a.dataEvento) - new Date(b.dataEvento)
+    : new Date(b.dataEvento) - new Date(a.dataEvento));
+  document.getElementById('contadorHistorico').textContent = modoBuscaTexto
+    ? `${lista.length} lançamento(s) exibido(s) do resultado da busca (${lancamentosBusca.length} no total)`
+    : modoMesEspecifico
+    ? `${lista.length} lançamento(s) exibido(s) do mês buscado (${lancamentosMes.length} no total)`
+    : `${lista.length} lançamento(s) exibido(s) de ${lancamentosCache.length} carregado(s)${lancamentosCache.length>=1000?' (limite de exibição: 1000 mais recentes — use "Buscar esse mês" para ver períodos mais antigos)':''}`;
+  if(!lista.length){ el.innerHTML = '<p class="muted">Nenhum lançamento encontrado.</p>'; return; }
+  el.innerHTML = lista.map(l=>`
+    <div class="item ${l.oculto?'oculto':''}" style="${estiloItemCor(l.status)}">
+      <div class="item-top"><span class="item-desc">${l.descricao}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
+      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)} · ${l.banco||'-'} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+t).join(' '):''}</div>
+      ${l.nota?`<div class="item-meta">${l.nota}</div>`:''}
+      <div class="item-acoes">
+        <button data-acao="editar" data-id="${l.id}">✏️ Editar</button>
+        <button data-acao="copiar" data-id="${l.id}">📋 Copiar</button>
+        <button data-acao="ocultar" data-id="${l.id}">${l.oculto?'👁️ Mostrar':'🙈 Ocultar'}</button>
+        <button data-acao="excluir" data-id="${l.id}">🗑️ Excluir</button>
+      </div>
+    </div>`).join('');
+}
+
+function acharLancamento(id){
+  return lancamentosCache.find(x=>x.id===id) || lancamentosMes.find(x=>x.id===id) || lancamentosBusca.find(x=>x.id===id);
+}
+function aplicarLocal(id, patch){
+  [lancamentosMes, lancamentosBusca].forEach(arr=>{ const it = arr.find(x=>x.id===id); if(it) Object.assign(it, patch); });
+  renderHistorico();
+}
+function removerLocal(id){
+  lancamentosMes = lancamentosMes.filter(x=>x.id!==id);
+  lancamentosBusca = lancamentosBusca.filter(x=>x.id!==id);
+  renderHistorico();
+}
+
+function iniciarEdicao(id){
+  const l = acharLancamento(id);
+  if(!l) return;
+  editandoId = id;
+  document.getElementById('fStatus').value = l.status;
+  document.getElementById('fTipo').value = l.tipo;
+  document.getElementById('fValor').value = l.valor;
+  document.getElementById('fDesc').value = l.descricao;
+  document.getElementById('fNota').value = l.nota || '';
+  const d = new Date(l.dataEvento); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+  document.getElementById('fData').value = d.toISOString().slice(0,16);
+  document.getElementById('fBanco').value = l.banco || '';
+  tagsSelecionadas = new Set(l.tags||[]);
+  renderTagPicker();
+  document.getElementById('btnSalvar').textContent = 'Salvar edição';
+  document.getElementById('btnCancelarEdicao').classList.remove('hidden');
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+  document.querySelector('nav button[data-tab="lancar"]').classList.add('active');
+  document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
+  document.getElementById('tab-lancar').classList.remove('hidden');
+}
+
+function iniciarCopia(id){
+  const l = acharLancamento(id);
+  if(!l) return;
+  editandoId = null;
+  document.getElementById('btnSalvar').textContent = 'Salvar lançamento';
+  document.getElementById('btnCancelarEdicao').classList.add('hidden');
+  document.getElementById('notaLivre').value = '';
+  document.getElementById('fStatus').value = l.status;
+  document.getElementById('fTipo').value = l.tipo;
+  document.getElementById('fValor').value = l.valor;
+  document.getElementById('fDesc').value = l.descricao;
+  document.getElementById('fNota').value = l.nota || '';
+  document.getElementById('fData').value = nowLocalInput();
+  document.getElementById('fBanco').value = l.banco || '';
+  tagsSelecionadas = new Set(l.tags||[]);
+  renderTagPicker();
+  document.getElementById('iaStatus').textContent = 'Copiado do histórico. Ajuste o que precisar e salve como novo lançamento.';
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+  document.querySelector('nav button[data-tab="lancar"]').classList.add('active');
+  document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
+  document.getElementById('tab-lancar').classList.remove('hidden');
+  window.scrollTo({top:0});
+}
+
+function cancelarEdicao(){
+  editandoId = null;
+  document.getElementById('btnSalvar').textContent = 'Salvar lançamento';
+  document.getElementById('btnCancelarEdicao').classList.add('hidden');
+  limparFormulario();
+}
+
+async function ocultarLancamento(id){
+  if(!db) return;
+  const l = acharLancamento(id);
+  if(!l) return;
+  const novo = !l.oculto;
+  await db.collection("lancamentos").doc(id).update({oculto: novo});
+  aplicarLocal(id, {oculto: novo});
+}
+
+async function excluirLancamento(id){
+  if(!db) return;
+  if(!(await confirmarModal("Excluir este lançamento? Não dá pra desfazer."))) return;
+  await db.collection("lancamentos").doc(id).delete();
+  removerLocal(id);
+}
+
+document.getElementById('listaLancamentos').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-acao]');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  if(btn.dataset.acao==='editar') iniciarEdicao(id);
+  if(btn.dataset.acao==='copiar') iniciarCopia(id);
+  if(btn.dataset.acao==='ocultar') ocultarLancamento(id);
+  if(btn.dataset.acao==='excluir') excluirLancamento(id);
+});
+async function buscarMesEspecifico(){
+  const valor = document.getElementById('filMesEspecifico').value; // "2026-03"
+  if(!valor || !db) return;
+  const [ano, mes] = valor.split('-').map(Number);
+  const inicio = new Date(ano, mes-1, 1).toISOString();
+  const fim = new Date(ano, mes, 1).toISOString();
+  document.getElementById('contadorHistorico').textContent = "Buscando...";
+  try{
+    const snap = await db.collection("lancamentos")
+      .where("dataEvento", ">=", inicio)
+      .where("dataEvento", "<", fim)
+      .orderBy("dataEvento", "desc").limit(1000).get();
+    lancamentosMes = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    modoMesEspecifico = true;
+    document.getElementById('btnLimparMes').classList.remove('hidden');
+    renderHistorico();
+  }catch(err){
+    document.getElementById('contadorHistorico').textContent = "Não consegui buscar esse mês: " + err.message;
+  }
+}
+function limparBuscaMes(){
+  modoMesEspecifico = false;
+  document.getElementById('btnLimparMes').classList.add('hidden');
+  document.getElementById('filMesEspecifico').value = '';
+  renderHistorico();
+}
+document.getElementById('btnBuscarMes').addEventListener('click', buscarMesEspecifico);
+document.getElementById('btnLimparMes').addEventListener('click', limparBuscaMes);
+
+// Busca por texto em TODO o histórico (não só o que está carregado na tela).
+// A API não tem operador de "contém" — então varremos a coleção em blocos de 1000,
+// do mais recente pro mais antigo, e comparamos o texto no código. Não é instantâneo
+// com muitos anos de dados, por isso mostra progresso enquanto varre.
+async function buscarTextoHistorico(){
+  const termo = document.getElementById('buscaTexto').value.trim().toLowerCase();
+  const statusEl = document.getElementById('buscaTextoStatus');
+  const btn = document.getElementById('btnBuscarTexto');
+  if(!termo){ statusEl.textContent = "Digite algo pra buscar."; return; }
+  if(!db){ statusEl.textContent = "Banco de dados indisponível nesta visualização."; return; }
+  modoMesEspecifico = false;
+  document.getElementById('btnLimparMes').classList.add('hidden');
+  btn.disabled = true;
+  let encontrados = [];
+  let totalVarrido = 0;
+  let cursor = null;
+  try{
+    while(true){
+      let q = db.collection("lancamentos").orderBy("dataEvento","desc");
+      if(cursor) q = q.where("dataEvento","<",cursor);
+      const snap = await q.limit(1000).get();
+      if(snap.docs.length===0) break;
+      snap.docs.forEach(d=>{
+        const l = {id:d.id, ...d.data()};
+        totalVarrido++;
+        const alvo = ((l.descricao||'')+' '+(l.nota||'')).toLowerCase();
+        if(alvo.includes(termo)) encontrados.push(l);
+      });
+      statusEl.textContent = `Varrendo... ${totalVarrido} lançamento(s) verificados, ${encontrados.length} encontrado(s) até agora.`;
+      cursor = snap.docs[snap.docs.length-1].data().dataEvento;
+      if(snap.docs.length<1000) break;
+    }
+    lancamentosBusca = encontrados;
+    modoBuscaTexto = true;
+    document.getElementById('btnLimparBusca').classList.remove('hidden');
+    renderHistorico();
+    statusEl.textContent = `Busca concluída: ${encontrados.length} resultado(s) em ${totalVarrido} lançamento(s) verificados no total.`;
+  }catch(e){
+    statusEl.textContent = "Erro na busca: " + e.message;
+  }
+  btn.disabled = false;
+}
+function limparBuscaTexto(){
+  modoBuscaTexto = false;
+  document.getElementById('btnLimparBusca').classList.add('hidden');
+  document.getElementById('buscaTexto').value = '';
+  document.getElementById('buscaTextoStatus').textContent = '';
+  renderHistorico();
+}
+document.getElementById('btnBuscarTexto').addEventListener('click', buscarTextoHistorico);
+document.getElementById('btnLimparBusca').addEventListener('click', limparBuscaTexto);
+document.getElementById('filMostrarOcultos').addEventListener('change', renderHistorico);
+document.getElementById('filOrdenacao').addEventListener('change', renderHistorico);
+
+function desenharGrafico(tag){
+  const area = document.getElementById('chartArea');
+  if(!tag){ area.innerHTML=''; return; }
+  const porMes = {};
+  lancamentosCache.filter(l=>(l.tags||[]).includes(tag) && l.tipo==='saida' && ehStatusReal(l.status)).forEach(l=>{
+    const d = new Date(l.dataEvento);
+    const chave = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    porMes[chave] = (porMes[chave]||0) + l.valor;
+  });
+  const chaves = Object.keys(porMes).sort();
+  if(!chaves.length){ area.innerHTML = '<p class="muted">Sem lançamentos com essa tag ainda.</p>'; return; }
+  const max = Math.max(...chaves.map(k=>porMes[k]));
+  const w=560,h=180,bw=w/chaves.length;
+  let bars = chaves.map((k,i)=>{
+    const bh = max? (porMes[k]/max)*130 : 0;
+    return `<rect x="${i*bw+8}" y="${150-bh}" width="${bw-16}" height="${bh}" fill="var(--accent)" rx="3"></rect>
+      <text x="${i*bw+bw/2}" y="168" text-anchor="middle">${k.slice(5)}/${k.slice(2,4)}</text>
+      <text x="${i*bw+bw/2}" y="${142-bh}" text-anchor="middle">${fmtMoeda(porMes[k]).replace('R$','')}</text>`;
+  }).join('');
+  area.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;">${bars}</svg>`;
+}
+
+async function carregarSaldosConfig(){
+  if(!db) return;
+  try{
+    const snap = await db.doc("config/saldos").get();
+    const d = snap.data();
+    saldosConfig = (d && d.porBanco) || {};
+  }catch(e){
+    console.error('Falha ao carregar config/saldos', e);
+  }
+  renderSaldos();
+}
+
+function renderSaldos(){
+  const el = document.getElementById('listaSaldos');
+  if(!el) return;
+  if(!listas.banco.length){ el.innerHTML = '<p class="muted">Cadastre bancos na aba Listas primeiro.</p>'; return; }
+  el.innerHTML = listas.banco.map(banco=>{
+    const cfg = saldosConfig[banco] || {saldoInicial:0, dataInicio:''};
+    return `
+    <div class="card" style="margin-bottom:8px;">
+      <b>${banco}</b>
+      <div class="row">
+        <div><label>Saldo inicial (o que a conta tinha na data abaixo)</label><input type="number" step="0.01" data-banco-saldo="${banco}" value="${cfg.saldoInicial||0}"></div>
+        <div><label>Data de início (formato AAAA-MM-DD)</label><input type="text" inputmode="numeric" placeholder="2026-09-01" data-banco-data="${banco}" value="${cfg.dataInicio||''}"></div>
+      </div>
+      <p class="muted" style="margin-top:2px;" id="erroData-${CSS.escape(banco)}"></p>
+      <button class="primary" data-salvar-saldo="${banco}" style="margin-top:8px;">Salvar e calcular saldo atual</button>
+      <p class="muted" id="saldoAtual-${CSS.escape(banco)}">Saldo atual: ainda não calculado</p>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-salvar-saldo]').forEach(btn=>btn.addEventListener('click', ()=>salvarConfigSaldo(btn.dataset.salvarSaldo)));
+}
+
+async function salvarConfigSaldo(banco){
+  if(!db) return;
+  const saldoInicial = parseFloat(document.querySelector(`[data-banco-saldo="${CSS.escape(banco)}"]`).value) || 0;
+  const dataInicioTexto = document.querySelector(`[data-banco-data="${CSS.escape(banco)}"]`).value.trim();
+  const erroEl = document.getElementById(`erroData-${CSS.escape(banco)}`);
+  const msgEl = document.getElementById(`saldoAtual-${CSS.escape(banco)}`);
+  let dataInicio = '';
+  if(dataInicioTexto){
+    const m = dataInicioTexto.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if(!m){
+      if(erroEl) erroEl.textContent = '⚠️ Data inválida. Digite exatamente no formato AAAA-MM-DD, ex: 2026-09-01.';
+      return;
+    }
+    const [_, ano, mes, dia] = m;
+    dataInicio = `${ano}-${mes.padStart(2,'0')}-${dia.padStart(2,'0')}`;
+  }
+  if(erroEl) erroEl.textContent = '';
+  try{
+    if(msgEl) msgEl.textContent = 'Salvando...';
+    const ref = db.doc("config/saldos");
+    // lê o que REALMENTE está no banco (não a variável local) e mescla só este banco
+    const atual = await ref.get();
+    const porBancoAtual = (atual.data() && atual.data().porBanco) || {};
+    const porBanco = {...porBancoAtual, [banco]: {saldoInicial, dataInicio}};
+    await ref.set({porBanco});
+    // confere lendo de volta do banco
+    const conferido = await ref.get();
+    const gravado = conferido.data() && conferido.data().porBanco && conferido.data().porBanco[banco];
+    if(!gravado || gravado.dataInicio!==dataInicio || gravado.saldoInicial!==saldoInicial){
+      if(msgEl) msgEl.textContent = '⚠️ O banco de dados NÃO guardou o valor enviado. Enviado: ' + JSON.stringify({saldoInicial,dataInicio}) + ' | Guardado: ' + JSON.stringify(gravado);
+      return;
+    }
+    saldosConfig = conferido.data().porBanco;
+    if(msgEl) msgEl.textContent = 'Calculando saldo atual...';
+    const saldo = await calcularSaldoBanco(banco);
+    if(msgEl) msgEl.textContent = `Saldo atual: ${fmtMoeda(saldo)} ✓ gravado e conferido no banco (saldo inicial ${fmtMoeda(saldoInicial)}, a partir de ${dataInicio || 'o início'})`;
+  }catch(e){
+    if(msgEl) msgEl.textContent = '⚠️ Erro ao salvar: ' + (e && (e.code||'')) + ' ' + (e && (e.message||e));
+  }
+}
+
+async function calcularSaldoBanco(banco){
+  const cfg = saldosConfig[banco] || {saldoInicial:0, dataInicio:''};
+  const snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get();
+  const dataInicioMs = cfg.dataInicio ? new Date(cfg.dataInicio+"T00:00:00").getTime() : null;
+  let soma = 0;
+  snap.docs.forEach(d=>{
+    const l = d.data();
+    if(l.oculto) return;
+    if(!afetaSaldo(l.status)) return;
+    if(dataInicioMs!=null && new Date(l.dataEvento).getTime() < dataInicioMs) return;
+    soma += l.tipo==='entrada' ? l.valor : -l.valor;
+  });
+  return (cfg.saldoInicial||0) + soma;
+}
+
+async function recalcularTodosSaldos(){
+  const btn = document.getElementById('btnRecalcularSaldos');
+  btn.disabled = true; btn.textContent = 'Calculando...';
+  for(const banco of listas.banco){
+    const el = document.getElementById(`saldoAtual-${CSS.escape(banco)}`);
+    if(el) el.textContent = 'Calculando...';
+    const saldo = await calcularSaldoBanco(banco);
+    if(el) el.textContent = `Saldo atual: ${fmtMoeda(saldo)}`;
+  }
+  btn.disabled = false; btn.textContent = 'Calcular saldos atuais';
+}
+document.getElementById('btnRecalcularSaldos').addEventListener('click', recalcularTodosSaldos);
+
+function renderCartao(){
+  const el = document.getElementById('cartaoResumo');
+  const tresMeses = {};
+  lancamentosCache.filter(l=>l.status && l.status.toUpperCase().startsWith('CREDITO') && l.tipo==='saida' && ehStatusReal(l.status)).forEach(l=>{
+    const d = new Date(l.dataEvento);
+    const chave = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    tresMeses[l.banco] = tresMeses[l.banco] || {};
+    tresMeses[l.banco][chave] = (tresMeses[l.banco][chave]||0) + l.valor;
+  });
+  const bancos = Object.keys(tresMeses);
+  if(!bancos.length){ el.innerHTML = '<p class="muted">Nenhum lançamento de crédito ainda.</p>'; return; }
+  el.innerHTML = bancos.map(b=>{
+    const meses = Object.keys(tresMeses[b]).sort().slice(-3);
+    return `<div class="summary" style="margin-bottom:8px;">
+      <div class="card" style="text-align:left;flex:0 0 90px;"><b>${b}</b></div>
+      ${meses.map(m=>`<div class="card"><div class="num">${fmtMoeda(tresMeses[b][m])}</div><div class="muted">${m}</div></div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function normalizaCabecalho(s){
+  return String(s).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function parseValorCell(v){
+  if(v===undefined||v===null||v==='') return null;
+  if(typeof v === 'number') return isNaN(v) ? null : v;
+  let s = String(v).trim();
+  if(!s) return null;
+  if(/,\d{1,2}$/.test(s)) s = s.replace(/\./g,'').replace(',','.');
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function parseDataCell(v){
+  if(v===undefined||v===null||v==='') return null;
+  if(v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  if(typeof v === 'number'){
+    const d = XLSX.SSF.parse_date_code(v);
+    if(d) return new Date(d.y, d.m-1, d.d, d.H||0, d.M||0, d.S||0);
+    return null;
+  }
+  const s = String(v).trim();
+  if(!s) return null;
+  // formato brasileiro dd/mm/aaaa[ hh:mm[:ss]]
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if(m){
+    const [,dd,mm,yyyy,hh,mi,ss] = m;
+    return new Date(+yyyy, +mm-1, +dd, +(hh||0), +(mi||0), +(ss||0));
+  }
+  const d2 = new Date(s);
+  return isNaN(d2.getTime()) ? null : d2;
+}
+
+const CABECALHOS = {
+  status: ['ST'], descricao: ['DESCRICAO'], dataHora: ['DATA HORA'], pago: ['PAGO'],
+  renda: ['RENDA'], gastos: ['GASTOS'], banco: ['BANCO'], tag: ['TAG']
+};
+function mapaColunas(linhaCabecalho){
+  const norm = linhaCabecalho.map(c=>c!=null?normalizaCabecalho(c):'');
+  const mapa = {};
+  Object.keys(CABECALHOS).forEach(chave=>{
+    const idx = norm.findIndex(c=>CABECALHOS[chave].includes(c));
+    mapa[chave] = idx;
+  });
+  return mapa;
+}
+
+function parseLinhas(linhas){
+  let headerIdx = -1, mapa = null;
+  for(let i=0;i<linhas.length;i++){
+    const linha = linhas[i];
+    if(!linha) continue;
+    const norm = linha.map(c=>c!=null?normalizaCabecalho(c):'');
+    if(norm.includes('ST') && norm.includes('DESCRICAO')){ headerIdx = i; mapa = mapaColunas(linha); break; }
+  }
+  if(headerIdx===-1) return {erro:'cabecalho'};
+  if(mapa.dataHora===-1 || (mapa.renda===-1 && mapa.gastos===-1)) return {erro:'colunas', mapa};
+
+  let resultado = [];
+  let ignoradas = 0;
+  for(let i=headerIdx+1;i<linhas.length;i++){
+    const r = linhas[i];
+    if(!r) continue;
+    const status = mapa.status>=0 && r[mapa.status]!=null ? String(r[mapa.status]).trim() : '';
+    if(!status || status.toUpperCase()==='NAN') continue;
+    const desc = mapa.descricao>=0 && r[mapa.descricao]!=null ? String(r[mapa.descricao]).trim() : '(sem descrição)';
+    let dataEv = mapa.dataHora>=0 ? parseDataCell(r[mapa.dataHora]) : null;
+    if(!dataEv && mapa.pago>=0) dataEv = parseDataCell(r[mapa.pago]);
+    const renda = mapa.renda>=0 ? parseValorCell(r[mapa.renda]) : null;
+    const gasto = mapa.gastos>=0 ? parseValorCell(r[mapa.gastos]) : null;
+    const banco = mapa.banco>=0 && r[mapa.banco]!=null ? String(r[mapa.banco]).trim() : '';
+    const tagCell = mapa.tag>=0 && r[mapa.tag]!=null ? String(r[mapa.tag]) : '';
+    const tags = (tagCell.match(/#[^\s#]+/g)||[]).map(t=>t.slice(1));
+    const valor = renda!=null ? renda : gasto;
+    if(valor==null || !dataEv){ ignoradas++; continue; }
+    const tipo = renda!=null ? 'entrada' : 'saida';
+    resultado.push({
+      status, tipo, valor, descricao: desc, nota:'', banco, tags,
+      dataEvento: dataEv.toISOString()
+    });
+  }
+  return {resultado, ignoradas};
+}
+
+// Verifica duplicidade consultando o BANCO DE DADOS diretamente (não o cache limitado
+// da tela, que só guarda os 1000 lançamentos mais recentes e por isso "esquece" de
+// meses antigos assim que o total passa disso).
+async function deduplicarContraBanco(resultado){
+  if(!db) return {resultado, duplicadas:0};
+  const bancosNoLote = [...new Set(resultado.map(l=>l.banco||''))];
+  const existentes = new Set();
+  for(const banco of bancosNoLote){
+    try{
+      const snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get();
+      snap.docs.forEach(d=>existentes.add(chaveLancamento(d.data())));
+    }catch(e){
+      console.error('Falha ao checar duplicidade para banco', banco, e);
+    }
+  }
+  const vistos = new Set();
+  let duplicadas = 0;
+  const filtrado = resultado.filter(l=>{
+    const k = chaveLancamento(l);
+    if(existentes.has(k) || vistos.has(k)){ duplicadas++; return false; }
+    vistos.add(k);
+    return true;
+  });
+  return {resultado: filtrado, duplicadas};
+}
+function chaveLancamento(l){
+  return [l.status, (l.descricao||'').trim().toLowerCase(), Number(l.valor).toFixed(2), (l.banco||'').trim().toLowerCase(), l.dataEvento].join('|');
+}
+
+function tratarResultadoImport(res, statusEl){
+  if(res.erro==='cabecalho'){ statusEl.textContent = "Não encontrei a linha de cabeçalho (ST/DESCRIÇÃO/...). Confira se colou a partir dessa linha."; return; }
+  if(res.erro==='colunas'){ statusEl.textContent = "Encontrei o cabeçalho, mas faltou a coluna DATA HORA ou RENDA/GASTOS. Confira se colou todas as colunas."; return; }
+  lancamentosParaImportar = res.resultado;
+  mostrarPreview();
+  const partes = [];
+  if(res.ignoradas) partes.push(`${res.ignoradas} linha(s) sem data/valor ignoradas`);
+  if(res.duplicadas) partes.push(`${res.duplicadas} já existente(s) no app, não repetidas`);
+  statusEl.textContent = partes.join(' · ');
+}
+
+async function processarArquivo(){
+  const inp = document.getElementById('arquivoImport');
+  const statusEl = document.getElementById('importStatus');
+  if(!inp.files.length){ statusEl.textContent = "Escolha um arquivo primeiro."; return; }
+  statusEl.textContent = "Lendo...";
+  const arrayBuffer = await inp.files[0].arrayBuffer();
+  try{
+    const wb = XLSX.read(new Uint8Array(arrayBuffer), {type:'array', cellDates:false});
+    let resultadoFinal = [], ignoradasFinal = 0, achouAlguma = false;
+    wb.SheetNames.forEach(nome=>{
+      const linhas = XLSX.utils.sheet_to_json(wb.Sheets[nome], {header:1, raw:true, defval:null});
+      const res = parseLinhas(linhas);
+      if(!res.erro){ achouAlguma = true; resultadoFinal = resultadoFinal.concat(res.resultado); ignoradasFinal += res.ignoradas; }
+    });
+    if(!achouAlguma){ tratarResultadoImport({erro:'cabecalho'}, statusEl); return; }
+    statusEl.textContent = "Conferindo duplicidade no banco de dados...";
+    const {resultado, duplicadas} = await deduplicarContraBanco(resultadoFinal);
+    tratarResultadoImport({resultado, ignoradas: ignoradasFinal, duplicadas}, statusEl);
+  }catch(err){
+    statusEl.textContent = "Não consegui ler esse arquivo: " + err.message;
+  }
+}
+
+function mostrarPreview(){
+  document.getElementById('qtdPreview').textContent = lancamentosParaImportar.length;
+  document.getElementById('listaPreview').innerHTML = lancamentosParaImportar.slice(0,300).map(l=>`
+    <div class="item">
+      <div class="item-top"><span class="item-desc">${l.descricao}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
+      <div class="item-meta">${new Date(l.dataEvento).toLocaleDateString('pt-BR')} · ${l.status} · ${l.banco||'-'}</div>
+    </div>`).join('');
+  document.getElementById('cardPreview').classList.remove('hidden');
+}
+
+async function confirmarImportacao(){
+  const btn = document.getElementById('btnConfirmarImport');
+  const statusEl = document.getElementById('importStatus');
+  btn.disabled = true;
+  btn.textContent = 'Processando...';
+  statusEl.textContent = `Importando... 0/${lancamentosParaImportar.length}`;
+  if(!db){ await avisar("Banco de dados indisponível nesta visualização."); btn.disabled=false; btn.textContent='Confirmar importação'; return; }
+  const bancosNovos = new Set(listas.banco);
+  const statusNovos = new Set(listas.status);
+  const tagsNovas = new Set(tagsUsadas);
+  let feitos = 0;
+  for(const l of lancamentosParaImportar){
+    if(l.banco && !bancosNovos.has(l.banco)) bancosNovos.add(l.banco);
+    if(l.status && !statusNovos.has(l.status)) statusNovos.add(l.status);
+    (l.tags||[]).forEach(t=>tagsNovas.add(t));
+    await db.collection("lancamentos").add({...l, criadoEm:new Date().toISOString()});
+    feitos++;
+    statusEl.textContent = `Importando... ${feitos}/${lancamentosParaImportar.length}`;
+  }
+  listas.banco = [...bancosNovos]; listas.status = [...statusNovos];
+  await salvarListas();
+  await db.doc("config/tags").set({usadas:[...tagsNovas]});
+  statusEl.textContent = `Importação concluída: ${feitos} lançamentos.`;
+  document.getElementById('cardPreview').classList.add('hidden');
+  lancamentosParaImportar = [];
+  btn.disabled = false;
+  btn.textContent = 'Confirmar importação';
+}
+
+async function processarTextoColado(){
+  const texto = document.getElementById('textoColado').value;
+  const statusEl = document.getElementById('importStatus');
+  if(!texto.trim()){ statusEl.textContent = "Cole os dados primeiro."; return; }
+  try{
+    const linhas = texto.split(/\r?\n/).map(l=>l.split('\t'));
+    const res = parseLinhas(linhas);
+    if(res.erro){ tratarResultadoImport(res, statusEl); return; }
+    statusEl.textContent = "Conferindo duplicidade no banco de dados...";
+    const {resultado, duplicadas} = await deduplicarContraBanco(res.resultado);
+    tratarResultadoImport({resultado, ignoradas: res.ignoradas, duplicadas}, statusEl);
+  }catch(err){
+    statusEl.textContent = "Não consegui interpretar o texto colado: " + err.message;
+  }
+}
+
+async function lerTodosLancamentos(aoProgredir){
+  const todos = new Map();
+  let cursor = null;
+  for(let i=0;i<500;i++){
+    let q = db.collection("lancamentos").orderBy("dataEvento","desc");
+    if(cursor) q = q.where("dataEvento","<=",cursor);
+    const snap = await q.limit(1000).get();
+    let novos = 0;
+    snap.docs.forEach(d=>{
+      if(!todos.has(d.id)){ todos.set(d.id, {id:d.id, ...clonar(d.data())}); novos++; }
+    });
+    if(aoProgredir) aoProgredir(todos.size);
+    if(snap.docs.length<1000) break;
+    if(novos===0) throw new Error('Mais de 1000 lançamentos com exatamente a mesma data e hora. A exportação ficaria incompleta e foi interrompida.');
+    cursor = snap.docs[snap.docs.length-1].data().dataEvento;
+  }
+  return [...todos.values()];
+}
+async function exportarDados(){
+  const statusEl = document.getElementById('exportStatus');
+  const downloads = await claude.use("downloads");
+  if(!downloads){ statusEl.textContent = "Exportação indisponível nesta visualização."; return; }
+  if(!db){ statusEl.textContent = "Banco de dados indisponível nesta visualização."; return; }
+  try{
+    statusEl.textContent = "Lendo lançamentos...";
+    const lancamentos = await lerTodosLancamentos(n=>{ statusEl.textContent = `Lendo lançamentos... ${n}`; });
+    statusEl.textContent = "Lendo configurações...";
+    const documentos = {};
+    for(const caminho of ["config/listas","config/tags","config/combos","config/saldos"]){
+      const snap = await db.doc(caminho).get();
+      documentos[caminho] = snap.data() ? clonar(snap.data()) : null;
+    }
+    const payload = {
+      app: "Finanças pessoais",
+      versaoExportacao: 2,
+      exportadoEm: new Date().toISOString(),
+      contagem: { lancamentos: lancamentos.length },
+      colecoes: { lancamentos },
+      documentos
+    };
+    const ok = await downloads.save({ filename: `financas-export-${new Date().toISOString().slice(0,10)}.json`, data: JSON.stringify(payload, null, 2) });
+    const nDocs = Object.values(documentos).filter(Boolean).length;
+    statusEl.textContent = ok ? `Exportado ✓ (${lancamentos.length} lançamentos e ${nDocs} documentos de configuração)` : "Exportação cancelada.";
+  }catch(e){
+    statusEl.textContent = "⚠️ Erro ao exportar: " + ((e && (e.code||'')) + ' ' + (e && (e.message||e)));
+  }
+}
+
+function limparPreview(){
+  lancamentosParaImportar = [];
+  document.getElementById('cardPreview').classList.add('hidden');
+  document.getElementById('listaPreview').innerHTML = '';
+  document.getElementById('arquivoImport').value = '';
+  document.getElementById('textoColado').value = '';
+  document.getElementById('importStatus').textContent = '';
+}
+document.getElementById('btnLimparPreview').addEventListener('click', limparPreview);
+document.getElementById('btnProcessarTexto').addEventListener('click', processarTextoColado);
+document.getElementById('btnProcessar').addEventListener('click', processarArquivo);
+document.getElementById('btnConfirmarImport').addEventListener('click', confirmarImportacao);
+document.getElementById('btnExportar').addEventListener('click', exportarDados);
+
+init();
+</script>
+</body>
+</html>
