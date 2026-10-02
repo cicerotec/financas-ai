@@ -335,6 +335,8 @@ svg text{fill:var(--text);font-size:10px;}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="api.js"></script>
 <script>
 let db = null, sample = null;
 let lancamentosParaImportar = [];
@@ -349,7 +351,7 @@ let corAberta = null;
 const COR_PALETA = ['#639922','#BA7517','#378ADD','#7F77DD','#888780','#D85A30','#1D9E75','#D4537E','#E24B4A'];
 const COR_PADRAO = { 'PAGO':'#639922','PREVISTO':'#BA7517','CREDITO IN':'#378ADD','CREDITO EX':'#7F77DD','CONTAS':'#888780','TRANSFERINDO':'#888780','CREDITANDO':'#D85A30' };
 function normStatus(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }
-function corStatus(s){ return statusCor[s] || COR_PADRAO[normStatus(s)] || '#888780'; }
+function corStatus(s){ const c = statusCor[s] || COR_PADRAO[normStatus(s)] || '#888780'; return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '#888780'; }
 function estiloItemCor(status){
   const c = corStatus(status);
   const tint = `background:color-mix(in srgb,${c} 16%,transparent);`;
@@ -360,9 +362,9 @@ function estiloItemCor(status){
   return '';
 }
 function seloStatus(status){
-  if(estiloCor==='nenhum') return status;
+  if(estiloCor==='nenhum') return esc(status);
   const c = corStatus(status);
-  return `<span style="background:color-mix(in srgb,${c} 32%,transparent);padding:1px 7px;border-radius:8px;font-weight:600;color:var(--text);">${status}</span>`;
+  return `<span style="background:color-mix(in srgb,${c} 32%,transparent);padding:1px 7px;border-radius:8px;font-weight:600;color:var(--text);">${esc(status)}</span>`;
 }
 let tagsUsadas = [];
 let saldosConfig = {};
@@ -447,7 +449,7 @@ function pedirNovaTagParaMigrar(tag, qtd, outrasTags){
       `${qtd} lançamento(s) usam a tag "${tag}". Escolha uma tag pra substituir (ou deixe em branco pra só remover essa tag desses lançamentos):`;
     document.getElementById('modalExtra').innerHTML = `
       <input type="text" id="modalNovaTag" list="modalListaTags" placeholder="nova tag (opcional)" style="margin-bottom:10px;">
-      <datalist id="modalListaTags">${outrasTags.map(t=>`<option value="${t}">`).join('')}</datalist>
+      <datalist id="modalListaTags">${outrasTags.map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
     `;
     document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Continuar</button>';
     document.getElementById('modalOverlay').classList.remove('hidden');
@@ -559,9 +561,9 @@ function setupTabs(){
 function renderListas(){
   const fStatus=document.getElementById('fStatus'), fBanco=document.getElementById('fBanco');
   const tOrig=document.getElementById('tBancoOrigem'), tDest=document.getElementById('tBancoDestino');
-  [fStatus].forEach(sel=>{ sel.innerHTML = listas.status.map(s=>`<option>${s}</option>`).join(''); });
+  [fStatus].forEach(sel=>{ sel.innerHTML = listas.status.map(s=>`<option>${esc(s)}</option>`).join(''); });
   atualizarCampoFatura();
-  [fBanco,tOrig,tDest].forEach(sel=>{ sel.innerHTML = listas.banco.map(s=>`<option>${s}</option>`).join(''); });
+  [fBanco,tOrig,tDest].forEach(sel=>{ sel.innerHTML = listas.banco.map(s=>`<option>${esc(s)}</option>`).join(''); });
   // tira da seleção qualquer status que não existe mais
   filStatusSelecionados = new Set([...filStatusSelecionados].filter(s=>listas.status.includes(s)));
   renderFilStatusDropdown();
@@ -570,18 +572,18 @@ function renderListas(){
 
   document.getElementById('pillStatus').innerHTML = listas.status.map(s=>
     `<span class="pill">
-      <button data-del-status="${s}">✕</button>
-      <span style="display:flex;align-items:center;gap:6px;"><button data-cor-status="${s}" aria-label="Escolher cor de ${s}" style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${corStatus(s)};border:2px solid var(--border);padding:0;cursor:pointer;"></button><b>${s}</b></span>
-      ${corAberta===s?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${COR_PALETA.map(p=>`<button data-cor-pick="${p}" data-cor-st="${s}" aria-label="Cor ${p}" style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${p};border:${p===corStatus(s)?'2px solid var(--text)':'1px solid var(--border)'};padding:0;cursor:pointer;"></button>`).join('')}</div>`:''}
+      <button data-del-status="${esc(s)}">✕</button>
+      <span style="display:flex;align-items:center;gap:6px;"><button data-cor-status="${esc(s)}" aria-label="Escolher cor de ${esc(s)}" style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${corStatus(s)};border:2px solid var(--border);padding:0;cursor:pointer;"></button><b>${esc(s)}</b></span>
+      ${corAberta===s?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${COR_PALETA.map(p=>`<button data-cor-pick="${p}" data-cor-st="${esc(s)}" aria-label="Cor ${p}" style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${p};border:${p===corStatus(s)?'2px solid var(--text)':'1px solid var(--border)'};padding:0;cursor:pointer;"></button>`).join('')}</div>`:''}
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
-        <input type="checkbox" data-real-status="${s}" ${ehStatusReal(s)?'checked':''} style="width:auto;"> conta como real
+        <input type="checkbox" data-real-status="${esc(s)}" ${ehStatusReal(s)?'checked':''} style="width:auto;"> conta como real
       </label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
-        <input type="checkbox" data-afeta-status="${s}" ${afetaSaldo(s)?'checked':''} style="width:auto;"> afeta saldo do banco
+        <input type="checkbox" data-afeta-status="${esc(s)}" ${afetaSaldo(s)?'checked':''} style="width:auto;"> afeta saldo do banco
       </label>
     </span>`).join('');
   document.getElementById('pillBanco').innerHTML = listas.banco.map(s=>
-    `<span class="pill">${s} <button data-del-banco="${s}">✕</button></span>`).join('');
+    `<span class="pill">${esc(s)} <button data-del-banco="${esc(s)}">✕</button></span>`).join('');
 
   document.querySelectorAll('[data-del-status]').forEach(b=>b.onclick=()=>removerDaLista('status',b.dataset.delStatus));
   document.querySelectorAll('[data-del-banco]').forEach(b=>b.onclick=()=>removerDaLista('banco',b.dataset.delBanco));
@@ -620,9 +622,9 @@ function renderAparencia(){
   if(ordemSaldos==='manual'){
     const ef = ordemManualEfetiva();
     manualEl.innerHTML = '<p class="muted" style="margin:8px 0 2px;">Use as setas para mover cada banco.</p>' + ef.map((n,i)=>
-      `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:14px;">${n}</span>` +
-      `<button class="ghost" data-ord-up="${i}" aria-label="Subir ${n}" style="padding:4px 12px;" ${i===0?'disabled':''}>▲</button>` +
-      `<button class="ghost" data-ord-dn="${i}" aria-label="Descer ${n}" style="padding:4px 12px;" ${i===ef.length-1?'disabled':''}>▼</button></div>`).join('');
+      `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:14px;">${esc(n)}</span>` +
+      `<button class="ghost" data-ord-up="${i}" aria-label="Subir ${esc(n)}" style="padding:4px 12px;" ${i===0?'disabled':''}>▲</button>` +
+      `<button class="ghost" data-ord-dn="${i}" aria-label="Descer ${esc(n)}" style="padding:4px 12px;" ${i===ef.length-1?'disabled':''}>▼</button></div>`).join('');
   } else manualEl.innerHTML = '';
   document.querySelectorAll('[data-ordem-saldos]').forEach(b=>b.onclick=()=>{
     const novo = b.dataset.ordemSaldos;
@@ -691,7 +693,7 @@ function salvarCombos(){
   return filaCombos;
 }
 function chipTag(t){
-  return `<span class="tag ${tagsSelecionadas.has(t)?'on':''}" data-tag="${t}">${t}</span>`;
+  return `<span class="tag ${tagsSelecionadas.has(t)?'on':''}" data-tag="${esc(t)}">${esc(t)}</span>`;
 }
 function renderTagPicker(){
   if(!document.getElementById('tagArea')) return;
@@ -704,7 +706,7 @@ function renderTagPicker(){
     h += `<div class="muted">Combos${temSugerido?' (tracejado = sugerido pelo histórico)':''}</div><div class="tags">` +
       combosVisiveis.map((c,i)=>{
         const on = sel.length===c.tags.length && chaveTags(c.tags)===kSel;
-        return `<span class="tag ${on?'on':''}" data-combo="${i}" style="border-radius:8px;${c.salvo?'':'border-style:dashed;'}">${c.tags.join(' · ')}${c.n?` <span style="font-size:11px;">${c.n}x</span>`:''}</span>`;
+        return `<span class="tag ${on?'on':''}" data-combo="${i}" style="border-radius:8px;${c.salvo?'':'border-style:dashed;'}">${esc(c.tags.join(' · '))}${c.n?` <span style="font-size:11px;">${c.n}x</span>`:''}</span>`;
       }).join('') + '</div>';
   }
   const jaSalvo = combosSalvos.some(c=>chaveTags(c.tags)===kSel);
@@ -728,7 +730,7 @@ function renderCombosLista(){
   const el = document.getElementById('listaCombos');
   if(!el) return;
   el.innerHTML = combosSalvos.map((c,i)=>
-    `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13px;">${c.tags.join(' · ')}</span><button class="ghost" data-del-combo="${i}">Excluir</button></div>`).join('')
+    `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13px;">${esc(c.tags.join(' · '))}</span><button class="ghost" data-del-combo="${i}">Excluir</button></div>`).join('')
     || '<p class="muted">Nenhum combo salvo ainda.</p>';
   el.querySelectorAll('[data-del-combo]').forEach(b=>b.onclick=()=>{
     combosSalvos.splice(parseInt(b.dataset.delCombo,10),1);
@@ -736,11 +738,11 @@ function renderCombosLista(){
   });
 }
 function renderTagFilter(){
-  document.getElementById('filTag').innerHTML = '<option value="">Tag: todas</option>' + tagsUsadas.map(t=>`<option>${t}</option>`).join('');
+  document.getElementById('filTag').innerHTML = '<option value="">Tag: todas</option>' + tagsUsadas.map(t=>`<option>${esc(t)}</option>`).join('');
 }
 function renderTagChartSelect(){
   const sel = document.getElementById('tagChartSelect');
-  sel.innerHTML = tagsUsadas.map(t=>`<option>${t}</option>`).join('');
+  sel.innerHTML = tagsUsadas.map(t=>`<option>${esc(t)}</option>`).join('');
   sel.onchange = ()=>desenharGrafico(sel.value);
   if(tagsUsadas.length) desenharGrafico(sel.value);
 }
@@ -748,7 +750,7 @@ function renderGerenciarTags(){
   const el = document.getElementById('pillTags');
   if(!el) return;
   el.innerHTML = tagsUsadas.map(t=>
-    `<span class="pill" style="flex-direction:row;min-width:0;">#${t} <button data-del-tag="${t}">✕</button></span>`).join('')
+    `<span class="pill" style="flex-direction:row;min-width:0;">#${esc(t)} <button data-del-tag="${esc(t)}">✕</button></span>`).join('')
     || '<p class="muted">Nenhuma tag ainda.</p>';
   el.querySelectorAll('[data-del-tag]').forEach(b=>b.onclick=()=>excluirTag(b.dataset.delTag));
 }
@@ -854,7 +856,7 @@ function renderFilBancoDropdown(){
       <button type="button" id="filBancoNenhum">Limpar</button>
     </div>
     ${listas.banco.map(b=>`
-      <label><input type="checkbox" data-fil-banco="${b}" ${filBancoSelecionados.has(b)?'checked':''}> ${b}</label>
+      <label><input type="checkbox" data-fil-banco="${esc(b)}" ${filBancoSelecionados.has(b)?'checked':''}> ${esc(b)}</label>
     `).join('')}
   `;
   painel.querySelectorAll('[data-fil-banco]').forEach(cb=>cb.addEventListener('change', ()=>{
@@ -886,7 +888,7 @@ function renderFilStatusDropdown(){
       <button type="button" id="filStatusNenhum">Limpar</button>
     </div>
     ${listas.status.map(s=>`
-      <label><input type="checkbox" data-fil-status="${s}" ${filStatusSelecionados.has(s)?'checked':''}> ${s}</label>
+      <label><input type="checkbox" data-fil-status="${esc(s)}" ${filStatusSelecionados.has(s)?'checked':''}> ${esc(s)}</label>
     `).join('')}
   `;
   painel.querySelectorAll('[data-fil-status]').forEach(cb=>cb.addEventListener('change', ()=>{
@@ -1035,14 +1037,14 @@ function renderHistorico(){
   if(!lista.length){ el.innerHTML = '<p class="muted">Nenhum lançamento encontrado.</p>'; return; }
   el.innerHTML = lista.map(l=>`
     <div class="item ${l.oculto?'oculto':''}" style="${estiloItemCor(l.status)}">
-      <div class="item-top"><span class="item-desc">${l.descricao}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
-      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)} · ${l.banco||'-'} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+t).join(' '):''}</div>
+      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
+      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}</div>
       ${l.nota?`<div class="item-meta">${escHtml(l.nota)}</div>`:''}
       <div class="item-acoes">
-        <button data-acao="editar" data-id="${l.id}">✏️ Editar</button>
-        <button data-acao="copiar" data-id="${l.id}">📋 Copiar</button>
-        <button data-acao="ocultar" data-id="${l.id}">${l.oculto?'👁️ Mostrar':'🙈 Ocultar'}</button>
-        <button data-acao="excluir" data-id="${l.id}">🗑️ Excluir</button>
+        <button data-acao="editar" data-id="${esc(l.id)}">✏️ Editar</button>
+        <button data-acao="copiar" data-id="${esc(l.id)}">📋 Copiar</button>
+        <button data-acao="ocultar" data-id="${esc(l.id)}">${l.oculto?'👁️ Mostrar':'🙈 Ocultar'}</button>
+        <button data-acao="excluir" data-id="${esc(l.id)}">🗑️ Excluir</button>
       </div>
     </div>`).join('');
 }
@@ -1300,13 +1302,13 @@ function painelSaldoHtml(i){
   const cfg = saldosConfig[b] || {saldoInicial:0, dataInicio:''};
   const d = (rascunhoSaldo && rascunhoSaldo.idx===i) ? rascunhoSaldo : {si:String(cfg.saldoInicial||0), di:cfg.dataInicio||'', entra:!cfg.foraDoTotal};
   return `<div class="sd-painel">
-    <b>Configurar ${b}</b>
+    <b>Configurar ${esc(b)}</b>
     <div class="row" style="margin-top:8px;">
-      <div><label>Saldo inicial (o que a conta tinha na data abaixo)</label><input type="number" step="0.01" id="sInicial" value="${d.si}"></div>
-      <div><label>Data de início (AAAA-MM-DD)</label><input type="text" inputmode="numeric" placeholder="2026-09-01" id="sData" value="${d.di}"></div>
+      <div><label>Saldo inicial (o que a conta tinha na data abaixo)</label><input type="number" step="0.01" id="sInicial" value="${esc(d.si)}"></div>
+      <div><label>Data de início (AAAA-MM-DD)</label><input type="text" inputmode="numeric" placeholder="2026-09-01" id="sData" value="${esc(d.di)}"></div>
     </div>
     <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;"><input type="checkbox" id="sEntra" style="width:auto;" ${d.entra?'checked':''}> Entra no total</label>
-    <p class="muted" id="sMsg" style="margin-top:6px;">${msgSaldo||''}</p>
+    <p class="muted" id="sMsg" style="margin-top:6px;">${esc(msgSaldo||'')}</p>
     <button class="primary" id="btnSalvarSaldo" data-i="${i}">Salvar</button>
   </div>`;
 }
@@ -1336,7 +1338,7 @@ function renderSaldos(){
     h += '<div class="sd-tiles">' + indicesOrdenados().map(i=>{
       const b = listas.banco[i];
       const cfg = saldosConfig[b], r = saldosAtuais[b];
-      return `<div class="sd-tile ${saldoAberto===i?'aberto':''} ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${b}${cfg&&cfg.foraDoTotal?' · fora':''}</div><div class="${classeVal(r)}">${textoVal(r)}</div></div>`;
+      return `<div class="sd-tile ${saldoAberto===i?'aberto':''} ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${esc(b)}${cfg&&cfg.foraDoTotal?' · fora':''}</div><div class="${classeVal(r)}">${textoVal(r)}</div></div>`;
     }).join('') + '</div>';
     if(saldoAberto>=0 && listas.banco[saldoAberto]!==undefined) h += painelSaldoHtml(saldoAberto);
   } else {
@@ -1344,7 +1346,7 @@ function renderSaldos(){
       const b = listas.banco[i];
       const cfg = saldosConfig[b], r = saldosAtuais[b];
       const dica = !cfg ? 'defina o saldo inicial' : (cfg.foraDoTotal ? 'fora do total' : '');
-      return `<div class="sd-row ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${b}${dica?`<div class="sd-sub">${dica}</div>`:''}</div><div class="${classeVal(r)}">${textoVal(r)}</div><span class="muted">${saldoAberto===i?'▴':'▾'}</span></div>` +
+      return `<div class="sd-row ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${esc(b)}${dica?`<div class="sd-sub">${dica}</div>`:''}</div><div class="${classeVal(r)}">${textoVal(r)}</div><span class="muted">${saldoAberto===i?'▴':'▾'}</span></div>` +
         (saldoAberto===i ? painelSaldoHtml(i) : '');
     }).join('');
   }
@@ -1667,7 +1669,7 @@ function conferenciaHtml(b, ym, vb){
   cartaoCands = candidatosFatura(b, ym, d);
   if(cartaoCands.length){
     h += '<div class="muted" style="margin-top:6px;">Registros perto do corte que explicam a diferença:</div>';
-    h += cartaoCands.map((c,i)=>`<div class="sd-painel" style="margin:6px 0;padding:8px;"><div style="font-size:13px;">${c.recs.map(r=>`${r.t} <span class="muted">${fmtDiaMes(r.d)} · ${fmtMoeda(r.v)}</span>`).join(' + ')}</div><button class="ghost" data-cand="${i}" style="margin-top:6px;font-size:12px;padding:4px 10px;">${c.rotulo}</button></div>`).join('');
+    h += cartaoCands.map((c,i)=>`<div class="sd-painel" style="margin:6px 0;padding:8px;"><div style="font-size:13px;">${c.recs.map(r=>`${esc(r.t)} <span class="muted">${fmtDiaMes(r.d)} · ${fmtMoeda(r.v)}</span>`).join(' + ')}</div><button class="ghost" data-cand="${i}" style="margin-top:6px;font-size:12px;padding:4px 10px;">${c.rotulo}</button></div>`).join('');
   } else {
     h += `<p class="muted">Nenhum registro perto do corte bate com ${fmtMoeda(Math.abs(d))}.${d<0?' Pode ser anuidade, juros, IOF ou uma compra não registrada.':' Pode ser um valor registrado a mais ou um registro duplicado.'}</p>`;
     if(d<0) h += `<button class="ghost" data-regdif="${ym}" style="font-size:12px;padding:4px 10px;">Registrar a diferença como lançamento</button>`;
@@ -1692,16 +1694,16 @@ function painelCartaoHtml(i){
     + offs.map(o=>`<span class="tag ${cartaoSel===o?'on':''}" data-chip="${o}">${rotuloFatura(o, addMesYm(at,o))}</span>`).join('')
     + `<span class="tag" data-janela="1" aria-label="Faturas mais novas">›</span></div>`;
   h += `<p class="muted" style="margin:8px 0 4px;">Período: ${fmtDataCompleta(per.ini)} a ${fmtDataCompleta(per.fim)} · ${fechada?'fechada':'aberta'}</p>`;
-  h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${fechValor}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
-  h += `<p class="muted" id="cMsg">${msgCartao||''}</p>`;
+  h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${esc(fechValor)}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
+  h += `<p class="muted" id="cMsg">${esc(msgCartao||'')}</p>`;
   h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(total)}${dados.incompleto?' ⚠':''}</span></div>`;
   const vb = valorBancoDe(card, ym);
   const vbTxt = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym && rascunhoFech.vb!==undefined) ? rascunhoFech.vb : (vb===null ? '' : String(vb));
-  h += `<label>Valor no app do cartão (para conferir)</label><div class="row"><input type="number" step="0.01" id="cBanco" data-ym="${ym}" value="${vbTxt}"><button class="ghost" id="btnSalvarBanco" data-ym="${ym}">Salvar</button></div>`;
+  h += `<label>Valor no app do cartão (para conferir)</label><div class="row"><input type="number" step="0.01" id="cBanco" data-ym="${ym}" value="${esc(vbTxt)}"><button class="ghost" id="btnSalvarBanco" data-ym="${ym}">Salvar</button></div>`;
   h += `<div id="cConf">${conferenciaHtml(b, ym, vbTxt==='' ? null : parseFloat(vbTxt))}</div>`;
   const est = recs.filter(r=>r.eff===ym && r.est);
   if(est.length){
-    h += '<div style="margin:8px 0;"><div class="muted">Valores estimados (corrija com o valor real em reais):</div>' + est.map(r=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t">${r.t}</span><input type="number" step="0.01" id="est-${r.id}" value="${r.bruto}" style="flex:0 0 96px;width:96px;"><button class="ghost" data-est="${r.id}" style="padding:4px 10px;">Corrigir</button></div>`).join('') + '</div>';
+    h += '<div style="margin:8px 0;"><div class="muted">Valores estimados (corrija com o valor real em reais):</div>' + est.map(r=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t">${esc(r.t)}</span><input type="number" step="0.01" id="est-${esc(r.id)}" value="${r.bruto}" style="flex:0 0 96px;width:96px;"><button class="ghost" data-est="${esc(r.id)}" style="padding:4px 10px;">Corrigir</button></div>`).join('') + '</div>';
   }
   const lista = recs.filter(r=>r.base===ym || r.eff===ym).sort((a,c)=> a.d<c.d?-1 : a.d>c.d?1 : 0);
   if(!lista.length) h += '<p class="muted">Nenhuma compra nesta fatura.</p>';
@@ -1711,10 +1713,10 @@ function painelCartaoHtml(i){
     if(fora) tag = `<span class="fx-tag">foi para a ${r.eff>ym?'próxima':'anterior'} fatura</span>`;
     else if(r.base!==ym) tag = `<span class="fx-tag">veio da ${r.base<ym?'anterior':'próxima'} fatura</span>`;
     const estTag = r.est ? '<span class="fx-tag" style="margin-left:6px;">valor estimado</span>' : '';
-    h += `<div class="fx-rec ${fora?'fora':''}" data-rec="${r.id}"><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${r.t}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.v)}</span></div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
+    h += `<div class="fx-rec ${fora?'fora':''}" data-rec="${esc(r.id)}"><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${esc(r.t)}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.v)}</span></div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
     if(cartaoRecSel===r.id){
       const ops = [[0,'Pela data (normal)'],[1,'Passar para a próxima fatura'],[-1,'Trazer para a anterior']].filter(o=>o[0]!==r.aj);
-      h += '<div class="fx-acoes">' + ops.map(o=>`<button class="ghost" data-ajuste="${r.id}|${o[0]}" style="font-size:12px;padding:4px 10px;">${o[1]}</button>`).join('') + '</div>';
+      h += '<div class="fx-acoes">' + ops.map(o=>`<button class="ghost" data-ajuste="${esc(r.id)}|${o[0]}" style="font-size:12px;padding:4px 10px;">${o[1]}</button>`).join('') + '</div>';
     }
     h += '</div>';
   });
@@ -1745,7 +1747,7 @@ function renderCartao(){
     const card = cartoesConfig[b], at = faturaAtual(card), dados = cartaoDados[b];
     const fech = fechamentoDe(card, at), dd = diasAte(fech);
     const val = dados ? fmtMoeda(totalFatura(registrosCartao(b), at)) + (dados.incompleto?' ⚠':'') : '···';
-    h += `<div class="sd-row" data-cartao="${i}"><div class="sd-nome">${b}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fech)} · ${dd===0?'hoje':'em '+dd+' dia'+(Math.abs(dd)===1?'':'s')}</div></div><div class="sd-val ${dados&&!cartaoCarregando?'':'carr'}">${val}</div><span class="muted">${cartaoAberto===i?'▴':'▾'}</span></div>`;
+    h += `<div class="sd-row" data-cartao="${i}"><div class="sd-nome">${esc(b)}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fech)} · ${dd===0?'hoje':'em '+dd+' dia'+(Math.abs(dd)===1?'':'s')}</div></div><div class="sd-val ${dados&&!cartaoCarregando?'':'carr'}">${val}</div><span class="muted">${cartaoAberto===i?'▴':'▾'}</span></div>`;
     if(cartaoAberto===i) h += painelCartaoHtml(i);
   });
   if(!n) h = '<p class="muted" style="padding:6px 4px;">Nenhum cartão cadastrado ainda.</p>';
@@ -1756,7 +1758,7 @@ function renderCartao(){
     const antes = sel.value;
     const comCredito = new Set(lancamentosCache.filter(l=>l.status && ehCredito(l.status)).map(l=>l.banco));
     const livres = listas.banco.filter(b=>!cartoesConfig[b]).sort((a,c)=>(comCredito.has(c)?1:0)-(comCredito.has(a)?1:0));
-    sel.innerHTML = livres.map(b=>`<option value="${b}">${b}${comCredito.has(b)?' (tem compras no crédito)':''}</option>`).join('');
+    sel.innerHTML = livres.map(b=>`<option value="${esc(b)}">${esc(b)}${comCredito.has(b)?' (tem compras no crédito)':''}</option>`).join('');
     if(livres.includes(antes)) sel.value = antes;
   }
 }
@@ -1938,7 +1940,8 @@ function mapaColunas(linhaCabecalho){
   return mapa;
 }
 
-function escHtml(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escHtml(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function esc(t){ return escHtml(t); }
 // Notas/comentários de célula (Google Sheets exporta as "notas" como comentários no .xlsx)
 function limparNotaComentario(c){
   const partes = (c||[]).map(x=>{
@@ -2068,8 +2071,8 @@ function mostrarPreview(){
   document.getElementById('qtdPreview').textContent = lancamentosParaImportar.length;
   document.getElementById('listaPreview').innerHTML = lancamentosParaImportar.slice(0,300).map(l=>`
     <div class="item">
-      <div class="item-top"><span class="item-desc">${l.descricao}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
-      <div class="item-meta">${new Date(l.dataEvento).toLocaleDateString('pt-BR')} · ${l.status} · ${l.banco||'-'}</div>
+      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
+      <div class="item-meta">${new Date(l.dataEvento).toLocaleDateString('pt-BR')} · ${esc(l.status)} · ${esc(l.banco||'-')}</div>
       ${l.nota?`<div class="item-meta">📝 ${escHtml(l.nota.length>140 ? l.nota.slice(0,140)+'…' : l.nota)}</div>`:''}
     </div>`).join('');
   document.getElementById('cardPreview').classList.remove('hidden');
