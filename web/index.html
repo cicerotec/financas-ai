@@ -268,6 +268,13 @@ svg text{fill:var(--text);font-size:10px;}
     <button class="ghost" id="btnAtualizarCartao" style="padding:4px 10px;">Atualizar ⟳</button>
   </div>
   <div id="listaCartoes"></div>
+  <div class="card" id="fechCard">
+    <b>Importar fechamentos da planilha</b>
+    <p class="muted">Lê, em cada aba mensal (ex.: "maio 2025"), a linha do cartão marcada com FECHAMENTO e grava o dia de cada mês, sem precisar digitar mês a mês. Não altera lançamentos. Valores já digitados de "valor no app do cartão" são mantidos.</p>
+    <input type="file" id="arquivoFech" accept=".xlsx,.xls">
+    <button class="primary" id="btnImportarFech">Importar fechamentos</button>
+    <p class="muted" id="fechStatus"></p>
+  </div>
   <div class="card" id="novoCartaoCard">
     <b>Adicionar cartão</b>
     <p class="muted">Escolha o banco ou conta que é cartão de crédito e o dia de fechamento da fatura atual. Depois você ajusta o fechamento de cada fatura, que muda todo mês.</p>
@@ -317,12 +324,16 @@ svg text{fill:var(--text);font-size:10px;}
     <b>Importar backup (.json)</b>
     <p class="muted">Restaura o arquivo gerado por "Exportar dados": lançamentos (com valor zero ou negativo, notas e ids originais) e configurações. Lançamentos com o mesmo id são sobrescritos, então repetir é seguro. Nada é apagado. Pode demorar alguns minutos.</p>
     <input type="file" id="arquivoBackup" accept=".json">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:6px 0;font-size:13px;color:var(--text);"><input type="checkbox" id="impLanc" checked style="width:auto;"> Importar lançamentos (dados financeiros)</label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:6px 0;font-size:13px;color:var(--text);"><input type="checkbox" id="impCfg" checked style="width:auto;"> Importar configurações (listas, tags, combos, saldos, cartões, flags e cores)</label>
     <button class="primary" id="btnImportarBackup">Importar backup</button>
     <p class="muted" id="backupStatus"></p>
   </div>
   <div class="card">
     <b>Exportar seus dados</b>
-    <p class="muted">Baixa tudo num arquivo .json: todos os lançamentos (sem limite de quantidade) e todas as configurações (listas, tags, combos, cores, flags dos status e saldos dos bancos). Sua cópia de segurança, fora da Anthropic.</p>
+    <p class="muted">Baixa um arquivo .json com o que você marcar abaixo. Dá para exportar só os lançamentos, só as configurações, ou os dois. Sua cópia de segurança, fora da Anthropic.</p>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:6px 0;font-size:13px;color:var(--text);"><input type="checkbox" id="expLanc" checked style="width:auto;"> Lançamentos (dados financeiros, sem limite de quantidade)</label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:6px 0;font-size:13px;color:var(--text);"><input type="checkbox" id="expCfg" checked style="width:auto;"> Configurações (listas, tags, combos, cores, flags dos status, saldos e cartões)</label>
     <button class="primary" id="btnExportar">Exportar dados</button>
     <p class="muted" id="exportStatus"></p>
   </div>
@@ -387,7 +398,11 @@ let rascunhoSaldo = null;
 let msgSaldo = '';
 function ehCredito(status){ return normStatus(status).startsWith('CREDITO'); }
 function ehCreditoEX(status){ return /^CREDITO\s*EX$/.test(normStatus(status)); }
-function ajusteEfetivo(l){ if(typeof l.faturaAjuste==='number') return l.faturaAjuste; return ehCreditoEX(l.status) ? 1 : 0; }
+function ehCreditoIN(status){ return /^CREDITO\s*IN$/.test(normStatus(status)); }
+// Como na planilha: CREDITO EX empurra a compra para a fatura seguinte (+1) e CREDITO IN puxa uma compra
+// posterior ao fechamento para a fatura que fecha neste mês (-1). faturaAjuste gravado no lançamento vence.
+function ajustePadrao(status){ return ehCreditoEX(status) ? 1 : (ehCreditoIN(status) ? -1 : 0); }
+function ajusteEfetivo(l){ if(typeof l.faturaAjuste==='number') return l.faturaAjuste; return ajustePadrao(l.status); }
 function chipFatura(l){
   if(!l.status || !ehCredito(l.status)) return '';
   const a = ajusteEfetivo(l);
@@ -403,7 +418,7 @@ function atualizarCampoFatura(){
   if(!w) return;
   const st = document.getElementById('fStatus').value;
   w.classList.toggle('hidden', !ehCredito(st));
-  document.getElementById('fFaturaDica').textContent = ehCreditoEX(st) ? 'Registros com status CRÉDITO EX já vão para a próxima fatura.' : '';
+  document.getElementById('fFaturaDica').textContent = ehCreditoEX(st) ? 'Registros com status CRÉDITO EX já vão para a próxima fatura.' : (ehCreditoIN(st) ? 'Registros com status CRÉDITO IN já entram na fatura anterior (a que fecha neste mês).' : '');
 }
 let lancamentosCache = [];
 let modoMesEspecifico = false;
@@ -771,7 +786,7 @@ async function garantirTags(novasTags){
 
 function setupHandlers(){
   document.getElementById('fStatus').addEventListener('change', ()=>{
-    document.getElementById('fFatura').value = ehCreditoEX(document.getElementById('fStatus').value) ? '1' : '0';
+    document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
     atualizarCampoFatura();
   });
   document.getElementById('listaCartoes').addEventListener('click', onCartaoClick);
@@ -934,7 +949,7 @@ Responda SOMENTE em JSON, sem markdown, no formato:
 {"status":"...", "tipo":"entrada"|"saida", "valor":number, "descricao":"...", "banco":"...", "tags":["..."], "dataEvento":"AAAA-MM-DDTHH:MM:SS (hora local do usuário, SEM Z, SEM fuso)"}
 Se não souber o banco com certeza, deixe banco como "".`;
     const res = await sample.json(prompt, {modelTier:"quick"});
-    if(res.status){ document.getElementById('fStatus').value = res.status; document.getElementById('fFatura').value = ehCreditoEX(res.status)?'1':'0'; atualizarCampoFatura(); }
+    if(res.status){ document.getElementById('fStatus').value = res.status; document.getElementById('fFatura').value = String(ajustePadrao(res.status)); atualizarCampoFatura(); }
     if(res.tipo) document.getElementById('fTipo').value = res.tipo;
     if(res.valor) document.getElementById('fValor').value = res.valor;
     if(res.descricao) document.getElementById('fDesc').value = res.descricao;
@@ -1003,7 +1018,7 @@ function limparFormulario(){
   document.getElementById('fData').value = nowLocalInput();
   tagsSelecionadas = new Set();
   tagBusca = ''; document.getElementById('tagBusca').value = '';
-  document.getElementById('fFatura').value = ehCreditoEX(document.getElementById('fStatus').value) ? '1' : '0';
+  document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
   document.getElementById('fEstimado').checked = false;
   atualizarCampoFatura();
   renderTagPicker();
@@ -1102,7 +1117,7 @@ function iniciarCopia(id){
   document.getElementById('btnCancelarEdicao').classList.add('hidden');
   document.getElementById('notaLivre').value = '';
   document.getElementById('fStatus').value = l.status;
-  document.getElementById('fFatura').value = ehCreditoEX(l.status) ? '1' : '0';
+  document.getElementById('fFatura').value = String(ajustePadrao(l.status));
   document.getElementById('fEstimado').checked = false;
   atualizarCampoFatura();
   document.getElementById('fTipo').value = l.tipo;
@@ -2038,6 +2053,72 @@ function chaveLancamento(l){
   return [l.status, (l.descricao||'').trim().toLowerCase(), Number(l.valor).toFixed(2), (l.banco||'').trim().toLowerCase(), l.dataEvento].join('|');
 }
 
+const MESES_PT = {janeiro:1,fevereiro:2,marco:3,abril:4,maio:5,junho:6,julho:7,agosto:8,setembro:9,outubro:10,novembro:11,dezembro:12};
+function ymDaAba(nome){
+  const m = normTxt(nome).match(/(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\D*(\d{4})/);
+  return m ? m[2]+'-'+pad2(MESES_PT[m[1]]) : null;
+}
+// Em cada aba mensal da planilha, a linha do cartão tem o dia de fechamento na célula à esquerda de uma célula
+// "FECHAMENTO" e o banco na coluna BANCO. Devolve { banco: { 'AAAA-MM': dia } }.
+function extrairFechamentos(wb){
+  const achados = {}, semMes = [];
+  wb.SheetNames.forEach(nome=>{
+    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[nome], {header:1, raw:true, defval:null});
+    let h = -1, mapa = null;
+    for(let i=0;i<linhas.length;i++){
+      const norm = (linhas[i]||[]).map(c=>c!=null?normalizaCabecalho(c):'');
+      if(norm.includes('ST') && norm.includes('DESCRICAO')){ h = i; mapa = mapaColunas(linhas[i]); break; }
+    }
+    if(h<0 || mapa.banco<0) return;
+    const ym = ymDaAba(nome);
+    for(let i=h+1;i<linhas.length;i++){
+      const r = linhas[i];
+      if(!r) continue;
+      const j = r.findIndex(c=>typeof c==='string' && /^\s*FECHAMENTO/i.test(c));
+      if(j<1) continue;
+      const dia = Number(r[j-1]);
+      const banco = r[mapa.banco]!=null ? String(r[mapa.banco]).trim() : '';
+      if(!banco || !Number.isInteger(dia) || dia<1 || dia>31) continue;
+      if(!ym){ if(!semMes.includes(nome)) semMes.push(nome); continue; }
+      (achados[banco] = achados[banco] || {})[ym] = dia;
+    }
+  });
+  return {achados, semMes};
+}
+async function importarFechamentos(){
+  const st = document.getElementById('fechStatus'), inp = document.getElementById('arquivoFech');
+  if(!db){ st.textContent = 'Banco de dados indisponível.'; return; }
+  if(!inp.files.length){ st.textContent = 'Escolha a planilha (.xlsx) primeiro.'; return; }
+  st.textContent = 'Lendo...';
+  try{
+    const wb = XLSX.read(new Uint8Array(await inp.files[0].arrayBuffer()), {type:'array'});
+    const {achados, semMes} = extrairFechamentos(wb);
+    const todos = Object.keys(achados);
+    if(!todos.length){ st.textContent = 'Não encontrei linhas "FECHAMENTO" (o dia na célula à esquerda e o banco na coluna BANCO).'; return; }
+    const bancos = todos.filter(b=>listas.banco.includes(b));
+    const ignorados = todos.filter(b=>!listas.banco.includes(b));
+    if(!bancos.length){ st.textContent = 'Os bancos da planilha (' + todos.join(', ') + ') não estão na lista de bancos do app.'; return; }
+    const resumo = bancos.map(b=>`${b} (${Object.keys(achados[b]).length} meses)`).join(', ');
+    if(!(await confirmarModal(`Gravar os dias de fechamento: ${resumo}?` + (ignorados.length ? ` Fora da lista de bancos, serão ignorados: ${ignorados.join(', ')}.` : '')))){ st.textContent = ''; return; }
+    await atualizarConfigCartoes(pb=>{
+      bancos.forEach(b=>{
+        const yms = Object.keys(achados[b]).sort();
+        const c = pb[b] = pb[b] || {diaPadrao: achados[b][yms[yms.length-1]], faturas:{}};
+        c.faturas = c.faturas || {};
+        yms.forEach(ym=>{
+          const dia = Math.min(achados[b][ym], diasNoMes(ym));
+          c.faturas[ym] = {...(c.faturas[ym]||{}), fechamento: ym + '-' + pad2(dia)};
+        });
+      });
+    });
+    st.textContent = `Fechamentos gravados: ${resumo}.` + (semMes.length ? ` Abas ignoradas (mês não identificado): ${semMes.join(', ')}.` : '');
+    await carregarCartoesConfig();
+    carregarCartoes(true);
+  }catch(e){
+    st.textContent = '⚠️ ' + ((e && (e.message||e.code)) || e);
+  }
+}
+
 function tratarResultadoImport(res, statusEl){
   if(res.erro==='cabecalho'){ statusEl.textContent = "Não encontrei a linha de cabeçalho (ST/DESCRIÇÃO/...). Confira se colou a partir dessa linha."; return; }
   if(res.erro==='colunas'){ statusEl.textContent = "Encontrei o cabeçalho, mas faltou a coluna DATA HORA ou RENDA/GASTOS. Confira se colou todas as colunas."; return; }
@@ -2154,23 +2235,31 @@ async function exportarDados(){
   if(!downloads){ statusEl.textContent = "Exportação indisponível nesta visualização."; return; }
   if(!db){ statusEl.textContent = "Banco de dados indisponível nesta visualização."; return; }
   try{
-    statusEl.textContent = "Lendo lançamentos...";
-    const lancamentos = await lerTodosLancamentos(n=>{ statusEl.textContent = `Lendo lançamentos... ${n}`; });
-    statusEl.textContent = "Lendo configurações...";
+    const comLanc = document.getElementById('expLanc').checked, comCfg = document.getElementById('expCfg').checked;
+    if(!comLanc && !comCfg){ statusEl.textContent = "Marque ao menos uma opção para exportar."; return; }
+    let lancamentos = [];
+    if(comLanc){
+      statusEl.textContent = "Lendo lançamentos...";
+      lancamentos = await lerTodosLancamentos(n=>{ statusEl.textContent = `Lendo lançamentos... ${n}`; });
+    }
     const documentos = {};
-    for(const caminho of ["config/listas","config/tags","config/combos","config/saldos","config/cartoes"]){
-      const snap = await db.doc(caminho).get();
-      documentos[caminho] = snap.data() ? clonar(snap.data()) : null;
+    if(comCfg){
+      statusEl.textContent = "Lendo configurações...";
+      for(const caminho of ["config/listas","config/tags","config/combos","config/saldos","config/cartoes"]){
+        const snap = await db.doc(caminho).get();
+        documentos[caminho] = snap.data() ? clonar(snap.data()) : null;
+      }
     }
     const payload = {
       app: "Finanças pessoais",
       versaoExportacao: 2,
       exportadoEm: new Date().toISOString(),
       contagem: { lancamentos: lancamentos.length },
-      colecoes: { lancamentos },
+      colecoes: comLanc ? { lancamentos } : {},
       documentos
     };
-    const ok = await downloads.save({ filename: `financas-export-${new Date().toISOString().slice(0,10)}.json`, data: JSON.stringify(payload, null, 2) });
+    const tipo = comLanc && comCfg ? 'export' : (comLanc ? 'lancamentos' : 'configuracoes');
+    const ok = await downloads.save({ filename: `financas-${tipo}-${new Date().toISOString().slice(0,10)}.json`, data: JSON.stringify(payload, null, 2) });
     const nDocs = Object.values(documentos).filter(Boolean).length;
     statusEl.textContent = ok ? `Exportado ✓ (${lancamentos.length} lançamentos e ${nDocs} documentos de configuração)` : "Exportação cancelada.";
   }catch(e){
@@ -2193,20 +2282,32 @@ document.getElementById('btnConfirmarImport').addEventListener('click', confirma
 async function importarBackup(){
   const st = document.getElementById('backupStatus'), inp = document.getElementById('arquivoBackup'), btn = document.getElementById('btnImportarBackup');
   if(!db || !db.importarLancamentos){ st.textContent = 'Importação de backup indisponível nesta versão.'; return; }
+  const querLanc = document.getElementById('impLanc').checked, querCfg = document.getElementById('impCfg').checked;
+  if(!querLanc && !querCfg){ st.textContent = 'Marque ao menos uma opção para importar.'; return; }
   if(!inp.files.length){ st.textContent = 'Escolha o arquivo .json do backup.'; return; }
   let dados;
   try{ dados = JSON.parse(await inp.files[0].text()); }
   catch(e){ st.textContent = 'Arquivo inválido: ' + e.message; return; }
-  const itens = dados && dados.colecoes && dados.colecoes.lancamentos;
-  if(!Array.isArray(itens)){ st.textContent = 'Este arquivo não parece um backup do app (faltam colecoes.lancamentos).'; return; }
-  const docs = Object.entries(dados.documentos || {}).filter(([k,v])=>v);
-  if(!(await confirmarModal(`Importar ${itens.length} lançamento(s) e ${docs.length} configuração(ões)? Itens com o mesmo id serão sobrescritos; nada é apagado.`))) return;
+  const itens = (dados && dados.colecoes && dados.colecoes.lancamentos) || null;
+  const docs = Object.entries((dados && dados.documentos) || {}).filter(([k,v])=>v);
+  if(querLanc && !Array.isArray(itens)){ st.textContent = 'Este arquivo não tem lançamentos. Desmarque "Importar lançamentos" ou escolha outro arquivo.'; return; }
+  if(querCfg && !docs.length){ st.textContent = 'Este arquivo não tem configurações. Desmarque "Importar configurações" ou escolha outro arquivo.'; return; }
+  const partes = [];
+  if(querLanc) partes.push(`${itens.length} lançamento(s)`);
+  if(querCfg) partes.push(`${docs.length} configuração(ões)`);
+  if(!(await confirmarModal(`Importar ${partes.join(' e ')}? Itens com o mesmo id (ou a mesma configuração) serão sobrescritos; nada é apagado.`))) return;
   btn.disabled = true;
   try{
-    const r = await db.importarLancamentos(itens, (feitos,total)=>{ st.textContent = `Importando lançamentos... ${feitos}/${total}`; });
-    for(const [caminho,obj] of docs){ st.textContent = `Gravando ${caminho}...`; await db.doc(caminho).set(obj); }
-    let msg = `Concluído: ${r.gravados} gravado(s) de ${itens.length} no arquivo` + (dados.contagem && dados.contagem.lancamentos!=null ? ` (contagem declarada: ${dados.contagem.lancamentos})` : '') + `; ${docs.length} configuração(ões).`;
-    if(r.rejeitados.length) msg += ` ${r.rejeitados.length} rejeitado(s): ` + r.rejeitados.slice(0,5).map(x=>`#${x.indice+1} ${x.motivo}`).join('; ') + (r.rejeitados.length>5?'…':'');
+    let msg = 'Concluído:';
+    if(querLanc){
+      const r = await db.importarLancamentos(itens, (feitos,total)=>{ st.textContent = `Importando lançamentos... ${feitos}/${total}`; });
+      msg += ` ${r.gravados} lançamento(s) gravado(s) de ${itens.length} no arquivo` + (dados.contagem && dados.contagem.lancamentos!=null ? ` (contagem declarada: ${dados.contagem.lancamentos})` : '') + '.';
+      if(r.rejeitados.length) msg += ` ${r.rejeitados.length} rejeitado(s): ` + r.rejeitados.slice(0,5).map(x=>`#${x.indice+1} ${x.motivo}`).join('; ') + (r.rejeitados.length>5?'…':'') + '.';
+    }
+    if(querCfg){
+      for(const [caminho,obj] of docs){ st.textContent = `Gravando ${caminho}...`; await db.doc(caminho).set(obj); }
+      msg += ` ${docs.length} configuração(ões) gravada(s).`;
+    }
     st.textContent = msg;
   }catch(e){
     st.textContent = '⚠️ Erro na importação: ' + (e && e.message || e) + ' Você pode tentar de novo: o que já foi gravado não duplica.';
@@ -2214,6 +2315,7 @@ async function importarBackup(){
 }
 document.getElementById('btnImportarBackup').addEventListener('click', importarBackup);
 document.getElementById('btnExportar').addEventListener('click', exportarDados);
+document.getElementById('btnImportarFech').addEventListener('click', importarFechamentos);
 
 init();
 </script>
