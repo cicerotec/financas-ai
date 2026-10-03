@@ -436,6 +436,13 @@ let filStatusSelecionados = new Set();
 let filBancoSelecionados = new Set();
 let editandoId = null;
 
+// Valor do ponto de vista do caixa: saída é negativa e entrada positiva; um valor negativo inverte o
+// sentido (reembolso/estorno lançado como saída de -R$ 100 aparece como +R$ 100).
+function valorAssinado(l){ return (l.tipo==='saida'?-1:1)*(Number(l.valor)||0); }
+function htmlValorLinha(l){
+  const v = valorAssinado(l);
+  return `<span class="valor ${v<0?'saida':'entrada'}">${v<0?'-':'+'}${fmtMoeda(Math.abs(v))}</span>`;
+}
 function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
 function nowLocalInput(){
   const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
@@ -977,7 +984,8 @@ Se não souber o banco com certeza, deixe banco como "".`;
 async function salvarLancamento(){
   if(!db){ await avisar("Banco de dados indisponível nesta visualização."); return; }
   const valor = parseFloat(document.getElementById('fValor').value);
-  if(!valor || valor<=0){ await avisar("Informe um valor válido."); return; }
+  // zero (lançamento só de nota) e negativo (estorno/reembolso) são aceitos de propósito
+  if(!Number.isFinite(valor)){ await avisar("Informe um valor válido."); return; }
   const tags = [...tagsSelecionadas];
   await garantirTags(tags);
   const statusEscolhido = document.getElementById('fStatus').value;
@@ -1059,7 +1067,7 @@ function renderHistorico(){
   if(!lista.length){ el.innerHTML = '<p class="muted">Nenhum lançamento encontrado.</p>'; return; }
   el.innerHTML = lista.map(l=>`
     <div class="item ${l.oculto?'oculto':''}" style="${estiloItemCor(l.status)}">
-      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
+      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span>${htmlValorLinha(l)}</div>
       <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}</div>
       ${l.nota?`<div class="item-meta">${escHtml(l.nota)}</div>`:''}
       <div class="item-acoes">
@@ -1709,6 +1717,9 @@ function painelCartaoHtml(i){
   const fechada = chaveDia(new Date()) > per.fim;
   const recs = registrosCartao(b);
   const total = totalFatura(recs, ym);
+  const inicio = card.inicio || '';
+  const historico = !!inicio && ym < inicio;
+  const conferida = card.faturas && card.faturas[ym] && card.faturas[ym].conferida;
   const fechValor = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym) ? rascunhoFech.f : per.fim;
   let h = '<div class="sd-painel">';
   h += '<div class="tags" style="align-items:center;margin-top:0;">'
@@ -1716,13 +1727,27 @@ function painelCartaoHtml(i){
     + offs.map(o=>`<span class="tag ${cartaoSel===o?'on':''}" data-chip="${o}">${rotuloFatura(o, addMesYm(at,o))}</span>`).join('')
     + `<span class="tag" data-janela="1" aria-label="Faturas mais novas">›</span></div>`;
   h += `<p class="muted" style="margin:8px 0 4px;">Período: ${fmtDataCompleta(per.ini)} a ${fmtDataCompleta(per.fim)} · ${fechada?'fechada':'aberta'}</p>`;
-  h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${esc(fechValor)}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
+  if(historico) h += `<p class="muted">📁 Histórico: antes do início do controle deste cartão (${esc(inicio)}). Os lançamentos aparecem, mas a fatura não é conferida.</p>`;
+  else h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${esc(fechValor)}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
   h += `<p class="muted" id="cMsg">${esc(msgCartao||'')}</p>`;
   h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(total)}${dados.incompleto?' ⚠':''}</span></div>`;
-  const vb = valorBancoDe(card, ym);
-  const vbTxt = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym && rascunhoFech.vb!==undefined) ? rascunhoFech.vb : (vb===null ? '' : String(vb));
-  h += `<label>Valor no app do cartão (para conferir)</label><div class="row"><input type="number" step="0.01" id="cBanco" data-ym="${ym}" value="${esc(vbTxt)}"><button class="ghost" id="btnSalvarBanco" data-ym="${ym}">Salvar</button></div>`;
-  h += `<div id="cConf">${conferenciaHtml(b, ym, vbTxt==='' ? null : parseFloat(vbTxt))}</div>`;
+  if(!historico){
+    const vb = valorBancoDe(card, ym);
+    const vbTxt = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym && rascunhoFech.vb!==undefined) ? rascunhoFech.vb : (vb===null ? '' : String(vb));
+    h += `<label>Valor no app do cartão (para conferir)</label><div class="row"><input type="number" step="0.01" id="cBanco" data-ym="${ym}" value="${esc(vbTxt)}"><button class="ghost" id="btnSalvarBanco" data-ym="${ym}">Salvar</button></div>`;
+    h += `<div id="cConf">${conferenciaHtml(b, ym, vbTxt==='' ? null : parseFloat(vbTxt))}</div>`;
+    if(conferida){
+      const dif = Math.round((total - conferida.total)*100)/100;
+      const quando = fmtDataCompleta(String(conferida.em).slice(0,10));
+      if(dif !== 0){
+        h += `<div class="sd-painel" style="border-color:var(--expense);margin:6px 0;"><p style="color:var(--expense);font-weight:600;margin:0 0 4px;">Mudou desde a conferência</p><p class="muted" style="margin:0 0 6px;">Conferida em ${quando} com ${fmtMoeda(conferida.total)}; agora está ${fmtMoeda(total)} (${dif>0?'+':'-'}${fmtMoeda(Math.abs(dif))}). Algum lançamento foi alterado, ocultado ou importado depois.</p><button class="ghost" data-conferir="${ym}" style="font-size:12px;padding:4px 10px;">Aceitar o novo total</button> <button class="ghost" data-desconferir="${ym}" style="font-size:12px;padding:4px 10px;">Desfazer conferência</button></div>`;
+      } else {
+        h += `<p style="color:var(--income);font-weight:600;margin:6px 0;">🔒 Conferida em ${quando} (${fmtMoeda(conferida.total)}) <button class="ghost" data-desconferir="${ym}" style="font-size:11px;padding:2px 8px;margin-left:6px;">Desfazer</button></p>`;
+      }
+    } else if(fechada){
+      h += `<button class="ghost" data-conferir="${ym}" style="font-size:12px;padding:4px 10px;margin:4px 0;">Marcar como conferida</button>`;
+    }
+  }
   const est = recs.filter(r=>r.eff===ym && r.est);
   if(est.length){
     h += '<div style="margin:8px 0;"><div class="muted">Valores estimados (corrija com o valor real em reais):</div>' + est.map(r=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t">${esc(r.t)}</span><input type="number" step="0.01" id="est-${esc(r.id)}" value="${r.bruto}" style="flex:0 0 96px;width:96px;"><button class="ghost" data-est="${esc(r.id)}" style="padding:4px 10px;">Corrigir</button></div>`).join('') + '</div>';
@@ -1742,6 +1767,7 @@ function painelCartaoHtml(i){
     }
     h += '</div>';
   });
+  h += `<label style="margin-top:12px;">Início do controle (AAAA-MM; vazio = sem limite)</label><div class="row"><input type="text" inputmode="numeric" id="cInicio" placeholder="ex: 2025-11" value="${esc(inicio)}"><button class="ghost" id="btnSalvarInicio">Salvar</button></div><p class="muted">Faturas anteriores a esse mês ficam como histórico: aparecem, mas não são conferidas.</p>`;
   h += `<div style="margin-top:12px;"><button class="ghost" data-rm="${i}" style="font-size:12px;">Remover este cartão</button></div></div>`;
   return h;
 }
@@ -1769,7 +1795,14 @@ function renderCartao(){
     const card = cartoesConfig[b], at = faturaAtual(card), dados = cartaoDados[b];
     const fech = fechamentoDe(card, at), dd = diasAte(fech);
     const val = dados ? fmtMoeda(totalFatura(registrosCartao(b), at)) + (dados.incompleto?' ⚠':'') : '···';
-    h += `<div class="sd-row" data-cartao="${i}"><div class="sd-nome">${esc(b)}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fech)} · ${dd===0?'hoje':'em '+dd+' dia'+(Math.abs(dd)===1?'':'s')}</div></div><div class="sd-val ${dados&&!cartaoCarregando?'':'carr'}">${val}</div><span class="muted">${cartaoAberto===i?'▴':'▾'}</span></div>`;
+    let mudou = 0;
+    if(dados){
+      const recsC = registrosCartao(b);
+      Object.entries(card.faturas||{}).forEach(([ymC,f])=>{
+        if(f && f.conferida && periodoFatura(card, ymC).ini >= dados.desde && Math.round(totalFatura(recsC, ymC)*100) !== Math.round(f.conferida.total*100)) mudou++;
+      });
+    }
+    h += `<div class="sd-row" data-cartao="${i}"><div class="sd-nome">${esc(b)}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fech)} · ${dd===0?'hoje':'em '+dd+' dia'+(Math.abs(dd)===1?'':'s')}${mudou?` · <span style="color:var(--expense);">⚠ ${mudou} fatura${mudou>1?'s conferidas mudaram':' conferida mudou'}</span>`:''}</div></div><div class="sd-val ${dados&&!cartaoCarregando?'':'carr'}">${val}</div><span class="muted">${cartaoAberto===i?'▴':'▾'}</span></div>`;
     if(cartaoAberto===i) h += painelCartaoHtml(i);
   });
   if(!n) h = '<p class="muted" style="padding:6px 4px;">Nenhum cartão cadastrado ainda.</p>';
@@ -1786,8 +1819,48 @@ function renderCartao(){
 }
 async function onCartaoClick(e){
   if(e.target.closest('input')) return;
-  const el = e.target.closest('[data-cartao],[data-chip],[data-janela],[data-rec],[data-ajuste],#btnSalvarFech,[data-rm],[data-est],[data-cand],[data-regdif],#btnSalvarBanco');
+  const el = e.target.closest('[data-cartao],[data-chip],[data-janela],[data-rec],[data-ajuste],#btnSalvarFech,[data-rm],[data-est],[data-cand],[data-regdif],#btnSalvarBanco,#btnSalvarInicio,[data-conferir],[data-desconferir]');
   if(!el) return;
+  if(el.dataset.conferir || el.dataset.desconferir){
+    const b = cartoesVisiveis[cartaoAberto];
+    const ym = el.dataset.conferir || el.dataset.desconferir;
+    const card = cartoesConfig[b];
+    if(!b || !card) return;
+    const desfazer = !!el.dataset.desconferir;
+    const total = totalFatura(registrosCartao(b), ym);
+    const jaTem = card.faturas && card.faturas[ym] && card.faturas[ym].conferida;
+    if(!desfazer && !jaTem){
+      const vb = valorBancoDe(card, ym);
+      if(vb===null || Math.round((total - vb)*100) !== 0){
+        const txt = vb===null ? `Esta fatura não tem o valor do app do cartão para comparar. Marcar como conferida mesmo assim, com o total ${fmtMoeda(total)}?`
+          : `O total calculado (${fmtMoeda(total)}) difere do valor informado do banco (${fmtMoeda(vb)}). Marcar como conferida mesmo assim?`;
+        if(!(await confirmarModal(txt))) return;
+      }
+    }
+    try{
+      await atualizarConfigCartoes(pb=>{
+        const c = pb[b]; if(!c) return;
+        c.faturas = c.faturas || {};
+        const cur = {...(c.faturas[ym]||{})};
+        if(desfazer) delete cur.conferida; else cur.conferida = {total, em: new Date().toISOString()};
+        if(Object.keys(cur).length) c.faturas[ym] = cur; else delete c.faturas[ym];
+      });
+    }catch(err){ await avisar('Não consegui salvar: ' + ((err&&(err.code||err.message))||err)); }
+    renderCartao(); return;
+  }
+  if(el.id==='btnSalvarInicio'){
+    const b = cartoesVisiveis[cartaoAberto];
+    const v = document.getElementById('cInicio').value.trim();
+    const msgEl = document.getElementById('cMsg');
+    if(v!=='' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(v)){ msgEl.textContent = '⚠️ Use o formato AAAA-MM, ex: 2025-11.'; return; }
+    try{
+      msgEl.textContent = 'Salvando...';
+      await atualizarConfigCartoes(pb=>{ const c = pb[b]; if(!c) return; if(v==='') delete c.inicio; else c.inicio = v; });
+      msgCartao = 'Salvo ✓';
+      renderCartao();
+    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + ((err&&(err.code||err.message))||err); }
+    return;
+  }
   if(el.dataset.est){
     const id = el.dataset.est;
     const n = parseFloat(document.getElementById('est-'+id).value);
@@ -2030,13 +2103,21 @@ function parseLinhas(linhas, notaDe){
 async function deduplicarContraBanco(resultado){
   if(!db) return {resultado, duplicadas:0};
   const bancosNoLote = [...new Set(resultado.map(l=>l.banco||''))];
+  const datas = resultado.map(l=>l.dataEvento).filter(Boolean).sort();
   const existentes = new Set();
-  for(const banco of bancosNoLote){
-    try{
-      const snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get();
+  if(datas.length){
+    // Um duplicado só pode existir dentro do período do lote (a chave inclui a data exata).
+    const de = datas[0], ate = datas[datas.length-1];
+    for(const banco of bancosNoLote){
+      let snap;
+      try{
+        snap = await db.collection("lancamentos").where("banco","==",banco)
+          .where("dataEvento",">=",de).where("dataEvento","<=",ate).limit(1000000).get();
+      }catch(e){
+        // sem conferir, a importação poderia duplicar: melhor parar do que seguir
+        throw new Error(`não consegui conferir duplicidade em "${banco}" (${(e && e.message) || e})`);
+      }
       snap.docs.forEach(d=>existentes.add(chaveLancamento(d.data())));
-    }catch(e){
-      console.error('Falha ao checar duplicidade para banco', banco, e);
     }
   }
   const vistos = new Set();
@@ -2159,7 +2240,7 @@ function mostrarPreview(){
   document.getElementById('qtdPreview').textContent = lancamentosParaImportar.length;
   document.getElementById('listaPreview').innerHTML = lancamentosParaImportar.slice(0,300).map(l=>`
     <div class="item">
-      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
+      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span>${htmlValorLinha(l)}</div>
       <div class="item-meta">${new Date(l.dataEvento).toLocaleDateString('pt-BR')} · ${esc(l.status)} · ${esc(l.banco||'-')}</div>
       ${l.nota?`<div class="item-meta">📝 ${escHtml(l.nota.length>140 ? l.nota.slice(0,140)+'…' : l.nota)}</div>`:''}
     </div>`).join('');
