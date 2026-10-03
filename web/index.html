@@ -314,6 +314,13 @@ svg text{fill:var(--text);font-size:10px;}
     <button class="ghost" id="btnLimparPreview" style="width:100%;margin-top:6px;">Limpar prévia</button>
   </div>
   <div class="card">
+    <b>Importar backup (.json)</b>
+    <p class="muted">Restaura o arquivo gerado por "Exportar dados": lançamentos (com valor zero ou negativo, notas e ids originais) e configurações. Lançamentos com o mesmo id são sobrescritos, então repetir é seguro. Nada é apagado. Pode demorar alguns minutos.</p>
+    <input type="file" id="arquivoBackup" accept=".json">
+    <button class="primary" id="btnImportarBackup">Importar backup</button>
+    <p class="muted" id="backupStatus"></p>
+  </div>
+  <div class="card">
     <b>Exportar seus dados</b>
     <p class="muted">Baixa tudo num arquivo .json: todos os lançamentos (sem limite de quantidade) e todas as configurações (listas, tags, combos, cores, flags dos status e saldos dos bancos). Sua cópia de segurança, fora da Anthropic.</p>
     <button class="primary" id="btnExportar">Exportar dados</button>
@@ -2183,6 +2190,29 @@ document.getElementById('btnLimparPreview').addEventListener('click', limparPrev
 document.getElementById('btnProcessarTexto').addEventListener('click', processarTextoColado);
 document.getElementById('btnProcessar').addEventListener('click', processarArquivo);
 document.getElementById('btnConfirmarImport').addEventListener('click', confirmarImportacao);
+async function importarBackup(){
+  const st = document.getElementById('backupStatus'), inp = document.getElementById('arquivoBackup'), btn = document.getElementById('btnImportarBackup');
+  if(!db || !db.importarLancamentos){ st.textContent = 'Importação de backup indisponível nesta versão.'; return; }
+  if(!inp.files.length){ st.textContent = 'Escolha o arquivo .json do backup.'; return; }
+  let dados;
+  try{ dados = JSON.parse(await inp.files[0].text()); }
+  catch(e){ st.textContent = 'Arquivo inválido: ' + e.message; return; }
+  const itens = dados && dados.colecoes && dados.colecoes.lancamentos;
+  if(!Array.isArray(itens)){ st.textContent = 'Este arquivo não parece um backup do app (faltam colecoes.lancamentos).'; return; }
+  const docs = Object.entries(dados.documentos || {}).filter(([k,v])=>v);
+  if(!(await confirmarModal(`Importar ${itens.length} lançamento(s) e ${docs.length} configuração(ões)? Itens com o mesmo id serão sobrescritos; nada é apagado.`))) return;
+  btn.disabled = true;
+  try{
+    const r = await db.importarLancamentos(itens, (feitos,total)=>{ st.textContent = `Importando lançamentos... ${feitos}/${total}`; });
+    for(const [caminho,obj] of docs){ st.textContent = `Gravando ${caminho}...`; await db.doc(caminho).set(obj); }
+    let msg = `Concluído: ${r.gravados} gravado(s) de ${itens.length} no arquivo` + (dados.contagem && dados.contagem.lancamentos!=null ? ` (contagem declarada: ${dados.contagem.lancamentos})` : '') + `; ${docs.length} configuração(ões).`;
+    if(r.rejeitados.length) msg += ` ${r.rejeitados.length} rejeitado(s): ` + r.rejeitados.slice(0,5).map(x=>`#${x.indice+1} ${x.motivo}`).join('; ') + (r.rejeitados.length>5?'…':'');
+    st.textContent = msg;
+  }catch(e){
+    st.textContent = '⚠️ Erro na importação: ' + (e && e.message || e) + ' Você pode tentar de novo: o que já foi gravado não duplica.';
+  }finally{ btn.disabled = false; }
+}
+document.getElementById('btnImportarBackup').addEventListener('click', importarBackup);
 document.getElementById('btnExportar').addEventListener('click', exportarDados);
 
 init();
