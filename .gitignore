@@ -1,0 +1,5 @@
+/local/
+*.json
+.aws-sam/
+samconfig.toml
+web/config.js

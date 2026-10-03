@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Financas - DynamoDB + Cognito + Lambda (Go) com Function URL
+
+Parameters:
+  FrontOrigin:
+    Type: String
+    Default: http://localhost:8080
+    Description: Origem do front (CORS e callback do login). Sem barra no final.
+  CognitoDomainPrefix:
+    Type: String
+    Description: Prefixo unico do dominio do login (ex. financas-seunome-123)
+
+Globals:
+  Function:
+    Timeout: 15
+    MemorySize: 128
+    Runtime: provided.al2023
+    Architectures: [x86_64]
+
+Resources:
+  Table:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: FinancasApp
+      BillingMode: PROVISIONED          # dentro do always-free (25 RCU/WCU)
+      ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: false }
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: financas
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      AdminCreateUserConfig: { AllowAdminCreateUserOnly: true }   # sem auto cadastro: voce convida
+      Policies:
+        PasswordPolicy: { MinimumLength: 10, RequireLowercase: true, RequireUppercase: true, RequireNumbers: true, RequireSymbols: false }
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, email]
+      SupportedIdentityProviders: [COGNITO]
+      CallbackURLs: [!Sub '${FrontOrigin}/']
+      LogoutURLs: [!Sub '${FrontOrigin}/']
+      ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
+      IdTokenValidity: 60
+      AccessTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits: { IdToken: minutes, AccessToken: minutes, RefreshToken: days }
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref UserPool
+      Domain: !Ref CognitoDomainPrefix
+
+  ApiLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/financas-api
+      RetentionInDays: 14
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    DependsOn: ApiLogs
+    Properties:
+      FunctionName: financas-api
+      CodeUri: backend/
+      Handler: bootstrap
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref Table
+          USER_POOL_ID: !Ref UserPool
+          CLIENT_ID: !Ref UserPoolClient
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref Table }
+      FunctionUrlConfig:
+        AuthType: NONE               # o JWT do Cognito e validado dentro da Lambda
+        Cors:
+          AllowOrigins: [!Ref FrontOrigin]
+          AllowMethods: [GET, POST, PUT, DELETE]
+          AllowHeaders: [authorization, content-type]
+          MaxAge: 3600
+
+Outputs:
+  ApiUrl: { Value: !GetAtt ApiFunctionUrl.FunctionUrl }
+  UserPoolId: { Value: !Ref UserPool }
+  ClientId: { Value: !Ref UserPoolClient }
+  LoginDomain: { Value: !Sub '${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com' }
