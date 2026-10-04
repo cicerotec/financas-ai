@@ -218,6 +218,12 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 </section>
 
 <section id="tab-listas" class="hidden">
+  <div class="card" id="perfilCard">
+    <b>Seu nome</b>
+    <p class="muted">Aparece no topo da tela para a sua família. Só você altera o seu.</p>
+    <div class="row"><input id="perfilNome" maxlength="30" placeholder="ex: Maria"><button class="ghost" id="btnSalvarNome">Salvar</button></div>
+    <p class="muted" id="perfilMsg"></p>
+  </div>
   <div class="card">
     <b>Aparência</b>
     <p class="muted">Como as cores dos status aparecem no Histórico. A cor de cada status você escolhe na bolinha, no cartão Status logo abaixo.</p>
@@ -534,6 +540,11 @@ async function init(){
     meuSub = (claude.sub && claude.sub()) || '';
   }
   document.body.classList.toggle('papel-member', papelAtual !== 'owner');
+  if(window.claude && claude.definirApelido){
+    document.getElementById('perfilNome').value = (claude.apelido && claude.apelido()) || '';
+  } else {
+    document.getElementById('perfilCard').classList.add('hidden'); // ambiente sem perfil (artifact do Claude)
+  }
   if(papelAtual !== 'owner'){
     const dica = document.getElementById('saldoDica');
     if(dica) dica.textContent = 'Saldos por banco';
@@ -2433,6 +2444,20 @@ async function importarBackup(){
 document.getElementById('btnImportarBackup').addEventListener('click', importarBackup);
 document.getElementById('btnExportar').addEventListener('click', exportarDados);
 document.getElementById('btnImportarFech').addEventListener('click', importarFechamentos);
+
+async function salvarNomePerfil(){
+  const msg = document.getElementById('perfilMsg'), inp = document.getElementById('perfilNome');
+  if(!window.claude || !claude.definirApelido){ msg.textContent = 'Indisponível nesta versão.'; return; }
+  msg.textContent = 'Salvando...';
+  try{
+    const nome = await claude.definirApelido(inp.value);
+    inp.value = nome;
+    msg.textContent = nome ? 'Salvo ✓' : 'Nome removido ✓';
+  }catch(e){
+    msg.textContent = '⚠️ ' + ((e && e.message) || e);
+  }
+}
+document.getElementById('btnSalvarNome').addEventListener('click', salvarNomePerfil);
 
 window.addEventListener('unhandledrejection', ev=>{
   const r = ev.reason;

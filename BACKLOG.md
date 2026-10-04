@@ -39,6 +39,19 @@ Decisões: ela pode ler **todos** os lançamentos e notas (saldos/cartão/tendê
 navegador). Hospedagem: **S3 + CloudFront** (GitHub Pages descartado; localhost não serve para ela:
 sem HTTPS o PKCE e o Cognito não funcionam).
 
+## Visibilidade entre usuários (em discussão; só o nome foi implementado)
+
+- [x] **Nome de exibição (apelido):** cada pessoa define o seu em Listas > Seu nome; `scripts/definir-nome.sh`
+      define pelo e-mail. Guardado no vínculo `USER#sub / SPACE#id`. Falta publicar o backend.
+- [ ] Atualização da tela **por gatilho** (foco da aba, entrar nas abas, antes de salvar, botão Atualizar) com um
+      contador de revisão do espaço e uma checagem lenta de segurança (3 a 5 min). Sem temporizador curto.
+- [ ] Mostrar quem criou/alterou/ocultou cada lançamento e quando (`atualizadoPor/Em`, `ocultoPor/Em`);
+      lista de membros do espaço (item espelho `SPACE#id / MEMBER#sub`) para converter `sub` em nome.
+- [ ] "Novo desde a sua última visita": etiquetas automáticas (novo/alterado/oculto) e contagem no Histórico.
+- [ ] "Atividade recente": registro de eventos do servidor com validade (~90 dias).
+- [ ] Idempotência de criação (id gerado na tela, travar o botão Salvar) e edição concorrente (409 se mudou).
+- Descartado: bloquear duplicidade por conteúdo (a mesma compra pode ter outro horário e outra descrição).
+
 ## Confiabilidade e dados
 
 - [ ] Conferir no navegador a aba Cartão: início do controle, fatura conferida e "mudou desde a conferência".

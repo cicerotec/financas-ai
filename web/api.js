@@ -77,11 +77,13 @@
 
   let ESPACO = null;
   let SUB = '';
+  let EMAIL = '';
   async function espaco() {
     if (ESPACO) return ESPACO;
     const { body } = await api('GET', '/me');
     const lista = body.espacos || [];
     SUB = body.sub || '';
+    EMAIL = body.email || '';
     if (!lista.length) throw new Error('Sua conta ainda nao tem um espaco. Rode scripts/seed.sh.');
     const guardado = localStorage.getItem('financas.space');
     ESPACO = lista.find((e) => e.id === guardado) || lista[0];
@@ -96,7 +98,8 @@
     d.className = 'muted';
     d.style.cssText = 'margin:0 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;';
     const t = document.createElement('span');
-    t.textContent = email + ' · ';
+    t.id = 'sessaoNome';
+    t.textContent = nomeExibicao() + ' · ';
     d.appendChild(t);
     if (lista.length > 1) {
       const s = document.createElement('select');
@@ -110,6 +113,12 @@
       n.textContent = ESPACO.nome + (ESPACO.role === 'member' ? ' · membro' : '');
       d.appendChild(n);
     }
+    const dica = document.createElement('span');
+    dica.id = 'sessaoDica';
+    dica.style.cssText = 'font-size:11px;';
+    dica.textContent = '(defina seu nome em Listas)';
+    dica.style.display = ESPACO && ESPACO.apelido ? 'none' : '';
+    d.appendChild(dica);
     const b = document.createElement('button');
     b.className = 'ghost';
     b.style.cssText = 'padding:2px 8px;font-size:12px;';
@@ -118,7 +127,24 @@
     d.appendChild(b);
     h.insertBefore(d, h.firstChild);
   }
+  // Nome de exibição: o apelido da pessoa; enquanto não definir, a parte do e-mail antes do @.
+  function nomeExibicao() {
+    return (ESPACO && ESPACO.apelido) || (EMAIL ? EMAIL.split('@')[0] : '');
+  }
+  function atualizarSessao() {
+    const t = document.getElementById('sessaoNome');
+    if (t) t.textContent = nomeExibicao() + ' · ';
+    const d = document.getElementById('sessaoDica');
+    if (d) d.style.display = ESPACO && ESPACO.apelido ? 'none' : '';
+  }
   const base = async () => '/spaces/' + (await espaco()).id;
+  // Cada pessoa só altera o próprio nome (o servidor usa o sub do token). Vazio remove o apelido.
+  async function definirApelido(nome) {
+    const { body } = await api('PUT', (await base()) + '/perfil', { apelido: nome });
+    ESPACO.apelido = body.apelido || '';
+    atualizarSessao();
+    return ESPACO.apelido;
+  }
 
   // ---------- configuracoes (documentos) ----------
   // A aparencia e pessoal (cada pessoa a sua); o resto de config/listas e compartilhado.
@@ -306,6 +332,8 @@
   window.claude = {
     papel: () => (ESPACO ? ESPACO.role : null),
     sub: () => SUB,
+    apelido: () => (ESPACO && ESPACO.apelido) || '',
+    definirApelido,
     use: async (nome) => {
       if (nome === 'db') {
         try { await espaco(); } catch (e) { alert(e.message); return null; }
