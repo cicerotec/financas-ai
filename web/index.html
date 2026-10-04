@@ -98,6 +98,9 @@ svg text{fill:var(--text);font-size:10px;}
 .fx-v{font-size:14px;font-weight:600;white-space:nowrap;}
 .fx-tag{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;margin:3px 0 0 50px;display:inline-block;}
 .fx-acoes{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px 50px;}
+body.papel-member .so-owner{display:none !important;}
+body.papel-member nav button[data-tab="importar"]{display:none;}
+body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 </style>
 </head>
 <body>
@@ -228,21 +231,21 @@ svg text{fill:var(--text);font-size:10px;}
   </div>
   <div class="card">
     <b>Status</b>
-    <p class="muted">O checkbox marca se esse status é dinheiro que já aconteceu de verdade (conta no saldo, cartão e tendências) ou só uma previsão/planejamento (não conta ainda).</p>
+    <p class="muted so-owner">O checkbox marca se esse status é dinheiro que já aconteceu de verdade (conta no saldo, cartão e tendências) ou só uma previsão/planejamento (não conta ainda).</p>
     <div class="pill-list" id="pillStatus"></div>
-    <div class="row" style="margin-top:8px;"><input id="novoStatus" placeholder="novo status"><button class="ghost" id="btnAddStatus">Adicionar</button></div>
+    <div class="row so-owner" style="margin-top:8px;"><input id="novoStatus" placeholder="novo status"><button class="ghost" id="btnAddStatus">Adicionar</button></div>
   </div>
-  <div class="card">
+  <div class="card so-owner">
     <b>Bancos / contas</b>
     <div class="pill-list" id="pillBanco"></div>
     <div class="row" style="margin-top:8px;"><input id="novoBanco" placeholder="novo banco"><button class="ghost" id="btnAddBanco">Adicionar</button></div>
   </div>
-  <div class="card">
+  <div class="card so-owner">
     <b>Tags</b>
     <p class="muted">Excluir uma tag em uso avisa quantos lançamentos a usam e deixa você migrar pra outra.</p>
     <div class="pill-list" id="pillTags"></div>
   </div>
-  <div class="card">
+  <div class="card so-owner">
     <b>Combos de tags</b>
     <p class="muted">Conjuntos de tags que você marca de uma vez no Lançar. Para criar, marque as tags no Lançar e toque em "Salvar seleção como combo".</p>
     <div id="listaCombos"></div>
@@ -268,7 +271,14 @@ svg text{fill:var(--text);font-size:10px;}
     <button class="ghost" id="btnAtualizarCartao" style="padding:4px 10px;">Atualizar ⟳</button>
   </div>
   <div id="listaCartoes"></div>
-  <div class="card" id="novoCartaoCard">
+  <div class="card so-owner" id="fechCard">
+    <b>Importar fechamentos da planilha</b>
+    <p class="muted">Lê, em cada aba mensal (ex.: "maio 2025"), a linha do cartão marcada com FECHAMENTO e grava o dia de cada mês, sem precisar digitar mês a mês. Não altera lançamentos. Valores já digitados de "valor no app do cartão" são mantidos.</p>
+    <input type="file" id="arquivoFech" accept=".xlsx,.xls">
+    <button class="primary" id="btnImportarFech">Importar fechamentos</button>
+    <p class="muted" id="fechStatus"></p>
+  </div>
+  <div class="card so-owner" id="novoCartaoCard">
     <b>Adicionar cartão</b>
     <p class="muted">Escolha o banco ou conta que é cartão de crédito e o dia de fechamento da fatura atual. Depois você ajusta o fechamento de cada fatura, que muda todo mês.</p>
     <div class="row">
@@ -287,7 +297,7 @@ svg text{fill:var(--text);font-size:10px;}
     <div class="muted" id="saldoSub"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin:0 2px 4px;">
-    <span class="muted">Toque num banco para configurar</span>
+    <span class="muted" id="saldoDica">Toque num banco para configurar</span>
     <button class="ghost" id="btnRecalcularSaldos" style="padding:4px 10px;">Atualizar ⟳</button>
   </div>
   <div id="listaSaldos"></div>
@@ -314,8 +324,19 @@ svg text{fill:var(--text);font-size:10px;}
     <button class="ghost" id="btnLimparPreview" style="width:100%;margin-top:6px;">Limpar prévia</button>
   </div>
   <div class="card">
+    <b>Importar backup (.json)</b>
+    <p class="muted">Restaura o arquivo gerado por "Exportar dados": lançamentos (com valor zero ou negativo, notas e ids originais) e configurações. Lançamentos com o mesmo id são sobrescritos, então repetir é seguro. Nada é apagado. Pode demorar alguns minutos.</p>
+    <input type="file" id="arquivoBackup" accept=".json">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:6px 0;font-size:13px;color:var(--text);"><input type="checkbox" id="impLanc" checked style="width:auto;"> Importar lançamentos (dados financeiros)</label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:6px 0;font-size:13px;color:var(--text);"><input type="checkbox" id="impCfg" checked style="width:auto;"> Importar configurações (listas, tags, combos, saldos, cartões, flags e cores)</label>
+    <button class="primary" id="btnImportarBackup">Importar backup</button>
+    <p class="muted" id="backupStatus"></p>
+  </div>
+  <div class="card">
     <b>Exportar seus dados</b>
-    <p class="muted">Baixa tudo num arquivo .json: todos os lançamentos (sem limite de quantidade) e todas as configurações (listas, tags, combos, cores, flags dos status e saldos dos bancos). Sua cópia de segurança, fora da Anthropic.</p>
+    <p class="muted">Baixa um arquivo .json com o que você marcar abaixo. Dá para exportar só os lançamentos, só as configurações, ou os dois. Sua cópia de segurança, fora da Anthropic.</p>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:6px 0;font-size:13px;color:var(--text);"><input type="checkbox" id="expLanc" checked style="width:auto;"> Lançamentos (dados financeiros, sem limite de quantidade)</label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:6px 0;font-size:13px;color:var(--text);"><input type="checkbox" id="expCfg" checked style="width:auto;"> Configurações (listas, tags, combos, cores, flags dos status, saldos e cartões)</label>
     <button class="primary" id="btnExportar">Exportar dados</button>
     <p class="muted" id="exportStatus"></p>
   </div>
@@ -339,6 +360,7 @@ svg text{fill:var(--text);font-size:10px;}
 <script src="api.js"></script>
 <script>
 let db = null, sample = null;
+let papelAtual = 'owner', meuSub = '';
 let lancamentosParaImportar = [];
 let listas = { status: ["PAGO","PREVISTO","CREDITO IN","CREDITO EX","CONTAS","TRANSFERINDO","CREDITANDO"], banco: [] };
 let statusReal = { PREVISTO:false, TRANSFERINDO:false, CREDITANDO:false };
@@ -380,7 +402,11 @@ let rascunhoSaldo = null;
 let msgSaldo = '';
 function ehCredito(status){ return normStatus(status).startsWith('CREDITO'); }
 function ehCreditoEX(status){ return /^CREDITO\s*EX$/.test(normStatus(status)); }
-function ajusteEfetivo(l){ if(typeof l.faturaAjuste==='number') return l.faturaAjuste; return ehCreditoEX(l.status) ? 1 : 0; }
+function ehCreditoIN(status){ return /^CREDITO\s*IN$/.test(normStatus(status)); }
+// Como na planilha: CREDITO EX empurra a compra para a fatura seguinte (+1) e CREDITO IN puxa uma compra
+// posterior ao fechamento para a fatura que fecha neste mês (-1). faturaAjuste gravado no lançamento vence.
+function ajustePadrao(status){ return ehCreditoEX(status) ? 1 : (ehCreditoIN(status) ? -1 : 0); }
+function ajusteEfetivo(l){ if(typeof l.faturaAjuste==='number') return l.faturaAjuste; return ajustePadrao(l.status); }
 function chipFatura(l){
   if(!l.status || !ehCredito(l.status)) return '';
   const a = ajusteEfetivo(l);
@@ -396,7 +422,7 @@ function atualizarCampoFatura(){
   if(!w) return;
   const st = document.getElementById('fStatus').value;
   w.classList.toggle('hidden', !ehCredito(st));
-  document.getElementById('fFaturaDica').textContent = ehCreditoEX(st) ? 'Registros com status CRÉDITO EX já vão para a próxima fatura.' : '';
+  document.getElementById('fFaturaDica').textContent = ehCreditoEX(st) ? 'Registros com status CRÉDITO EX já vão para a próxima fatura.' : (ehCreditoIN(st) ? 'Registros com status CRÉDITO IN já entram na fatura anterior (a que fecha neste mês).' : '');
 }
 let lancamentosCache = [];
 let modoMesEspecifico = false;
@@ -414,6 +440,17 @@ let filStatusSelecionados = new Set();
 let filBancoSelecionados = new Set();
 let editandoId = null;
 
+// Valor do ponto de vista do caixa: saída é negativa e entrada positiva; um valor negativo inverte o
+// sentido (reembolso/estorno lançado como saída de -R$ 100 aparece como +R$ 100).
+function valorAssinado(l){ return (l.tipo==='saida'?-1:1)*(Number(l.valor)||0); }
+function htmlValorLinha(l){
+  const v = valorAssinado(l);
+  return `<span class="valor ${v<0?'saida':'entrada'}">${v<0?'-':'+'}${fmtMoeda(Math.abs(v))}</span>`;
+}
+// Papel do usuário (no ambiente do Claude não existe, então vale 'owner'). A trava de verdade está
+// na API; aqui só se esconde o que o papel não pode usar.
+function ehOwner(){ return papelAtual === 'owner'; }
+function podeMexer(l){ return ehOwner() || (!!l.criadoPor && l.criadoPor === meuSub); }
 function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
 function nowLocalInput(){
   const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
@@ -492,6 +529,15 @@ async function excluirTag(tag){
 async function init(){
   db = await claude.use("db");
   sample = await claude.use("sample");
+  if(window.claude && claude.papel){
+    papelAtual = claude.papel() || 'owner';
+    meuSub = (claude.sub && claude.sub()) || '';
+  }
+  document.body.classList.toggle('papel-member', papelAtual !== 'owner');
+  if(papelAtual !== 'owner'){
+    const dica = document.getElementById('saldoDica');
+    if(dica) dica.textContent = 'Saldos por banco';
+  }
   document.getElementById('fData').value = nowLocalInput();
 
   if(db){
@@ -506,7 +552,7 @@ async function init(){
       if(d && d.layoutSaldos) layoutSaldos = d.layoutSaldos;
       if(d && d.ordemSaldos) ordemSaldos = d.ordemSaldos;
       if(d && Array.isArray(d.ordemManual)) ordemManual = clonar(d.ordemManual);
-      if(!listas.status.includes('CREDITANDO')){ listas.status.push('CREDITANDO'); salvarListas(); }
+      if(!listas.status.includes('CREDITANDO')){ listas.status.push('CREDITANDO'); if(ehOwner()) salvarListas(); }
       renderListas();
       renderSaldos();
       try{ renderHistorico(); }catch(e){}
@@ -572,15 +618,15 @@ function renderListas(){
 
   document.getElementById('pillStatus').innerHTML = listas.status.map(s=>
     `<span class="pill">
-      <button data-del-status="${esc(s)}">✕</button>
+      ${ehOwner()?`<button data-del-status="${esc(s)}">✕</button>`:''}
       <span style="display:flex;align-items:center;gap:6px;"><button data-cor-status="${esc(s)}" aria-label="Escolher cor de ${esc(s)}" style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${corStatus(s)};border:2px solid var(--border);padding:0;cursor:pointer;"></button><b>${esc(s)}</b></span>
       ${corAberta===s?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${COR_PALETA.map(p=>`<button data-cor-pick="${p}" data-cor-st="${esc(s)}" aria-label="Cor ${p}" style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${p};border:${p===corStatus(s)?'2px solid var(--text)':'1px solid var(--border)'};padding:0;cursor:pointer;"></button>`).join('')}</div>`:''}
-      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+      ${ehOwner()?`      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
         <input type="checkbox" data-real-status="${esc(s)}" ${ehStatusReal(s)?'checked':''} style="width:auto;"> conta como real
       </label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
         <input type="checkbox" data-afeta-status="${esc(s)}" ${afetaSaldo(s)?'checked':''} style="width:auto;"> afeta saldo do banco
-      </label>
+      </label>`:''}
     </span>`).join('');
   document.getElementById('pillBanco').innerHTML = listas.banco.map(s=>
     `<span class="pill">${esc(s)} <button data-del-banco="${esc(s)}">✕</button></span>`).join('');
@@ -710,7 +756,7 @@ function renderTagPicker(){
       }).join('') + '</div>';
   }
   const jaSalvo = combosSalvos.some(c=>chaveTags(c.tags)===kSel);
-  if(sel.length>=2 && !jaSalvo) h += '<button class="ghost" id="btnSalvarCombo" style="margin-top:8px;">Salvar seleção como combo</button>';
+  if(sel.length>=2 && !jaSalvo && ehOwner()) h += '<button class="ghost" id="btnSalvarCombo" style="margin-top:8px;">Salvar seleção como combo</button>';
   document.getElementById('tagCombos').innerHTML = h;
   document.getElementById('tagMarcadas').innerHTML = sel.length
     ? '<span class="muted" style="align-self:center;">Marcadas:</span>' + sel.map(chipTag).join('') : '';
@@ -757,14 +803,19 @@ function renderGerenciarTags(){
 
 async function garantirTags(novasTags){
   const set = new Set(tagsUsadas);
-  let mudou = false;
-  novasTags.forEach(t=>{ if(t && !set.has(t)){ set.add(t); mudou = true; } });
-  if(mudou && db){ tagsUsadas = [...set]; await db.doc("config/tags").set({usadas:tagsUsadas}); }
+  const novas = [];
+  novasTags.forEach(t=>{ if(t && !set.has(t)){ set.add(t); novas.push(t); } });
+  if(novas.length && db){
+    tagsUsadas = [...set];
+    // o servidor só acrescenta o que falta (vale para o membro); reescrever a lista é do dono
+    if(db.adicionarTags) await db.adicionarTags(novas);
+    else await db.doc("config/tags").set({usadas:tagsUsadas});
+  }
 }
 
 function setupHandlers(){
   document.getElementById('fStatus').addEventListener('change', ()=>{
-    document.getElementById('fFatura').value = ehCreditoEX(document.getElementById('fStatus').value) ? '1' : '0';
+    document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
     atualizarCampoFatura();
   });
   document.getElementById('listaCartoes').addEventListener('click', onCartaoClick);
@@ -927,7 +978,7 @@ Responda SOMENTE em JSON, sem markdown, no formato:
 {"status":"...", "tipo":"entrada"|"saida", "valor":number, "descricao":"...", "banco":"...", "tags":["..."], "dataEvento":"AAAA-MM-DDTHH:MM:SS (hora local do usuário, SEM Z, SEM fuso)"}
 Se não souber o banco com certeza, deixe banco como "".`;
     const res = await sample.json(prompt, {modelTier:"quick"});
-    if(res.status){ document.getElementById('fStatus').value = res.status; document.getElementById('fFatura').value = ehCreditoEX(res.status)?'1':'0'; atualizarCampoFatura(); }
+    if(res.status){ document.getElementById('fStatus').value = res.status; document.getElementById('fFatura').value = String(ajustePadrao(res.status)); atualizarCampoFatura(); }
     if(res.tipo) document.getElementById('fTipo').value = res.tipo;
     if(res.valor) document.getElementById('fValor').value = res.valor;
     if(res.descricao) document.getElementById('fDesc').value = res.descricao;
@@ -955,7 +1006,8 @@ Se não souber o banco com certeza, deixe banco como "".`;
 async function salvarLancamento(){
   if(!db){ await avisar("Banco de dados indisponível nesta visualização."); return; }
   const valor = parseFloat(document.getElementById('fValor').value);
-  if(!valor || valor<=0){ await avisar("Informe um valor válido."); return; }
+  // zero (lançamento só de nota) e negativo (estorno/reembolso) são aceitos de propósito
+  if(!Number.isFinite(valor)){ await avisar("Informe um valor válido."); return; }
   const tags = [...tagsSelecionadas];
   await garantirTags(tags);
   const statusEscolhido = document.getElementById('fStatus').value;
@@ -996,7 +1048,7 @@ function limparFormulario(){
   document.getElementById('fData').value = nowLocalInput();
   tagsSelecionadas = new Set();
   tagBusca = ''; document.getElementById('tagBusca').value = '';
-  document.getElementById('fFatura').value = ehCreditoEX(document.getElementById('fStatus').value) ? '1' : '0';
+  document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
   document.getElementById('fEstimado').checked = false;
   atualizarCampoFatura();
   renderTagPicker();
@@ -1037,14 +1089,14 @@ function renderHistorico(){
   if(!lista.length){ el.innerHTML = '<p class="muted">Nenhum lançamento encontrado.</p>'; return; }
   el.innerHTML = lista.map(l=>`
     <div class="item ${l.oculto?'oculto':''}" style="${estiloItemCor(l.status)}">
-      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
+      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span>${htmlValorLinha(l)}</div>
       <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}</div>
       ${l.nota?`<div class="item-meta">${escHtml(l.nota)}</div>`:''}
       <div class="item-acoes">
-        <button data-acao="editar" data-id="${esc(l.id)}">✏️ Editar</button>
+        ${podeMexer(l)?`<button data-acao="editar" data-id="${esc(l.id)}">✏️ Editar</button>`:''}
         <button data-acao="copiar" data-id="${esc(l.id)}">📋 Copiar</button>
-        <button data-acao="ocultar" data-id="${esc(l.id)}">${l.oculto?'👁️ Mostrar':'🙈 Ocultar'}</button>
-        <button data-acao="excluir" data-id="${esc(l.id)}">🗑️ Excluir</button>
+        ${podeMexer(l)?`<button data-acao="ocultar" data-id="${esc(l.id)}">${l.oculto?'👁️ Mostrar':'🙈 Ocultar'}</button>`:''}
+        ${ehOwner()?`<button data-acao="excluir" data-id="${esc(l.id)}">🗑️ Excluir</button>`:''}
       </div>
     </div>`).join('');
 }
@@ -1095,7 +1147,7 @@ function iniciarCopia(id){
   document.getElementById('btnCancelarEdicao').classList.add('hidden');
   document.getElementById('notaLivre').value = '';
   document.getElementById('fStatus').value = l.status;
-  document.getElementById('fFatura').value = ehCreditoEX(l.status) ? '1' : '0';
+  document.getElementById('fFatura').value = String(ajustePadrao(l.status));
   document.getElementById('fEstimado').checked = false;
   atualizarCampoFatura();
   document.getElementById('fTipo').value = l.tipo;
@@ -1315,6 +1367,7 @@ function painelSaldoHtml(i){
 function renderSaldos(){
   const el = document.getElementById('listaSaldos');
   if(!el) return;
+  if(!ehOwner()) saldoAberto = -1;
   const sI = document.getElementById('sInicial');
   if(sI && saldoAberto>=0){
     rascunhoSaldo = {idx:saldoAberto, si:sI.value, di:document.getElementById('sData').value, entra:document.getElementById('sEntra').checked};
@@ -1351,7 +1404,7 @@ function renderSaldos(){
     }).join('');
   }
   el.innerHTML = h;
-  el.querySelectorAll('[data-sd]').forEach(x=>x.addEventListener('click', ()=>{
+  if(ehOwner()) el.querySelectorAll('[data-sd]').forEach(x=>x.addEventListener('click', ()=>{
     const i = parseInt(x.dataset.sd,10);
     saldoAberto = (saldoAberto===i) ? -1 : i;
     rascunhoSaldo = null; msgSaldo = '';
@@ -1506,7 +1559,7 @@ function registrosCartao(banco){
     const d = chaveDia(new Date(l.dataEvento));
     const base = faturaBase(card, d);
     const aj = ajusteEfetivo(l);
-    return {id:l.id, t:l.descricao||'', d, v:(l.tipo==='entrada'?-1:1)*l.valor, base, aj, eff:addMesYm(base, aj), est:l.valorEstimado===true, bruto:l.valor};
+    return {id:l.id, t:l.descricao||'', d, v:(l.tipo==='entrada'?-1:1)*l.valor, base, aj, eff:addMesYm(base, aj), est:l.valorEstimado===true, bruto:l.valor, criadoPor:l.criadoPor};
   });
 }
 function totalFatura(recs, ym){ return Math.round(recs.filter(r=>r.eff===ym).reduce((s,r)=>s+r.v,0)*100)/100; }
@@ -1687,6 +1740,10 @@ function painelCartaoHtml(i){
   const fechada = chaveDia(new Date()) > per.fim;
   const recs = registrosCartao(b);
   const total = totalFatura(recs, ym);
+  const inicio = card.inicio || '';
+  const historico = !!inicio && ym < inicio;
+  const conferida = card.faturas && card.faturas[ym] && card.faturas[ym].conferida;
+  const dono = ehOwner();
   const fechValor = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym) ? rascunhoFech.f : per.fim;
   let h = '<div class="sd-painel">';
   h += '<div class="tags" style="align-items:center;margin-top:0;">'
@@ -1694,15 +1751,39 @@ function painelCartaoHtml(i){
     + offs.map(o=>`<span class="tag ${cartaoSel===o?'on':''}" data-chip="${o}">${rotuloFatura(o, addMesYm(at,o))}</span>`).join('')
     + `<span class="tag" data-janela="1" aria-label="Faturas mais novas">›</span></div>`;
   h += `<p class="muted" style="margin:8px 0 4px;">Período: ${fmtDataCompleta(per.ini)} a ${fmtDataCompleta(per.fim)} · ${fechada?'fechada':'aberta'}</p>`;
-  h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${esc(fechValor)}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
+  if(historico) h += `<p class="muted">📁 Histórico: antes do início do controle deste cartão (${esc(inicio)}). Os lançamentos aparecem, mas a fatura não é conferida.</p>`;
+  else if(dono) h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${esc(fechValor)}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
   h += `<p class="muted" id="cMsg">${esc(msgCartao||'')}</p>`;
   h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(total)}${dados.incompleto?' ⚠':''}</span></div>`;
-  const vb = valorBancoDe(card, ym);
-  const vbTxt = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym && rascunhoFech.vb!==undefined) ? rascunhoFech.vb : (vb===null ? '' : String(vb));
-  h += `<label>Valor no app do cartão (para conferir)</label><div class="row"><input type="number" step="0.01" id="cBanco" data-ym="${ym}" value="${esc(vbTxt)}"><button class="ghost" id="btnSalvarBanco" data-ym="${ym}">Salvar</button></div>`;
-  h += `<div id="cConf">${conferenciaHtml(b, ym, vbTxt==='' ? null : parseFloat(vbTxt))}</div>`;
+  if(!historico && !dono){
+    const vb = valorBancoDe(card, ym);
+    if(vb!==null) h += `<p class="muted" style="margin:4px 0;">Valor no app do cartão: ${fmtMoeda(vb)}</p>`;
+    if(conferida){
+      const difC = Math.round((total - conferida.total)*100)/100;
+      h += difC !== 0
+        ? `<p style="color:var(--expense);font-weight:600;margin:6px 0;">Mudou desde a conferência (era ${fmtMoeda(conferida.total)})</p>`
+        : `<p style="color:var(--income);font-weight:600;margin:6px 0;">🔒 Conferida em ${fmtDataCompleta(String(conferida.em).slice(0,10))}</p>`;
+    }
+  }
+  if(!historico && dono){
+    const vb = valorBancoDe(card, ym);
+    const vbTxt = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym && rascunhoFech.vb!==undefined) ? rascunhoFech.vb : (vb===null ? '' : String(vb));
+    h += `<label>Valor no app do cartão (para conferir)</label><div class="row"><input type="number" step="0.01" id="cBanco" data-ym="${ym}" value="${esc(vbTxt)}"><button class="ghost" id="btnSalvarBanco" data-ym="${ym}">Salvar</button></div>`;
+    h += `<div id="cConf">${conferenciaHtml(b, ym, vbTxt==='' ? null : parseFloat(vbTxt))}</div>`;
+    if(conferida){
+      const dif = Math.round((total - conferida.total)*100)/100;
+      const quando = fmtDataCompleta(String(conferida.em).slice(0,10));
+      if(dif !== 0){
+        h += `<div class="sd-painel" style="border-color:var(--expense);margin:6px 0;"><p style="color:var(--expense);font-weight:600;margin:0 0 4px;">Mudou desde a conferência</p><p class="muted" style="margin:0 0 6px;">Conferida em ${quando} com ${fmtMoeda(conferida.total)}; agora está ${fmtMoeda(total)} (${dif>0?'+':'-'}${fmtMoeda(Math.abs(dif))}). Algum lançamento foi alterado, ocultado ou importado depois.</p><button class="ghost" data-conferir="${ym}" style="font-size:12px;padding:4px 10px;">Aceitar o novo total</button> <button class="ghost" data-desconferir="${ym}" style="font-size:12px;padding:4px 10px;">Desfazer conferência</button></div>`;
+      } else {
+        h += `<p style="color:var(--income);font-weight:600;margin:6px 0;">🔒 Conferida em ${quando} (${fmtMoeda(conferida.total)}) <button class="ghost" data-desconferir="${ym}" style="font-size:11px;padding:2px 8px;margin-left:6px;">Desfazer</button></p>`;
+      }
+    } else if(fechada){
+      h += `<button class="ghost" data-conferir="${ym}" style="font-size:12px;padding:4px 10px;margin:4px 0;">Marcar como conferida</button>`;
+    }
+  }
   const est = recs.filter(r=>r.eff===ym && r.est);
-  if(est.length){
+  if(est.length && dono){
     h += '<div style="margin:8px 0;"><div class="muted">Valores estimados (corrija com o valor real em reais):</div>' + est.map(r=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t">${esc(r.t)}</span><input type="number" step="0.01" id="est-${esc(r.id)}" value="${r.bruto}" style="flex:0 0 96px;width:96px;"><button class="ghost" data-est="${esc(r.id)}" style="padding:4px 10px;">Corrigir</button></div>`).join('') + '</div>';
   }
   const lista = recs.filter(r=>r.base===ym || r.eff===ym).sort((a,c)=> a.d<c.d?-1 : a.d>c.d?1 : 0);
@@ -1714,13 +1795,16 @@ function painelCartaoHtml(i){
     else if(r.base!==ym) tag = `<span class="fx-tag">veio da ${r.base<ym?'anterior':'próxima'} fatura</span>`;
     const estTag = r.est ? '<span class="fx-tag" style="margin-left:6px;">valor estimado</span>' : '';
     h += `<div class="fx-rec ${fora?'fora':''}" data-rec="${esc(r.id)}"><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${esc(r.t)}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.v)}</span></div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
-    if(cartaoRecSel===r.id){
+    if(cartaoRecSel===r.id && podeMexer(r)){
       const ops = [[0,'Pela data (normal)'],[1,'Passar para a próxima fatura'],[-1,'Trazer para a anterior']].filter(o=>o[0]!==r.aj);
       h += '<div class="fx-acoes">' + ops.map(o=>`<button class="ghost" data-ajuste="${esc(r.id)}|${o[0]}" style="font-size:12px;padding:4px 10px;">${o[1]}</button>`).join('') + '</div>';
     }
     h += '</div>';
   });
+  if(dono){
+  h += `<label style="margin-top:12px;">Início do controle (AAAA-MM; vazio = sem limite)</label><div class="row"><input type="text" inputmode="numeric" id="cInicio" placeholder="ex: 2025-11" value="${esc(inicio)}"><button class="ghost" id="btnSalvarInicio">Salvar</button></div><p class="muted">Faturas anteriores a esse mês ficam como histórico: aparecem, mas não são conferidas.</p>`;
   h += `<div style="margin-top:12px;"><button class="ghost" data-rm="${i}" style="font-size:12px;">Remover este cartão</button></div></div>`;
+  } else h += '</div>';
   return h;
 }
 function renderCartao(){
@@ -1747,7 +1831,14 @@ function renderCartao(){
     const card = cartoesConfig[b], at = faturaAtual(card), dados = cartaoDados[b];
     const fech = fechamentoDe(card, at), dd = diasAte(fech);
     const val = dados ? fmtMoeda(totalFatura(registrosCartao(b), at)) + (dados.incompleto?' ⚠':'') : '···';
-    h += `<div class="sd-row" data-cartao="${i}"><div class="sd-nome">${esc(b)}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fech)} · ${dd===0?'hoje':'em '+dd+' dia'+(Math.abs(dd)===1?'':'s')}</div></div><div class="sd-val ${dados&&!cartaoCarregando?'':'carr'}">${val}</div><span class="muted">${cartaoAberto===i?'▴':'▾'}</span></div>`;
+    let mudou = 0;
+    if(dados){
+      const recsC = registrosCartao(b);
+      Object.entries(card.faturas||{}).forEach(([ymC,f])=>{
+        if(f && f.conferida && periodoFatura(card, ymC).ini >= dados.desde && Math.round(totalFatura(recsC, ymC)*100) !== Math.round(f.conferida.total*100)) mudou++;
+      });
+    }
+    h += `<div class="sd-row" data-cartao="${i}"><div class="sd-nome">${esc(b)}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fech)} · ${dd===0?'hoje':'em '+dd+' dia'+(Math.abs(dd)===1?'':'s')}${mudou?` · <span style="color:var(--expense);">⚠ ${mudou} fatura${mudou>1?'s conferidas mudaram':' conferida mudou'}</span>`:''}</div></div><div class="sd-val ${dados&&!cartaoCarregando?'':'carr'}">${val}</div><span class="muted">${cartaoAberto===i?'▴':'▾'}</span></div>`;
     if(cartaoAberto===i) h += painelCartaoHtml(i);
   });
   if(!n) h = '<p class="muted" style="padding:6px 4px;">Nenhum cartão cadastrado ainda.</p>';
@@ -1764,8 +1855,48 @@ function renderCartao(){
 }
 async function onCartaoClick(e){
   if(e.target.closest('input')) return;
-  const el = e.target.closest('[data-cartao],[data-chip],[data-janela],[data-rec],[data-ajuste],#btnSalvarFech,[data-rm],[data-est],[data-cand],[data-regdif],#btnSalvarBanco');
+  const el = e.target.closest('[data-cartao],[data-chip],[data-janela],[data-rec],[data-ajuste],#btnSalvarFech,[data-rm],[data-est],[data-cand],[data-regdif],#btnSalvarBanco,#btnSalvarInicio,[data-conferir],[data-desconferir]');
   if(!el) return;
+  if(el.dataset.conferir || el.dataset.desconferir){
+    const b = cartoesVisiveis[cartaoAberto];
+    const ym = el.dataset.conferir || el.dataset.desconferir;
+    const card = cartoesConfig[b];
+    if(!b || !card) return;
+    const desfazer = !!el.dataset.desconferir;
+    const total = totalFatura(registrosCartao(b), ym);
+    const jaTem = card.faturas && card.faturas[ym] && card.faturas[ym].conferida;
+    if(!desfazer && !jaTem){
+      const vb = valorBancoDe(card, ym);
+      if(vb===null || Math.round((total - vb)*100) !== 0){
+        const txt = vb===null ? `Esta fatura não tem o valor do app do cartão para comparar. Marcar como conferida mesmo assim, com o total ${fmtMoeda(total)}?`
+          : `O total calculado (${fmtMoeda(total)}) difere do valor informado do banco (${fmtMoeda(vb)}). Marcar como conferida mesmo assim?`;
+        if(!(await confirmarModal(txt))) return;
+      }
+    }
+    try{
+      await atualizarConfigCartoes(pb=>{
+        const c = pb[b]; if(!c) return;
+        c.faturas = c.faturas || {};
+        const cur = {...(c.faturas[ym]||{})};
+        if(desfazer) delete cur.conferida; else cur.conferida = {total, em: new Date().toISOString()};
+        if(Object.keys(cur).length) c.faturas[ym] = cur; else delete c.faturas[ym];
+      });
+    }catch(err){ await avisar('Não consegui salvar: ' + ((err&&(err.code||err.message))||err)); }
+    renderCartao(); return;
+  }
+  if(el.id==='btnSalvarInicio'){
+    const b = cartoesVisiveis[cartaoAberto];
+    const v = document.getElementById('cInicio').value.trim();
+    const msgEl = document.getElementById('cMsg');
+    if(v!=='' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(v)){ msgEl.textContent = '⚠️ Use o formato AAAA-MM, ex: 2025-11.'; return; }
+    try{
+      msgEl.textContent = 'Salvando...';
+      await atualizarConfigCartoes(pb=>{ const c = pb[b]; if(!c) return; if(v==='') delete c.inicio; else c.inicio = v; });
+      msgCartao = 'Salvo ✓';
+      renderCartao();
+    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + ((err&&(err.code||err.message))||err); }
+    return;
+  }
   if(el.dataset.est){
     const id = el.dataset.est;
     const n = parseFloat(document.getElementById('est-'+id).value);
@@ -2008,13 +2139,21 @@ function parseLinhas(linhas, notaDe){
 async function deduplicarContraBanco(resultado){
   if(!db) return {resultado, duplicadas:0};
   const bancosNoLote = [...new Set(resultado.map(l=>l.banco||''))];
+  const datas = resultado.map(l=>l.dataEvento).filter(Boolean).sort();
   const existentes = new Set();
-  for(const banco of bancosNoLote){
-    try{
-      const snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get();
+  if(datas.length){
+    // Um duplicado só pode existir dentro do período do lote (a chave inclui a data exata).
+    const de = datas[0], ate = datas[datas.length-1];
+    for(const banco of bancosNoLote){
+      let snap;
+      try{
+        snap = await db.collection("lancamentos").where("banco","==",banco)
+          .where("dataEvento",">=",de).where("dataEvento","<=",ate).limit(1000000).get();
+      }catch(e){
+        // sem conferir, a importação poderia duplicar: melhor parar do que seguir
+        throw new Error(`não consegui conferir duplicidade em "${banco}" (${(e && e.message) || e})`);
+      }
       snap.docs.forEach(d=>existentes.add(chaveLancamento(d.data())));
-    }catch(e){
-      console.error('Falha ao checar duplicidade para banco', banco, e);
     }
   }
   const vistos = new Set();
@@ -2029,6 +2168,72 @@ async function deduplicarContraBanco(resultado){
 }
 function chaveLancamento(l){
   return [l.status, (l.descricao||'').trim().toLowerCase(), Number(l.valor).toFixed(2), (l.banco||'').trim().toLowerCase(), l.dataEvento].join('|');
+}
+
+const MESES_PT = {janeiro:1,fevereiro:2,marco:3,abril:4,maio:5,junho:6,julho:7,agosto:8,setembro:9,outubro:10,novembro:11,dezembro:12};
+function ymDaAba(nome){
+  const m = normTxt(nome).match(/(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\D*(\d{4})/);
+  return m ? m[2]+'-'+pad2(MESES_PT[m[1]]) : null;
+}
+// Em cada aba mensal da planilha, a linha do cartão tem o dia de fechamento na célula à esquerda de uma célula
+// "FECHAMENTO" e o banco na coluna BANCO. Devolve { banco: { 'AAAA-MM': dia } }.
+function extrairFechamentos(wb){
+  const achados = {}, semMes = [];
+  wb.SheetNames.forEach(nome=>{
+    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[nome], {header:1, raw:true, defval:null});
+    let h = -1, mapa = null;
+    for(let i=0;i<linhas.length;i++){
+      const norm = (linhas[i]||[]).map(c=>c!=null?normalizaCabecalho(c):'');
+      if(norm.includes('ST') && norm.includes('DESCRICAO')){ h = i; mapa = mapaColunas(linhas[i]); break; }
+    }
+    if(h<0 || mapa.banco<0) return;
+    const ym = ymDaAba(nome);
+    for(let i=h+1;i<linhas.length;i++){
+      const r = linhas[i];
+      if(!r) continue;
+      const j = r.findIndex(c=>typeof c==='string' && /^\s*FECHAMENTO/i.test(c));
+      if(j<1) continue;
+      const dia = Number(r[j-1]);
+      const banco = r[mapa.banco]!=null ? String(r[mapa.banco]).trim() : '';
+      if(!banco || !Number.isInteger(dia) || dia<1 || dia>31) continue;
+      if(!ym){ if(!semMes.includes(nome)) semMes.push(nome); continue; }
+      (achados[banco] = achados[banco] || {})[ym] = dia;
+    }
+  });
+  return {achados, semMes};
+}
+async function importarFechamentos(){
+  const st = document.getElementById('fechStatus'), inp = document.getElementById('arquivoFech');
+  if(!db){ st.textContent = 'Banco de dados indisponível.'; return; }
+  if(!inp.files.length){ st.textContent = 'Escolha a planilha (.xlsx) primeiro.'; return; }
+  st.textContent = 'Lendo...';
+  try{
+    const wb = XLSX.read(new Uint8Array(await inp.files[0].arrayBuffer()), {type:'array'});
+    const {achados, semMes} = extrairFechamentos(wb);
+    const todos = Object.keys(achados);
+    if(!todos.length){ st.textContent = 'Não encontrei linhas "FECHAMENTO" (o dia na célula à esquerda e o banco na coluna BANCO).'; return; }
+    const bancos = todos.filter(b=>listas.banco.includes(b));
+    const ignorados = todos.filter(b=>!listas.banco.includes(b));
+    if(!bancos.length){ st.textContent = 'Os bancos da planilha (' + todos.join(', ') + ') não estão na lista de bancos do app.'; return; }
+    const resumo = bancos.map(b=>`${b} (${Object.keys(achados[b]).length} meses)`).join(', ');
+    if(!(await confirmarModal(`Gravar os dias de fechamento: ${resumo}?` + (ignorados.length ? ` Fora da lista de bancos, serão ignorados: ${ignorados.join(', ')}.` : '')))){ st.textContent = ''; return; }
+    await atualizarConfigCartoes(pb=>{
+      bancos.forEach(b=>{
+        const yms = Object.keys(achados[b]).sort();
+        const c = pb[b] = pb[b] || {diaPadrao: achados[b][yms[yms.length-1]], faturas:{}};
+        c.faturas = c.faturas || {};
+        yms.forEach(ym=>{
+          const dia = Math.min(achados[b][ym], diasNoMes(ym));
+          c.faturas[ym] = {...(c.faturas[ym]||{}), fechamento: ym + '-' + pad2(dia)};
+        });
+      });
+    });
+    st.textContent = `Fechamentos gravados: ${resumo}.` + (semMes.length ? ` Abas ignoradas (mês não identificado): ${semMes.join(', ')}.` : '');
+    await carregarCartoesConfig();
+    carregarCartoes(true);
+  }catch(e){
+    st.textContent = '⚠️ ' + ((e && (e.message||e.code)) || e);
+  }
 }
 
 function tratarResultadoImport(res, statusEl){
@@ -2071,7 +2276,7 @@ function mostrarPreview(){
   document.getElementById('qtdPreview').textContent = lancamentosParaImportar.length;
   document.getElementById('listaPreview').innerHTML = lancamentosParaImportar.slice(0,300).map(l=>`
     <div class="item">
-      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span><span class="valor ${l.tipo}">${l.tipo==='saida'?'-':'+'}${fmtMoeda(l.valor)}</span></div>
+      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span>${htmlValorLinha(l)}</div>
       <div class="item-meta">${new Date(l.dataEvento).toLocaleDateString('pt-BR')} · ${esc(l.status)} · ${esc(l.banco||'-')}</div>
       ${l.nota?`<div class="item-meta">📝 ${escHtml(l.nota.length>140 ? l.nota.slice(0,140)+'…' : l.nota)}</div>`:''}
     </div>`).join('');
@@ -2147,23 +2352,31 @@ async function exportarDados(){
   if(!downloads){ statusEl.textContent = "Exportação indisponível nesta visualização."; return; }
   if(!db){ statusEl.textContent = "Banco de dados indisponível nesta visualização."; return; }
   try{
-    statusEl.textContent = "Lendo lançamentos...";
-    const lancamentos = await lerTodosLancamentos(n=>{ statusEl.textContent = `Lendo lançamentos... ${n}`; });
-    statusEl.textContent = "Lendo configurações...";
+    const comLanc = document.getElementById('expLanc').checked, comCfg = document.getElementById('expCfg').checked;
+    if(!comLanc && !comCfg){ statusEl.textContent = "Marque ao menos uma opção para exportar."; return; }
+    let lancamentos = [];
+    if(comLanc){
+      statusEl.textContent = "Lendo lançamentos...";
+      lancamentos = await lerTodosLancamentos(n=>{ statusEl.textContent = `Lendo lançamentos... ${n}`; });
+    }
     const documentos = {};
-    for(const caminho of ["config/listas","config/tags","config/combos","config/saldos","config/cartoes"]){
-      const snap = await db.doc(caminho).get();
-      documentos[caminho] = snap.data() ? clonar(snap.data()) : null;
+    if(comCfg){
+      statusEl.textContent = "Lendo configurações...";
+      for(const caminho of ["config/listas","config/tags","config/combos","config/saldos","config/cartoes"]){
+        const snap = await db.doc(caminho).get();
+        documentos[caminho] = snap.data() ? clonar(snap.data()) : null;
+      }
     }
     const payload = {
       app: "Finanças pessoais",
       versaoExportacao: 2,
       exportadoEm: new Date().toISOString(),
       contagem: { lancamentos: lancamentos.length },
-      colecoes: { lancamentos },
+      colecoes: comLanc ? { lancamentos } : {},
       documentos
     };
-    const ok = await downloads.save({ filename: `financas-export-${new Date().toISOString().slice(0,10)}.json`, data: JSON.stringify(payload, null, 2) });
+    const tipo = comLanc && comCfg ? 'export' : (comLanc ? 'lancamentos' : 'configuracoes');
+    const ok = await downloads.save({ filename: `financas-${tipo}-${new Date().toISOString().slice(0,10)}.json`, data: JSON.stringify(payload, null, 2) });
     const nDocs = Object.values(documentos).filter(Boolean).length;
     statusEl.textContent = ok ? `Exportado ✓ (${lancamentos.length} lançamentos e ${nDocs} documentos de configuração)` : "Exportação cancelada.";
   }catch(e){
@@ -2183,8 +2396,48 @@ document.getElementById('btnLimparPreview').addEventListener('click', limparPrev
 document.getElementById('btnProcessarTexto').addEventListener('click', processarTextoColado);
 document.getElementById('btnProcessar').addEventListener('click', processarArquivo);
 document.getElementById('btnConfirmarImport').addEventListener('click', confirmarImportacao);
+async function importarBackup(){
+  const st = document.getElementById('backupStatus'), inp = document.getElementById('arquivoBackup'), btn = document.getElementById('btnImportarBackup');
+  if(!db || !db.importarLancamentos){ st.textContent = 'Importação de backup indisponível nesta versão.'; return; }
+  const querLanc = document.getElementById('impLanc').checked, querCfg = document.getElementById('impCfg').checked;
+  if(!querLanc && !querCfg){ st.textContent = 'Marque ao menos uma opção para importar.'; return; }
+  if(!inp.files.length){ st.textContent = 'Escolha o arquivo .json do backup.'; return; }
+  let dados;
+  try{ dados = JSON.parse(await inp.files[0].text()); }
+  catch(e){ st.textContent = 'Arquivo inválido: ' + e.message; return; }
+  const itens = (dados && dados.colecoes && dados.colecoes.lancamentos) || null;
+  const docs = Object.entries((dados && dados.documentos) || {}).filter(([k,v])=>v);
+  if(querLanc && !Array.isArray(itens)){ st.textContent = 'Este arquivo não tem lançamentos. Desmarque "Importar lançamentos" ou escolha outro arquivo.'; return; }
+  if(querCfg && !docs.length){ st.textContent = 'Este arquivo não tem configurações. Desmarque "Importar configurações" ou escolha outro arquivo.'; return; }
+  const partes = [];
+  if(querLanc) partes.push(`${itens.length} lançamento(s)`);
+  if(querCfg) partes.push(`${docs.length} configuração(ões)`);
+  if(!(await confirmarModal(`Importar ${partes.join(' e ')}? Itens com o mesmo id (ou a mesma configuração) serão sobrescritos; nada é apagado.`))) return;
+  btn.disabled = true;
+  try{
+    let msg = 'Concluído:';
+    if(querLanc){
+      const r = await db.importarLancamentos(itens, (feitos,total)=>{ st.textContent = `Importando lançamentos... ${feitos}/${total}`; });
+      msg += ` ${r.gravados} lançamento(s) gravado(s) de ${itens.length} no arquivo` + (dados.contagem && dados.contagem.lancamentos!=null ? ` (contagem declarada: ${dados.contagem.lancamentos})` : '') + '.';
+      if(r.rejeitados.length) msg += ` ${r.rejeitados.length} rejeitado(s): ` + r.rejeitados.slice(0,5).map(x=>`#${x.indice+1} ${x.motivo}`).join('; ') + (r.rejeitados.length>5?'…':'') + '.';
+    }
+    if(querCfg){
+      for(const [caminho,obj] of docs){ st.textContent = `Gravando ${caminho}...`; await db.doc(caminho).set(obj); }
+      msg += ` ${docs.length} configuração(ões) gravada(s).`;
+    }
+    st.textContent = msg;
+  }catch(e){
+    st.textContent = '⚠️ Erro na importação: ' + (e && e.message || e) + ' Você pode tentar de novo: o que já foi gravado não duplica.';
+  }finally{ btn.disabled = false; }
+}
+document.getElementById('btnImportarBackup').addEventListener('click', importarBackup);
 document.getElementById('btnExportar').addEventListener('click', exportarDados);
+document.getElementById('btnImportarFech').addEventListener('click', importarFechamentos);
 
+window.addEventListener('unhandledrejection', ev=>{
+  const r = ev.reason;
+  if(r && r.code === 403){ ev.preventDefault(); avisar('Sem permissão: ' + (r.message || 'ação não permitida para o seu perfil.')); }
+});
 init();
 </script>
 </body>
