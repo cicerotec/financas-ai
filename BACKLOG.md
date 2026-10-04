@@ -6,11 +6,11 @@ seções depois delas. Marque `[x]` ao concluir.
 ## Roadmap
 
 ### Agora: liberar o app para a esposa
-1. [ ] **Mergear a PR #3** (nome de exibição) e **depois a #4** (eventos futuros) em `develop`. A #4 está empilhada sobre
-   a #3: mergear a #3, mudar a base da #4 para `develop` e mergear.
-2. [ ] **Decidir o `/api/*`**: pelo CloudFront (Function URL privada com OAC) ou chamada direta à Function URL.
-   Bloqueia o item 3. Detalhe em "Hospedagem".
-3. [ ] **Hospedar o front em S3 + CloudFront** (HTTPS, domínio `*.cloudfront.net`).
+1. [x] **Mergear a PR #3** (nome de exibição) e **a #4** (eventos futuros) em `develop`.
+2. [x] **Decidir o `/api/*`: chamada direta à Function URL (opção B)**, front estático no CloudFront. Reavaliar rotear
+   a API pelo CloudFront (OAC) quando entrar domínio próprio, WAF ou mais usuários. Detalhe em "Hospedagem".
+3. [ ] **Hospedar o front em S3 + CloudFront** (HTTPS, domínio `*.cloudfront.net`). Template e script prontos na
+   branch `feature/hospedagem-s3-cloudfront`; falta o `deploy.ps1` e o `publicar-front.ps1` (passos em "Hospedagem").
 4. [ ] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
 5. [ ] **Limpar os PREVISTO e TRANSFERINDO antigos** da importação: aparecem como atrasados em Futuros (Ocultar, ou
    Editar para o status que de fato aconteceu).
@@ -73,12 +73,23 @@ seções depois delas. Marque `[x]` ao concluir.
 ## Detalhes
 
 ### Hospedagem (S3 + CloudFront) e decisão sobre o `/api/*`
-- `template.yaml`: bucket privado, acesso do CloudFront, distribuição; CORS da Lambda e URLs de retorno do Cognito
-  aceitando o CloudFront **e** `localhost`.
-- `scripts/publicar-front.ps1`: envia `web/` (inclui `config.js`, que fica fora do git) e limpa o cache.
-- **Decisão pendente:** rotear `/api/*` pelo CloudFront ou manter a chamada direta à Function URL. Com OAC o token do
-  Cognito não pode ir em `Authorization` (o OAC usa esse cabeçalho; mandar em outro) e `POST`/`PUT` exigem o hash do
-  corpo em `x-amz-content-sha256`. Conferir na documentação da AWS antes de decidir.
+**Decidido: opção B**, a API continua sendo chamada direto na Function URL (com CORS), e o CloudFront serve só o front.
+Motivos: o token do Cognito já protege os dados; rotear a API pelo CloudFront (OAC) exige `AuthType: AWS_IAM`, hash do
+corpo em `x-amz-content-sha256` nos `POST`/`PUT`, token em outro cabeçalho (o OAC sobrescreve o `Authorization`) e
+complica o desenvolvimento em `localhost`, e o ganho de segurança é pequeno (o CloudFront continua público, então um
+anônimo ainda chega à Lambda por ele; limitar abuso de verdade pede WAF, que custa). Reavaliar com domínio próprio,
+WAF ou mais usuários; a troca é localizada (URL base em `config.js`, cabeçalho em `api.js` e `auth.go`, template).
+
+Pronto na branch `feature/hospedagem-s3-cloudfront`:
+- `template.yaml`: bucket S3 privado, OAC, distribuição (HTTPS, cache gerenciado, cabeçalhos de segurança), política do
+  bucket; o CORS da Lambda e as URLs de retorno/saída do Cognito aceitam o CloudFront **e** `localhost`; parâmetro
+  `ReservedConcurrency` (teto de execuções simultâneas da Lambda), **desligado (0)**: a conta tem limite de 10 execuções
+  simultâneas no total (`aws lambda get-account-settings`) e a AWS exige manter 10 sem reserva, então nenhuma reserva
+  é possível; esse limite de 10 da conta já funciona como teto natural. Para reservar de verdade, pedir aumento de cota
+  em Service Quotas. Outputs novos: `FrontUrl`, `FrontBucket`, `DistributionId`.
+- `scripts/publicar-front.ps1`: envia `web/` ao bucket (inclui `config.js`, que fica fora do git) e invalida o cache.
+- Passos: sessão MFA, `.\scripts\deploy.ps1 <codigo>` (cria bucket e distribuição; leva alguns minutos), depois
+  `.\scripts\publicar-front.ps1` (use `-Simular` antes) e abrir o `FrontUrl`.
 
 ### Eventos futuros
 Conceito: status marcados como "evento futuro" (PREVISTO, TRANSFERINDO, CREDITANDO) ainda não aconteceram: não contam
