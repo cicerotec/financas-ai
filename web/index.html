@@ -101,6 +101,20 @@ svg text{fill:var(--text);font-size:10px;}
 body.papel-member .so-owner{display:none !important;}
 body.papel-member nav button[data-tab="importar"]{display:none;}
 body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
+.aviso-fut{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:color-mix(in srgb,#BA7517 14%,transparent);border:1px solid #BA7517;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:13px;}
+.aviso-fut a{color:var(--text);text-decoration:underline;white-space:nowrap;}
+.fut-metricas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0;}
+.fut-metrica{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;}
+.fut-metrica.alerta{border-color:var(--danger);}
+.fut-metrica.alerta .fut-num{color:var(--danger);}
+.fut-num{font-size:17px;font-weight:600;}
+.fut-titulo{font-size:12px;color:var(--muted);margin:14px 0 6px;}
+.fut-titulo.atras{color:var(--danger);}
+.item.futuro{border-style:dashed !important;}
+.item.atrasado{border-color:var(--danger) !important;}
+.chip{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;}
+.chip.atrasado{border-color:var(--danger);color:var(--danger);}
+.marca-futuro{color:#BA7517;}
 </style>
 </head>
 <body>
@@ -113,6 +127,7 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
     <button data-tab="tendencias">Tendências</button>
     <button data-tab="cartao">Cartão</button>
     <button data-tab="saldos">Saldos</button>
+    <button data-tab="futuros">Futuros</button>
     <button data-tab="importar">Importar</button>
   </nav>
 </header>
@@ -129,6 +144,7 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
   <div class="card" id="formCard">
     <label>Status</label>
     <select id="fStatus"></select>
+    <p class="muted" id="fFuturoDica"></p>
     <div id="fFaturaWrap" class="hidden">
       <label>Fatura do cartão</label>
       <select id="fFatura"><option value="0">Pela data (padrão)</option><option value="1">Próxima fatura</option><option value="-1">Fatura anterior</option></select>
@@ -181,6 +197,7 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 </section>
 
 <section id="tab-historico" class="hidden">
+  <div id="avisoFuturos" class="aviso-fut hidden"></div>
   <div class="card" style="margin-bottom:10px;">
     <label>Buscar por texto (descrição ou nota) em todo o histórico</label>
     <div class="row" style="flex-wrap:wrap;">
@@ -188,6 +205,7 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
       <button class="primary" id="btnBuscarTexto" style="flex:0 0 auto;width:auto;margin-top:0;">Buscar</button>
       <button class="ghost hidden" id="btnLimparBusca" style="flex:0 0 auto;">Voltar ao padrão</button>
     </div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:6px 0 0;"><input type="checkbox" id="buscaIncluiFuturos" checked style="width:auto;"> Incluir eventos futuros na busca</label>
     <p class="muted" id="buscaTextoStatus" style="margin-top:6px;"></p>
   </div>
   <div class="filters">
@@ -237,9 +255,10 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
   </div>
   <div class="card">
     <b>Status</b>
-    <p class="muted so-owner">O checkbox marca se esse status é dinheiro que já aconteceu de verdade (conta no saldo, cartão e tendências) ou só uma previsão/planejamento (não conta ainda).</p>
+    <p class="muted so-owner">Evento futuro: ainda não aconteceu. Não conta como real, não mexe no saldo e aparece na aba Futuros, não no Histórico. O checkbox marca se esse status é dinheiro que já aconteceu de verdade (conta no saldo, cartão e tendências) ou só uma previsão/planejamento (não conta ainda).</p>
     <div class="pill-list" id="pillStatus"></div>
     <div class="row so-owner" style="margin-top:8px;"><input id="novoStatus" placeholder="novo status"><button class="ghost" id="btnAddStatus">Adicionar</button></div>
+    <label class="so-owner" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:6px 0 0;"><input type="checkbox" id="novoStatusFuturo" style="width:auto;"> evento futuro (já nasce sem contar como real e sem mexer no saldo)</label>
   </div>
   <div class="card so-owner">
     <b>Bancos / contas</b>
@@ -309,6 +328,17 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
   <div id="listaSaldos"></div>
 </section>
 
+<section id="tab-futuros" class="hidden">
+  <p class="muted">Eventos que ainda não aconteceram (status marcados como "evento futuro" em Listas). Quando acontecer, toque em Editar e troque o status e a data.</p>
+  <div class="fut-metricas">
+    <div class="fut-metrica"><div class="muted">A pagar</div><div class="fut-num" id="futPagar">···</div></div>
+    <div class="fut-metrica"><div class="muted">A receber</div><div class="fut-num" id="futReceber">···</div></div>
+    <div class="fut-metrica" id="futMetricaAtras"><div class="muted">Atrasados</div><div class="fut-num" id="futAtrasados">···</div></div>
+  </div>
+  <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);"><input type="checkbox" id="futMostrarOcultos" style="width:auto;"> mostrar ocultos (fora dos totais)</label>
+  <div id="listaFuturos"></div>
+</section>
+
 <section id="tab-importar" class="hidden">
   <div class="card">
     <p class="muted">O arquivo é lido aqui no seu navegador — não é enviado pra mim em nenhum momento. Funciona com a planilha no formato ST/DESCRIÇÃO/DIA/SEM/MES/DATA HORA/PAGO/RENDA/GASTOS/BANCO/TAG, uma aba por mês.</p>
@@ -370,9 +400,12 @@ let papelAtual = 'owner', meuSub = '';
 let lancamentosParaImportar = [];
 let listas = { status: ["PAGO","PREVISTO","CREDITO IN","CREDITO EX","CONTAS","TRANSFERINDO","CREDITANDO"], banco: [] };
 let statusReal = { PREVISTO:false, TRANSFERINDO:false, CREDITANDO:false };
-function ehStatusReal(status){ return statusReal[status] !== false; }
+// Evento futuro: ainda não aconteceu. Manda sobre as outras duas caixas: nunca conta como real nem mexe no saldo.
+let statusFuturo = { PREVISTO:true, TRANSFERINDO:true, CREDITANDO:true };
+function ehFuturo(status){ return statusFuturo[status] === true; }
+function ehStatusReal(status){ return !ehFuturo(status) && statusReal[status] !== false; }
 let afetaSaldoBanco = { PAGO:true, CONTAS:true };
-function afetaSaldo(status){ return afetaSaldoBanco[status] === true; }
+function afetaSaldo(status){ return !ehFuturo(status) && afetaSaldoBanco[status] === true; }
 let statusCor = {};
 let estiloCor = 'ambos';
 let corAberta = null;
@@ -427,6 +460,8 @@ function atualizarCampoFatura(){
   const w = document.getElementById('fFaturaWrap');
   if(!w) return;
   const st = document.getElementById('fStatus').value;
+  const fd = document.getElementById('fFuturoDica');
+  if(fd) fd.textContent = ehFuturo(st) ? 'Evento futuro: aparece na aba Futuros, não no Histórico, e não mexe no saldo.' : '';
   w.classList.toggle('hidden', !ehCredito(st));
   document.getElementById('fFaturaDica').textContent = ehCreditoEX(st) ? 'Registros com status CRÉDITO EX já vão para a próxima fatura.' : (ehCreditoIN(st) ? 'Registros com status CRÉDITO IN já entram na fatura anterior (a que fecha neste mês).' : '');
 }
@@ -558,6 +593,7 @@ async function init(){
       if(d && d.banco) listas.banco = clonar(d.banco);
       if(d && d.statusReal) statusReal = clonar(d.statusReal);
       if(d && d.afetaSaldoBanco) afetaSaldoBanco = clonar(d.afetaSaldoBanco);
+      if(d && d.statusFuturo) statusFuturo = clonar(d.statusFuturo);
       if(d && d.statusCor) statusCor = clonar(d.statusCor);
       if(d && d.estiloCor) estiloCor = d.estiloCor;
       if(d && d.layoutSaldos) layoutSaldos = d.layoutSaldos;
@@ -602,16 +638,19 @@ async function init(){
   setupHandlers();
 }
 
+let abaOrigemEdicao = null;
+function abaAtual(){ const b = document.querySelector('nav button.active'); return b ? b.dataset.tab : 'lancar'; }
+function irParaAba(t){
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active', x.dataset.tab===t));
+  document.querySelectorAll('main section').forEach(sec=>sec.classList.add('hidden'));
+  document.getElementById('tab-'+t).classList.remove('hidden');
+  if(t==='saldos') carregarSaldosConfig().then(()=>carregarSaldos(false));
+  if(t==='cartao') carregarCartoesConfig().then(()=>carregarCartoes(false));
+  if(t==='futuros') renderFuturos();
+}
 function setupTabs(){
   document.querySelectorAll('nav button').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
-      b.classList.add('active');
-      document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
-      document.getElementById('tab-'+b.dataset.tab).classList.remove('hidden');
-      if(b.dataset.tab==='saldos') carregarSaldosConfig().then(()=>carregarSaldos(false));
-      if(b.dataset.tab==='cartao') carregarCartoesConfig().then(()=>carregarCartoes(false));
-    });
+    b.addEventListener('click', ()=>irParaAba(b.dataset.tab));
   });
 }
 
@@ -622,7 +661,7 @@ function renderListas(){
   atualizarCampoFatura();
   [fBanco,tOrig,tDest].forEach(sel=>{ sel.innerHTML = listas.banco.map(s=>`<option>${esc(s)}</option>`).join(''); });
   // tira da seleção qualquer status que não existe mais
-  filStatusSelecionados = new Set([...filStatusSelecionados].filter(s=>listas.status.includes(s)));
+  filStatusSelecionados = new Set([...filStatusSelecionados].filter(s=>listas.status.includes(s) && !ehFuturo(s)));
   renderFilStatusDropdown();
   filBancoSelecionados = new Set([...filBancoSelecionados].filter(b=>listas.banco.includes(b)));
   renderFilBancoDropdown();
@@ -632,12 +671,15 @@ function renderListas(){
       ${ehOwner()?`<button data-del-status="${esc(s)}">✕</button>`:''}
       <span style="display:flex;align-items:center;gap:6px;"><button data-cor-status="${esc(s)}" aria-label="Escolher cor de ${esc(s)}" style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${corStatus(s)};border:2px solid var(--border);padding:0;cursor:pointer;"></button><b>${esc(s)}</b></span>
       ${corAberta===s?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${COR_PALETA.map(p=>`<button data-cor-pick="${p}" data-cor-st="${esc(s)}" aria-label="Cor ${p}" style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${p};border:${p===corStatus(s)?'2px solid var(--text)':'1px solid var(--border)'};padding:0;cursor:pointer;"></button>`).join('')}</div>`:''}
-      ${ehOwner()?`      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
-        <input type="checkbox" data-real-status="${esc(s)}" ${ehStatusReal(s)?'checked':''} style="width:auto;"> conta como real
+      ${ehOwner()?`<label style="display:flex;align-items:center;gap:4px;${ehFuturo(s)?'color:var(--muted);':'cursor:pointer;'}">
+        <input type="checkbox" data-real-status="${esc(s)}" ${ehStatusReal(s)?'checked':''} ${ehFuturo(s)?'disabled':''} style="width:auto;"> conta como real
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;${ehFuturo(s)?'color:var(--muted);':'cursor:pointer;'}">
+        <input type="checkbox" data-afeta-status="${esc(s)}" ${afetaSaldo(s)?'checked':''} ${ehFuturo(s)?'disabled':''} style="width:auto;"> afeta saldo do banco
       </label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
-        <input type="checkbox" data-afeta-status="${esc(s)}" ${afetaSaldo(s)?'checked':''} style="width:auto;"> afeta saldo do banco
-      </label>`:''}
+        <input type="checkbox" data-futuro-status="${esc(s)}" ${ehFuturo(s)?'checked':''} style="width:auto;"> evento futuro
+      </label>`:(ehFuturo(s)?'<span class="muted">evento futuro</span>':'')}
     </span>`).join('');
   document.getElementById('pillBanco').innerHTML = listas.banco.map(s=>
     `<span class="pill">${esc(s)} <button data-del-banco="${esc(s)}">✕</button></span>`).join('');
@@ -651,6 +693,13 @@ function renderListas(){
   document.querySelectorAll('[data-afeta-status]').forEach(cb=>cb.onchange=()=>{
     afetaSaldoBanco[cb.dataset.afetaStatus] = cb.checked;
     salvarListas();
+  });
+  document.querySelectorAll('[data-futuro-status]').forEach(cb=>cb.onchange=()=>{
+    const st = cb.dataset.futuroStatus;
+    // O marcador manda por cima das outras duas caixas (elas aparecem travadas e desmarcadas), mas os valores
+    // guardados não são apagados: desmarcar "evento futuro" devolve o status como era.
+    statusFuturo[st] = cb.checked;
+    salvarListas(); renderListas(); renderHistorico();
   });
   document.querySelectorAll('[data-cor-status]').forEach(b=>b.onclick=()=>{
     corAberta = (corAberta===b.dataset.corStatus) ? null : b.dataset.corStatus;
@@ -712,7 +761,7 @@ function renderAparencia(){
 
 async function salvarListas(){
   if(!db) return;
-  await db.doc("config/listas").set({...listas, statusReal, afetaSaldoBanco, statusCor, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
+  await db.doc("config/listas").set({...listas, statusReal, afetaSaldoBanco, statusFuturo, statusCor, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
 }
 function removerDaLista(tipo,valor){
   listas[tipo] = listas[tipo].filter(x=>x!==valor);
@@ -870,7 +919,12 @@ function setupHandlers(){
 
   document.getElementById('btnAddStatus').onclick = ()=>{
     const v = document.getElementById('novoStatus').value.trim();
-    if(v && !listas.status.includes(v)){ listas.status.push(v); salvarListas(); renderListas(); document.getElementById('novoStatus').value=''; }
+    if(v && !listas.status.includes(v)){
+      listas.status.push(v);
+      if(document.getElementById('novoStatusFuturo').checked){ statusFuturo[v] = true; statusReal[v] = false; afetaSaldoBanco[v] = false; }
+      salvarListas(); renderListas();
+      document.getElementById('novoStatus').value=''; document.getElementById('novoStatusFuturo').checked = false;
+    }
   };
   document.getElementById('btnAddBanco').onclick = ()=>{
     const v = document.getElementById('novoBanco').value.trim();
@@ -949,7 +1003,7 @@ function renderFilStatusDropdown(){
       <button type="button" id="filStatusTodos">Marcar todos</button>
       <button type="button" id="filStatusNenhum">Limpar</button>
     </div>
-    ${listas.status.map(s=>`
+    ${listas.status.filter(s=>!ehFuturo(s)).map(s=>`
       <label><input type="checkbox" data-fil-status="${esc(s)}" ${filStatusSelecionados.has(s)?'checked':''}> ${esc(s)}</label>
     `).join('')}
   `;
@@ -959,7 +1013,7 @@ function renderFilStatusDropdown(){
     renderHistorico();
   }));
   document.getElementById('filStatusTodos').onclick = ()=>{
-    filStatusSelecionados = new Set(listas.status);
+    filStatusSelecionados = new Set(listas.status.filter(s=>!ehFuturo(s)));
     renderFilStatusDropdown();
     renderHistorico();
   };
@@ -1078,30 +1132,65 @@ async function registrarTransferencia(){
   document.getElementById('tValor').value='';
 }
 
-function renderHistorico(){
-  const el = document.getElementById('listaLancamentos');
-  const fsList = [...filStatusSelecionados];
-  const fbList = [...filBancoSelecionados];
-  const ft = document.getElementById('filTag').value;
-  const mostrarOcultos = document.getElementById('filMostrarOcultos').checked;
-  const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache);
-  let lista = fonte.filter(l=>
-    (mostrarOcultos || !l.oculto) &&
-    (!fsList.length || fsList.includes(l.status)) && (!fbList.length || fbList.includes(l.banco)) && (!ft || (l.tags||[]).includes(ft)));
-  const ordem = document.getElementById('filOrdenacao').value;
-  lista = [...lista].sort((a,b)=> ordem==='asc'
-    ? new Date(a.dataEvento) - new Date(b.dataEvento)
-    : new Date(b.dataEvento) - new Date(a.dataEvento));
-  document.getElementById('contadorHistorico').textContent = modoBuscaTexto
-    ? `${lista.length} lançamento(s) exibido(s) do resultado da busca (${lancamentosBusca.length} no total)`
-    : modoMesEspecifico
-    ? `${lista.length} lançamento(s) exibido(s) do mês buscado (${lancamentosMes.length} no total)`
-    : `${lista.length} lançamento(s) exibido(s) de ${lancamentosCache.length} carregado(s)${lancamentosCache.length>=1000?' (limite de exibição: 1000 mais recentes — use "Buscar esse mês" para ver períodos mais antigos)':''}`;
-  if(!lista.length){ el.innerHTML = '<p class="muted">Nenhum lançamento encontrado.</p>'; return; }
-  el.innerHTML = lista.map(l=>`
-    <div class="item ${l.oculto?'oculto':''}" style="${estiloItemCor(l.status)}">
+const MESES_NOME = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function rotuloMes(ym){
+  const [y,m] = ym.split('-').map(Number);
+  const nome = MESES_NOME[m-1];
+  return nome.charAt(0).toUpperCase() + nome.slice(1) + ' de ' + y;
+}
+function diaLocal(l){ return chaveDia(new Date(l.dataEvento)); }
+// Eventos futuros ordenados por data. Ocultos só entram se pedido.
+function eventosFuturos(fonte, incluirOcultos){
+  return fonte.filter(l=>ehFuturo(l.status) && (incluirOcultos || !l.oculto))
+    .sort((a,b)=>new Date(a.dataEvento) - new Date(b.dataEvento));
+}
+// Totais dos eventos futuros que valem (ocultos ficam de fora). Atrasado = dia anterior a hoje.
+function resumoFuturos(lista, hojeKey){
+  let pagar = 0, receber = 0, atrasados = 0, somaAtrasados = 0, n = 0;
+  lista.forEach(l=>{
+    if(l.oculto) return;
+    n++;
+    const v = valorAssinado(l);
+    if(v < 0) pagar += -v; else receber += v;
+    if(diaLocal(l) < hojeKey){ atrasados++; somaAtrasados += Math.abs(v); }
+  });
+  const r2 = x=>Math.round(x*100)/100;
+  return {n, pagar:r2(pagar), receber:r2(receber), atrasados, somaAtrasados:r2(somaAtrasados)};
+}
+// Atrasados primeiro (só os não ocultos), depois um grupo por mês, tudo em ordem de data.
+function gruposFuturos(lista, hojeKey){
+  const atras = {titulo:'Atrasados', atrasado:true, itens:[]};
+  const porMes = new Map();
+  lista.forEach(l=>{
+    const k = diaLocal(l);
+    if(k < hojeKey && !l.oculto){ atras.itens.push(l); return; }
+    const ym = k.slice(0,7);
+    if(!porMes.has(ym)) porMes.set(ym, {titulo:rotuloMes(ym), atrasado:false, itens:[]});
+    porMes.get(ym).itens.push(l);
+  });
+  const grupos = atras.itens.length ? [atras] : [];
+  [...porMes.keys()].sort().forEach(ym=>grupos.push(porMes.get(ym)));
+  return grupos;
+}
+
+function htmlItemLancamento(l, o){
+  o = o || {};
+  const fut = ehFuturo(l.status);
+  const dias = diasAte(diaLocal(l));
+  const atrasado = !!o.prazo && fut && !l.oculto && dias < 0;
+  let prazo = '';
+  if(o.prazo && fut && !l.oculto){
+    if(dias < 0) prazo = ` · <span class="chip atrasado">atrasado ${-dias} dia${-dias===1?'':'s'}</span>`;
+    else if(dias === 0) prazo = ' · <span class="chip">hoje</span>';
+    else if(dias <= 30) prazo = ` · <span class="muted">em ${dias} dia${dias===1?'':'s'}</span>`;
+  }
+  const seu = (o.prazo && !ehOwner() && l.criadoPor && l.criadoPor === meuSub) ? ' · <span class="muted">criado por você</span>' : '';
+  const marca = (o.marcarFuturo && fut) ? '<div class="item-meta marca-futuro">📅 Evento futuro · aparece também em Futuros</div>' : '';
+  return `
+    <div class="item ${l.oculto?'oculto':''} ${fut?'futuro':''} ${atrasado?'atrasado':''}" style="${estiloItemCor(l.status)}">
       <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span>${htmlValorLinha(l)}</div>
-      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}</div>
+      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}${prazo}${seu}</div>
+      ${marca}
       ${l.nota?`<div class="item-meta">${escHtml(l.nota)}</div>`:''}
       <div class="item-acoes">
         ${podeMexer(l)?`<button data-acao="editar" data-id="${esc(l.id)}">✏️ Editar</button>`:''}
@@ -1109,7 +1198,65 @@ function renderHistorico(){
         ${podeMexer(l)?`<button data-acao="ocultar" data-id="${esc(l.id)}">${l.oculto?'👁️ Mostrar':'🙈 Ocultar'}</button>`:''}
         ${ehOwner()?`<button data-acao="excluir" data-id="${esc(l.id)}">🗑️ Excluir</button>`:''}
       </div>
-    </div>`).join('');
+    </div>`;
+}
+
+function renderAvisoFuturos(){
+  const el = document.getElementById('avisoFuturos');
+  if(!el) return;
+  const lista = eventosFuturos(lancamentosCache, false);
+  if(!lista.length){ el.classList.add('hidden'); el.innerHTML = ''; return; }
+  const r = resumoFuturos(lista, chaveDia(new Date()));
+  el.classList.remove('hidden');
+  el.innerHTML = `<span>📅 ${r.n} evento${r.n>1?'s':''} futuro${r.n>1?'s':''} · a pagar ${fmtMoeda(r.pagar)} · a receber ${fmtMoeda(r.receber)}${r.atrasados?` · <b>${r.atrasados} atrasado${r.atrasados>1?'s':''}</b>`:''}</span><a href="#" data-ir-aba="futuros">Ver em Futuros</a>`;
+}
+
+function renderFuturos(){
+  const el = document.getElementById('listaFuturos');
+  if(!el) return;
+  const hoje = chaveDia(new Date());
+  const todos = eventosFuturos(lancamentosCache, document.getElementById('futMostrarOcultos').checked);
+  const r = resumoFuturos(todos, hoje);
+  document.getElementById('futPagar').textContent = fmtMoeda(r.pagar);
+  document.getElementById('futReceber').textContent = fmtMoeda(r.receber);
+  document.getElementById('futAtrasados').textContent = r.atrasados ? `${r.atrasados} · ${fmtMoeda(r.somaAtrasados)}` : '0';
+  document.getElementById('futMetricaAtras').classList.toggle('alerta', r.atrasados > 0);
+  if(!todos.length){
+    el.innerHTML = '<p class="muted">Nenhum evento futuro. Crie um lançamento na aba Lançar com um status de evento futuro (ex.: PREVISTO).</p>';
+    return;
+  }
+  el.innerHTML = gruposFuturos(todos, hoje).map(g=>
+    `<div class="fut-titulo ${g.atrasado?'atras':''}">${esc(g.titulo)}</div>` + g.itens.map(l=>htmlItemLancamento(l, {prazo:true})).join('')).join('');
+}
+
+function renderHistorico(){
+  renderAvisoFuturos();
+  renderFuturos();
+  const el = document.getElementById('listaLancamentos');
+  const fsList = [...filStatusSelecionados];
+  const fbList = [...filBancoSelecionados];
+  const ft = document.getElementById('filTag').value;
+  const mostrarOcultos = document.getElementById('filMostrarOcultos').checked;
+  const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache);
+  // Eventos futuros ficam fora do Histórico, salvo na busca (caixa "Incluir eventos futuros") e no mês buscado.
+  const incluirFuturos = modoBuscaTexto ? document.getElementById('buscaIncluiFuturos').checked : modoMesEspecifico;
+  let lista = fonte.filter(l=>
+    (incluirFuturos || !ehFuturo(l.status)) &&
+    (mostrarOcultos || !l.oculto) &&
+    (!fsList.length || fsList.includes(l.status)) && (!fbList.length || fbList.includes(l.banco)) && (!ft || (l.tags||[]).includes(ft)));
+  const ordem = document.getElementById('filOrdenacao').value;
+  lista = [...lista].sort((a,b)=> ordem==='asc'
+    ? new Date(a.dataEvento) - new Date(b.dataEvento)
+    : new Date(b.dataEvento) - new Date(a.dataEvento));
+  const nFut = lista.filter(l=>ehFuturo(l.status)).length;
+  const extraFut = nFut ? ` · ${nFut} ${nFut>1?'são eventos futuros':'é evento futuro'}` : '';
+  document.getElementById('contadorHistorico').textContent = modoBuscaTexto
+    ? `${lista.length} lançamento(s) exibido(s) do resultado da busca (${lancamentosBusca.length} no total)${extraFut}`
+    : modoMesEspecifico
+    ? `${lista.length} lançamento(s) exibido(s) do mês buscado (${lancamentosMes.length} no total)${extraFut}`
+    : `${lista.length} lançamento(s) exibido(s) de ${lancamentosCache.length} carregado(s)${lancamentosCache.length>=1000?' (limite de exibição: 1000 mais recentes — use "Buscar esse mês" para ver períodos mais antigos)':''}`;
+  if(!lista.length){ el.innerHTML = '<p class="muted">Nenhum lançamento encontrado.</p>'; return; }
+  el.innerHTML = lista.map(l=>htmlItemLancamento(l, {marcarFuturo:true})).join('');
 }
 
 function acharLancamento(id){
@@ -1128,6 +1275,8 @@ function removerLocal(id){
 function iniciarEdicao(id){
   const l = acharLancamento(id);
   if(!l) return;
+  const origem = abaAtual();
+  abaOrigemEdicao = origem === 'lancar' ? null : origem;
   editandoId = id;
   document.getElementById('fStatus').value = l.status;
   document.getElementById('fFatura').value = String(ajusteEfetivo(l));
@@ -1144,10 +1293,7 @@ function iniciarEdicao(id){
   renderTagPicker();
   document.getElementById('btnSalvar').textContent = 'Salvar edição';
   document.getElementById('btnCancelarEdicao').classList.remove('hidden');
-  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
-  document.querySelector('nav button[data-tab="lancar"]').classList.add('active');
-  document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
-  document.getElementById('tab-lancar').classList.remove('hidden');
+  irParaAba('lancar');
 }
 
 function iniciarCopia(id){
@@ -1170,10 +1316,7 @@ function iniciarCopia(id){
   tagsSelecionadas = new Set(l.tags||[]);
   renderTagPicker();
   document.getElementById('iaStatus').textContent = 'Copiado do histórico. Ajuste o que precisar e salve como novo lançamento.';
-  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
-  document.querySelector('nav button[data-tab="lancar"]').classList.add('active');
-  document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
-  document.getElementById('tab-lancar').classList.remove('hidden');
+  irParaAba('lancar');
   window.scrollTo({top:0});
 }
 
@@ -1182,6 +1325,7 @@ function cancelarEdicao(){
   document.getElementById('btnSalvar').textContent = 'Salvar lançamento';
   document.getElementById('btnCancelarEdicao').classList.add('hidden');
   limparFormulario();
+  if(abaOrigemEdicao){ const t = abaOrigemEdicao; abaOrigemEdicao = null; irParaAba(t); } // volta para onde a edição começou
 }
 
 async function ocultarLancamento(id){
@@ -1200,7 +1344,7 @@ async function excluirLancamento(id){
   removerLocal(id);
 }
 
-document.getElementById('listaLancamentos').addEventListener('click', (e)=>{
+function cliqueAcaoRegistro(e){
   const btn = e.target.closest('button[data-acao]');
   if(!btn) return;
   const id = btn.dataset.id;
@@ -1208,7 +1352,15 @@ document.getElementById('listaLancamentos').addEventListener('click', (e)=>{
   if(btn.dataset.acao==='copiar') iniciarCopia(id);
   if(btn.dataset.acao==='ocultar') ocultarLancamento(id);
   if(btn.dataset.acao==='excluir') excluirLancamento(id);
+}
+document.getElementById('listaLancamentos').addEventListener('click', cliqueAcaoRegistro);
+document.getElementById('listaFuturos').addEventListener('click', cliqueAcaoRegistro);
+document.getElementById('avisoFuturos').addEventListener('click', (e)=>{
+  const a = e.target.closest('[data-ir-aba]');
+  if(a){ e.preventDefault(); irParaAba(a.dataset.irAba); }
 });
+document.getElementById('futMostrarOcultos').addEventListener('change', renderFuturos);
+document.getElementById('buscaIncluiFuturos').addEventListener('change', renderHistorico);
 async function buscarMesEspecifico(){
   const valor = document.getElementById('filMesEspecifico').value; // "2026-03"
   if(!valor || !db) return;
