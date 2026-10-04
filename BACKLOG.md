@@ -1,6 +1,6 @@
 # Backlog e roadmap
 
-Atualizado em 2026-10-05. Uma única ordem de prioridade (as três faixas abaixo); os detalhes de cada item ficam nas
+Atualizado em 2026-10-04. Uma única ordem de prioridade (as três faixas abaixo); os detalhes de cada item ficam nas
 seções depois delas. Marque `[x]` ao concluir.
 
 ## Roadmap
@@ -9,8 +9,8 @@ seções depois delas. Marque `[x]` ao concluir.
 1. [x] **Mergear a PR #3** (nome de exibição) e **a #4** (eventos futuros) em `develop`.
 2. [x] **Decidir o `/api/*`: chamada direta à Function URL (opção B)**, front estático no CloudFront. Reavaliar rotear
    a API pelo CloudFront (OAC) quando entrar domínio próprio, WAF ou mais usuários. Detalhe em "Hospedagem".
-3. [ ] **Hospedar o front em S3 + CloudFront** (HTTPS, domínio `*.cloudfront.net`). Template e script prontos na
-   branch `feature/hospedagem-s3-cloudfront`; falta o `deploy.ps1` e o `publicar-front.ps1` (passos em "Hospedagem").
+3. [x] **Hospedar o front em S3 + CloudFront** (HTTPS, domínio `*.cloudfront.net`). No ar e testado no celular
+   (PR #5). Detalhes em "Hospedagem".
 4. [ ] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
 5. [ ] **Limpar os PREVISTO e TRANSFERINDO antigos** da importação: aparecem como atrasados em Futuros (Ocultar, ou
    Editar para o status que de fato aconteceu).
@@ -21,7 +21,7 @@ seções depois delas. Marque `[x]` ao concluir.
 7. [ ] **Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de duplicado).
 8. [ ] **Carregar os anos anteriores** (do mais novo para o mais antigo).
 9. [ ] **Importação do `.xlsx` usando o endpoint de lote** (hoje grava um lançamento por requisição).
-10. [ ] **Primeira release:** PR `develop → main` e tag `v0.1.0`.
+10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
 11. [ ] **AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico** (exportar JSON e/ou
     point-in-time recovery do DynamoDB).
 
@@ -35,7 +35,9 @@ seções depois delas. Marque `[x]` ao concluir.
 17. [ ] **Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
 18. [ ] **Segurança e escala:** revisar o `localStorage` do token, limite de taxa na Function URL, mesclar conflito
     de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
-19. [ ] **Ideias** (seção no fim).
+19. [ ] **Script de release** (`scripts/lancar-versao.ps1 <versão>`): PR `develop → main`, merge, tag e release em um
+    comando, para não depender de lembrar a sequência (ver "Fluxo de branches e versões").
+20. [ ] **Ideias** (seção no fim).
 
 ## Já feito (resumo)
 - Backend AWS (SAM + Go + DynamoDB + Cognito), publicado; login com Cognito (Hosted UI + PKCE).
@@ -45,7 +47,30 @@ seções depois delas. Marque `[x]` ao concluir.
   sem o limite de 1000.
 - Autorização por papel no backend (owner/member) com testes; front por papel; teste com um member de verdade.
 - Nome de exibição (PR #3). Eventos futuros, Parte A (PR #4).
-- Scripts: `deploy.ps1`, `aws-mfa.ps1`, `seed.sh`, `definir-nome.sh`, `limpar-espaco.py`.
+- Hospedagem do front em S3 privado + CloudFront (PR #5). Primeira release `v0.1.0` na `main`.
+- Scripts: `deploy.ps1`, `aws-mfa.ps1`, `publicar-front.ps1`, `seed.sh`, `definir-nome.sh`, `limpar-espaco.py`.
+
+## Fluxo de branches e versões (convenção simples)
+- **Trabalho:** uma branch nova a partir da `develop` por assunto (`feature/...`, `docs/...`) e PR para a `develop`.
+- **Lançar uma versão:** PR `develop → main`, merge (commit de merge), depois a **tag anotada** `vX.Y.Z` no commit da
+  `main` e a release no GitHub. A tag marca **o que foi para produção**. A release é só a página de registro: não
+  publica nada.
+  ```
+  git fetch origin
+  git tag -a v0.2.0 -m "v0.2.0: resumo" origin/main
+  git push origin v0.2.0
+  gh release create v0.2.0 --verify-tag --title "v0.2.0" --notes "..."
+  ```
+- **Número:** `0.x.y` até ficar estável. Correção = sobe o último número (`0.1.1`); funcionalidade nova = sobe o do meio
+  (`0.2.0`); `1.0.0` quando estável.
+- **Bug em produção:** se a `develop` só tem coisas já lançadas, corrige na `develop` como qualquer assunto e lança a
+  versão seguinte. Se a `develop` já tem coisa que não foi lançada, cria `hotfix/...` a partir da `main`, PR para a
+  `main`, tag da correção e PR de volta para a `develop` para a correção não se perder. Só ir à tag antiga se for
+  preciso reproduzir o bug (`git checkout v0.1.0`).
+- **Sem branches `release/x.y`** por enquanto; só se for preciso congelar uma leva grande para testar enquanto a
+  `develop` segue em frente.
+- **Publicar na AWS é separado** da release: backend com `deploy.ps1`, front com `publicar-front.ps1`. Para a versão
+  no ar bater com a tag, publicar a partir da `main` depois de lançar.
 
 ## Decisões fechadas
 
