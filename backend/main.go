@@ -38,6 +38,11 @@ func handler(ctx context.Context, r req) (resp, error) {
 	m := r.RequestContext.HTTP.Method
 	p := strings.Split(strings.Trim(r.RawPath, "/"), "/")
 
+	return processar(ctx, u, m, p, r.QueryStringParameters, r.Body)
+}
+
+// processar roda uma requisicao ja autenticada: classifica a rota, confere o papel e executa.
+func processar(ctx context.Context, u *user, m string, p []string, qs map[string]string, rawBody string) (resp, error) {
 	if len(p) == 1 && p[0] == "me" && m == "GET" {
 		return getMe(ctx, u)
 	}
@@ -45,6 +50,10 @@ func handler(ctx context.Context, r req) (resp, error) {
 		return erro(http.StatusNotFound, "rota inexistente")
 	}
 	sid := p[1]
+	acaoReq, ok := rotaParaAcao(m, p[2:])
+	if !ok {
+		return erro(http.StatusNotFound, "rota inexistente")
+	}
 	role, err := papel(ctx, u, sid)
 	if err != nil {
 		log.Println("papel:", err)
@@ -53,30 +62,37 @@ func handler(ctx context.Context, r req) (resp, error) {
 	if role == "" {
 		return erro(http.StatusForbidden, "sem acesso a esse espaco")
 	}
+	dec := permitido(role, acaoReq)
+	if dec == negado {
+		log.Printf("negado: sub=%s papel=%s acao=%s", u.Sub, role, acaoReq)
+		return erro(http.StatusForbidden, "sem permissao para esta acao")
+	}
 	var body doc
 	if m == "POST" || m == "PUT" {
-		if err := json.Unmarshal([]byte(r.Body), &body); err != nil || body == nil {
+		if err := json.Unmarshal([]byte(rawBody), &body); err != nil || body == nil {
 			return erro(http.StatusBadRequest, "json invalido")
 		}
 	}
-	switch {
-	case p[2] == "tx" && len(p) == 3 && m == "GET":
-		return getTxs(ctx, sid, r.QueryStringParameters)
-	case p[2] == "tx" && len(p) == 3 && m == "POST":
+	switch acaoReq {
+	case acaoLerTx:
+		return getTxs(ctx, sid, qs)
+	case acaoCriarTx:
 		return postTx(ctx, sid, u, body)
-	case p[2] == "tx" && len(p) == 4 && p[3] == "batch" && m == "POST":
+	case acaoImportarTx:
 		return postTxBatch(ctx, sid, u, body)
-	case p[2] == "tx" && len(p) == 4 && m == "PUT":
-		return putTx(ctx, sid, p[3], r.QueryStringParameters["de"], body)
-	case p[2] == "tx" && len(p) == 4 && m == "DELETE":
-		return delTx(ctx, sid, p[3], r.QueryStringParameters["de"])
-	case p[2] == "cfg" && len(p) == 4 && cfgNomes[p[3]] && m == "GET":
+	case acaoEditarTx:
+		return putTx(ctx, sid, p[3], qs["de"], body, u.Sub, dec == soDono)
+	case acaoExcluirTx:
+		return delTx(ctx, sid, p[3], qs["de"])
+	case acaoLerCfg:
 		return getCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]))
-	case p[2] == "cfg" && len(p) == 4 && cfgNomes[p[3]] && m == "PUT":
+	case acaoEscreverCfg:
 		return putCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]), body)
-	case p[2] == "aparencia" && len(p) == 3 && m == "GET":
+	case acaoAdicionarTags:
+		return postTags(ctx, sid, body)
+	case acaoLerAparencia:
 		return getCfg(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA")
-	case p[2] == "aparencia" && len(p) == 3 && m == "PUT":
+	case acaoEscreverAparenc:
 		return putAparencia(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA", body)
 	}
 	return erro(http.StatusNotFound, "rota inexistente")
@@ -183,6 +199,7 @@ func postTx(ctx context.Context, sid string, u *user, body doc) (resp, error) {
 		log.Println("post tx:", err)
 		return erro(500, "erro ao salvar")
 	}
+	garantirTagsServidor(ctx, sid, tagsDe(body))
 	return out(201, publico(body))
 }
 
@@ -275,7 +292,7 @@ func gravarLote(ctx context.Context, reqs []types.WriteRequest) []types.WriteReq
 	return reqs
 }
 
-func putTx(ctx context.Context, sid, id, de string, body doc) (resp, error) {
+func putTx(ctx context.Context, sid, id, de string, body doc, sub string, restrito bool) (resp, error) {
 	de, err := normData(de)
 	if err != nil {
 		return erro(400, "parametro de (dataEvento atual) obrigatorio")
@@ -286,6 +303,10 @@ func putTx(ctx context.Context, sid, id, de string, body doc) (resp, error) {
 	}
 	if antigo == nil {
 		return erro(404, "lancamento nao encontrado")
+	}
+	if restrito && !ehDono(antigo, sub) {
+		log.Printf("negado: sub=%s tentou editar lancamento de outra pessoa (%s)", sub, id)
+		return erro(http.StatusForbidden, "so e possivel editar os lancamentos criados por voce")
 	}
 	protegidos(body)
 	novo := antigo
@@ -312,6 +333,7 @@ func putTx(ctx context.Context, sid, id, de string, body doc) (resp, error) {
 		log.Println("put tx:", err)
 		return erro(500, "erro ao salvar")
 	}
+	garantirTagsServidor(ctx, sid, tagsDe(novo))
 	return out(200, publico(novo))
 }
 
@@ -340,14 +362,17 @@ func getCfg(ctx context.Context, pk, sk string) (resp, error) {
 
 // Configuracao compartilhada: controle otimista. O cliente manda o "version" que leu;
 // se alguem gravou antes, responde 409 com o estado atual para o cliente mesclar.
-func putCfg(ctx context.Context, pk, sk string, body doc) (resp, error) {
-	esperada, _ := body["version"].(float64)
-	delete(body, "version")
-	protegidos(body)
+var (
+	errConflito = errors.New("alterado por outra pessoa")
+	errDados    = errors.New("dados invalidos")
+)
+
+// salvarCfg grava com controle otimista: so grava se a versao no banco ainda e a que o cliente leu.
+func salvarCfg(ctx context.Context, pk, sk string, body doc, esperada float64) (doc, error) {
 	body["PK"], body["SK"], body["version"] = pk, sk, esperada+1
 	item, err := marshal(body)
 	if err != nil {
-		return erro(400, "dados invalidos")
+		return nil, errDados
 	}
 	in := &dynamodb.PutItemInput{TableName: &table, Item: item}
 	if esperada == 0 {
@@ -359,13 +384,29 @@ func putCfg(ctx context.Context, pk, sk string, body doc) (resp, error) {
 	if _, err := db.PutItem(ctx, in); err != nil {
 		var cf *types.ConditionalCheckFailedException
 		if errors.As(err, &cf) {
-			atual, _ := getItem(ctx, pk, sk)
-			return out(http.StatusConflict, doc{"erro": "alterado por outra pessoa", "atual": publico(atual)})
+			return nil, errConflito
 		}
+		return nil, err
+	}
+	return publico(body), nil
+}
+
+func putCfg(ctx context.Context, pk, sk string, body doc) (resp, error) {
+	esperada, _ := body["version"].(float64)
+	delete(body, "version")
+	protegidos(body)
+	res, err := salvarCfg(ctx, pk, sk, body, esperada)
+	switch {
+	case errors.Is(err, errDados):
+		return erro(400, "dados invalidos")
+	case errors.Is(err, errConflito):
+		atual, _ := getItem(ctx, pk, sk)
+		return out(http.StatusConflict, doc{"erro": "alterado por outra pessoa", "atual": publico(atual)})
+	case err != nil:
 		log.Println("put cfg:", err)
 		return erro(500, "erro ao salvar")
 	}
-	return out(200, publico(body))
+	return out(200, res)
 }
 
 func putAparencia(ctx context.Context, pk, sk string, body doc) (resp, error) {

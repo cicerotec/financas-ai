@@ -4,8 +4,10 @@ Atualizado em 2026-10-04. Ordem = prioridade. Marque `[x]` ao concluir.
 
 ## Próximos passos (liberar o app para a esposa)
 
-1. [ ] **Autorização por papel no backend (Go) + testes automatizados da matriz.**
-   Tabela de permissões abaixo. A trava fica na Lambda, não no front.
+1. [x] **Autorização por papel no backend (Go) + testes automatizados da matriz.**
+   Tabela de permissões abaixo. A trava fica na Lambda, não no front. Feito: `authz.go`, `tags.go`,
+   `authz_test.go`, `handler_test.go` (banco em memória). **Falta publicar** (`.\scripts\deploy.ps1 <codigo>`);
+   a API nova `POST /spaces/{sid}/tags` precisa ser usada pelo front no item 2.
 2. [ ] **Front por papel.** `/me` devolve o papel; a tela esconde o que o `member` não pode usar
    (aba Importar, edição de saldos/cartão/listas, botões de editar nos registros alheios).
 3. [ ] **Teste local com um usuário `member`** (janela anônima; `seed.sh` com e-mail `+alias`).
