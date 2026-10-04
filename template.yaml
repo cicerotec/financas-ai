@@ -1,15 +1,22 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Financas - DynamoDB + Cognito + Lambda (Go) com Function URL
+Description: Financas - DynamoDB + Cognito + Lambda (Go) com Function URL + front em S3/CloudFront
 
 Parameters:
   FrontOrigin:
     Type: String
     Default: http://localhost:8080
-    Description: Origem do front (CORS e callback do login). Sem barra no final.
+    Description: Origem do front para desenvolvimento local (CORS e callback do login). Sem barra no final. O endereco do CloudFront e acrescentado automaticamente.
   CognitoDomainPrefix:
     Type: String
     Description: Prefixo unico do dominio do login (ex. financas-seunome-123)
+  ReservedConcurrency:
+    Type: Number
+    Default: 0
+    Description: Teto de execucoes simultaneas da Lambda (limita o estrago de uma enxurrada de requisicoes e a conta). 0 desliga. A conta precisa manter pelo menos 10 execucoes sem reserva; com o limite da conta em 10 so o 0 funciona. Confira com "aws lambda get-account-settings".
+
+Conditions:
+  TemTetoDeConcorrencia: !Not [!Equals [!Ref ReservedConcurrency, 0]]
 
 Globals:
   Function:
@@ -54,8 +61,8 @@ Resources:
       AllowedOAuthFlows: [code]
       AllowedOAuthScopes: [openid, email]
       SupportedIdentityProviders: [COGNITO]
-      CallbackURLs: [!Sub '${FrontOrigin}/']
-      LogoutURLs: [!Sub '${FrontOrigin}/']
+      CallbackURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/']
+      LogoutURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/']
       ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
       IdTokenValidity: 60
       AccessTokenValidity: 60
@@ -83,6 +90,7 @@ Resources:
       FunctionName: financas-api
       CodeUri: backend/
       Handler: bootstrap
+      ReservedConcurrentExecutions: !If [TemTetoDeConcorrencia, !Ref ReservedConcurrency, !Ref 'AWS::NoValue']
       Environment:
         Variables:
           TABLE_NAME: !Ref Table
@@ -93,13 +101,76 @@ Resources:
       FunctionUrlConfig:
         AuthType: NONE               # o JWT do Cognito e validado dentro da Lambda
         Cors:
-          AllowOrigins: [!Ref FrontOrigin]
+          AllowOrigins: [!Ref FrontOrigin, !Sub 'https://${Distribution.DomainName}']
           AllowMethods: [GET, POST, PUT, DELETE]
           AllowHeaders: [authorization, content-type]
           MaxAge: 3600
+
+  # ---------------------------------------------------------------- front (S3 privado + CloudFront)
+  FrontBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  FrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: financas-front
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: financas front
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_All        # inclui borda em Sao Paulo; o custo fica dentro do free tier
+        Origins:
+          - Id: front
+            DomainName: !GetAtt FrontBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt FrontOAC.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: front
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6            # Managed-CachingOptimized
+          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03  # Managed-SecurityHeadersPolicy
+
+  FrontBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: SoOCloudFrontDestaDistribuicaoLe
+            Effect: Allow
+            Principal: { Service: cloudfront.amazonaws.com }
+            Action: s3:GetObject
+            Resource: !Sub '${FrontBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
 
 Outputs:
   ApiUrl: { Value: !GetAtt ApiFunctionUrl.FunctionUrl }
   UserPoolId: { Value: !Ref UserPool }
   ClientId: { Value: !Ref UserPoolClient }
   LoginDomain: { Value: !Sub '${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com' }
+  FrontUrl: { Value: !Sub 'https://${Distribution.DomainName}' }
+  FrontBucket: { Value: !Ref FrontBucket }
+  DistributionId: { Value: !Ref Distribution }
