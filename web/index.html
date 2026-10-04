@@ -232,6 +232,7 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
     <button class="ghost hidden" id="btnLimparMes">Voltar ao padrão</button>
   </div>
   <p class="muted" id="contadorHistorico" style="margin:4px 0 8px;"></p>
+  <p class="muted hidden" id="avisoMesFuturos" style="margin:0 0 8px;"></p>
   <div class="card" id="listaLancamentos"><p class="muted">Carregando...</p></div>
 </section>
 
@@ -397,6 +398,7 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 <script>
 let db = null, sample = null;
 let papelAtual = 'owner', meuSub = '';
+let padroesGravados = false;
 let lancamentosParaImportar = [];
 let listas = { status: ["PAGO","PREVISTO","CREDITO IN","CREDITO EX","CONTAS","TRANSFERINDO","CREDITANDO"], banco: [] };
 let statusReal = { PREVISTO:false, TRANSFERINDO:false, CREDITANDO:false };
@@ -600,6 +602,12 @@ async function init(){
       if(d && d.ordemSaldos) ordemSaldos = d.ordemSaldos;
       if(d && Array.isArray(d.ordemManual)) ordemManual = clonar(d.ordemManual);
       if(!listas.status.includes('CREDITANDO')){ listas.status.push('CREDITANDO'); if(ehOwner()) salvarListas(); }
+      // Primeira vez que o dono abre depois de uma atualização: grava no banco os campos que ainda só existiam como
+      // padrão no código (hoje, o statusFuturo), para a configuração ficar explícita e visível no DynamoDB.
+      if(ehOwner() && !padroesGravados && (!d || ['status','banco','statusReal','afetaSaldoBanco','statusFuturo'].some(k=>d[k]===undefined || d[k]===null))){
+        padroesGravados = true;
+        salvarListas();
+      }
       renderListas();
       renderSaldos();
       try{ renderHistorico(); }catch(e){}
@@ -1229,6 +1237,16 @@ function renderFuturos(){
     `<div class="fut-titulo ${g.atrasado?'atras':''}">${esc(g.titulo)}</div>` + g.itens.map(l=>htmlItemLancamento(l, {prazo:true})).join('')).join('');
 }
 
+// No mês buscado os eventos futuros não aparecem na lista; se o mês tiver algum, avisa e leva para a aba Futuros.
+function renderAvisoMesFuturos(){
+  const el = document.getElementById('avisoMesFuturos');
+  if(!el) return;
+  const n = modoMesEspecifico ? lancamentosMes.filter(l=>ehFuturo(l.status) && !l.oculto).length : 0;
+  if(!n){ el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+  el.innerHTML = `📅 Há ${n} evento${n>1?'s':''} futuro${n>1?'s':''} neste mês que não aparece${n>1?'m':''} aqui · <a href="#" data-ir-aba="futuros">ver em Futuros</a>`;
+}
+
 function renderHistorico(){
   renderAvisoFuturos();
   renderFuturos();
@@ -1238,8 +1256,9 @@ function renderHistorico(){
   const ft = document.getElementById('filTag').value;
   const mostrarOcultos = document.getElementById('filMostrarOcultos').checked;
   const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache);
-  // Eventos futuros ficam fora do Histórico, salvo na busca (caixa "Incluir eventos futuros") e no mês buscado.
-  const incluirFuturos = modoBuscaTexto ? document.getElementById('buscaIncluiFuturos').checked : modoMesEspecifico;
+  // Eventos futuros ficam fora do Histórico (lista padrão e mês buscado); só a busca por texto os inclui, pela caixa
+  // "Incluir eventos futuros". Eles ficam na aba Futuros.
+  const incluirFuturos = modoBuscaTexto ? document.getElementById('buscaIncluiFuturos').checked : false;
   let lista = fonte.filter(l=>
     (incluirFuturos || !ehFuturo(l.status)) &&
     (mostrarOcultos || !l.oculto) &&
@@ -1253,8 +1272,9 @@ function renderHistorico(){
   document.getElementById('contadorHistorico').textContent = modoBuscaTexto
     ? `${lista.length} lançamento(s) exibido(s) do resultado da busca (${lancamentosBusca.length} no total)${extraFut}`
     : modoMesEspecifico
-    ? `${lista.length} lançamento(s) exibido(s) do mês buscado (${lancamentosMes.length} no total)${extraFut}`
+    ? `${lista.length} lançamento(s) exibido(s) do mês buscado (${lancamentosMes.filter(l=>!ehFuturo(l.status)).length} no total)`
     : `${lista.length} lançamento(s) exibido(s) de ${lancamentosCache.length} carregado(s)${lancamentosCache.length>=1000?' (limite de exibição: 1000 mais recentes — use "Buscar esse mês" para ver períodos mais antigos)':''}`;
+  renderAvisoMesFuturos();
   if(!lista.length){ el.innerHTML = '<p class="muted">Nenhum lançamento encontrado.</p>'; return; }
   el.innerHTML = lista.map(l=>htmlItemLancamento(l, {marcarFuturo:true})).join('');
 }
@@ -1355,6 +1375,10 @@ function cliqueAcaoRegistro(e){
 }
 document.getElementById('listaLancamentos').addEventListener('click', cliqueAcaoRegistro);
 document.getElementById('listaFuturos').addEventListener('click', cliqueAcaoRegistro);
+document.getElementById('avisoMesFuturos').addEventListener('click', (e)=>{
+  const a = e.target.closest('[data-ir-aba]');
+  if(a){ e.preventDefault(); irParaAba(a.dataset.irAba); }
+});
 document.getElementById('avisoFuturos').addEventListener('click', (e)=>{
   const a = e.target.closest('[data-ir-aba]');
   if(a){ e.preventDefault(); irParaAba(a.dataset.irAba); }
