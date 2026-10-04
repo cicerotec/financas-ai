@@ -11,8 +11,8 @@ seções depois delas. Marque `[x]` ao concluir.
    a API pelo CloudFront (OAC) quando entrar domínio próprio, WAF ou mais usuários. Detalhe em "Hospedagem".
 3. [x] **Hospedar o front em S3 + CloudFront** (HTTPS, domínio `*.cloudfront.net`). No ar e testado no celular
    (PR #5). Detalhes em "Hospedagem".
-4. [ ] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
-5. [ ] **Limpar os PREVISTO e TRANSFERINDO antigos** da importação: aparecem como atrasados em Futuros (Ocultar, ou
+4. [x] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
+5. [x] **Limpar os PREVISTO e TRANSFERINDO antigos** da importação: aparecem como atrasados em Futuros (Ocultar, ou
    Editar para o status que de fato aconteceu).
 6. [ ] **Conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e definir o
    **início do controle** de cada um. Conferir no navegador a aba Cartão (início do controle, fatura conferida).
