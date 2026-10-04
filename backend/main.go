@@ -92,6 +92,8 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 		return postTags(ctx, sid, body)
 	case acaoLerAparencia:
 		return getCfg(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA")
+	case acaoEditarPerfil:
+		return putPerfil(ctx, sid, u, body)
 	case acaoEscreverAparenc:
 		return putAparencia(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA", body)
 	}
@@ -125,7 +127,7 @@ func getMe(ctx context.Context, u *user) (resp, error) {
 				nome = n
 			}
 		}
-		espacos = append(espacos, doc{"id": id, "nome": nome, "role": d["role"]})
+		espacos = append(espacos, doc{"id": id, "nome": nome, "role": d["role"], "apelido": d["apelido"]})
 	}
 	return out(200, doc{"sub": u.Sub, "email": u.Email, "espacos": espacos})
 }

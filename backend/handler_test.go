@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sort"
 	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -60,6 +62,24 @@ func (f *bancoFake) BatchWriteItem(_ context.Context, in *dynamodb.BatchWriteIte
 		}
 	}
 	return &dynamodb.BatchWriteItemOutput{}, nil
+}
+
+// UpdateItem: so o que o perfil usa. Sem o item, falha como a condicao attribute_exists(PK) do DynamoDB.
+func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
+	k := chave(sv(in.Key["PK"]), sv(in.Key["SK"]))
+	it, ok := f.itens[k]
+	if !ok {
+		return nil, &types.ConditionalCheckFailedException{}
+	}
+	switch aws.ToString(in.UpdateExpression) {
+	case "SET apelido = :a":
+		it["apelido"] = in.ExpressionAttributeValues[":a"]
+	case "REMOVE apelido":
+		delete(it, "apelido")
+	default:
+		return nil, errors.New("UpdateExpression nao suportada no banco simulado")
+	}
+	return &dynamodb.UpdateItemOutput{}, nil
 }
 
 // Query: entende "PK = :pk AND SK BETWEEN :a AND :b" e "PK = :pk AND begins_with(SK, :s)".
