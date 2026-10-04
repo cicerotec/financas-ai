@@ -1,14 +1,22 @@
 # Envia a pasta web/ para o bucket do front (S3 + CloudFront) e limpa o cache da distribuicao.
 #   .\scripts\publicar-front.ps1            # publica e invalida o cache
 #   .\scripts\publicar-front.ps1 -Simular   # mostra o que mudaria, sem enviar nada
+#   .\scripts\publicar-front.ps1 -Forcar    # nao pergunta se estiver fora da main / com alteracoes sem commit
+# Antes de publicar, avisa se voce nao esta na main, tem alteracoes sem commit ou esta atras do GitHub.
 # Precisa da sessao AWS aberta (MFA): . .\scripts\aws-mfa.ps1 <codigo>
 # O web/config.js fica fora do git (tem a URL da API e os dados do login); precisa existir aqui na maquina.
 param(
     [string]$Stack = "financas",
-    [switch]$Simular
+    [switch]$Simular,
+    [switch]$Forcar
 )
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
+
+. "$PSScriptRoot\_guarda.ps1"
+if (-not $Simular) {   # a simulacao nao publica nada, entao nao precisa perguntar
+    if (-not (Confirmar-Publicacao -Forcar:$Forcar)) { throw "Publicacao cancelada." }
+}
 
 if (-not (Test-Path "web/config.js")) {
     throw "web/config.js nao existe. Copie web/config.example.js para web/config.js e preencha com os Outputs do deploy."
