@@ -1,25 +1,53 @@
-# Backlog
+# Backlog e roadmap
 
-Atualizado em 2026-10-04. Ordem = prioridade. Marque `[x]` ao concluir.
+Atualizado em 2026-10-05. Uma única ordem de prioridade (as três faixas abaixo); os detalhes de cada item ficam nas
+seções depois delas. Marque `[x]` ao concluir.
 
-## Próximos passos (liberar o app para a esposa)
+## Roadmap
 
-1. [x] **Autorização por papel no backend (Go) + testes automatizados da matriz.**
-   Tabela de permissões abaixo. A trava fica na Lambda, não no front. Feito: `authz.go`, `tags.go`,
-   `authz_test.go`, `handler_test.go` (banco em memória). **Falta publicar** (`.\scripts\deploy.ps1 <codigo>`);
-   a API nova `POST /spaces/{sid}/tags` precisa ser usada pelo front no item 2.
-2. [x] **Front por papel.** `/me` devolve o papel; a tela esconde o que o `member` não pode usar
-   (aba Importar, edição de saldos/cartão/listas, botões de editar nos registros alheios).
-   Feito e verificado na tela com dados inventados (owner e member). Falta publicar o backend (item 1) e
-   exercitar com um usuário member de verdade (item 3).
-3. [ ] **Teste local com um usuário `member`** (janela anônima; `seed.sh` com e-mail `+alias`).
-4. [ ] **Hospedagem do front em S3 + CloudFront** (bucket privado, HTTPS, domínio `*.cloudfront.net`):
-   - `template.yaml`: bucket, acesso do CloudFront, distribuição; CORS da Lambda e URLs de retorno do
-     Cognito aceitando CloudFront **e** `localhost`.
-   - `scripts/publicar-front.ps1`: envia `web/` (inclui `config.js`, que fica fora do git) e limpa o cache.
-5. [ ] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`), instalar na tela inicial do celular.
+### Agora: liberar o app para a esposa
+1. [ ] **Mergear a PR #3** (nome de exibição) e **depois a #4** (eventos futuros) em `develop`. A #4 está empilhada sobre
+   a #3: mergear a #3, mudar a base da #4 para `develop` e mergear.
+2. [ ] **Decidir o `/api/*`**: pelo CloudFront (Function URL privada com OAC) ou chamada direta à Function URL.
+   Bloqueia o item 3. Detalhe em "Hospedagem".
+3. [ ] **Hospedar o front em S3 + CloudFront** (HTTPS, domínio `*.cloudfront.net`).
+4. [ ] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
+5. [ ] **Limpar os PREVISTO e TRANSFERINDO antigos** da importação: aparecem como atrasados em Futuros (Ocultar, ou
+   Editar para o status que de fato aconteceu).
+6. [ ] **Conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e definir o
+   **início do controle** de cada um. Conferir no navegador a aba Cartão (início do controle, fatura conferida).
 
-### Matriz de permissões (decidida)
+### Próximo
+7. [ ] **Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de duplicado).
+8. [ ] **Carregar os anos anteriores** (do mais novo para o mais antigo).
+9. [ ] **Importação do `.xlsx` usando o endpoint de lote** (hoje grava um lançamento por requisição).
+10. [ ] **Primeira release:** PR `develop → main` e tag `v0.1.0`.
+11. [ ] **AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico** (exportar JSON e/ou
+    point-in-time recovery do DynamoDB).
+
+### Depois
+12. [ ] **Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho; quem criou/alterou/
+    ocultou; "novo desde a última visita"; atividade recente; idempotência e edição concorrente.
+13. [ ] **Colaboração, Fase 2:** presença em tempo real ("fulano está mexendo neste registro agora").
+14. [ ] **Saldos e faturas do cartão calculados na Lambda** (hoje o navegador lê todo o histórico).
+15. [ ] **IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
+16. [ ] **Testes automatizados** do front (a lógica de faturas e de eventos futuros).
+17. [ ] **Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
+18. [ ] **Segurança e escala:** revisar o `localStorage` do token, limite de taxa na Function URL, mesclar conflito
+    de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
+19. [ ] **Ideias** (seção no fim).
+
+## Já feito (resumo)
+- Backend AWS (SAM + Go + DynamoDB + Cognito), publicado; login com Cognito (Hosted UI + PKCE).
+- Importação de backup em lote; exportar e importar lançamentos e configurações separadamente; importar fechamentos
+  da planilha; importar notas do `.xlsx`; escape de HTML.
+- Cartão: início do controle, fatura conferida, `CREDITO IN`/`EX` como na planilha; verificação de duplicidade
+  sem o limite de 1000.
+- Autorização por papel no backend (owner/member) com testes; front por papel; teste com um member de verdade.
+- Nome de exibição (PR #3). Eventos futuros, Parte A (PR #4).
+- Scripts: `deploy.ps1`, `aws-mfa.ps1`, `seed.sh`, `definir-nome.sh`, `limpar-espaco.py`.
+
+## Decisões fechadas
 
 | Ação | owner | member |
 |---|---|---|
@@ -28,61 +56,80 @@ Atualizado em 2026-10-04. Ordem = prioridade. Marque `[x]` ao concluir.
 | Editar / ajustar fatura | todos | **só os criados por ela** (`criadoPor == sub`) |
 | Ocultar lançamento | todos | **só os dela** |
 | Excluir lançamento | todos | **não** |
-| Criar tag | sim | **só tags que não existem** (servidor só acrescenta) |
+| Criar tag | sim | **só tags que não existem** (o servidor só acrescenta) |
 | Renomear/excluir tag, combos, bancos, status, flags | sim | não |
-| Ver saldos, cartão, tendências | sim | sim (só leitura) |
+| Ver saldos, cartão, tendências, futuros | sim | sim (só leitura) |
 | Alterar saldo inicial, fechamento, valor do banco, conferir fatura, início do controle | sim | não |
-| Aparência (cores, layout, ordem) | sim | sim, **só a dela** |
+| Aparência (cores, layout, ordem) e o próprio nome | sim | sim, **só a dela** |
 | Importar / exportar / limpeza | sim | não |
 
-Decisões: ela pode ler **todos** os lançamentos e notas (saldos/cartão/tendências são calculados no
-navegador). Hospedagem: **S3 + CloudFront** (GitHub Pages descartado; localhost não serve para ela:
-sem HTTPS o PKCE e o Cognito não funcionam).
-
-## Visibilidade entre usuários (em discussão; só o nome foi implementado)
-
-- [x] **Nome de exibição (apelido):** cada pessoa define o seu em Listas > Seu nome; `scripts/definir-nome.sh`
-      define pelo e-mail. Guardado no vínculo `USER#sub / SPACE#id`. Falta publicar o backend.
-- [ ] Atualização da tela **por gatilho** (foco da aba, entrar nas abas, antes de salvar, botão Atualizar) com um
-      contador de revisão do espaço e uma checagem lenta de segurança (3 a 5 min). Sem temporizador curto.
-- [ ] Mostrar quem criou/alterou/ocultou cada lançamento e quando (`atualizadoPor/Em`, `ocultoPor/Em`);
-      lista de membros do espaço (item espelho `SPACE#id / MEMBER#sub`) para converter `sub` em nome.
-- [ ] "Novo desde a sua última visita": etiquetas automáticas (novo/alterado/oculto) e contagem no Histórico.
-- [ ] "Atividade recente": registro de eventos do servidor com validade (~90 dias).
-- [ ] Idempotência de criação (id gerado na tela, travar o botão Salvar) e edição concorrente (409 se mudou).
+- Ela lê **todos** os lançamentos e notas (saldos, cartão e tendências são calculados no navegador).
+- Hospedagem: **S3 + CloudFront** (GitHub Pages descartado; `localhost` não serve para ela: sem HTTPS o PKCE e o
+  Cognito não funcionam).
 - Descartado: bloquear duplicidade por conteúdo (a mesma compra pode ter outro horário e outra descrição).
+- Atualização da tela por gatilho (foco da aba, troca de aba, antes de salvar, botão Atualizar, checagem lenta de 3 a
+  5 min). **Sem temporizador curto** (15 s foi descartado).
 
-## Confiabilidade e dados
+## Detalhes
 
-- [ ] Conferir no navegador a aba Cartão: início do controle, fatura conferida e "mudou desde a conferência".
-- [ ] Carregar anos anteriores (do mais novo para o mais antigo); definir o **início do controle** de cada cartão.
-- [ ] Conferir totais de fatura de cada cartão contra o banco (MERCADO PAGO, NUBANK, INTER, SANTANDER).
-- [ ] Importação do `.xlsx` usar o endpoint de lote (hoje grava um lançamento por requisição).
-- [ ] Aviso "já existe um igual" ao salvar manualmente usa só os 1000 mais recentes carregados.
-- [ ] Cartão: campos **valor pago** e **observação** por fatura (exceções como extrato ≠ pago).
+### Hospedagem (S3 + CloudFront) e decisão sobre o `/api/*`
+- `template.yaml`: bucket privado, acesso do CloudFront, distribuição; CORS da Lambda e URLs de retorno do Cognito
+  aceitando o CloudFront **e** `localhost`.
+- `scripts/publicar-front.ps1`: envia `web/` (inclui `config.js`, que fica fora do git) e limpa o cache.
+- **Decisão pendente:** rotear `/api/*` pelo CloudFront ou manter a chamada direta à Function URL. Com OAC o token do
+  Cognito não pode ir em `Authorization` (o OAC usa esse cabeçalho; mandar em outro) e `POST`/`PUT` exigem o hash do
+  corpo em `x-amz-content-sha256`. Conferir na documentação da AWS antes de decidir.
 
-## Arquitetura
+### Eventos futuros
+Conceito: status marcados como "evento futuro" (PREVISTO, TRANSFERINDO, CREDITANDO) ainda não aconteceram: não contam
+como reais, não mexem no saldo, saem do Histórico e aparecem na aba **Futuros**. O marcador manda por cima das caixas
+"conta como real" e "afeta saldo" sem apagar os valores guardados. A Parte A está feita (PR #4).
 
-- [ ] Mover **saldos e faturas do cartão** para a Lambda (hoje o navegador lê todo o histórico).
-      Isso também permitiria esconder notas/lançamentos alheios do `member`, se um dia for preciso.
-- [ ] **IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
-- [ ] Testes automatizados (backend e a lógica de faturas do front).
-- [ ] Salvamento simultâneo de configurações: hoje o front repete por cima no conflito (409); mesclar.
-- [ ] Avaliar índice (GSI) por banco se o histórico crescer.
+**Parte B, botão Prever** em cada registro do Histórico: cria cópias como PREVISTO, CREDITANDO ou TRANSFERINDO com a
+mesma data e hora nos meses seguintes.
+- "Repetir N meses" além do original (compras parceladas).
+- Dia que não existe no mês vira o último dia, calculado a partir da data original (31/10 gera 30/11, 31/12, 31/01).
+- Numeração `1/3` vira `2/3`, `3/3` na descrição.
+- Aviso antes de criar se já existe evento igual (status, descrição, valor, banco e data, sem a hora): pular, criar
+  mesmo assim ou cancelar.
+- Pode ser oferecido também nas linhas de Futuros (estender a recorrência).
 
-## Segurança e operação
+Limite conhecido: Futuros e o aviso usam os 1000 lançamentos mais recentes carregados; um evento futuro muito antigo
+pode ficar de fora.
 
-- [ ] Revisar o armazenamento do token (`localStorage`) e adicionar limite de taxa na Function URL.
-- [ ] AWS Budget de US$ 1 com alerta por e-mail (conferir se existe).
-- [ ] Backup periódico (exportar JSON) e/ou point-in-time recovery do DynamoDB.
+### Colaboração em tempo real
+Referência: `colaboracao-tempo-real.md` (gerado no chat do Claude; arquivo do usuário, não versionado). O problema de
+origem: a tela de uma pessoa não percebe o que a outra gravou, alterou ou ocultou (cópia em memória só renovada por
+gravação própria ou a cada 2 min).
 
-## Git e releases
+**Fase 1: log de operações + sincronização incremental**
+- Log no servidor: cada criação, edição, ocultar/mostrar, exclusão e mudança de configuração vira uma operação com
+  número de sequência (`seq`) por espaço, gravada na mesma transação (`TransactWriteItems`: contador no item `META`,
+  item `OP#<seq>` e o registro). Validade de ~180 dias (TTL).
+- `GET /spaces/{sid}/ops?after=N`: devolve só o que mudou desde N (inclui exclusões e ocultações) e o `seq` atual. Sem
+  `after`, devolve só o `seq`. Leitura liberada para owner e member (entra na matriz de permissões).
+- A tela aplica as operações recebidas em vez de recarregar os 1000 lançamentos.
+- Em cada lançamento: quem criou/alterou/ocultou e quando (`atualizadoPor/Em`, `ocultoPor/Em`); lista de membros do
+  espaço (item espelho `SPACE#id / MEMBER#sub`) para converter `sub` em nome.
+- "Novo desde a sua última visita" (etiquetas automáticas novo/alterado/oculto + contagem) e "Atividade recente",
+  ambos a partir do log, sem nada para o usuário marcar ou revisar.
+- Idempotência e edição concorrente: id do lançamento gerado na tela (criar duas vezes devolve o mesmo registro),
+  travar o botão Salvar, e 409 "alterado por outra pessoa" se o registro mudou desde que foi aberto.
+- Cuidados: a importação em lote não deve gerar uma operação por item (emitir uma operação-resumo); a transação
+  consome ~2× de escrita (capacidade atual 5 por segundo); registros antigos não têm `atualizadoEm`.
 
-- [ ] Fazer o merge da PR #1 em `develop`.
-- [ ] Primeira release: PR `develop → main` e tag `v0.1.0`.
+**Fase 2: presença** ("esposa está criando um registro"; no registro aberto, "fulano está aqui"; rascunho com
+auto-save visível no Histórico). Presença é efêmera, separada dos dados e expira sozinha (~60 a 90 s sem sinal).
+- Caminho A (sem serviço novo): polling de um `head.json` no CloudFront com cache de 1 s (atraso de 2 a 3 s).
+  Caminho B (depois): AWS AppSync Events (WebSocket gerenciado, centenas de ms, centavos por mês). O modelo de
+  operações é o mesmo, então dá para começar em A e migrar.
+- Cuidados: o `head.json` público deve ter só o `seq` (presença e nomes vêm da API autenticada); a presença não pode
+  incrementar o `seq` dos dados; no AppSync os canais precisam de autorização por espaço, o exemplo usa `aws-amplify`
+  (exige bundler; o front não tem build) e é preciso confirmar a disponibilidade em `sa-east-1`.
 
-## Ideias
-
+### Ideias
 - `#Garantia` com filtro de garantias vigentes (data de vencimento na nota).
 - Anexar foto/PDF da nota fiscal ao lançamento (bucket S3).
 - Fatura: aviso quando uma compra `CREDITO EX`/`CREDITO IN` cair fora do esperado (a planilha as ignora).
+- Aviso "já existe um igual" ao salvar manualmente usa só os 1000 mais recentes carregados (hoje só a importação
+  confere o histórico inteiro).
