@@ -98,6 +98,9 @@ svg text{fill:var(--text);font-size:10px;}
 .fx-v{font-size:14px;font-weight:600;white-space:nowrap;}
 .fx-tag{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;margin:3px 0 0 50px;display:inline-block;}
 .fx-acoes{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px 50px;}
+body.papel-member .so-owner{display:none !important;}
+body.papel-member nav button[data-tab="importar"]{display:none;}
+body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 </style>
 </head>
 <body>
@@ -228,21 +231,21 @@ svg text{fill:var(--text);font-size:10px;}
   </div>
   <div class="card">
     <b>Status</b>
-    <p class="muted">O checkbox marca se esse status é dinheiro que já aconteceu de verdade (conta no saldo, cartão e tendências) ou só uma previsão/planejamento (não conta ainda).</p>
+    <p class="muted so-owner">O checkbox marca se esse status é dinheiro que já aconteceu de verdade (conta no saldo, cartão e tendências) ou só uma previsão/planejamento (não conta ainda).</p>
     <div class="pill-list" id="pillStatus"></div>
-    <div class="row" style="margin-top:8px;"><input id="novoStatus" placeholder="novo status"><button class="ghost" id="btnAddStatus">Adicionar</button></div>
+    <div class="row so-owner" style="margin-top:8px;"><input id="novoStatus" placeholder="novo status"><button class="ghost" id="btnAddStatus">Adicionar</button></div>
   </div>
-  <div class="card">
+  <div class="card so-owner">
     <b>Bancos / contas</b>
     <div class="pill-list" id="pillBanco"></div>
     <div class="row" style="margin-top:8px;"><input id="novoBanco" placeholder="novo banco"><button class="ghost" id="btnAddBanco">Adicionar</button></div>
   </div>
-  <div class="card">
+  <div class="card so-owner">
     <b>Tags</b>
     <p class="muted">Excluir uma tag em uso avisa quantos lançamentos a usam e deixa você migrar pra outra.</p>
     <div class="pill-list" id="pillTags"></div>
   </div>
-  <div class="card">
+  <div class="card so-owner">
     <b>Combos de tags</b>
     <p class="muted">Conjuntos de tags que você marca de uma vez no Lançar. Para criar, marque as tags no Lançar e toque em "Salvar seleção como combo".</p>
     <div id="listaCombos"></div>
@@ -268,14 +271,14 @@ svg text{fill:var(--text);font-size:10px;}
     <button class="ghost" id="btnAtualizarCartao" style="padding:4px 10px;">Atualizar ⟳</button>
   </div>
   <div id="listaCartoes"></div>
-  <div class="card" id="fechCard">
+  <div class="card so-owner" id="fechCard">
     <b>Importar fechamentos da planilha</b>
     <p class="muted">Lê, em cada aba mensal (ex.: "maio 2025"), a linha do cartão marcada com FECHAMENTO e grava o dia de cada mês, sem precisar digitar mês a mês. Não altera lançamentos. Valores já digitados de "valor no app do cartão" são mantidos.</p>
     <input type="file" id="arquivoFech" accept=".xlsx,.xls">
     <button class="primary" id="btnImportarFech">Importar fechamentos</button>
     <p class="muted" id="fechStatus"></p>
   </div>
-  <div class="card" id="novoCartaoCard">
+  <div class="card so-owner" id="novoCartaoCard">
     <b>Adicionar cartão</b>
     <p class="muted">Escolha o banco ou conta que é cartão de crédito e o dia de fechamento da fatura atual. Depois você ajusta o fechamento de cada fatura, que muda todo mês.</p>
     <div class="row">
@@ -294,7 +297,7 @@ svg text{fill:var(--text);font-size:10px;}
     <div class="muted" id="saldoSub"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin:0 2px 4px;">
-    <span class="muted">Toque num banco para configurar</span>
+    <span class="muted" id="saldoDica">Toque num banco para configurar</span>
     <button class="ghost" id="btnRecalcularSaldos" style="padding:4px 10px;">Atualizar ⟳</button>
   </div>
   <div id="listaSaldos"></div>
@@ -357,6 +360,7 @@ svg text{fill:var(--text);font-size:10px;}
 <script src="api.js"></script>
 <script>
 let db = null, sample = null;
+let papelAtual = 'owner', meuSub = '';
 let lancamentosParaImportar = [];
 let listas = { status: ["PAGO","PREVISTO","CREDITO IN","CREDITO EX","CONTAS","TRANSFERINDO","CREDITANDO"], banco: [] };
 let statusReal = { PREVISTO:false, TRANSFERINDO:false, CREDITANDO:false };
@@ -443,6 +447,10 @@ function htmlValorLinha(l){
   const v = valorAssinado(l);
   return `<span class="valor ${v<0?'saida':'entrada'}">${v<0?'-':'+'}${fmtMoeda(Math.abs(v))}</span>`;
 }
+// Papel do usuário (no ambiente do Claude não existe, então vale 'owner'). A trava de verdade está
+// na API; aqui só se esconde o que o papel não pode usar.
+function ehOwner(){ return papelAtual === 'owner'; }
+function podeMexer(l){ return ehOwner() || (!!l.criadoPor && l.criadoPor === meuSub); }
 function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
 function nowLocalInput(){
   const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
@@ -521,6 +529,15 @@ async function excluirTag(tag){
 async function init(){
   db = await claude.use("db");
   sample = await claude.use("sample");
+  if(window.claude && claude.papel){
+    papelAtual = claude.papel() || 'owner';
+    meuSub = (claude.sub && claude.sub()) || '';
+  }
+  document.body.classList.toggle('papel-member', papelAtual !== 'owner');
+  if(papelAtual !== 'owner'){
+    const dica = document.getElementById('saldoDica');
+    if(dica) dica.textContent = 'Saldos por banco';
+  }
   document.getElementById('fData').value = nowLocalInput();
 
   if(db){
@@ -535,7 +552,7 @@ async function init(){
       if(d && d.layoutSaldos) layoutSaldos = d.layoutSaldos;
       if(d && d.ordemSaldos) ordemSaldos = d.ordemSaldos;
       if(d && Array.isArray(d.ordemManual)) ordemManual = clonar(d.ordemManual);
-      if(!listas.status.includes('CREDITANDO')){ listas.status.push('CREDITANDO'); salvarListas(); }
+      if(!listas.status.includes('CREDITANDO')){ listas.status.push('CREDITANDO'); if(ehOwner()) salvarListas(); }
       renderListas();
       renderSaldos();
       try{ renderHistorico(); }catch(e){}
@@ -601,15 +618,15 @@ function renderListas(){
 
   document.getElementById('pillStatus').innerHTML = listas.status.map(s=>
     `<span class="pill">
-      <button data-del-status="${esc(s)}">✕</button>
+      ${ehOwner()?`<button data-del-status="${esc(s)}">✕</button>`:''}
       <span style="display:flex;align-items:center;gap:6px;"><button data-cor-status="${esc(s)}" aria-label="Escolher cor de ${esc(s)}" style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${corStatus(s)};border:2px solid var(--border);padding:0;cursor:pointer;"></button><b>${esc(s)}</b></span>
       ${corAberta===s?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${COR_PALETA.map(p=>`<button data-cor-pick="${p}" data-cor-st="${esc(s)}" aria-label="Cor ${p}" style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${p};border:${p===corStatus(s)?'2px solid var(--text)':'1px solid var(--border)'};padding:0;cursor:pointer;"></button>`).join('')}</div>`:''}
-      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+      ${ehOwner()?`      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
         <input type="checkbox" data-real-status="${esc(s)}" ${ehStatusReal(s)?'checked':''} style="width:auto;"> conta como real
       </label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
         <input type="checkbox" data-afeta-status="${esc(s)}" ${afetaSaldo(s)?'checked':''} style="width:auto;"> afeta saldo do banco
-      </label>
+      </label>`:''}
     </span>`).join('');
   document.getElementById('pillBanco').innerHTML = listas.banco.map(s=>
     `<span class="pill">${esc(s)} <button data-del-banco="${esc(s)}">✕</button></span>`).join('');
@@ -739,7 +756,7 @@ function renderTagPicker(){
       }).join('') + '</div>';
   }
   const jaSalvo = combosSalvos.some(c=>chaveTags(c.tags)===kSel);
-  if(sel.length>=2 && !jaSalvo) h += '<button class="ghost" id="btnSalvarCombo" style="margin-top:8px;">Salvar seleção como combo</button>';
+  if(sel.length>=2 && !jaSalvo && ehOwner()) h += '<button class="ghost" id="btnSalvarCombo" style="margin-top:8px;">Salvar seleção como combo</button>';
   document.getElementById('tagCombos').innerHTML = h;
   document.getElementById('tagMarcadas').innerHTML = sel.length
     ? '<span class="muted" style="align-self:center;">Marcadas:</span>' + sel.map(chipTag).join('') : '';
@@ -786,9 +803,14 @@ function renderGerenciarTags(){
 
 async function garantirTags(novasTags){
   const set = new Set(tagsUsadas);
-  let mudou = false;
-  novasTags.forEach(t=>{ if(t && !set.has(t)){ set.add(t); mudou = true; } });
-  if(mudou && db){ tagsUsadas = [...set]; await db.doc("config/tags").set({usadas:tagsUsadas}); }
+  const novas = [];
+  novasTags.forEach(t=>{ if(t && !set.has(t)){ set.add(t); novas.push(t); } });
+  if(novas.length && db){
+    tagsUsadas = [...set];
+    // o servidor só acrescenta o que falta (vale para o membro); reescrever a lista é do dono
+    if(db.adicionarTags) await db.adicionarTags(novas);
+    else await db.doc("config/tags").set({usadas:tagsUsadas});
+  }
 }
 
 function setupHandlers(){
@@ -1071,10 +1093,10 @@ function renderHistorico(){
       <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}</div>
       ${l.nota?`<div class="item-meta">${escHtml(l.nota)}</div>`:''}
       <div class="item-acoes">
-        <button data-acao="editar" data-id="${esc(l.id)}">✏️ Editar</button>
+        ${podeMexer(l)?`<button data-acao="editar" data-id="${esc(l.id)}">✏️ Editar</button>`:''}
         <button data-acao="copiar" data-id="${esc(l.id)}">📋 Copiar</button>
-        <button data-acao="ocultar" data-id="${esc(l.id)}">${l.oculto?'👁️ Mostrar':'🙈 Ocultar'}</button>
-        <button data-acao="excluir" data-id="${esc(l.id)}">🗑️ Excluir</button>
+        ${podeMexer(l)?`<button data-acao="ocultar" data-id="${esc(l.id)}">${l.oculto?'👁️ Mostrar':'🙈 Ocultar'}</button>`:''}
+        ${ehOwner()?`<button data-acao="excluir" data-id="${esc(l.id)}">🗑️ Excluir</button>`:''}
       </div>
     </div>`).join('');
 }
@@ -1345,6 +1367,7 @@ function painelSaldoHtml(i){
 function renderSaldos(){
   const el = document.getElementById('listaSaldos');
   if(!el) return;
+  if(!ehOwner()) saldoAberto = -1;
   const sI = document.getElementById('sInicial');
   if(sI && saldoAberto>=0){
     rascunhoSaldo = {idx:saldoAberto, si:sI.value, di:document.getElementById('sData').value, entra:document.getElementById('sEntra').checked};
@@ -1381,7 +1404,7 @@ function renderSaldos(){
     }).join('');
   }
   el.innerHTML = h;
-  el.querySelectorAll('[data-sd]').forEach(x=>x.addEventListener('click', ()=>{
+  if(ehOwner()) el.querySelectorAll('[data-sd]').forEach(x=>x.addEventListener('click', ()=>{
     const i = parseInt(x.dataset.sd,10);
     saldoAberto = (saldoAberto===i) ? -1 : i;
     rascunhoSaldo = null; msgSaldo = '';
@@ -1536,7 +1559,7 @@ function registrosCartao(banco){
     const d = chaveDia(new Date(l.dataEvento));
     const base = faturaBase(card, d);
     const aj = ajusteEfetivo(l);
-    return {id:l.id, t:l.descricao||'', d, v:(l.tipo==='entrada'?-1:1)*l.valor, base, aj, eff:addMesYm(base, aj), est:l.valorEstimado===true, bruto:l.valor};
+    return {id:l.id, t:l.descricao||'', d, v:(l.tipo==='entrada'?-1:1)*l.valor, base, aj, eff:addMesYm(base, aj), est:l.valorEstimado===true, bruto:l.valor, criadoPor:l.criadoPor};
   });
 }
 function totalFatura(recs, ym){ return Math.round(recs.filter(r=>r.eff===ym).reduce((s,r)=>s+r.v,0)*100)/100; }
@@ -1720,6 +1743,7 @@ function painelCartaoHtml(i){
   const inicio = card.inicio || '';
   const historico = !!inicio && ym < inicio;
   const conferida = card.faturas && card.faturas[ym] && card.faturas[ym].conferida;
+  const dono = ehOwner();
   const fechValor = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym) ? rascunhoFech.f : per.fim;
   let h = '<div class="sd-painel">';
   h += '<div class="tags" style="align-items:center;margin-top:0;">'
@@ -1728,10 +1752,20 @@ function painelCartaoHtml(i){
     + `<span class="tag" data-janela="1" aria-label="Faturas mais novas">›</span></div>`;
   h += `<p class="muted" style="margin:8px 0 4px;">Período: ${fmtDataCompleta(per.ini)} a ${fmtDataCompleta(per.fim)} · ${fechada?'fechada':'aberta'}</p>`;
   if(historico) h += `<p class="muted">📁 Histórico: antes do início do controle deste cartão (${esc(inicio)}). Os lançamentos aparecem, mas a fatura não é conferida.</p>`;
-  else h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${esc(fechValor)}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
+  else if(dono) h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${esc(fechValor)}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
   h += `<p class="muted" id="cMsg">${esc(msgCartao||'')}</p>`;
   h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(total)}${dados.incompleto?' ⚠':''}</span></div>`;
-  if(!historico){
+  if(!historico && !dono){
+    const vb = valorBancoDe(card, ym);
+    if(vb!==null) h += `<p class="muted" style="margin:4px 0;">Valor no app do cartão: ${fmtMoeda(vb)}</p>`;
+    if(conferida){
+      const difC = Math.round((total - conferida.total)*100)/100;
+      h += difC !== 0
+        ? `<p style="color:var(--expense);font-weight:600;margin:6px 0;">Mudou desde a conferência (era ${fmtMoeda(conferida.total)})</p>`
+        : `<p style="color:var(--income);font-weight:600;margin:6px 0;">🔒 Conferida em ${fmtDataCompleta(String(conferida.em).slice(0,10))}</p>`;
+    }
+  }
+  if(!historico && dono){
     const vb = valorBancoDe(card, ym);
     const vbTxt = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym && rascunhoFech.vb!==undefined) ? rascunhoFech.vb : (vb===null ? '' : String(vb));
     h += `<label>Valor no app do cartão (para conferir)</label><div class="row"><input type="number" step="0.01" id="cBanco" data-ym="${ym}" value="${esc(vbTxt)}"><button class="ghost" id="btnSalvarBanco" data-ym="${ym}">Salvar</button></div>`;
@@ -1749,7 +1783,7 @@ function painelCartaoHtml(i){
     }
   }
   const est = recs.filter(r=>r.eff===ym && r.est);
-  if(est.length){
+  if(est.length && dono){
     h += '<div style="margin:8px 0;"><div class="muted">Valores estimados (corrija com o valor real em reais):</div>' + est.map(r=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t">${esc(r.t)}</span><input type="number" step="0.01" id="est-${esc(r.id)}" value="${r.bruto}" style="flex:0 0 96px;width:96px;"><button class="ghost" data-est="${esc(r.id)}" style="padding:4px 10px;">Corrigir</button></div>`).join('') + '</div>';
   }
   const lista = recs.filter(r=>r.base===ym || r.eff===ym).sort((a,c)=> a.d<c.d?-1 : a.d>c.d?1 : 0);
@@ -1761,14 +1795,16 @@ function painelCartaoHtml(i){
     else if(r.base!==ym) tag = `<span class="fx-tag">veio da ${r.base<ym?'anterior':'próxima'} fatura</span>`;
     const estTag = r.est ? '<span class="fx-tag" style="margin-left:6px;">valor estimado</span>' : '';
     h += `<div class="fx-rec ${fora?'fora':''}" data-rec="${esc(r.id)}"><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${esc(r.t)}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.v)}</span></div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
-    if(cartaoRecSel===r.id){
+    if(cartaoRecSel===r.id && podeMexer(r)){
       const ops = [[0,'Pela data (normal)'],[1,'Passar para a próxima fatura'],[-1,'Trazer para a anterior']].filter(o=>o[0]!==r.aj);
       h += '<div class="fx-acoes">' + ops.map(o=>`<button class="ghost" data-ajuste="${esc(r.id)}|${o[0]}" style="font-size:12px;padding:4px 10px;">${o[1]}</button>`).join('') + '</div>';
     }
     h += '</div>';
   });
+  if(dono){
   h += `<label style="margin-top:12px;">Início do controle (AAAA-MM; vazio = sem limite)</label><div class="row"><input type="text" inputmode="numeric" id="cInicio" placeholder="ex: 2025-11" value="${esc(inicio)}"><button class="ghost" id="btnSalvarInicio">Salvar</button></div><p class="muted">Faturas anteriores a esse mês ficam como histórico: aparecem, mas não são conferidas.</p>`;
   h += `<div style="margin-top:12px;"><button class="ghost" data-rm="${i}" style="font-size:12px;">Remover este cartão</button></div></div>`;
+  } else h += '</div>';
   return h;
 }
 function renderCartao(){
@@ -2398,6 +2434,10 @@ document.getElementById('btnImportarBackup').addEventListener('click', importarB
 document.getElementById('btnExportar').addEventListener('click', exportarDados);
 document.getElementById('btnImportarFech').addEventListener('click', importarFechamentos);
 
+window.addEventListener('unhandledrejection', ev=>{
+  const r = ev.reason;
+  if(r && r.code === 403){ ev.preventDefault(); avisar('Sem permissão: ' + (r.message || 'ação não permitida para o seu perfil.')); }
+});
 init();
 </script>
 </body>

@@ -76,10 +76,12 @@
   }
 
   let ESPACO = null;
+  let SUB = '';
   async function espaco() {
     if (ESPACO) return ESPACO;
     const { body } = await api('GET', '/me');
     const lista = body.espacos || [];
+    SUB = body.sub || '';
     if (!lista.length) throw new Error('Sua conta ainda nao tem um espaco. Rode scripts/seed.sh.');
     const guardado = localStorage.getItem('financas.space');
     ESPACO = lista.find((e) => e.id === guardado) || lista[0];
@@ -105,7 +107,7 @@
       d.appendChild(s);
     } else {
       const n = document.createElement('span');
-      n.textContent = ESPACO.nome;
+      n.textContent = ESPACO.nome + (ESPACO.role === 'member' ? ' · membro' : '');
       d.appendChild(n);
     }
     const b = document.createElement('button');
@@ -136,11 +138,17 @@
   }
   async function gravarCfg(nome, obj) {
     const b = await base();
+    const membro = ESPACO && ESPACO.role === 'member';
     let comum = obj;
     if (nome === 'listas') {
       const pes = {}; comum = {};
       Object.keys(obj).forEach((k) => { (PESSOAL.includes(k) ? pes : comum)[k] = obj[k]; });
       await api('PUT', b + '/aparencia', pes);
+      if (membro) return; // para o membro so a aparencia e dele; o resto de "listas" e do dono
+    } else if (membro) {
+      const e = new Error('Seu perfil não pode alterar ' + nome + '.');
+      e.code = 403;
+      throw e;
     }
     for (let tentativa = 0; tentativa < 2; tentativa++) {
       const r = await api('PUT', b + '/cfg/' + nome, Object.assign({}, comum, { version: versoes[nome] || 0 }));
@@ -255,8 +263,15 @@
     return { gravados, rejeitados };
   }
 
+  // Acrescenta tags que ainda nao existem (o servidor ignora as repetidas). Vale para dono e membro.
+  async function adicionarTags(tags) {
+    await api('POST', (await base()) + '/tags', { tags });
+    atualizarOuvintes('doc');
+  }
+
   const dbShim = {
     importarLancamentos,
+    adicionarTags,
     collection: (nome) => {
       if (nome !== 'lancamentos') throw new Error('colecao desconhecida: ' + nome);
       return new Consulta();
@@ -289,6 +304,8 @@
   };
 
   window.claude = {
+    papel: () => (ESPACO ? ESPACO.role : null),
+    sub: () => SUB,
     use: async (nome) => {
       if (nome === 'db') {
         try { await espaco(); } catch (e) { alert(e.message); return null; }

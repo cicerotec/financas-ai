@@ -8,8 +8,10 @@ Atualizado em 2026-10-04. Ordem = prioridade. Marque `[x]` ao concluir.
    Tabela de permissões abaixo. A trava fica na Lambda, não no front. Feito: `authz.go`, `tags.go`,
    `authz_test.go`, `handler_test.go` (banco em memória). **Falta publicar** (`.\scripts\deploy.ps1 <codigo>`);
    a API nova `POST /spaces/{sid}/tags` precisa ser usada pelo front no item 2.
-2. [ ] **Front por papel.** `/me` devolve o papel; a tela esconde o que o `member` não pode usar
+2. [x] **Front por papel.** `/me` devolve o papel; a tela esconde o que o `member` não pode usar
    (aba Importar, edição de saldos/cartão/listas, botões de editar nos registros alheios).
+   Feito e verificado na tela com dados inventados (owner e member). Falta publicar o backend (item 1) e
+   exercitar com um usuário member de verdade (item 3).
 3. [ ] **Teste local com um usuário `member`** (janela anônima; `seed.sh` com e-mail `+alias`).
 4. [ ] **Hospedagem do front em S3 + CloudFront** (bucket privado, HTTPS, domínio `*.cloudfront.net`):
    - `template.yaml`: bucket, acesso do CloudFront, distribuição; CORS da Lambda e URLs de retorno do
