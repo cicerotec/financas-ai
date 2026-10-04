@@ -2,12 +2,18 @@
 #   .\scripts\deploy.ps1 324941            # pede o codigo do MFA, builda e publica (confirma o changeset)
 #   .\scripts\deploy.ps1 324941 -Sim       # publica sem perguntar o changeset
 #   .\scripts\deploy.ps1                   # reaproveita a sessao MFA ja aberta neste terminal
+#   .\scripts\deploy.ps1 324941 -Forcar    # nao pergunta se estiver fora da main / com alteracoes sem commit
+# Antes de publicar, avisa se voce nao esta na main, tem alteracoes sem commit ou esta atras do GitHub.
 param(
     [string]$Codigo,
-    [switch]$Sim
+    [switch]$Sim,
+    [switch]$Forcar
 )
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)   # raiz do projeto (onde esta o template.yaml)
+
+. "$PSScriptRoot\_guarda.ps1"
+if (-not (Confirmar-Publicacao -Forcar:$Forcar)) { throw "Publicacao cancelada." }
 
 if ($Codigo) {
     # as variaveis AWS_* ficam no processo, entao valem para os comandos abaixo
