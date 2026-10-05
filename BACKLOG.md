@@ -16,7 +16,8 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   (exportar JSON e/ou point-in-time recovery do DynamoDB).
 
 ### Backend (Go, DynamoDB, Cognito, API)
-- 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (hoje o navegador lê todo o histórico).
+- 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
+  ao fechamento mensal; faltam as faturas do cartão e as tendências).
 - 12. [ ] **[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho; quem
   criou/alterou/ocultou; "novo desde a última visita"; atividade recente; idempotência e edição concorrente
   (exige trabalho no front também).

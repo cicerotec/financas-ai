@@ -75,6 +75,17 @@
     return { status: r.status, body: j };
   }
 
+  // Escrita de lancamento recusada (409): mes conferido e travado. Vira erro com a mensagem do servidor.
+  function escrita(r) {
+    if (r.status === 409) {
+      const e = new Error((r.body && r.body.erro) || 'Este mês está conferido e travado.');
+      e.code = 409;
+      e.codigo = r.body && r.body.codigo;
+      throw e;
+    }
+    return r;
+  }
+
   let ESPACO = null;
   let SUB = '';
   let EMAIL = '';
@@ -241,7 +252,7 @@
     return () => ouvintes.delete(L);
   };
   Consulta.prototype.add = async function (obj) {
-    const { body } = await api('POST', (await base()) + '/tx', obj);
+    const { body } = escrita(await api('POST', (await base()) + '/tx', obj));
     guardar(body); atualizarOuvintes('col');
     return { id: body.id };
   };
@@ -250,13 +261,13 @@
       update: async (patch) => {
         const antigo = cache.get(id);
         if (!antigo) throw new Error('Lancamento nao carregado: recarregue a pagina.');
-        const { body } = await api('PUT', (await base()) + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento), patch);
+        const { body } = escrita(await api('PUT', (await base()) + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento), patch));
         guardar(body); atualizarOuvintes('col');
       },
       delete: async () => {
         const antigo = cache.get(id);
         if (!antigo) throw new Error('Lancamento nao carregado: recarregue a pagina.');
-        await api('DELETE', (await base()) + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento));
+        escrita(await api('DELETE', (await base()) + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento)));
         cache.delete(id); atualizarOuvintes('col');
       }
     };
@@ -295,9 +306,21 @@
     atualizarOuvintes('doc');
   }
 
+  // Fechamento mensal por banco (so no app com servidor). Os 409 voltam como { status, body }
+  // para a tela decidir (version velha = alguem gravou no meio; ordem = so o mais recente reabre).
+  const fechamentos = async () => (await api('GET', (await base()) + '/fechamentos')).body;
+  const salvarCaches = async (banco, version, baseCfg, caches) =>
+    api('PUT', (await base()) + '/fechamentos', { banco, version, base: baseCfg, caches });
+  const conferirMes = async (dados) => api('POST', (await base()) + '/fechamentos/conferir', dados);
+  const reabrirMes = async (banco, mes) => api('POST', (await base()) + '/fechamentos/reabrir', { banco, mes });
+
   const dbShim = {
     importarLancamentos,
     adicionarTags,
+    fechamentos,
+    salvarCaches,
+    conferirMes,
+    reabrirMes,
     collection: (nome) => {
       if (nome !== 'lancamentos') throw new Error('colecao desconhecida: ' + nome);
       return new Consulta();

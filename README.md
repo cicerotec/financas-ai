@@ -69,6 +69,7 @@ Detalhes e comandos em "Fluxo de branches e versões" no [`BACKLOG.md`](BACKLOG.
 | Renomear ou excluir tag, combos, bancos, status, flags | sim | não |
 | Ver saldos, cartão, tendências e futuros | sim | sim (só leitura) |
 | Saldo inicial, fechamento, conferir fatura, início do controle | sim | não |
+| Conferir e reabrir mês de um banco (fechamento mensal) | sim | não (só vê) |
 | Cores, layout e o próprio nome | sim | sim, só os dela |
 | Importar, exportar e limpeza | sim | não |
 
@@ -81,6 +82,7 @@ A regra está em `backend/authz.go` e tem testes; o que não está liberado expl
 |---|---|---|
 | Lançamento | `SPACE#<id>` | `TX#<dataEvento>#<id>` |
 | Configuração compartilhada | `SPACE#<id>` | `CFG#LISTAS`, `CFG#TAGS`, `CFG#COMBOS`, `CFG#CARTOES`, `CFG#SALDOS` |
+| Fechamento mensal de um banco | `SPACE#<id>` | `SALDO#<banco>` |
 | Dados do espaço | `SPACE#<id>` | `META` |
 | Vínculo da pessoa com o espaço (papel) | `USER#<sub>` | `SPACE#<id>` |
 | Aparência da pessoa | `SPACE#<id>` | `USER#<sub>#CFG#APARENCIA` |
@@ -121,6 +123,21 @@ sobrescrever em silêncio).
 ## Regras de negócio
 - **Saldo de um banco** = `saldoInicial` + soma dos lançamentos do banco que não estão ocultos, têm status com
   `afetaSaldoBanco` e `dataEvento` a partir de `dataInicio`. Entrada soma e saída subtrai.
+- **Fechamento mensal.** O saldo é uma cascata: cada mês abre com o fechamento do anterior, desde `dataInicio`. O
+  servidor guarda por banco (`SALDO#<banco>`) o fechamento calculado dos meses encerrados (`caches`, só para não reler
+  o histórico inteiro) e os meses conferidos com o extrato (`conferidos`). Quem calcula é o navegador, porque só ele
+  sabe quais status mexem no saldo; o saldo atual parte do último fechamento válido e lê só os meses seguintes.
+  - Qualquer escrita em lançamento que mexa no saldo (criar, excluir, ou mudar valor, tipo, status, banco, data ou
+    ocultar) marca `invalidoDe` e muda a `version` do banco; um cache calculado antes da escrita é recusado (409).
+    Editar descrição, nota ou tags não invalida nada.
+  - **Conferir** um mês (só o dono) exige que o saldo calculado bata com o extrato; a diferença se resolve com um
+    lançamento de ajuste criado pela própria tela. O mês conferido e todos os anteriores ficam **travados**: o servidor
+    recusa (409, `mes_conferido`) criar, alterar ou excluir lançamento que mexa no saldo desse banco nesses meses,
+    inclusive na importação. Meses anteriores ao da `dataInicio` do banco são histórico (não entram no saldo): nunca
+    travam nem invalidam o cache, então dá para importar anos anteriores com meses já conferidos. **Reabrir** só vale
+    para o mês conferido mais recente.
+  - Mês é sempre o do fuso de Brasília (`America/Sao_Paulo`). O cache também vale só para o mesmo saldo inicial, data
+    de início e conjunto de status que mexem no saldo (muda um deles, o cache é descartado e refeito).
 - **Transferência entre bancos** cria dois lançamentos `CONTAS` (saída na origem, entrada no destino) com o mesmo
   `transferParId` e a data escolhida.
 - **Faturas do cartão:** a fatura que fecha no mês M cobre as compras de crédito do dia seguinte ao fechamento da anterior
