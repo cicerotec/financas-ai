@@ -62,6 +62,18 @@ button.ghost{background:transparent;border:1px solid var(--border);color:var(--t
 .pill button[data-del-status],.pill button[data-del-banco]{position:absolute;top:6px;right:8px;}
 .pill button{border:none;background:none;color:var(--danger);cursor:pointer;font-size:13px;padding:0;}
 .hidden{display:none !important;}
+button:disabled{opacity:.6;cursor:wait;}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--accent);color:var(--accent-ink);padding:12px 20px;border-radius:10px;font-size:15px;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.3);z-index:60;transition:opacity .2s,transform .2s;max-width:90vw;text-align:center;}
+#toast.on{opacity:1;transform:translate(-50%,0);}
+#toast.erro{background:var(--danger);color:#fff;}
+@media (min-width:900px){
+  main:has(#tab-lancar:not(.hidden)){max-width:1040px;}
+  #tab-lancar{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:0 16px;align-items:start;}
+  #tab-lancar>.card:first-child,#tab-lancar>#formCard{grid-column:1;}
+  #tab-lancar>.card:last-child{grid-column:2;grid-row:1 / span 2;position:sticky;top:110px;}
+  #formCard #fValor{font-size:16px;}
+}
 .ai-preview{border:1px dashed var(--accent);border-radius:10px;padding:10px;margin-top:10px;}
 .summary{display:flex;gap:10px;}
 .summary .card{flex:1;text-align:center;}
@@ -115,6 +127,11 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 .chip{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;}
 .chip.atrasado{border-color:var(--danger);color:var(--danger);}
 .marca-futuro{color:#BA7517;}
+@media (max-width:480px){#linhaStatusTipoValor{flex-wrap:wrap;}#linhaStatusTipoValor>div{flex:1 1 45%;}#linhaStatusTipoValor>div:first-child{flex-basis:100%;}}
+.nav-mes{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap;}
+.nav-mes input[type=month]{width:auto;flex:0 1 180px;}
+.nav-mes button{padding:7px 12px;font-size:15px;}
+#mesHoje{font-size:13px;}
 </style>
 </head>
 <body>
@@ -142,20 +159,17 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
   </div>
 
   <div class="card" id="formCard">
-    <label>Status</label>
-    <select id="fStatus"></select>
+    <div class="row" id="linhaStatusTipoValor">
+      <div style="flex:1.3;"><label for="fStatus">Status</label><select id="fStatus"></select></div>
+      <div><label for="fTipo">Tipo</label><select id="fTipo"><option value="saida">Saída (gasto)</option><option value="entrada">Entrada (receita)</option></select></div>
+      <div><label for="fValor">Valor R$</label><input id="fValor" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
+    </div>
     <p class="muted" id="fFuturoDica"></p>
     <div id="fFaturaWrap" class="hidden">
       <label>Fatura do cartão</label>
       <select id="fFatura"><option value="0">Pela data (padrão)</option><option value="1">Próxima fatura</option><option value="-1">Fatura anterior</option></select>
       <p class="muted" id="fFaturaDica"></p>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" id="fEstimado" style="width:auto;"> Valor estimado (ex.: compra em dólar; corrijo quando a fatura fechar)</label>
-    </div>
-
-    <label>Tipo</label>
-    <div class="row">
-      <select id="fTipo"><option value="saida">Saída (gasto)</option><option value="entrada">Entrada (receita)</option></select>
-      <input id="fValor" type="number" step="0.01" placeholder="Valor R$">
     </div>
 
     <label>Descrição</label>
@@ -190,8 +204,10 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
       <div><label>De (banco)</label><select id="tBancoOrigem"></select></div>
       <div><label>Para (banco)</label><select id="tBancoDestino"></select></div>
     </div>
-    <label>Valor</label>
-    <input id="tValor" type="number" step="0.01">
+    <div class="row">
+      <div><label>Valor</label><input id="tValor" type="number" step="0.01" inputmode="decimal" placeholder="R$"></div>
+      <div><label>Data</label><input id="tData" type="date"></div>
+    </div>
     <button class="primary" id="btnTransferir">Registrar transferência</button>
   </div>
 </section>
@@ -199,13 +215,13 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 <section id="tab-historico" class="hidden">
   <div id="avisoFuturos" class="aviso-fut hidden"></div>
   <div class="card" style="margin-bottom:10px;">
-    <label>Buscar por texto (descrição ou nota) em todo o histórico</label>
+    <label for="buscaTexto">Buscar por texto (descrição ou nota) em todo o histórico</label>
     <div class="row" style="flex-wrap:wrap;">
       <input type="text" id="buscaTexto" placeholder="ex: farmácia, Kyla, Netflix..." style="flex:1;min-width:180px;">
       <button class="primary" id="btnBuscarTexto" style="flex:0 0 auto;width:auto;margin-top:0;">Buscar</button>
-      <button class="ghost hidden" id="btnLimparBusca" style="flex:0 0 auto;">Voltar ao padrão</button>
+      <button class="ghost hidden" id="btnLimparBusca" style="flex:0 0 auto;">Limpar busca</button>
     </div>
-    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:6px 0 0;"><input type="checkbox" id="buscaIncluiFuturos" checked style="width:auto;"> Incluir eventos futuros na busca</label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:6px 0 0;"><input type="checkbox" id="buscaIncluiFuturos" style="width:auto;"> Incluir eventos futuros na busca</label>
     <p class="muted" id="buscaTextoStatus" style="margin-top:6px;"></p>
   </div>
   <div class="filters">
@@ -220,16 +236,13 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
     <select id="filTag"><option value="">Tag: todas</option></select>
   </div>
   <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);"><input type="checkbox" id="filMostrarOcultos" style="width:auto;"> mostrar ocultos</label>
-  <div class="row" style="margin-bottom:8px;">
-    <select id="filOrdenacao">
-      <option value="desc">Data: mais recente primeiro</option>
-      <option value="asc">Data: mais antiga primeiro</option>
-    </select>
-  </div>
-  <div class="row" style="margin-bottom:8px;">
-    <input type="month" id="filMesEspecifico">
-    <button class="ghost" id="btnBuscarMes">Buscar esse mês</button>
-    <button class="ghost hidden" id="btnLimparMes">Voltar ao padrão</button>
+  <div class="nav-mes" id="navMes">
+    <button type="button" class="ghost" id="mesAnterior" aria-label="Mês anterior" title="Mês anterior">‹</button>
+    <input type="month" id="filMesEspecifico" aria-label="Mês exibido">
+    <button type="button" class="ghost" id="mesProximo" aria-label="Próximo mês" title="Próximo mês">›</button>
+    <button type="button" class="ghost hidden" id="mesHoje">Mês atual</button>
+    <input type="hidden" id="filOrdenacao" value="desc">
+    <button type="button" class="ghost" id="btnOrdem" style="margin-left:auto;" title="Mais recentes primeiro. Toque para inverter." aria-label="Ordem: mais recentes primeiro. Toque para inverter.">Data ↓</button>
   </div>
   <p class="muted" id="contadorHistorico" style="margin:4px 0 8px;"></p>
   <p class="muted hidden" id="avisoMesFuturos" style="margin:0 0 8px;"></p>
@@ -469,6 +482,9 @@ function atualizarCampoFatura(){
 }
 let lancamentosCache = [];
 let modoMesEspecifico = false;
+function mesAtualYM(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+let mesSel = mesAtualYM();
+let tokenMes = 0;
 let lancamentosMes = [];
 let modoBuscaTexto = false;
 let lancamentosBusca = [];
@@ -498,6 +514,24 @@ function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',cur
 function nowLocalInput(){
   const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
   return d.toISOString().slice(0,16);
+}
+
+let toastTimer;
+function toast(msg, erro){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.toggle('erro', !!erro);
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('on'), erro ? 6000 : 3500);
+}
+// Desabilita o botão e mostra "Salvando…" enquanto roda; impede clique duplo.
+async function comBotaoOcupado(btn, rotulo, fn){
+  if(btn.disabled) return;
+  const antes = btn.textContent;
+  btn.disabled = true; btn.textContent = rotulo;
+  try{ return await fn(); }
+  finally{ btn.disabled = false; btn.textContent = antes; }
 }
 
 async function avisar(msg){
@@ -944,6 +978,7 @@ function setupHandlers(){
   document.getElementById('btnCancelarEdicao').onclick = cancelarEdicao;
   document.getElementById('btnLimpar').onclick = limparFormulario;
   document.getElementById('btnTransferir').onclick = registrarTransferencia;
+  document.getElementById('tData').value = nowLocalInput().slice(0,10);
 
   ['filTag'].forEach(id=>document.getElementById(id).addEventListener('change', renderHistorico));
 
@@ -1076,7 +1111,14 @@ Se não souber o banco com certeza, deixe banco como "".`;
   }
 }
 
-async function salvarLancamento(){
+function salvarLancamento(){
+  const btn = document.getElementById('btnSalvar');
+  return comBotaoOcupado(btn, 'Salvando…', async ()=>{
+    try{ await salvarLancamentoInterno(); }
+    catch(err){ console.error(err); toast('Não foi possível salvar. Confira a conexão e tente de novo.', true); }
+  });
+}
+async function salvarLancamentoInterno(){
   if(!db){ await avisar("Banco de dados indisponível nesta visualização."); return; }
   const valor = parseFloat(document.getElementById('fValor').value);
   // zero (lançamento só de nota) e negativo (estorno/reembolso) são aceitos de propósito
@@ -1105,10 +1147,12 @@ async function salvarLancamento(){
     await db.collection("lancamentos").doc(editandoId).update(doc);
     aplicarLocal(editandoId, doc);
     document.getElementById('iaStatus').textContent = "Edição salva ✓";
+    toast('✓ Edição salva');
     cancelarEdicao();
   }else{
     await db.collection("lancamentos").add({...doc, criadoEm: new Date().toISOString()});
     document.getElementById('iaStatus').textContent = "Lançamento salvo ✓";
+    toast('✓ Lançamento salvo: ' + doc.descricao + ' · ' + fmtMoeda(doc.valor));
     limparFormulario();
   }
 }
@@ -1127,17 +1171,30 @@ function limparFormulario(){
   renderTagPicker();
 }
 
-async function registrarTransferencia(){
+function registrarTransferencia(){
+  return comBotaoOcupado(document.getElementById('btnTransferir'), 'Registrando…', async ()=>{
+    try{ await registrarTransferenciaInterno(); }
+    catch(err){ console.error(err); toast('Não foi possível registrar a transferência. Tente de novo.', true); }
+  });
+}
+async function registrarTransferenciaInterno(){
   if(!db){ await avisar("Banco de dados indisponível nesta visualização."); return; }
   const origem = document.getElementById('tBancoOrigem').value;
   const destino = document.getElementById('tBancoDestino').value;
   const valor = parseFloat(document.getElementById('tValor').value);
   if(!origem || !destino || origem===destino || !valor || valor<=0){ await avisar("Confira os bancos e o valor."); return; }
-  const agora = new Date().toISOString();
+  const dia = document.getElementById('tData').value || nowLocalInput().slice(0,10);
+  const [y,m,d] = dia.split('-').map(Number);
+  const hoje = new Date();
+  // data escolhida com a hora atual (mantém a ordem do dia); a data é a do usuário, não a de hoje
+  const quando = new Date(y, m-1, d, hoje.getHours(), hoje.getMinutes()).toISOString();
+  const agora = hoje.toISOString();
   const parId = "transf_" + Date.now();
-  await db.collection("lancamentos").add({status:"CONTAS", tipo:"saida", valor, descricao:`Transferência para ${destino}`, nota:"", dataEvento:agora, banco:origem, tags:[], criadoEm:agora, transferParId:parId});
-  await db.collection("lancamentos").add({status:"CONTAS", tipo:"entrada", valor, descricao:`Transferência de ${origem}`, nota:"", dataEvento:agora, banco:destino, tags:[], criadoEm:agora, transferParId:parId});
+  await db.collection("lancamentos").add({status:"CONTAS", tipo:"saida", valor, descricao:`Transferência para ${destino}`, nota:"", dataEvento:quando, banco:origem, tags:[], criadoEm:agora, transferParId:parId});
+  await db.collection("lancamentos").add({status:"CONTAS", tipo:"entrada", valor, descricao:`Transferência de ${origem}`, nota:"", dataEvento:quando, banco:destino, tags:[], criadoEm:agora, transferParId:parId});
   document.getElementById('tValor').value='';
+  document.getElementById('tData').value = nowLocalInput().slice(0,10);
+  toast(`✓ Transferência registrada: ${origem} → ${destino} · ${fmtMoeda(valor)}`);
 }
 
 const MESES_NOME = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -1255,7 +1312,10 @@ function renderHistorico(){
   const fbList = [...filBancoSelecionados];
   const ft = document.getElementById('filTag').value;
   const mostrarOcultos = document.getElementById('filMostrarOcultos').checked;
-  const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache);
+  const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache.filter(l=>diaLocal(l).slice(0,7)===mesSel));
+  document.getElementById('navMes').classList.toggle('hidden', modoBuscaTexto);
+  document.getElementById('filMesEspecifico').value = mesSel;
+  document.getElementById('mesHoje').classList.toggle('hidden', mesSel===mesAtualYM());
   // Eventos futuros ficam fora do Histórico (lista padrão e mês buscado); só a busca por texto os inclui, pela caixa
   // "Incluir eventos futuros". Eles ficam na aba Futuros.
   const incluirFuturos = modoBuscaTexto ? document.getElementById('buscaIncluiFuturos').checked : false;
@@ -1272,8 +1332,8 @@ function renderHistorico(){
   document.getElementById('contadorHistorico').textContent = modoBuscaTexto
     ? `${lista.length} lançamento(s) exibido(s) do resultado da busca (${lancamentosBusca.length} no total)${extraFut}`
     : modoMesEspecifico
-    ? `${lista.length} lançamento(s) exibido(s) do mês buscado (${lancamentosMes.filter(l=>!ehFuturo(l.status)).length} no total)`
-    : `${lista.length} lançamento(s) exibido(s) de ${lancamentosCache.length} carregado(s)${lancamentosCache.length>=1000?' (limite de exibição: 1000 mais recentes — use "Buscar esse mês" para ver períodos mais antigos)':''}`;
+    ? `${lista.length} lançamento(s) em ${rotuloMes(mesSel)}`
+    : `${lista.length} lançamento(s) em ${rotuloMes(mesSel)}`;
   renderAvisoMesFuturos();
   if(!lista.length){ el.innerHTML = '<p class="muted">Nenhum lançamento encontrado.</p>'; return; }
   el.innerHTML = lista.map(l=>htmlItemLancamento(l, {marcarFuturo:true})).join('');
@@ -1385,10 +1445,13 @@ document.getElementById('avisoFuturos').addEventListener('click', (e)=>{
 });
 document.getElementById('futMostrarOcultos').addEventListener('change', renderFuturos);
 document.getElementById('buscaIncluiFuturos').addEventListener('change', renderHistorico);
-async function buscarMesEspecifico(){
-  const valor = document.getElementById('filMesEspecifico').value; // "2026-03"
-  if(!valor || !db) return;
-  const [ano, mes] = valor.split('-').map(Number);
+async function irParaMes(ym){
+  if(!/^\d{4}-\d{2}$/.test(ym)) return;
+  mesSel = ym;
+  if(ym === mesAtualYM()){ modoMesEspecifico = false; renderHistorico(); return; }
+  if(!db) return;
+  const meu = ++tokenMes;
+  const [ano, mes] = ym.split('-').map(Number);
   const inicio = new Date(ano, mes-1, 1).toISOString();
   const fim = new Date(ano, mes, 1).toISOString();
   document.getElementById('contadorHistorico').textContent = "Buscando...";
@@ -1397,22 +1460,34 @@ async function buscarMesEspecifico(){
       .where("dataEvento", ">=", inicio)
       .where("dataEvento", "<", fim)
       .orderBy("dataEvento", "desc").limit(1000).get();
+    if(meu !== tokenMes) return; // o usuário já foi para outro mês
     lancamentosMes = snap.docs.map(d=>({id:d.id, ...d.data()}));
     modoMesEspecifico = true;
-    document.getElementById('btnLimparMes').classList.remove('hidden');
     renderHistorico();
   }catch(err){
-    document.getElementById('contadorHistorico').textContent = "Não consegui buscar esse mês: " + err.message;
+    if(meu === tokenMes) document.getElementById('contadorHistorico').textContent = "Não consegui buscar esse mês: " + err.message;
   }
 }
-function limparBuscaMes(){
-  modoMesEspecifico = false;
-  document.getElementById('btnLimparMes').classList.add('hidden');
-  document.getElementById('filMesEspecifico').value = '';
-  renderHistorico();
+function deslocarMes(delta){
+  const [a, m] = mesSel.split('-').map(Number);
+  const d = new Date(a, m-1+delta, 1);
+  irParaMes(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
 }
-document.getElementById('btnBuscarMes').addEventListener('click', buscarMesEspecifico);
-document.getElementById('btnLimparMes').addEventListener('click', limparBuscaMes);
+document.getElementById('mesAnterior').addEventListener('click', ()=>deslocarMes(-1));
+document.getElementById('mesProximo').addEventListener('click', ()=>deslocarMes(1));
+document.getElementById('mesHoje').addEventListener('click', ()=>irParaMes(mesAtualYM()));
+document.getElementById('filMesEspecifico').addEventListener('change', e=>{ if(e.target.value) irParaMes(e.target.value); });
+document.getElementById('btnOrdem').addEventListener('click', ()=>{
+  const inp = document.getElementById('filOrdenacao');
+  const asc = inp.value !== 'asc';
+  inp.value = asc ? 'asc' : 'desc';
+  const b = document.getElementById('btnOrdem');
+  b.textContent = asc ? 'Data ↑' : 'Data ↓';
+  const t = asc ? 'Mais antigos primeiro' : 'Mais recentes primeiro';
+  b.title = t + '. Toque para inverter.';
+  b.setAttribute('aria-label', 'Ordem: ' + t.toLowerCase() + '. Toque para inverter.');
+  renderHistorico();
+});
 
 // Busca por texto em TODO o histórico (não só o que está carregado na tela).
 // A API não tem operador de "contém" — então varremos a coleção em blocos de 1000,
@@ -1424,8 +1499,6 @@ async function buscarTextoHistorico(){
   const btn = document.getElementById('btnBuscarTexto');
   if(!termo){ statusEl.textContent = "Digite algo pra buscar."; return; }
   if(!db){ statusEl.textContent = "Banco de dados indisponível nesta visualização."; return; }
-  modoMesEspecifico = false;
-  document.getElementById('btnLimparMes').classList.add('hidden');
   btn.disabled = true;
   let encontrados = [];
   let totalVarrido = 0;
@@ -1464,6 +1537,7 @@ function limparBuscaTexto(){
   renderHistorico();
 }
 document.getElementById('btnBuscarTexto').addEventListener('click', buscarTextoHistorico);
+document.getElementById('buscaTexto').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); buscarTextoHistorico(); } });
 document.getElementById('btnLimparBusca').addEventListener('click', limparBuscaTexto);
 document.getElementById('filMostrarOcultos').addEventListener('change', renderHistorico);
 document.getElementById('filOrdenacao').addEventListener('change', renderHistorico);
@@ -2641,5 +2715,6 @@ window.addEventListener('unhandledrejection', ev=>{
 });
 init();
 </script>
+<div id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
