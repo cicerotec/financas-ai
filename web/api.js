@@ -348,26 +348,50 @@
 
   // Importacao de backup: 25 por chamada; o servidor devolve o que o DynamoDB nao aceitou
   // a tempo (limite de escrita) e reenviamos ate acabar. Reimportar sobrescreve pelo id.
+  // Envia um lote. Falha de rede ou erro 5xx/429 e tentada de novo (ate 3 vezes, com espera): reenviar e seguro
+  // porque os itens levam id (o servidor sobrescreve pelo id em vez de duplicar). Erro 4xx de verdade sobe na hora.
+  async function enviarLote(b, lote, aviso) {
+    for (let t = 1; ; t++) {
+      try {
+        return (await api('POST', b + '/tx/batch', { itens: lote })).body;
+      } catch (e) {
+        const temporario = !e.code || e.code >= 500 || e.code === 429;
+        if (!temporario || t >= 3) throw e;
+        if (aviso) aviso(t);
+        await new Promise((r) => setTimeout(r, 2000 * t));
+      }
+    }
+  }
+  // progresso(processados, total, info): info.espera = numero da tentativa quando esta esperando o banco liberar.
+  // Se parar no meio, o erro leva gravados e processados (e.gravados, e.processados) para a tela dizer onde parou.
   async function importarLancamentos(itens, progresso) {
     const b = await base();
     const TAM = 25;
-    let gravados = 0;
+    let gravados = 0, processados = 0;
     const rejeitados = [];
-    for (let i = 0; i < itens.length; i += TAM) {
-      let lote = itens.slice(i, i + TAM);
-      let primeira = true, tentativas = 0;
-      while (lote.length) {
-        const { body } = await api('POST', b + '/tx/batch', { itens: lote });
-        gravados += body.gravados || 0;
-        if (primeira) (body.rejeitados || []).forEach((r) => rejeitados.push({ indice: i + r.indice, motivo: r.motivo }));
-        primeira = false;
-        lote = body.pendentes || [];
-        if (lote.length) {
-          if (++tentativas > 10) throw new Error('O banco recusou itens repetidamente; ' + gravados + ' ja gravados. Rode de novo para completar.');
-          await new Promise((r) => setTimeout(r, 1500));
+    try {
+      for (let i = 0; i < itens.length; i += TAM) {
+        let lote = itens.slice(i, i + TAM);
+        let primeira = true, tentativas = 0;
+        while (lote.length) {
+          const body = await enviarLote(b, lote, (t) => progresso && progresso(processados, itens.length, { espera: t }));
+          gravados += body.gravados || 0;
+          if (primeira) (body.rejeitados || []).forEach((r) => rejeitados.push({ indice: i + r.indice, motivo: r.motivo }));
+          primeira = false;
+          lote = body.pendentes || [];
+          if (lote.length) {
+            if (++tentativas > 10) throw new Error('O banco de dados recusou itens repetidamente (capacidade de escrita esgotada).');
+            if (progresso) progresso(processados, itens.length, { espera: tentativas });
+            await new Promise((r) => setTimeout(r, 1500));
+          }
         }
+        processados = Math.min(i + TAM, itens.length);
+        if (progresso) progresso(processados, itens.length);
       }
-      if (progresso) progresso(Math.min(i + TAM, itens.length), itens.length);
+    } catch (e) {
+      e.gravados = gravados; e.processados = processados; e.rejeitados = rejeitados;
+      atualizarOuvintes('col'); // o que ja entrou aparece no historico
+      throw e;
     }
     atualizarOuvintes('col');
     return { gravados, rejeitados };
