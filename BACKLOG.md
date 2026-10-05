@@ -29,8 +29,13 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 ### Front (funcionalidades novas)
 - 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
   duplicado).
-- 8. [ ] **[Próximo] Carregar os anos anteriores** (do mais novo para o mais antigo).
+- 8. [ ] **[Próximo] Carregar os anos anteriores** (do mais novo para o mais antigo). Já dá para importar: meses
+  anteriores à data de início do banco são histórico e não são travados pelo fechamento mensal. Antes de importar,
+  conferir na planilha as datas fora do mês da aba (no app o mês é o da data, não o da aba).
 - 9. [ ] **[Próximo] Importação do `.xlsx` usando o endpoint de lote** (hoje grava um lançamento por requisição).
+- 23. [ ] **[Depois] Fechamento mensal, melhorias:** "ver mais" na lista (hoje mostra os últimos 12 meses); aviso quando
+  um mês conferido deixa de bater com o que foi guardado; "reabrir tudo" de uma vez (hoje reabre do mais novo para o
+  mais antigo, um por vez); conferir meses anteriores ao último conferido sem reabrir os mais novos.
 - 17. [ ] **[Depois] Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
 - 20. [ ] **[Depois] Ideias** (seção no fim).
 
@@ -69,6 +74,12 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   PR #13).
 - Remover status migra os lançamentos para outro status; remover banco é bloqueado se em uso; X dos bancos só para o
   dono (v0.3.1, PR #15).
+- Fechamento mensal por banco (v0.4.0, PR #20): o saldo parte do último fechamento válido e lê só os meses seguintes;
+  conferência com o extrato com ajuste automático da diferença; mês conferido trava ele e os anteriores (só o dono
+  confere e reabre, e só o mais recente reabre); meses anteriores à data de início são histórico e nunca travam.
+  Item `SALDO#<banco>` no DynamoDB e rotas `/fechamentos`.
+- Verificação arquivo x banco de dados na importação (v0.4.0, PR #21): compara o arquivo com o que ficou gravado, por
+  ano e banco; chave igual é o mesmo lançamento (o app não grava duplicados).
 - Scripts: `deploy.ps1`, `aws-mfa.ps1`, `publicar-front.ps1`, `seed.sh`, `definir-nome.sh`, `limpar-espaco.py`.
 
 ## Fluxo de branches e versões (convenção simples)
