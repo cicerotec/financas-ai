@@ -370,6 +370,7 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
     <p class="muted">O arquivo é lido aqui no seu navegador — não é enviado pra mim em nenhum momento. Funciona com a planilha no formato ST/DESCRIÇÃO/DIA/SEM/MES/DATA HORA/PAGO/RENDA/GASTOS/BANCO/TAG, uma aba por mês.</p>
     <input type="file" id="arquivoImport" accept=".xlsx,.xls,.csv">
     <button class="primary" id="btnProcessar">Processar arquivo</button>
+    <button class="ghost hidden" id="btnVerificar" style="width:100%;margin-top:6px;">Conferir arquivo com o banco de dados</button>
     <p class="muted" id="importStatus"></p>
     <p class="muted">Se o seletor de arquivo não abrir (comum no app do celular), abra este link no navegador do telefone (Safari/Chrome) em vez de dentro do app da Claude, ou use a opção abaixo.</p>
   </div>
@@ -384,6 +385,10 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
     <div id="listaPreview" style="max-height:300px;overflow-y:auto;margin-top:8px;"></div>
     <button class="primary" id="btnConfirmarImport">Confirmar importação</button>
     <button class="ghost" id="btnLimparPreview" style="width:100%;margin-top:6px;">Limpar prévia</button>
+  </div>
+  <div class="card hidden" id="cardVerif">
+    <b>Arquivo x banco de dados</b>
+    <div id="verifCorpo"></div>
   </div>
   <div class="card">
     <b>Importar backup (.json)</b>
@@ -2913,6 +2918,7 @@ async function processarArquivo(){
       if(!res.erro){ achouAlguma = true; resultadoFinal = resultadoFinal.concat(res.resultado); ignoradasFinal += res.ignoradas; }
     });
     if(!achouAlguma){ tratarResultadoImport({erro:'cabecalho'}, statusEl); return; }
+    guardarLoteArquivo(resultadoFinal, ignoradasFinal, false);
     statusEl.textContent = "Conferindo duplicidade no banco de dados...";
     const {resultado, duplicadas} = await deduplicarContraBanco(resultadoFinal);
     tratarResultadoImport({resultado, ignoradas: ignoradasFinal, duplicadas}, statusEl);
@@ -2959,6 +2965,7 @@ async function confirmarImportacao(){
   lancamentosParaImportar = [];
   btn.disabled = false;
   btn.textContent = 'Confirmar importação';
+  await verificarArquivoXBanco();
 }
 
 async function processarTextoColado(){
@@ -2969,6 +2976,7 @@ async function processarTextoColado(){
     const linhas = texto.split(/\r?\n/).map(l=>l.split('\t'));
     const res = parseLinhas(linhas);
     if(res.erro){ tratarResultadoImport(res, statusEl); return; }
+    guardarLoteArquivo(res.resultado, res.ignoradas, false);
     statusEl.textContent = "Conferindo duplicidade no banco de dados...";
     const {resultado, duplicadas} = await deduplicarContraBanco(res.resultado);
     tratarResultadoImport({resultado, ignoradas: res.ignoradas, duplicadas}, statusEl);
@@ -3033,8 +3041,110 @@ async function exportarDados(){
   }
 }
 
+// ===== VERIFICAÇÃO: arquivo x banco de dados =====
+// Depois de importar (ou a qualquer momento, com o arquivo já processado), lê de volta o que está gravado no mesmo
+// período e bancos e compara com o arquivo, por ano e banco: quantidade, entradas e saídas. O que está no arquivo
+// e não está no banco aparece linha a linha. O que já existia no banco e não está no arquivo só é contado.
+let loteArquivo = null; // { itens, ignoradas, porId } do último arquivo processado
+function chaveVerif(l){ return chaveLancamento(l) + '|' + l.tipo; }
+function totalVazio(){ return {n:0, ent:0, sai:0}; }
+function somarTotal(t, l){ t.n++; if(l.tipo==='entrada') t.ent += Number(l.valor); else t.sai += Number(l.valor); }
+
+async function lerBancoParaVerificar(itens){
+  const bancos = [...new Set(itens.map(l=>l.banco).filter(Boolean))];
+  const datas = itens.map(l=>l.dataEvento).sort();
+  const docs = [];
+  for(const b of bancos){
+    const snap = await db.collection("lancamentos").where("banco","==",b)
+      .where("dataEvento",">=",datas[0]).where("dataEvento","<=",datas[datas.length-1]).limit(1000000).get();
+    snap.docs.forEach(d=>docs.push({id:d.id, ...d.data()}));
+  }
+  return docs;
+}
+
+function compararArquivoBanco(itens, docs, porId){
+  const grupos = {};
+  const g = l=>{
+    const ano = mesDeISO(l.dataEvento).slice(0,4), banco = l.banco || '(sem banco)';
+    return grupos[ano+'|'+banco] = grupos[ano+'|'+banco] || {ano, banco, arq:totalVazio(), grav:totalVazio(), faltando:[], diferentes:[], extras:0};
+  };
+  if(porId){
+    const mapa = new Map(docs.map(d=>[d.id, d]));
+    const ids = new Set(itens.map(l=>l.id));
+    itens.forEach(l=>{
+      const gr = g(l); somarTotal(gr.arq, l);
+      const d = mapa.get(l.id);
+      if(!d) gr.faltando.push(l);
+      else if(chaveVerif(d)!==chaveVerif(l)) gr.diferentes.push({arquivo:l, banco:d});
+      else somarTotal(gr.grav, l);
+    });
+    docs.forEach(d=>{ if(!ids.has(d.id)) g(d).extras++; });
+  }else{
+    const sobra = new Map();
+    docs.forEach(d=>{ const k = chaveVerif(d); (sobra.get(k) || sobra.set(k, []).get(k)).push(d); });
+    itens.forEach(l=>{
+      const gr = g(l); somarTotal(gr.arq, l);
+      const fila = sobra.get(chaveVerif(l));
+      if(fila && fila.length){ fila.pop(); somarTotal(gr.grav, l); }
+      else gr.faltando.push(l);
+    });
+    sobra.forEach(fila=>fila.forEach(d=>{ g(d).extras++; }));
+  }
+  return Object.values(grupos).sort((a,b)=>(a.ano+a.banco).localeCompare(b.ano+b.banco));
+}
+
+function htmlVerificacao(grupos, lote){
+  const faltam = grupos.reduce((s,x)=>s+x.faltando.length, 0), dif = grupos.reduce((s,x)=>s+x.diferentes.length, 0);
+  const total = grupos.reduce((s,x)=>s+x.arq.n, 0), ok = grupos.reduce((s,x)=>s+x.grav.n, 0);
+  let h = (!faltam && !dif)
+    ? `<p style="color:var(--income);font-weight:600;">✓ Tudo certo: os ${total} lançamentos do arquivo estão no banco de dados.</p>`
+    : `<p style="color:var(--expense);font-weight:600;">⚠ ${ok} de ${total} lançamentos do arquivo conferem` + (faltam?`; ${faltam} não estão no banco`:'') + (dif?`; ${dif} estão com dados diferentes`:'') + '.</p>';
+  if(lote.ignoradas) h += `<p class="muted">${lote.ignoradas} linha(s) do arquivo foram ignoradas na leitura (sem data ou sem valor) e não entram nesta conta.</p>`;
+  h += '<div style="overflow-x:auto;"><table style="width:100%;font-size:13px;border-collapse:collapse;"><tr class="muted"><td>Ano</td><td>Banco</td><td style="text-align:right;">Arquivo</td><td style="text-align:right;">Entradas</td><td style="text-align:right;">Saídas</td><td style="text-align:right;">No banco</td><td>Situação</td></tr>';
+  grupos.forEach(x=>{
+    const bom = !x.faltando.length && !x.diferentes.length;
+    const sit = bom ? '<span style="color:var(--income);">✓ confere</span>' : `<span style="color:var(--expense);">⚠ ${x.faltando.length+x.diferentes.length} divergente(s)</span>`;
+    h += `<tr style="border-top:1px solid var(--border);"><td>${esc(x.ano)}</td><td>${esc(x.banco)}</td><td style="text-align:right;">${x.arq.n}</td><td style="text-align:right;">${fmtMoeda(x.arq.ent)}</td><td style="text-align:right;">${fmtMoeda(x.arq.sai)}</td><td style="text-align:right;">${x.grav.n}</td><td>${sit}${x.extras?` <span class="muted">(+${x.extras} só no banco)</span>`:''}</td></tr>`;
+  });
+  h += '</table></div>';
+  const itens = [];
+  grupos.forEach(x=>{
+    x.faltando.forEach(l=>itens.push(`<div class="item-meta">Não está no banco: ${new Date(l.dataEvento).toLocaleDateString('pt-BR')} · ${esc(l.banco||'-')} · ${esc(l.descricao||'')} · ${fmtMoeda(l.valor)} (${l.tipo})</div>`));
+    x.diferentes.forEach(p=>itens.push(`<div class="item-meta">Dados diferentes (id ${esc(p.arquivo.id)}): arquivo ${esc(p.arquivo.descricao||'')} ${fmtMoeda(p.arquivo.valor)} · banco ${esc(p.banco.descricao||'')} ${fmtMoeda(p.banco.valor)}</div>`));
+  });
+  if(itens.length){
+    h += `<div style="max-height:240px;overflow-y:auto;margin-top:8px;">${itens.slice(0,200).join('')}${itens.length>200?`<div class="item-meta">… e mais ${itens.length-200}.</div>`:''}</div>`;
+    if(!lote.porId) h += '<p class="muted">Se a mesma compra aparece mais de uma vez no arquivo (mesmo dia, valor, banco e descrição), o importador grava só uma. Se forem lançamentos diferentes de verdade, cadastre o que faltou na aba Lançar.</p>';
+  }
+  return h;
+}
+
+async function verificarArquivoXBanco(lote){
+  const card = document.getElementById('cardVerif'), corpo = document.getElementById('verifCorpo');
+  lote = lote || loteArquivo;
+  if(!db || !lote || !lote.itens.length){ return; }
+  card.classList.remove('hidden');
+  corpo.innerHTML = '<p class="muted">Conferindo o arquivo com o banco de dados...</p>';
+  try{
+    const docs = await lerBancoParaVerificar(lote.itens);
+    corpo.innerHTML = htmlVerificacao(compararArquivoBanco(lote.itens, docs, !!lote.porId), lote);
+  }catch(e){
+    console.error(e);
+    corpo.innerHTML = '<p style="color:var(--expense);">⚠ Não consegui conferir: ' + esc((e && e.message) || String(e)) + '</p>';
+  }
+}
+function guardarLoteArquivo(itens, ignoradas, porId){
+  loteArquivo = {itens: itens.filter(l=>l.dataEvento), ignoradas: ignoradas||0, porId: !!porId};
+  document.getElementById('btnVerificar').classList.toggle('hidden', !loteArquivo.itens.length);
+  document.getElementById('cardVerif').classList.add('hidden');
+}
+document.getElementById('btnVerificar').addEventListener('click', ()=>verificarArquivoXBanco());
+
 function limparPreview(){
   lancamentosParaImportar = [];
+  loteArquivo = null;
+  document.getElementById('btnVerificar').classList.add('hidden');
+  document.getElementById('cardVerif').classList.add('hidden');
   document.getElementById('cardPreview').classList.add('hidden');
   document.getElementById('listaPreview').innerHTML = '';
   document.getElementById('arquivoImport').value = '';
@@ -3068,6 +3178,7 @@ async function importarBackup(){
     if(querLanc){
       const r = await db.importarLancamentos(itens, (feitos,total)=>{ st.textContent = `Importando lançamentos... ${feitos}/${total}`; });
       msg += ` ${r.gravados} lançamento(s) gravado(s) de ${itens.length} no arquivo` + (dados.contagem && dados.contagem.lancamentos!=null ? ` (contagem declarada: ${dados.contagem.lancamentos})` : '') + '.';
+      guardarLoteArquivo(itens.filter(x=>x && x.id && !Number.isNaN(new Date(x.dataEvento).getTime())).map(x=>({...x, dataEvento:new Date(x.dataEvento).toISOString()})), 0, true);
       if(r.rejeitados.length) msg += ` ${r.rejeitados.length} rejeitado(s): ` + r.rejeitados.slice(0,5).map(x=>`#${x.indice+1} ${x.motivo}`).join('; ') + (r.rejeitados.length>5?'…':'') + '.';
     }
     if(querCfg){
@@ -3075,6 +3186,7 @@ async function importarBackup(){
       msg += ` ${docs.length} configuração(ões) gravada(s).`;
     }
     st.textContent = msg;
+    if(querLanc) await verificarArquivoXBanco();
   }catch(e){
     st.textContent = '⚠️ Erro na importação: ' + (e && e.message || e) + ' Você pode tentar de novo: o que já foi gravado não duplica.';
   }finally{ btn.disabled = false; }
