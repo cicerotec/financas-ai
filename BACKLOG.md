@@ -26,8 +26,6 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   (infra), mesclar conflito de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
 
 ### Front (funcionalidades novas)
-- 6. [ ] **[Agora] Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
-  definir o **início do controle** de cada um (tarefa sua, usando a aba Cartão).
 - 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
   duplicado).
 - 8. [ ] **[Próximo] Carregar os anos anteriores** (do mais novo para o mais antigo).
@@ -47,6 +45,8 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   release em um comando (ver "Fluxo de branches e versões").
 
 ### Operação (tarefas de uso e dados, não de código)
+- 6. [ ] **[Agora] Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
+  definir o **início do controle** de cada um (usando a aba Cartão).
 - 1. [x] **Mergear a PR #3** (nome de exibição) e **a #4** (eventos futuros) em `develop`.
 - 4. [x] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
 - 5. [x] **Limpar os PREVISTO e TRANSFERINDO antigos** da importação: aparecem como atrasados em Futuros (Ocultar, ou
