@@ -89,6 +89,20 @@ func (f *bancoFake) BatchWriteItem(_ context.Context, in *dynamodb.BatchWriteIte
 // UpdateItem: so o que o perfil usa. Sem o item, falha como a condicao attribute_exists(PK) do DynamoDB.
 func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
 	k := chave(sv(in.Key["PK"]), sv(in.Key["SK"]))
+	if aws.ToString(in.UpdateExpression) == "ADD seq :um" { // contador do espaco: cria o item se nao existir
+		it, ok := f.itens[k]
+		if !ok {
+			it = map[string]types.AttributeValue{"PK": in.Key["PK"], "SK": in.Key["SK"]}
+			f.itens[k] = it
+		}
+		var n float64
+		if v, ok := it["seq"].(*types.AttributeValueMemberN); ok {
+			n, _ = strconv.ParseFloat(v.Value, 64)
+		}
+		n++
+		it["seq"] = &types.AttributeValueMemberN{Value: strconv.FormatFloat(n, 'f', -1, 64)}
+		return &dynamodb.UpdateItemOutput{Attributes: map[string]types.AttributeValue{"seq": it["seq"]}}, nil
+	}
 	it, ok := f.itens[k]
 	if !ok {
 		return nil, &types.ConditionalCheckFailedException{}
