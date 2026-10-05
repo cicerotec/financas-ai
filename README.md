@@ -1,88 +1,172 @@
-# Finanças pessoais: código e modelo de dados
+# Finanças da Família
 
-Este documento acompanha `financas-app.html` (o código) e o arquivo `.json` gerado pelo botão **Exportar dados** (os dados). Com os dois você consegue reproduzir o app em outro banco e outro lugar.
+App de finanças pessoais e da família: lançamentos, saldos por banco, faturas de cartão, eventos futuros e tendências.
+Duas pessoas usam o mesmo espaço (dono e membro), pelo navegador do computador ou do celular (instalado na tela inicial).
 
-## O que é o app
-Uma única página HTML, com CSS e JavaScript dentro do próprio arquivo. Não tem framework nem etapa de build. A única biblioteca externa é a SheetJS (xlsx 0.18.5, via CDN), usada só para importar planilhas.
+- **Front:** uma página HTML com CSS e JavaScript dentro (`web/index.html`), sem framework e sem etapa de build. Única
+  biblioteca externa: SheetJS (xlsx), via CDN, só para importar planilhas.
+- **Backend:** AWS Lambda em Go com Function URL, DynamoDB e login com Cognito (Hosted UI + PKCE).
+- **Hospedagem do front:** S3 privado + CloudFront (HTTPS).
+- **Região:** `sa-east-1`. Infra descrita em `template.yaml` (AWS SAM).
 
-## O que o código pede ao ambiente do Claude (trocar ao migrar)
-1. `claude.use("db")`: banco de documentos no estilo Firestore. Chamadas usadas:
-   - `db.collection("lancamentos")` com `.add(obj)`, `.doc(id).update(obj)`, `.doc(id).delete()`
-   - `db.doc("config/x")` com `.get()`, `.set(obj)`, `.onSnapshot(cb)`
-   - consultas: `.where(campo, op, valor)` com `==`, `<`, `<=`, `>=` e `array-contains`; `.orderBy(campo, "asc"|"desc")`; `.limit(n)`; `.get()`; `.onSnapshot(cb)`
-   - Em outro banco, o caminho mais curto é escrever um adaptador com esses mesmos métodos.
-2. `claude.use("sample")` → `sample.json(prompt, {modelTier})`: pede a um modelo de IA que transforme texto livre ("paguei 87,40 no posto") em campos do lançamento e devolva JSON. Troque por uma chamada à API de IA da sua escolha.
-3. `claude.use("downloads")` → `save({filename, data})`: baixa um arquivo. Troque por um download normal com `Blob` e `<a download>`.
+Roadmap, decisões e o fluxo de versões estão em [`BACKLOG.md`](BACKLOG.md). A proposta de colaboração em tempo real está
+em [`docs/colaboracao-tempo-real.md`](docs/colaboracao-tempo-real.md).
 
-Atenção: no ambiente do Claude os dados entregues pelo banco chegam **congelados** (não podem ser alterados). Por isso o código faz uma cópia com `clonar()` antes de alterar. Em outro banco essa cópia é inofensiva.
+## Como as peças se encaixam
+```
+navegador ──(HTTPS)──> CloudFront ──> S3 privado           (web/: index.html, api.js, config.js)
+    │
+    ├──(login)──> Cognito Hosted UI (PKCE) ──> token JWT
+    └──(token no cabeçalho)──> Lambda Function URL (Go) ──> DynamoDB (tabela FinancasApp)
+```
+A Lambda valida o token do Cognito, descobre o papel da pessoa no espaço (`owner` ou `member`), confere a permissão e só
+então lê ou grava. `web/api.js` expõe ao front uma API no estilo `collection/doc/where/orderBy/limit/onSnapshot` e a
+traduz para as rotas da Lambda.
+
+## Estrutura do repositório
+| Pasta ou arquivo | O que tem |
+|---|---|
+| `web/` | O app. `index.html` (telas e lógica), `api.js` (cliente da API e do login), `config.example.js` (modelo; `config.js` fica fora do git) |
+| `backend/` | Lambda em Go: `main.go` (rotas), `authz.go` (permissões por papel), `store.go` (DynamoDB), `auth.go` (token), `tags.go`, `perfil.go` e os testes `*_test.go` |
+| `template.yaml` | Infra (SAM): tabela, Cognito, Lambda, bucket e distribuição do CloudFront |
+| `scripts/` | Deploy, sessão com MFA, publicação do front, convite de usuários e manutenção (ver abaixo) |
+| `docs/` | Documentos de projeto |
+| `financas-app.html` | Versão original em arquivo único, de quando o app rodava no ambiente do Claude. Mantida como referência; o app atual é o de `web/` |
+| `BACKLOG.md` | Roadmap por área, decisões, detalhes e fluxo de branches e versões |
+
+## Rodando no seu computador
+Precisa de um front servido em `http://localhost:8080` (o login e o CORS aceitam essa origem) e de uma stack já criada na AWS.
+1. Copie `web/config.example.js` para `web/config.js` e preencha com os Outputs do deploy: `ApiUrl`, `ClientId` e `LoginDomain`.
+2. Sirva a pasta `web/` na porta 8080, por exemplo: `python -m http.server 8080 --directory web`.
+3. Abra `http://localhost:8080` e entre com o login do Cognito.
+
+Testes do backend: `cd backend && go test ./...` (usam um DynamoDB em memória, não tocam a AWS).
+
+## Publicando
+Tudo roda no PowerShell, com a sessão AWS aberta por MFA. Os scripts de publicação avisam quando você não está na `main`,
+tem alterações sem commit ou está atrás do GitHub, porque publicam **o que está na sua pasta**, não o que está no GitHub.
+
+```powershell
+. .\scripts\aws-mfa.ps1 <codigo>        # sessão com MFA (vale 12 h, só neste terminal)
+.\scripts\deploy.ps1                    # sam build + sam deploy (backend e infra); -Sim não pergunta o changeset
+.\scripts\publicar-front.ps1            # envia web/ ao S3 e invalida o CloudFront; -Simular só mostra
+```
+Outros scripts: `seed.sh` (cria usuários no Cognito e o espaço), `definir-nome.sh` (nome de exibição),
+`limpar-espaco.py` (apaga lançamentos e configurações de um espaço; simula por padrão).
+
+## Branches e versões
+Trabalho em branches a partir da `develop` (`feature/...`, `docs/...`) com PR para a `develop`. Uma versão sai com PR
+`develop → main`, tag anotada `vX.Y.Z` e release no GitHub. Publicar na AWS é um passo separado, feito a partir da `main`.
+Detalhes e comandos em "Fluxo de branches e versões" no [`BACKLOG.md`](BACKLOG.md).
+
+## Papéis e permissões
+| Ação | owner | member |
+|---|---|---|
+| Criar e copiar lançamento | sim | sim |
+| Editar, ocultar e ajustar fatura | todos | só os criados por ela (`criadoPor`) |
+| Excluir lançamento | sim | não |
+| Criar tag | sim | só tags novas |
+| Renomear ou excluir tag, combos, bancos, status, flags | sim | não |
+| Ver saldos, cartão, tendências e futuros | sim | sim (só leitura) |
+| Saldo inicial, fechamento, conferir fatura, início do controle | sim | não |
+| Conferir e reabrir mês de um banco (fechamento mensal) | sim | não (só vê) |
+| Cores, layout e o próprio nome | sim | sim, só os dela |
+| Importar, exportar e limpeza | sim | não |
+
+A regra está em `backend/authz.go` e tem testes; o que não está liberado explicitamente é negado.
 
 ## Modelo de dados
 
-### Coleção `lancamentos` (um documento por lançamento)
+### No DynamoDB (tabela `FinancasApp`, chaves `PK` e `SK`)
+| Item | PK | SK |
+|---|---|---|
+| Lançamento | `SPACE#<id>` | `TX#<dataEvento>#<id>` |
+| Configuração compartilhada | `SPACE#<id>` | `CFG#LISTAS`, `CFG#TAGS`, `CFG#COMBOS`, `CFG#CARTOES`, `CFG#SALDOS` |
+| Fechamento mensal de um banco | `SPACE#<id>` | `SALDO#<banco>` |
+| Dados do espaço | `SPACE#<id>` | `META` |
+| Vínculo da pessoa com o espaço (papel) | `USER#<sub>` | `SPACE#<id>` |
+| Aparência da pessoa | `SPACE#<id>` | `USER#<sub>#CFG#APARENCIA` |
+
+### Lançamento
 | campo | tipo | observação |
 |---|---|---|
 | `status` | texto | um dos status de `config/listas` (PAGO, PREVISTO, CRÉDITO IN, etc.) |
 | `tipo` | texto | `"saida"` (gasto) ou `"entrada"` (receita) |
-| `valor` | número | sempre positivo; o sinal vem de `tipo` |
+| `valor` | número | sempre positivo; o sinal vem de `tipo` (zero e negativo são aceitos para nota e estorno) |
 | `descricao` | texto | |
 | `nota` | texto | opcional |
-| `dataEvento` | texto ISO 8601 (UTC) | data e hora do evento; é o campo de ordenação |
+| `dataEvento` | texto ISO 8601 (UTC) | data e hora do evento; ordena a lista |
 | `banco` | texto | um dos bancos de `config/listas` |
-| `tags` | lista de textos | sem hierarquia nem grupos |
+| `tags` | lista de textos | sem hierarquia |
 | `excluirDoTotal` | booleano | verdadeiro para status CONTAS e TRANSFERINDO |
-| `oculto` | booleano | quando verdadeiro, some do histórico e não entra em saldos |
-| `criadoEm` | texto ISO | presente em importações e transferências |
+| `oculto` | booleano | some do histórico e não entra em saldos |
+| `criadoEm`, `criadoPor` | texto | quando e por quem (`sub` do Cognito); o servidor preenche |
 | `transferParId` | texto | liga as duas pontas de uma transferência entre bancos |
-| `faturaAjuste` | -1, 0 ou 1 | só em status de crédito: 1 = a compra vai para a fatura seguinte à da data; -1 = para a anterior; ausente = pela data (CRÉDITO EX antigo sem esse campo conta como 1) |
-| `valorEstimado` | booleano | só em status de crédito: valor ainda estimado (ex.: compra em dólar); vira falso quando o valor real é corrigido |
+| `faturaAjuste` | -1, 0 ou 1 | só em crédito: 1 = fatura seguinte à da data; -1 = anterior; ausente = pela data |
+| `valorEstimado` | booleano | só em crédito: valor ainda estimado (ex.: compra em dólar) |
 
-No arquivo exportado cada lançamento traz também o campo `id` (o id do documento).
+### Configurações
+- `listas`: `status` e `banco` (listas de textos); `statusReal` (status → conta como real; só `false` exclui);
+  `afetaSaldoBanco` (só `true` afeta o saldo do banco); `statusFuturo` (status → evento futuro: não conta como real,
+  não mexe no saldo e aparece em Futuros); `statusCor`; `estiloCor`, `layoutSaldos`, `ordemSaldos`, `ordemManual`
+  (aparência).
+- `tags`: `{ usadas: [textos] }`.
+- `combos`: `{ lista: [ { tags: [textos] } ] }`. Combos sugeridos não são guardados: o app os recalcula contando
+  conjuntos de tags repetidos nos lançamentos.
+- `cartoes`: `{ porBanco: { "<banco>": { diaPadrao, inicio, faturas: { "AAAA-MM": { fechamento, valorBanco, conferida } } } } }`.
+  Estar aqui marca o banco como cartão. `AAAA-MM` é o mês em que a fatura fecha.
+- `saldos`: `{ porBanco: { "<banco>": { saldoInicial, dataInicio } } }`.
 
-### Documentos de configuração
-- `config/listas`:
-  - `status`: lista de textos
-  - `banco`: lista de textos
-  - `statusReal`: mapa status → booleano ("conta como real"; ausente ou verdadeiro conta, só `false` exclui; padrão `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` = false)
-  - `afetaSaldoBanco`: mapa status → booleano (só `true` afeta o saldo do banco; ausente = não afeta)
-  - `statusCor`: mapa status → cor em hexadecimal
-  - `estiloCor`: `"linha"`, `"faixa"`, `"ambos"` (padrão) ou `"nenhum"`
-- `config/tags`: `{ usadas: [lista de textos] }`, todas as tags conhecidas.
-- `config/combos`: `{ lista: [ { tags: [textos] } ] }`, combos de tags salvos pelo usuário. Combos "sugeridos" não são guardados: o app os recalcula contando conjuntos de tags repetidos nos lançamentos.
-- `config/cartoes`: `{ porBanco: { "<banco>": { diaPadrao: número, faturas: { "AAAA-MM": { fechamento: "AAAA-MM-DD", valorBanco: número } } } } }`. A presença do banco aqui o marca como cartão. `AAAA-MM` é o mês em que a fatura fecha. `fechamento` é opcional e, se faltar, vale o dia da fatura anterior que tiver um (ou `diaPadrao`). `valorBanco` é o total que o app do cartão mostra, usado na conferência.
-- `config/saldos`: `{ porBanco: { "<banco>": { saldoInicial: número, dataInicio: "AAAA-MM-DD" } } }`.
+Escritas de configuração usam um campo `version` para detectar edição concorrente (conflito devolve erro em vez de
+sobrescrever em silêncio).
 
-## Regras de negócio que o código aplica
-- **Saldo de um banco** = `saldoInicial` + soma dos lançamentos daquele banco que: não estão ocultos, têm status com `afetaSaldoBanco = true` e têm `dataEvento` a partir de `dataInicio`. Entrada soma e saída subtrai.
-- **Transferência entre bancos** cria dois lançamentos com status `CONTAS`: uma saída no banco de origem e uma entrada no de destino, com o mesmo `transferParId`.
-- **Faturas do cartão:** a fatura que fecha no mês M cobre as compras de crédito do dia seguinte ao fechamento da fatura anterior até o dia de fechamento de M, inclusive. Cada fatura tem a própria data de fechamento. O ajuste `faturaAjuste` empurra a compra para a fatura vizinha. Compras de crédito = status que começam com CRÉDITO (sem acento na comparação), não ocultas e com "conta como real"; estorno (`tipo = entrada`) subtrai.
-- **Conferência da fatura fechada:** diferença = total calculado − `valorBanco`. Candidatos: registros (1 a 3) até 5 dias do corte cuja soma é igual à diferença; se o calculado for maior, tiram-se da fatura; se for menor, buscam-se nas faturas vizinhas.
-- **Detecção de duplicado** ao salvar: mesma combinação de status, descrição (sem maiúsculas e sem espaços nas pontas), valor com 2 casas, banco e `dataEvento`.
-- **Cor de um status**: `statusCor[status]`; se não houver, uma cor padrão por nome do status; se também não houver, cinza.
+## Regras de negócio
+- **Saldo de um banco** = `saldoInicial` + soma dos lançamentos do banco que não estão ocultos, têm status com
+  `afetaSaldoBanco` e `dataEvento` a partir de `dataInicio`. Entrada soma e saída subtrai.
+- **Fechamento mensal.** O saldo é uma cascata: cada mês abre com o fechamento do anterior, desde `dataInicio`. O
+  servidor guarda por banco (`SALDO#<banco>`) o fechamento calculado dos meses encerrados (`caches`, só para não reler
+  o histórico inteiro) e os meses conferidos com o extrato (`conferidos`). Quem calcula é o navegador, porque só ele
+  sabe quais status mexem no saldo; o saldo atual parte do último fechamento válido e lê só os meses seguintes.
+  - Qualquer escrita em lançamento que mexa no saldo (criar, excluir, ou mudar valor, tipo, status, banco, data ou
+    ocultar) marca `invalidoDe` e muda a `version` do banco; um cache calculado antes da escrita é recusado (409).
+    Editar descrição, nota ou tags não invalida nada.
+  - **Conferir** um mês (só o dono) exige que o saldo calculado bata com o extrato; a diferença se resolve com um
+    lançamento de ajuste criado pela própria tela. O mês conferido e todos os anteriores ficam **travados**: o servidor
+    recusa (409, `mes_conferido`) criar, alterar ou excluir lançamento que mexa no saldo desse banco nesses meses,
+    inclusive na importação. Meses anteriores ao da `dataInicio` do banco são histórico (não entram no saldo): nunca
+    travam nem invalidam o cache, então dá para importar anos anteriores com meses já conferidos. **Reabrir** só vale
+    para o mês conferido mais recente.
+  - Mês é sempre o do fuso de Brasília (`America/Sao_Paulo`). O cache também vale só para o mesmo saldo inicial, data
+    de início e conjunto de status que mexem no saldo (muda um deles, o cache é descartado e refeito).
+- **Transferência entre bancos** cria dois lançamentos `CONTAS` (saída na origem, entrada no destino) com o mesmo
+  `transferParId` e a data escolhida.
+- **Faturas do cartão:** a fatura que fecha no mês M cobre as compras de crédito do dia seguinte ao fechamento da anterior
+  até o fechamento de M, inclusive. `faturaAjuste` empurra a compra para a fatura vizinha. Crédito = status que começam
+  com CRÉDITO, não ocultos e que contam como reais; estorno (`entrada`) subtrai.
+- **Conferência da fatura fechada:** diferença = total calculado − `valorBanco`. O app sugere registros (1 a 3) até 5 dias do
+  corte cuja soma é igual à diferença. A fatura conferida avisa se mudar depois.
+- **Eventos futuros:** status marcados como futuros ficam fora do Histórico e do saldo e aparecem na aba Futuros, com
+  aviso de atrasados.
+- **Duplicado ao salvar:** mesma combinação de status, descrição, valor, banco e `dataEvento`.
+- **Remover status ou banco:** status em uso migra os lançamentos para outro status antes de sair; banco em uso não pode
+  ser removido.
 
-## Formato do arquivo exportado (versão 2)
-```
-{
-  "app": "Finanças pessoais",
-  "versaoExportacao": 2,
-  "exportadoEm": "2026-09-30T12:00:00.000Z",
-  "contagem": { "lancamentos": 1234 },
-  "colecoes": { "lancamentos": [ { "id": "...", "status": "...", ... } ] },
-  "documentos": {
-    "config/listas": { ... },
-    "config/tags": { ... },
-    "config/combos": { ... } ,
-    "config/saldos": { ... },
-    "config/cartoes": { ... }
-  }
-}
-```
-Um documento que não existia no banco aparece como `null`.
+## Backup e importação
+**Exportar dados** (aba Importar, só dono) gera um `.json` versão 2 com `colecoes.lancamentos` e `documentos` das
+configurações; **Importar backup** o lê de volta em lotes. Também importa `.xlsx` (lançamentos, notas e fechamentos de
+fatura). Há ainda um backup do próprio DynamoDB previsto no [`BACKLOG.md`](BACKLOG.md).
 
-## Como reimportar em outro banco
-1. Para cada item de `colecoes.lancamentos`: criar um registro com `id` igual a `item.id` e os demais campos como estão.
-2. Para cada chave de `documentos` que não seja `null`: gravar o conteúdo no caminho indicado (ou numa tabela de configuração equivalente).
-3. Conferir: `contagem.lancamentos` deve bater com o número de registros criados.
+**Verificação arquivo x banco de dados** (aba Importar): depois de importar, e a qualquer momento com o arquivo já
+processado (botão *Conferir arquivo com o banco de dados*), o app lê de volta o que está gravado no mesmo período e
+bancos e compara com o arquivo, por ano e banco: quantidade, entradas e saídas. O que está no arquivo e não está no
+banco aparece linha a linha; o que já existia no banco fora do arquivo só é contado. Na planilha a comparação é por
+status, descrição, valor, banco, data e tipo; no backup `.json`, pelo id (e acusa dados diferentes). Linhas idênticas
+repetidas no arquivo contam como o mesmo lançamento: o app não grava duplicados (chave igual entra uma vez só, tanto
+na importação quanto na verificação, que avisa quantas linhas repetidas havia). Linhas sem data ou valor, ignoradas na
+leitura, são contadas à parte.
 
-## Limitações conhecidas do código atual
-- O banco do ambiente Claude devolve no máximo 1000 documentos por consulta. O histórico normal carrega os 1000 mais recentes, e o cálculo de saldo de cada banco lê no máximo 1000 lançamentos daquele banco. Em um banco próprio, remova esses limites.
-- O Exportar lê tudo em páginas de 1000 e para com um aviso se mais de 1000 lançamentos tiverem exatamente a mesma data e hora, em vez de gerar um arquivo incompleto.
+## Limitações conhecidas
+- O front carrega os 1000 lançamentos mais recentes; meses mais antigos são buscados sob demanda pela navegação do
+  Histórico. Saldos e faturas são calculados no navegador, lendo o histórico (mover isso para a Lambda está no backlog).
+- A tela só vê o que outra pessoa gravou ao recarregar ou na checagem periódica; colaboração em tempo real é uma proposta
+  em `docs/`.

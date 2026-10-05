@@ -1,43 +1,57 @@
 # Backlog e roadmap
 
-Atualizado em 2026-10-04. Uma única ordem de prioridade (as três faixas abaixo); os detalhes de cada item ficam nas
-seções depois delas. Marque `[x]` ao concluir.
+Atualizado em 2026-10-05. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
+ordem de prioridade e levam a etiqueta **[Agora]**, **[Próximo]** ou **[Depois]**. A numeração é fixa (não renumerar:
+outros trechos referenciam os números). Os detalhes ficam nas seções depois do roadmap. Marque `[x]` ao concluir.
 
 ## Roadmap
 
-### Agora: liberar o app para a esposa
-1. [x] **Mergear a PR #3** (nome de exibição) e **a #4** (eventos futuros) em `develop`.
-2. [x] **Decidir o `/api/*`: chamada direta à Function URL (opção B)**, front estático no CloudFront. Reavaliar rotear
-   a API pelo CloudFront (OAC) quando entrar domínio próprio, WAF ou mais usuários. Detalhe em "Hospedagem".
-3. [x] **Hospedar o front em S3 + CloudFront** (HTTPS, domínio `*.cloudfront.net`). No ar e testado no celular
-   (PR #5). Detalhes em "Hospedagem".
-4. [x] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
-5. [x] **Limpar os PREVISTO e TRANSFERINDO antigos** da importação: aparecem como atrasados em Futuros (Ocultar, ou
-   Editar para o status que de fato aconteceu).
-6. [ ] **Conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e definir o
-   **início do controle** de cada um. Conferir no navegador a aba Cartão (início do controle, fatura conferida).
+### Infra (AWS, SAM, ambientes, custo, backup)
+- 2. [x] **Decidir o `/api/*`: chamada direta à Function URL (opção B)**, front estático no CloudFront. Reavaliar
+  rotear a API pelo CloudFront (OAC) quando entrar domínio próprio, WAF ou mais usuários. Detalhe em "Hospedagem".
+- 3. [x] **Hospedar o front em S3 + CloudFront** (HTTPS, `*.cloudfront.net`). No ar (PR #5). Detalhes em "Hospedagem".
+- 22. [ ] **[Próximo] Ambiente de teste (`dev`)**: segunda stack `financas-dev` com tabela, login, API e front próprios,
+  dados fictícios, sempre ligada, publicada à mão a partir da `develop`. Detalhes em "Ambiente de teste".
+- 11. [ ] **[Próximo] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
+  (exportar JSON e/ou point-in-time recovery do DynamoDB).
 
-### Próximo
-7. [ ] **Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de duplicado).
-8. [ ] **Carregar os anos anteriores** (do mais novo para o mais antigo).
-9. [ ] **Importação do `.xlsx` usando o endpoint de lote** (hoje grava um lançamento por requisição).
-10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
-11. [ ] **AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico** (exportar JSON e/ou
-    point-in-time recovery do DynamoDB).
+### Backend (Go, DynamoDB, Cognito, API)
+- 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
+  ao fechamento mensal; faltam as faturas do cartão e as tendências).
+- 12. [ ] **[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho; quem
+  criou/alterou/ocultou; "novo desde a última visita"; atividade recente; idempotência e edição concorrente
+  (exige trabalho no front também).
+- 13. [ ] **[Depois] Colaboração, Fase 2:** presença em tempo real ("fulano está mexendo neste registro agora").
+- 15. [ ] **[Depois] IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
+- 18. [ ] **[Depois] Segurança e escala:** revisar o `localStorage` do token (front), limite de taxa na Function URL
+  (infra), mesclar conflito de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
 
-### Depois
-12. [ ] **Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho; quem criou/alterou/
-    ocultou; "novo desde a última visita"; atividade recente; idempotência e edição concorrente.
-13. [ ] **Colaboração, Fase 2:** presença em tempo real ("fulano está mexendo neste registro agora").
-14. [ ] **Saldos e faturas do cartão calculados na Lambda** (hoje o navegador lê todo o histórico).
-15. [ ] **IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
-16. [ ] **Testes automatizados** do front (a lógica de faturas e de eventos futuros).
-17. [ ] **Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
-18. [ ] **Segurança e escala:** revisar o `localStorage` do token, limite de taxa na Function URL, mesclar conflito
-    de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
-19. [ ] **Script de release** (`scripts/lancar-versao.ps1 <versão>`): PR `develop → main`, merge, tag e release em um
-    comando, para não depender de lembrar a sequência (ver "Fluxo de branches e versões").
-20. [ ] **Ideias** (seção no fim).
+### Front (funcionalidades novas)
+- 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
+  duplicado).
+- 8. [ ] **[Próximo] Carregar os anos anteriores** (do mais novo para o mais antigo).
+- 9. [ ] **[Próximo] Importação do `.xlsx` usando o endpoint de lote** (hoje grava um lançamento por requisição).
+- 17. [ ] **[Depois] Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
+- 20. [ ] **[Depois] Ideias** (seção no fim).
+
+### UX/UI (usabilidade do que já existe)
+- 21. [ ] **[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em "UX"): barra de navegação
+  inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
+  acessibilidade das abas, unificar o seletor de tags.
+
+### Processo e qualidade (testes, releases, docs)
+- 10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
+- 16. [ ] **[Depois] Testes automatizados** do front (a lógica de faturas e de eventos futuros).
+- 19. [ ] **[Depois] Script de release** (`scripts/lancar-versao.ps1 <versão>`): PR `develop → main`, merge, tag e
+  release em um comando (ver "Fluxo de branches e versões").
+
+### Operação (tarefas de uso e dados, não de código)
+- 6. [ ] **[Agora] Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
+  definir o **início do controle** de cada um (usando a aba Cartão).
+- 1. [x] **Mergear a PR #3** (nome de exibição) e **a #4** (eventos futuros) em `develop`.
+- 4. [x] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
+- 5. [x] **Limpar os PREVISTO e TRANSFERINDO antigos** da importação: aparecem como atrasados em Futuros (Ocultar, ou
+  Editar para o status que de fato aconteceu).
 
 ## Já feito (resumo)
 - Backend AWS (SAM + Go + DynamoDB + Cognito), publicado; login com Cognito (Hosted UI + PKCE).
@@ -48,6 +62,13 @@ seções depois delas. Marque `[x]` ao concluir.
 - Autorização por papel no backend (owner/member) com testes; front por papel; teste com um member de verdade.
 - Nome de exibição (PR #3). Eventos futuros, Parte A (PR #4).
 - Hospedagem do front em S3 privado + CloudFront (PR #5). Primeira release `v0.1.0` na `main`.
+- UX de Lançar e Histórico (v0.2.0, PR #11): aviso ao salvar, botão ocupado contra clique duplo, erro visível, data na
+  transferência, Status/Tipo/Valor na mesma linha, Histórico abre no mês corrente com setas e botão Mês atual, ordem
+  por botão Data ↓/↑, Enter dispara a busca. Guarda de publicação nos scripts (PR #10).
+- Filtro por combos e tags no Histórico (painel recolhido) e nas Tendências, "todas as tags" como padrão (v0.3.0,
+  PR #13).
+- Remover status migra os lançamentos para outro status; remover banco é bloqueado se em uso; X dos bancos só para o
+  dono (v0.3.1, PR #15).
 - Scripts: `deploy.ps1`, `aws-mfa.ps1`, `publicar-front.ps1`, `seed.sh`, `definir-nome.sh`, `limpar-espaco.py`.
 
 ## Fluxo de branches e versões (convenção simples)
@@ -116,6 +137,25 @@ Pronto na branch `feature/hospedagem-s3-cloudfront`:
 - Passos: sessão MFA, `.\scripts\deploy.ps1 <codigo>` (cria bucket e distribuição; leva alguns minutos), depois
   `.\scripts\publicar-front.ps1` (use `-Simular` antes) e abrir o `FrontUrl`.
 
+### Ambiente de teste (`dev`)
+Decidido: **opção A**, uma segunda stack inteira (`financas-dev`) com o mesmo template, em vez de só outra tabela ou de
+prefixo na tabela real (isolamento fraco, risco de misturar com dados reais). **Dados fictícios**, ambiente **sempre
+ligado**, **publicação manual** (automatizar a partir da `develop` fica para depois).
+- Hoje há nomes fixos no `template.yaml`: tabela `FinancasApp`, função `financas-api`, pool `financas`; os scripts
+  `seed.sh`, `definir-nome.sh` e `limpar-espaco.py` também fixam `FinancasApp`. Uma segunda stack colidiria.
+- Parâmetro `Ambiente` (`prod` por padrão, `dev`). O padrão tem que gerar **exatamente os nomes atuais**, senão o
+  CloudFormation tentaria substituir a tabela real (o `DeletionPolicy: Retain` já protege, mas conferir o changeset).
+  Em dev: `FinancasApp-dev` etc.
+- `samconfig.toml` com perfil `dev` (`sam deploy --config-env dev`), com `CognitoDomainPrefix` próprio.
+- Scripts com `-Ambiente dev` (`deploy.ps1`, `publicar-front.ps1`, `seed.sh`, `definir-nome.sh`). A guarda de
+  publicação passa a aceitar a `develop` quando o alvo for dev (hoje avisa para quem não está na `main`).
+- Front: `web/config.dev.js` (URL da API e login do dev), enviado pelo `publicar-front.ps1 -Ambiente dev`; bucket e
+  distribuição separados.
+- Dados: script que cria um dono e um membro de teste (e-mail "+dev") e carrega dados fictícios com volume parecido
+  (status, bancos, cartões, combos, centenas de tags) para testar as telas como a esposa usa.
+- Custo: tabela de teste com 5/5 RCU/WCU; o always-free são 25 no total e a produção já usa 5/5, então cabe.
+- Ordem: template e scripts, primeiro deploy do dev, dados de teste.
+
 ### Eventos futuros
 Conceito: status marcados como "evento futuro" (PREVISTO, TRANSFERINDO, CREDITANDO) ainda não aconteceram: não contam
 como reais, não mexem no saldo, saem do Histórico e aparecem na aba **Futuros**. O marcador manda por cima das caixas
@@ -134,7 +174,7 @@ Limite conhecido: Futuros e o aviso usam os 1000 lançamentos mais recentes carr
 pode ficar de fora.
 
 ### Colaboração em tempo real
-Referência: `colaboracao-tempo-real.md` (gerado no chat do Claude; arquivo do usuário, não versionado). O problema de
+Referência: [`docs/colaboracao-tempo-real.md`](docs/colaboracao-tempo-real.md) (gerado no chat do Claude). O problema de
 origem: a tela de uma pessoa não percebe o que a outra gravou, alterou ou ocultou (cópia em memória só renovada por
 gravação própria ou a cada 2 min).
 
@@ -162,6 +202,18 @@ auto-save visível no Histórico). Presença é efêmera, separada dos dados e e
 - Cuidados: o `head.json` público deve ter só o `seq` (presença e nomes vêm da API autenticada); a presença não pode
   incrementar o `seq` dos dados; no AppSync os canais precisam de autorização por espaço, o exemplo usa `aws-amplify`
   (exige bundler; o front não tem build) e é preciso confirmar a disponibilidade em `sa-east-1`.
+
+### UX
+Origem: observar a esposa usando o app (sem explicar nada) e anotar onde ela hesita. Repetir a cada rodada.
+- **Barra inferior no celular** com 4 ou 5 destinos (Lançar, Histórico, Cartão, Saldos, Mais); Listas, Tendências,
+  Futuros e Importar ficam em "Mais". Hoje são 8 abas numa barra que rola na horizontal.
+- **Alvos de toque** de Cartão e Saldos (`font-size:12px; padding:4px 10px`) abaixo de 44px; trocar por linha de ações.
+- **Acessibilidade:** abas sem `role="tablist"`/`aria-selected`; `‹ ›` das janelas de faturas são `<span>`, não
+  funcionam por teclado.
+- **Código:** muito `style` inline; `web/index.html` passa de 2.700 linhas (separar CSS e JS).
+- **Seletor de tags:** o do Lançar e o dos filtros duplicam lógica; unificar em um componente.
+- **Observado e já resolvido:** salvar sem resposta, transferência sem data, Enter sem efeito na busca, tudo na tela
+  em Histórico, X de status apagando sem aviso.
 
 ### Ideias
 - `#Garantia` com filtro de garantias vigentes (data de vencimento na nota).

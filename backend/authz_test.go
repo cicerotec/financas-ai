@@ -25,6 +25,10 @@ func TestMatrizDePermissoes(t *testing.T) {
 		{papelOwner, acaoLerAparencia, liberado},
 		{papelOwner, acaoEscreverAparenc, liberado},
 		{papelOwner, acaoEditarPerfil, liberado},
+		{papelOwner, acaoLerFech, liberado},
+		{papelOwner, acaoEscreverFech, liberado},
+		{papelOwner, acaoConferirMes, liberado},
+		{papelOwner, acaoReabrirMes, liberado},
 		// member: ler, criar, tags novas e a propria aparencia; editar so o que criou
 		{papelMember, acaoLerTx, liberado},
 		{papelMember, acaoCriarTx, liberado},
@@ -37,6 +41,10 @@ func TestMatrizDePermissoes(t *testing.T) {
 		{papelMember, acaoLerAparencia, liberado},
 		{papelMember, acaoEscreverAparenc, liberado},
 		{papelMember, acaoEditarPerfil, liberado},
+		{papelMember, acaoLerFech, liberado},
+		{papelMember, acaoEscreverFech, negado},
+		{papelMember, acaoConferirMes, negado},
+		{papelMember, acaoReabrirMes, negado},
 	}
 	for _, c := range casos {
 		if got := permitido(c.papel, c.a); got != c.quer {
@@ -47,7 +55,8 @@ func TestMatrizDePermissoes(t *testing.T) {
 
 func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 	todas := []acao{acaoLerTx, acaoCriarTx, acaoEditarTx, acaoExcluirTx, acaoImportarTx,
-		acaoLerCfg, acaoEscreverCfg, acaoAdicionarTags, acaoLerAparencia, acaoEscreverAparenc, acaoEditarPerfil}
+		acaoLerCfg, acaoEscreverCfg, acaoAdicionarTags, acaoLerAparencia, acaoEscreverAparenc, acaoEditarPerfil,
+		acaoLerFech, acaoEscreverFech, acaoConferirMes, acaoReabrirMes}
 	for _, a := range todas {
 		if permitido(papelOwner, a) != liberado {
 			t.Errorf("owner deveria poder %q", a)
@@ -67,6 +76,8 @@ func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 		{"GET", []string{"cfg", "listas"}}, {"PUT", []string{"cfg", "listas"}},
 		{"POST", []string{"tags"}}, {"GET", []string{"aparencia"}}, {"PUT", []string{"aparencia"}},
 		{"PUT", []string{"perfil"}},
+		{"GET", []string{"fechamentos"}}, {"PUT", []string{"fechamentos"}},
+		{"POST", []string{"fechamentos", "conferir"}}, {"POST", []string{"fechamentos", "reabrir"}},
 	}
 	for _, r := range rotas {
 		a, ok := rotaParaAcao(r.m, r.rest)
@@ -83,7 +94,8 @@ func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 func TestPapelDesconhecidoOuVazioNaoPodeNada(t *testing.T) {
 	for _, papel := range []string{"", "viewer", "OWNER", "Member", "admin"} {
 		for _, a := range []acao{acaoLerTx, acaoCriarTx, acaoEditarTx, acaoExcluirTx, acaoImportarTx,
-			acaoLerCfg, acaoEscreverCfg, acaoAdicionarTags, acaoLerAparencia, acaoEscreverAparenc, acaoEditarPerfil, "inexistente"} {
+			acaoLerCfg, acaoEscreverCfg, acaoAdicionarTags, acaoLerAparencia, acaoEscreverAparenc, acaoEditarPerfil,
+			acaoLerFech, acaoEscreverFech, acaoConferirMes, acaoReabrirMes, "inexistente"} {
 			if got := permitido(papel, a); got != negado {
 				t.Errorf("papel %q, acao %q: esperado negado, veio %v", papel, a, got)
 			}
@@ -113,6 +125,11 @@ func TestRotaParaAcao(t *testing.T) {
 		{"GET", []string{"aparencia"}, acaoLerAparencia, true},
 		{"PUT", []string{"aparencia"}, acaoEscreverAparenc, true},
 		{"PUT", []string{"perfil"}, acaoEditarPerfil, true},
+		{"GET", []string{"fechamentos"}, acaoLerFech, true},
+		{"PUT", []string{"fechamentos"}, acaoEscreverFech, true},
+		{"POST", []string{"fechamentos", "conferir"}, acaoConferirMes, true},
+		{"POST", []string{"fechamentos", "reabrir"}, acaoReabrirMes, true},
+		{"DELETE", []string{"fechamentos"}, "", false},
 		// nao existem
 		{"GET", []string{"perfil"}, "", false},
 		{"POST", []string{"perfil"}, "", false},

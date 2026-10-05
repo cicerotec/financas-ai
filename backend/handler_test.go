@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -35,7 +36,28 @@ func (f *bancoFake) GetItem(_ context.Context, in *dynamodb.GetItemInput, _ ...f
 	return &dynamodb.GetItemOutput{Item: it}, nil
 }
 func (f *bancoFake) PutItem(_ context.Context, in *dynamodb.PutItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
-	f.itens[chave(sv(in.Item["PK"]), sv(in.Item["SK"]))] = in.Item
+	k := chave(sv(in.Item["PK"]), sv(in.Item["SK"]))
+	atual, existe := f.itens[k]
+	switch aws.ToString(in.ConditionExpression) {
+	case "attribute_not_exists(PK)":
+		if existe {
+			return nil, &types.ConditionalCheckFailedException{}
+		}
+	case "attribute_not_exists(PK) OR attribute_not_exists(version)":
+		if existe && atual["version"] != nil {
+			return nil, &types.ConditionalCheckFailedException{}
+		}
+	case "version = :v":
+		quer, _ := strconv.ParseFloat(in.ExpressionAttributeValues[":v"].(*types.AttributeValueMemberN).Value, 64)
+		var tem float64
+		if n, ok := atual["version"].(*types.AttributeValueMemberN); ok {
+			tem, _ = strconv.ParseFloat(n.Value, 64)
+		}
+		if !existe || tem != quer {
+			return nil, &types.ConditionalCheckFailedException{}
+		}
+	}
+	f.itens[k] = in.Item
 	return &dynamodb.PutItemOutput{}, nil
 }
 func (f *bancoFake) DeleteItem(_ context.Context, in *dynamodb.DeleteItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
