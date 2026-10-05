@@ -157,6 +157,13 @@ sobrescrever em silêncio).
 configurações; **Importar backup** o lê de volta em lotes. Também importa `.xlsx` (lançamentos, notas e fechamentos de
 fatura). Há ainda um backup do próprio DynamoDB previsto no [`BACKLOG.md`](BACKLOG.md).
 
+**Importação da planilha** (aba Importar): depois da prévia, **Confirmar importação** envia as linhas em lotes de 25 pelo
+mesmo endpoint de lote do backup (`POST /tx/batch`). Cada linha recebe um id gerado na tela, então reenviar um lote nunca
+duplica. A tela mostra `N/total (%)` e o tempo decorrido, que continuam andando enquanto espera o banco liberar
+capacidade; falha de rede ou erro 5xx é tentada de novo automaticamente. Listas (bancos, status) e tags novas são gravadas
+**antes** das linhas. Se a importação parar no meio, a prévia é descartada e a mensagem diz onde parou: processar o mesmo
+arquivo de novo importa só o que faltou (o que já está no banco é ignorado).
+
 **Verificação arquivo x banco de dados** (aba Importar): depois de importar, e a qualquer momento com o arquivo já
 processado (botão *Conferir arquivo com o banco de dados*), o app lê de volta o que está gravado no mesmo período e
 bancos e compara com o arquivo, por ano e banco: quantidade, entradas e saídas. O que está no arquivo e não está no
