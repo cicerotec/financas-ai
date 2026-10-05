@@ -156,6 +156,15 @@ sobrescrever em silêncio).
 configurações; **Importar backup** o lê de volta em lotes. Também importa `.xlsx` (lançamentos, notas e fechamentos de
 fatura). Há ainda um backup do próprio DynamoDB previsto no [`BACKLOG.md`](BACKLOG.md).
 
+**Verificação arquivo x banco de dados** (aba Importar): depois de importar, e a qualquer momento com o arquivo já
+processado (botão *Conferir arquivo com o banco de dados*), o app lê de volta o que está gravado no mesmo período e
+bancos e compara com o arquivo, por ano e banco: quantidade, entradas e saídas. O que está no arquivo e não está no
+banco aparece linha a linha; o que já existia no banco fora do arquivo só é contado. Na planilha a comparação é por
+status, descrição, valor, banco, data e tipo; no backup `.json`, pelo id (e acusa dados diferentes). Linhas idênticas
+repetidas no arquivo contam como o mesmo lançamento: o app não grava duplicados (chave igual entra uma vez só, tanto
+na importação quanto na verificação, que avisa quantas linhas repetidas havia). Linhas sem data ou valor, ignoradas na
+leitura, são contadas à parte.
+
 ## Limitações conhecidas
 - O front carrega os 1000 lançamentos mais recentes; meses mais antigos são buscados sob demanda pela navegação do
   Histórico. Saldos e faturas são calculados no navegador, lendo o histórico (mover isso para a Lambda está no backlog).
