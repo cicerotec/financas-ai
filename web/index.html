@@ -2790,13 +2790,13 @@ function parseLinhas(linhas, notaDe){
 // Verifica duplicidade consultando o BANCO DE DADOS diretamente (não o cache limitado
 // da tela, que só guarda os 1000 lançamentos mais recentes e por isso "esquece" de
 // meses antigos assim que o total passa disso).
-// A conta é por quantidade: se o arquivo tem 2 linhas iguais e o banco já tem 1, entra 1; se o banco já tem as 2,
-// nenhuma entra (repetir o mesmo arquivo não duplica). Linhas iguais no arquivo são lançamentos distintos.
+// Chave igual (status, descrição, valor, banco, data e tipo) é o mesmo lançamento: o app não grava duplicados, então
+// linhas iguais no arquivo, ou que já estão no banco, entram uma vez só.
 async function deduplicarContraBanco(resultado){
   if(!db) return {resultado, duplicadas:0};
   const bancosNoLote = [...new Set(resultado.map(l=>l.banco||''))];
   const datas = resultado.map(l=>l.dataEvento).filter(Boolean).sort();
-  const existentes = new Map(); // chave -> quantos já estão no banco
+  const existentes = new Set();
   if(datas.length){
     // Um duplicado só pode existir dentro do período do lote (a chave inclui a data exata).
     const de = datas[0], ate = datas[datas.length-1];
@@ -2809,13 +2809,15 @@ async function deduplicarContraBanco(resultado){
         // sem conferir, a importação poderia duplicar: melhor parar do que seguir
         throw new Error(`não consegui conferir duplicidade em "${banco}" (${(e && e.message) || e})`);
       }
-      snap.docs.forEach(d=>{ const k = chaveVerif(d.data()); existentes.set(k, (existentes.get(k)||0) + 1); });
+      snap.docs.forEach(d=>existentes.add(chaveVerif(d.data())));
     }
   }
+  const vistos = new Set();
   let duplicadas = 0;
   const filtrado = resultado.filter(l=>{
-    const k = chaveVerif(l), tem = existentes.get(k) || 0;
-    if(tem > 0){ existentes.set(k, tem - 1); duplicadas++; return false; }
+    const k = chaveVerif(l);
+    if(existentes.has(k) || vistos.has(k)){ duplicadas++; return false; }
+    vistos.add(k);
     return true;
   });
   return {resultado: filtrado, duplicadas};
@@ -3066,7 +3068,7 @@ function compararArquivoBanco(itens, docs, porId){
   const grupos = {};
   const g = l=>{
     const ano = mesDeISO(l.dataEvento).slice(0,4), banco = l.banco || '(sem banco)';
-    return grupos[ano+'|'+banco] = grupos[ano+'|'+banco] || {ano, banco, arq:totalVazio(), grav:totalVazio(), faltando:[], diferentes:[], extras:0};
+    return grupos[ano+'|'+banco] = grupos[ano+'|'+banco] || {ano, banco, arq:totalVazio(), grav:totalVazio(), faltando:[], diferentes:[], extras:0, repetidas:0};
   };
   if(porId){
     const mapa = new Map(docs.map(d=>[d.id, d]));
@@ -3080,31 +3082,33 @@ function compararArquivoBanco(itens, docs, porId){
     });
     docs.forEach(d=>{ if(!ids.has(d.id)) g(d).extras++; });
   }else{
-    const sobra = new Map();
-    docs.forEach(d=>{ const k = chaveVerif(d); (sobra.get(k) || sobra.set(k, []).get(k)).push(d); });
+    // chave igual é o mesmo lançamento (o app não grava duplicados): linha repetida no arquivo conta uma vez
+    const noBanco = new Set(docs.map(chaveVerif)), vistas = new Set();
     itens.forEach(l=>{
-      const gr = g(l); somarTotal(gr.arq, l);
-      const fila = sobra.get(chaveVerif(l));
-      if(fila && fila.length){ fila.pop(); somarTotal(gr.grav, l); }
-      else gr.faltando.push(l);
+      const gr = g(l), k = chaveVerif(l);
+      if(vistas.has(k)){ gr.repetidas++; return; }
+      vistas.add(k);
+      somarTotal(gr.arq, l);
+      if(noBanco.has(k)) somarTotal(gr.grav, l); else gr.faltando.push(l);
     });
-    sobra.forEach(fila=>fila.forEach(d=>{ g(d).extras++; }));
+    docs.forEach(d=>{ if(!vistas.has(chaveVerif(d))) g(d).extras++; });
   }
   return Object.values(grupos).sort((a,b)=>(a.ano+a.banco).localeCompare(b.ano+b.banco));
 }
 
 function htmlVerificacao(grupos, lote){
   const faltam = grupos.reduce((s,x)=>s+x.faltando.length, 0), dif = grupos.reduce((s,x)=>s+x.diferentes.length, 0);
-  const total = grupos.reduce((s,x)=>s+x.arq.n, 0), ok = grupos.reduce((s,x)=>s+x.grav.n, 0);
+  const total = grupos.reduce((s,x)=>s+x.arq.n, 0), ok = grupos.reduce((s,x)=>s+x.grav.n, 0), rep = grupos.reduce((s,x)=>s+x.repetidas, 0);
   let h = (!faltam && !dif)
     ? `<p style="color:var(--income);font-weight:600;">✓ Tudo certo: os ${total} lançamentos do arquivo estão no banco de dados.</p>`
     : `<p style="color:var(--expense);font-weight:600;">⚠ ${ok} de ${total} lançamentos do arquivo conferem` + (faltam?`; ${faltam} não estão no banco`:'') + (dif?`; ${dif} estão com dados diferentes`:'') + '.</p>';
+  if(rep) h += `<p class="muted">${rep} linha(s) repetida(s) no arquivo (mesmo dia, valor, banco, descrição, status e tipo) contam como o mesmo lançamento: o app não grava duplicados.</p>`;
   if(lote.ignoradas) h += `<p class="muted">${lote.ignoradas} linha(s) do arquivo foram ignoradas na leitura (sem data ou sem valor) e não entram nesta conta.</p>`;
   h += '<div style="overflow-x:auto;"><table style="width:100%;font-size:13px;border-collapse:collapse;"><tr class="muted"><td>Ano</td><td>Banco</td><td style="text-align:right;">Arquivo</td><td style="text-align:right;">Entradas</td><td style="text-align:right;">Saídas</td><td style="text-align:right;">No banco</td><td>Situação</td></tr>';
   grupos.forEach(x=>{
     const bom = !x.faltando.length && !x.diferentes.length;
     const sit = bom ? '<span style="color:var(--income);">✓ confere</span>' : `<span style="color:var(--expense);">⚠ ${x.faltando.length+x.diferentes.length} divergente(s)</span>`;
-    h += `<tr style="border-top:1px solid var(--border);"><td>${esc(x.ano)}</td><td>${esc(x.banco)}</td><td style="text-align:right;">${x.arq.n}</td><td style="text-align:right;">${fmtMoeda(x.arq.ent)}</td><td style="text-align:right;">${fmtMoeda(x.arq.sai)}</td><td style="text-align:right;">${x.grav.n}</td><td>${sit}${x.extras?` <span class="muted">(+${x.extras} só no banco)</span>`:''}</td></tr>`;
+    h += `<tr style="border-top:1px solid var(--border);"><td>${esc(x.ano)}</td><td>${esc(x.banco)}</td><td style="text-align:right;">${x.arq.n}</td><td style="text-align:right;">${fmtMoeda(x.arq.ent)}</td><td style="text-align:right;">${fmtMoeda(x.arq.sai)}</td><td style="text-align:right;">${x.grav.n}</td><td>${sit}${x.extras?` <span class="muted">(+${x.extras} só no banco)</span>`:''}${x.repetidas?` <span class="muted">(+${x.repetidas} repetida${x.repetidas>1?'s':''} no arquivo)</span>`:''}</td></tr>`;
   });
   h += '</table></div>';
   const itens = [];

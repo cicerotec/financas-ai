@@ -161,9 +161,9 @@ processado (botão *Conferir arquivo com o banco de dados*), o app lê de volta 
 bancos e compara com o arquivo, por ano e banco: quantidade, entradas e saídas. O que está no arquivo e não está no
 banco aparece linha a linha; o que já existia no banco fora do arquivo só é contado. Na planilha a comparação é por
 status, descrição, valor, banco, data e tipo; no backup `.json`, pelo id (e acusa dados diferentes). Linhas idênticas
-repetidas no arquivo são lançamentos distintos: a importação conta por quantidade (arquivo com 2 e banco com 1 grava
-1; banco com as 2 não grava nenhuma, então repetir o mesmo arquivo não duplica). Linhas sem data ou valor, ignoradas
-na leitura, são contadas à parte.
+repetidas no arquivo contam como o mesmo lançamento: o app não grava duplicados (chave igual entra uma vez só, tanto
+na importação quanto na verificação, que avisa quantas linhas repetidas havia). Linhas sem data ou valor, ignoradas na
+leitura, são contadas à parte.
 
 ## Limitações conhecidas
 - O front carrega os 1000 lançamentos mais recentes; meses mais antigos são buscados sob demanda pela navegação do
