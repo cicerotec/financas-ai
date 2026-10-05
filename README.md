@@ -27,7 +27,7 @@ traduz para as rotas da Lambda.
 | Pasta ou arquivo | O que tem |
 |---|---|
 | `web/` | O app. `index.html` (telas e lógica), `api.js` (cliente da API e do login), `config.example.js` (modelo; `config.js` fica fora do git) |
-| `backend/` | Lambda em Go: `main.go` (rotas), `authz.go` (permissões por papel), `store.go` (DynamoDB), `auth.go` (token), `tags.go`, `perfil.go` e os testes `*_test.go` |
+| `backend/` | Lambda em Go: `main.go` (rotas), `authz.go` (permissões por papel), `store.go` (DynamoDB), `auth.go` (token), `tags.go`, `perfil.go`, `fechamento.go` (fechamento mensal dos saldos) e os testes `*_test.go` |
 | `template.yaml` | Infra (SAM): tabela, Cognito, Lambda, bucket e distribuição do CloudFront |
 | `scripts/` | Deploy, sessão com MFA, publicação do front, convite de usuários e manutenção (ver abaixo) |
 | `docs/` | Documentos de projeto |
@@ -167,6 +167,7 @@ leitura, são contadas à parte.
 
 ## Limitações conhecidas
 - O front carrega os 1000 lançamentos mais recentes; meses mais antigos são buscados sob demanda pela navegação do
-  Histórico. Saldos e faturas são calculados no navegador, lendo o histórico (mover isso para a Lambda está no backlog).
+  Histórico. O saldo de cada banco parte do último fechamento mensal e lê só os meses seguintes; as faturas do cartão
+  e as tendências ainda são calculadas no navegador, lendo o histórico (mover isso para a Lambda está no backlog).
 - A tela só vê o que outra pessoa gravou ao recarregar ou na checagem periódica; colaboração em tempo real é uma proposta
   em `docs/`.
