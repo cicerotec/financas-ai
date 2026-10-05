@@ -51,7 +51,7 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   release em um comando (ver "Fluxo de branches e versões").
 
 ### Operação (tarefas de uso e dados, não de código)
-- 6. [ ] **[Agora] Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
+- 6. [x] **Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
   definir o **início do controle** de cada um (usando a aba Cartão).
 - 1. [x] **Mergear a PR #3** (nome de exibição) e **a #4** (eventos futuros) em `develop`.
 - 4. [x] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
@@ -117,6 +117,7 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 | Renomear/excluir tag, combos, bancos, status, flags | sim | não |
 | Ver saldos, cartão, tendências, futuros | sim | sim (só leitura) |
 | Alterar saldo inicial, fechamento, valor do banco, conferir fatura, início do controle | sim | não |
+| Conferir e reabrir mês de um banco (fechamento mensal) | sim | não (só vê) |
 | Aparência (cores, layout, ordem) e o próprio nome | sim | sim, **só a dela** |
 | Importar / exportar / limpeza | sim | não |
 
@@ -137,7 +138,7 @@ complica o desenvolvimento em `localhost`, e o ganho de segurança é pequeno (o
 anônimo ainda chega à Lambda por ele; limitar abuso de verdade pede WAF, que custa). Reavaliar com domínio próprio,
 WAF ou mais usuários; a troca é localizada (URL base em `config.js`, cabeçalho em `api.js` e `auth.go`, template).
 
-Pronto na branch `feature/hospedagem-s3-cloudfront`:
+Pronto (PR #5, no ar):
 - `template.yaml`: bucket S3 privado, OAC, distribuição (HTTPS, cache gerenciado, cabeçalhos de segurança), política do
   bucket; o CORS da Lambda e as URLs de retorno/saída do Cognito aceitam o CloudFront **e** `localhost`; parâmetro
   `ReservedConcurrency` (teto de execuções simultâneas da Lambda), **desligado (0)**: a conta tem limite de 10 execuções
@@ -221,7 +222,7 @@ Origem: observar a esposa usando o app (sem explicar nada) e anotar onde ela hes
 - **Alvos de toque** de Cartão e Saldos (`font-size:12px; padding:4px 10px`) abaixo de 44px; trocar por linha de ações.
 - **Acessibilidade:** abas sem `role="tablist"`/`aria-selected`; `‹ ›` das janelas de faturas são `<span>`, não
   funcionam por teclado.
-- **Código:** muito `style` inline; `web/index.html` passa de 2.700 linhas (separar CSS e JS).
+- **Código:** muito `style` inline; `web/index.html` passa de 3.200 linhas (separar CSS e JS).
 - **Seletor de tags:** o do Lançar e o dos filtros duplicam lógica; unificar em um componente.
 - **Observado e já resolvido:** salvar sem resposta, transferência sem data, Enter sem efeito na busca, tudo na tela
   em Histórico, X de status apagando sem aviso.
