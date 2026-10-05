@@ -233,8 +233,11 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
       <button type="button" id="filBancoBtn" class="dropdown-btn">Banco: todos</button>
       <div id="filBancoPanel" class="dropdown-panel hidden"></div>
     </div>
-      </div>
-  <div class="card" style="margin-bottom:10px;"><label style="margin-top:0;">Filtrar por tags (toque num combo ou escolha tags)</label><div id="histTags"></div></div>
+    <div style="flex:1 1 100%;position:relative;">
+      <button type="button" id="filTagBtn" class="dropdown-btn" aria-haspopup="true">Tags: todas ▾</button>
+      <div id="filTagPanel" class="dropdown-panel hidden" style="max-height:70vh;"><div id="histTags"></div></div>
+    </div>
+  </div>
   <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);"><input type="checkbox" id="filMostrarOcultos" style="width:auto;"> mostrar ocultos</label>
   <div class="nav-mes" id="navMes">
     <button type="button" class="ghost" id="mesAnterior" aria-label="Mês anterior" title="Mês anterior">‹</button>
@@ -922,6 +925,7 @@ function criarSeletorFiltroTags(raiz, aoMudar){
         `<span class="tag ${S.modo==='todas'?'on':''}" data-modo="todas">todas as tags</span>` +
         `<span class="tag ${S.modo==='qualquer'?'on':''}" data-modo="qualquer">qualquer uma</span>` : '';
   }
+  const descricaoSel = ()=>[...S.sel].join(S.modo==='todas' ? ' + ' : ' ou ');
   function mudou(){ render(); aoMudar(); }
   q('busca').addEventListener('input', e=>{ S.busca = e.target.value; render(); });
   raiz.addEventListener('click', e=>{
@@ -947,7 +951,12 @@ function criarSeletorFiltroTags(raiz, aoMudar){
       const tg = l.tags||[], sel = [...S.sel];
       return S.modo==='todas' ? sel.every(t=>tg.includes(t)) : sel.some(t=>tg.includes(t));
     },
-    descricao(){ return [...S.sel].join(S.modo==='todas' ? ' + ' : ' ou '); }
+    descricao(){ return [...S.sel].join(S.modo==='todas' ? ' + ' : ' ou '); },
+    resumo(){
+      const n = S.sel.size;
+      if(!n) return 'todas';
+      return n<=2 ? descricaoSel() : n+' tags';
+    }
   };
 }
 function renderTagFilter(){
@@ -1049,15 +1058,25 @@ function setupHandlers(){
   document.getElementById('filStatusBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
     document.getElementById('filBancoPanel').classList.add('hidden');
+    document.getElementById('filTagPanel').classList.add('hidden');
     document.getElementById('filStatusPanel').classList.toggle('hidden');
   });
+  document.getElementById('filTagBtn').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.getElementById('filStatusPanel').classList.add('hidden');
+    document.getElementById('filBancoPanel').classList.add('hidden');
+    document.getElementById('filTagPanel').classList.toggle('hidden');
+  });
+  // os chips são redesenhados a cada toque; sem isso o clique "some" do painel e o fecharia
+  document.getElementById('filTagPanel').addEventListener('click', e=>e.stopPropagation());
   document.getElementById('filBancoBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
+    document.getElementById('filTagPanel').classList.add('hidden');
     document.getElementById('filStatusPanel').classList.add('hidden');
     document.getElementById('filBancoPanel').classList.toggle('hidden');
   });
   document.addEventListener('click', (e)=>{
-    [['filStatusPanel','filStatusBtn'],['filBancoPanel','filBancoBtn']].forEach(([pid,bid])=>{
+    [['filStatusPanel','filStatusBtn'],['filBancoPanel','filBancoBtn'],['filTagPanel','filTagBtn']].forEach(([pid,bid])=>{
       const painel = document.getElementById(pid);
       const btn = document.getElementById(bid);
       if(!painel.classList.contains('hidden') && !painel.contains(e.target) && e.target!==btn){
@@ -1375,6 +1394,7 @@ function renderHistorico(){
   const fsList = [...filStatusSelecionados];
   const fbList = [...filBancoSelecionados];
   const mostrarOcultos = document.getElementById('filMostrarOcultos').checked;
+  if(seletorHist) document.getElementById('filTagBtn').textContent = 'Tags: ' + seletorHist.resumo() + ' ▾';
   const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache.filter(l=>diaLocal(l).slice(0,7)===mesSel));
   document.getElementById('navMes').classList.toggle('hidden', modoBuscaTexto);
   document.getElementById('filMesEspecifico').value = mesSel;
