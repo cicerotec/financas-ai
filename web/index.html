@@ -715,7 +715,7 @@ function renderListas(){
 
   document.getElementById('pillStatus').innerHTML = listas.status.map(s=>
     `<span class="pill">
-      ${ehOwner()?`<button data-del-status="${esc(s)}">✕</button>`:''}
+      ${ehOwner()?`<button data-del-status="${esc(s)}" aria-label="Remover ${esc(s)}">✕</button>`:''}
       <span style="display:flex;align-items:center;gap:6px;"><button data-cor-status="${esc(s)}" aria-label="Escolher cor de ${esc(s)}" style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${corStatus(s)};border:2px solid var(--border);padding:0;cursor:pointer;"></button><b>${esc(s)}</b></span>
       ${corAberta===s?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${COR_PALETA.map(p=>`<button data-cor-pick="${p}" data-cor-st="${esc(s)}" aria-label="Cor ${p}" style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${p};border:${p===corStatus(s)?'2px solid var(--text)':'1px solid var(--border)'};padding:0;cursor:pointer;"></button>`).join('')}</div>`:''}
       ${ehOwner()?`<label style="display:flex;align-items:center;gap:4px;${ehFuturo(s)?'color:var(--muted);':'cursor:pointer;'}">
@@ -729,10 +729,10 @@ function renderListas(){
       </label>`:(ehFuturo(s)?'<span class="muted">evento futuro</span>':'')}
     </span>`).join('');
   document.getElementById('pillBanco').innerHTML = listas.banco.map(s=>
-    `<span class="pill">${esc(s)} <button data-del-banco="${esc(s)}">✕</button></span>`).join('');
+    `<span class="pill">${esc(s)} ${ehOwner()?`<button data-del-banco="${esc(s)}" aria-label="Remover ${esc(s)}">✕</button>`:''}</span>`).join('');
 
-  document.querySelectorAll('[data-del-status]').forEach(b=>b.onclick=()=>removerDaLista('status',b.dataset.delStatus));
-  document.querySelectorAll('[data-del-banco]').forEach(b=>b.onclick=()=>removerDaLista('banco',b.dataset.delBanco));
+  document.querySelectorAll('[data-del-status]').forEach(b=>b.onclick=()=>removerStatus(b.dataset.delStatus));
+  document.querySelectorAll('[data-del-banco]').forEach(b=>b.onclick=()=>removerBanco(b.dataset.delBanco));
   document.querySelectorAll('[data-real-status]').forEach(cb=>cb.onchange=()=>{
     statusReal[cb.dataset.realStatus] = cb.checked;
     salvarListas();
@@ -810,9 +810,67 @@ async function salvarListas(){
   if(!db) return;
   await db.doc("config/listas").set({...listas, statusReal, afetaSaldoBanco, statusFuturo, statusCor, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
 }
-function removerDaLista(tipo,valor){
-  listas[tipo] = listas[tipo].filter(x=>x!==valor);
-  salvarListas(); renderListas();
+// Pede para qual status mover os lançamentos de um status que vai sair. Retorna o nome escolhido ou null (cancelou).
+function pedirStatusParaMigrar(status, qtd, outros){
+  return new Promise(resolve=>{
+    document.getElementById('modalMsg').textContent =
+      `${qtd>=1000?'Pelo menos 1000':qtd} lançamento(s) usam o status "${status}". Escolha para qual status movê-los antes de remover:`;
+    document.getElementById('modalExtra').innerHTML =
+      `<select id="modalNovoStatus" style="margin-bottom:10px;">${outros.map(o=>`<option>${esc(o)}</option>`).join('')}</select>`;
+    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Mover e remover</button>';
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    const fechar = (v)=>{ document.getElementById('modalOverlay').classList.add('hidden'); document.getElementById('modalExtra').innerHTML=''; resolve(v); };
+    document.getElementById('modalCancelar').onclick = ()=>fechar(null);
+    document.getElementById('modalConfirmar').onclick = ()=>fechar(document.getElementById('modalNovoStatus').value);
+  });
+}
+async function removerStatus(status){
+  if(!db) return;
+  const outros = listas.status.filter(x=>x!==status);
+  if(!outros.length){ await avisar('Não dá para remover o único status da lista.'); return; }
+  let snap;
+  try{ snap = await db.collection("lancamentos").where("status","==",status).limit(1000).get(); }
+  catch(err){ console.error(err); toast('Não consegui conferir os lançamentos desse status. Tente de novo.', true); return; }
+  const qtd = snap.docs.length;
+  let novo = null;
+  if(qtd>0){
+    novo = await pedirStatusParaMigrar(status, qtd, outros);
+    if(novo===null) return;
+    try{
+      // repete até acabar: a consulta devolve no máximo 1000 por vez
+      let lote = snap.docs, movidos = 0;
+      while(lote.length){
+        for(const d of lote){
+          await db.collection("lancamentos").doc(d.id).update({status:novo, excluirDoTotal:/^CONTAS$|^TRANSFERINDO$/i.test(novo)});
+          movidos++;
+        }
+        lote = (await db.collection("lancamentos").where("status","==",status).limit(1000).get()).docs;
+      }
+      toast(`✓ ${movidos} lançamento(s) movidos para "${novo}"`);
+    }catch(err){
+      console.error(err);
+      toast('A migração parou no meio. O status não foi removido; tente de novo.', true);
+      return;
+    }
+  }else if(!(await confirmarModal(`Nenhum lançamento usa o status "${status}". Remover da lista?`))) return;
+  listas.status = listas.status.filter(x=>x!==status);
+  await salvarListas(); renderListas(); renderHistorico();
+  if(!novo) toast(`✓ Status "${status}" removido`);
+}
+async function removerBanco(banco){
+  if(!db) return;
+  let snap;
+  try{ snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get(); }
+  catch(err){ console.error(err); toast('Não consegui conferir os lançamentos desse banco. Tente de novo.', true); return; }
+  const qtd = snap.docs.length;
+  if(qtd>0){
+    await avisar(`Não dá para remover "${banco}": ${qtd>=1000?'pelo menos 1000':qtd} lançamento(s) usam esse banco. Para tirá-lo da lista, mova ou exclua esses lançamentos antes.`);
+    return;
+  }
+  if(!(await confirmarModal(`Nenhum lançamento usa o banco "${banco}". Remover da lista?`))) return;
+  listas.banco = listas.banco.filter(x=>x!==banco);
+  await salvarListas(); renderListas(); renderHistorico();
+  toast(`✓ Banco "${banco}" removido`);
 }
 
 function normTxt(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
