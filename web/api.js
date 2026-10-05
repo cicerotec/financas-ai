@@ -201,6 +201,56 @@
   const guardar = (d) => { cache.set(d.id, d); return d; };
   const snapDocs = (arr) => ({ docs: arr.map((d) => ({ id: d.id, data: () => Object.assign({}, d) })) });
 
+  // Contador de alteracoes do espaco (seq). Cada escrita de lancamento soma 1 no servidor e devolve o valor em
+  // "_seq". Se o que volta de uma escrita nossa e o ultimo que conhecemos + 1, ninguem gravou no meio; se pulou,
+  // alguem gravou e recarregamos. A checagem periodica le so o seq (1 leitura) em vez dos 1000 lancamentos.
+  let seqConhecido = null;
+  let ultimaChecagem = 0;
+  async function lerSeq() {
+    const { body } = await api('GET', (await base()) + '/seq');
+    return typeof body.seq === 'number' ? body.seq : null;
+  }
+
+  // Cache write-through: depois de uma escrita nossa, a copia que cada listener ja tem e ajustada so naquele
+  // registro (e reentregue sem ir ao banco). So uma recarga completa busca tudo de novo.
+  function casa(d, w) {
+    return w.every(([f, op, v]) => {
+      const x = d[f];
+      if (op === '==') return x === v;
+      if (op === '>=') return x >= v;
+      if (op === '>') return x > v;
+      if (op === '<') return x < v;
+      if (op === '<=') return x <= v;
+      if (op === 'array-contains') return (x || []).includes(v);
+      return true;
+    });
+  }
+  function ordenar(arr, ord) {
+    const sinal = ord[1] === 'asc' ? 1 : -1;
+    return arr.sort((a, b) => {
+      const c = a[ord[0]] < b[ord[0]] ? -1 : a[ord[0]] > b[ord[0]] ? 1 : (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+      return c * sinal;
+    });
+  }
+  function escreverNoCache(op, d) {
+    ouvintes.forEach((L) => {
+      if (L.tipo !== 'col' || !L.docs) return;
+      const docs = L.docs.filter((x) => x.id !== d.id); // tira a versao antiga, se estava na lista
+      if (op === 'put' && casa(d, L.q.w)) docs.push(Object.assign({}, d));
+      ordenar(docs, L.q.ord);
+      if (docs.length > L.q.lim) docs.length = L.q.lim;
+      L.docs = docs;
+      try { L.cb(snapDocs(docs)); } catch (e) { if (L.err) L.err(e); }
+    });
+  }
+  function registrarSeq(n) {
+    if (typeof n !== 'number') { seqConhecido = null; return; } // o servidor nao disse: a proxima checagem recarrega
+    const esperado = seqConhecido !== null && n === seqConhecido + 1;
+    const pulou = seqConhecido !== null && !esperado;
+    seqConhecido = n;
+    if (pulou) atualizarOuvintes('col'); // alguem gravou no meio
+  }
+
   async function rodar(q) {
     const b = await base();
     const params = { ordem: q.ord[1] === 'asc' ? 'asc' : 'desc', limite: '1000' };
@@ -238,7 +288,21 @@
     clearTimeout(agendado);
     agendado = setTimeout(() => ouvintes.forEach((L) => { if (!tipo || L.tipo === tipo) disparar(L); }), 150);
   }
-  setInterval(() => { if (document.visibilityState === 'visible') atualizarOuvintes(null); }, 120000);
+  // A cada poucos minutos (aba visivel) e ao voltar para a aba: configuracoes sao poucos itens pequenos, entao
+  // recarregam; os lancamentos so recarregam se o seq mudou (ou se nao deu para ler).
+  async function checar() {
+    if (document.visibilityState !== 'visible') return;
+    ultimaChecagem = Date.now();
+    atualizarOuvintes('doc');
+    try {
+      const s = await lerSeq();
+      if (s === null || s !== seqConhecido) atualizarOuvintes('col');
+    } catch (e) { atualizarOuvintes('col'); }
+  }
+  setInterval(checar, 180000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - ultimaChecagem > 60000) checar();
+  });
 
   function Consulta(w, ord, lim) { this.w = w || []; this.ord = ord || ['dataEvento', 'desc']; this.lim = lim || 1000; }
   Consulta.prototype.where = function (f, op, v) { return new Consulta(this.w.concat([[f, op, v]]), this.ord, this.lim); };
@@ -247,14 +311,22 @@
   Consulta.prototype.get = async function () { return snapDocs(await rodar(this)); };
   Consulta.prototype.onSnapshot = function (cb, err) {
     const q = this;
-    const L = { tipo: 'col', run: async () => snapDocs(await rodar(q)), cb, err };
+    const L = { tipo: 'col', q, docs: [] };
+    L.run = async () => {
+      const s = await lerSeq().catch(() => null); // lido ANTES dos lancamentos: nada gravado no meio se perde
+      L.docs = await rodar(q);
+      seqConhecido = s;
+      return snapDocs(L.docs);
+    };
+    L.cb = cb; L.err = err;
     ouvintes.add(L); disparar(L);
     return () => ouvintes.delete(L);
   };
   Consulta.prototype.add = async function (obj) {
     const { body } = escrita(await api('POST', (await base()) + '/tx', obj));
-    guardar(body); atualizarOuvintes('col');
-    return { id: body.id };
+    const { _seq, ...d } = body;
+    guardar(d); escreverNoCache('put', d); registrarSeq(_seq);
+    return { id: d.id };
   };
   Consulta.prototype.doc = function (id) {
     return {
@@ -262,13 +334,14 @@
         const antigo = cache.get(id);
         if (!antigo) throw new Error('Lancamento nao carregado: recarregue a pagina.');
         const { body } = escrita(await api('PUT', (await base()) + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento), patch));
-        guardar(body); atualizarOuvintes('col');
+        const { _seq, ...d } = body;
+        guardar(d); escreverNoCache('put', d); registrarSeq(_seq);
       },
       delete: async () => {
         const antigo = cache.get(id);
         if (!antigo) throw new Error('Lancamento nao carregado: recarregue a pagina.');
-        escrita(await api('DELETE', (await base()) + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento)));
-        cache.delete(id); atualizarOuvintes('col');
+        const { body } = escrita(await api('DELETE', (await base()) + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento)));
+        cache.delete(id); escreverNoCache('del', { id }); registrarSeq(body._seq);
       }
     };
   };

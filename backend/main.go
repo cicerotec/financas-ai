@@ -90,6 +90,8 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 		return putCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]), body)
 	case acaoAdicionarTags:
 		return postTags(ctx, sid, body)
+	case acaoLerSeq:
+		return getSeq(ctx, sid)
 	case acaoLerFech:
 		return getFechamentos(ctx, sid)
 	case acaoEscreverFech:
@@ -219,7 +221,7 @@ func postTx(ctx context.Context, sid string, u *user, body doc) (resp, error) {
 		invalidarSaldos(ctx, sid, []alvo{al})
 	}
 	garantirTagsServidor(ctx, sid, tagsDe(body))
-	return out(201, publico(body))
+	return out(201, comSeq(ctx, sid, publico(body)))
 }
 
 var reID = regexp.MustCompile(`^[a-z0-9]{6,40}$`)
@@ -299,7 +301,12 @@ func postTxBatch(ctx context.Context, sid string, u *user, body doc) (resp, erro
 			pendentes = append(pendentes, publico(d))
 		}
 	}
-	return out(200, doc{"gravados": enviados - len(pend), "rejeitados": rejeitados, "pendentes": pendentes})
+	resposta := doc{}
+	if enviados > len(pend) {
+		comSeq(ctx, sid, resposta) // algo foi gravado: quem mais estiver com a tela aberta precisa saber
+	}
+	resposta["gravados"], resposta["rejeitados"], resposta["pendentes"] = enviados-len(pend), rejeitados, pendentes
+	return out(200, resposta)
 }
 
 // BatchWriteItem com nova tentativa dos itens nao processados (limite de escrita).
@@ -389,7 +396,7 @@ func putTx(ctx context.Context, sid, id, de string, body doc, sub string, restri
 		invalidarSaldos(ctx, sid, alvos)
 	}
 	garantirTagsServidor(ctx, sid, tagsDe(novo))
-	return out(200, publico(novo))
+	return out(200, comSeq(ctx, sid, publico(novo)))
 }
 
 func delTx(ctx context.Context, sid, id, de string) (resp, error) {
@@ -414,7 +421,11 @@ func delTx(ctx context.Context, sid, id, de string) (resp, error) {
 	if antigo != nil && temAlvo {
 		invalidarSaldos(ctx, sid, []alvo{al})
 	}
-	return out(200, doc{"ok": true})
+	resposta := doc{"ok": true}
+	if antigo != nil {
+		comSeq(ctx, sid, resposta)
+	}
+	return out(200, resposta)
 }
 
 func getCfg(ctx context.Context, pk, sk string) (resp, error) {

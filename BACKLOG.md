@@ -18,7 +18,8 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 ### Backend (Go, DynamoDB, Cognito, API)
 - 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
   ao fechamento mensal; faltam as faturas do cartão e as tendências).
-- 12. [ ] **[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho; quem
+- 12. [ ] **[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho (o contador
+  `seq` e a checagem barata já existem; falta o log do que mudou, para atualizar só os registros afetados); quem
   criou/alterou/ocultou; "novo desde a última visita"; atividade recente; idempotência e edição concorrente
   (exige trabalho no front também).
 - 13. [ ] **[Depois] Colaboração, Fase 2:** presença em tempo real ("fulano está mexendo neste registro agora").
@@ -80,6 +81,9 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   Item `SALDO#<banco>` no DynamoDB e rotas `/fechamentos`.
 - Verificação arquivo x banco de dados na importação (v0.4.0, PR #21): compara o arquivo com o que ficou gravado, por
   ano e banco; chave igual é o mesmo lançamento (o app não grava duplicados).
+- Sincronização da tela por contador `seq`: cada escrita soma 1 no item `SEQ` do espaço; a escrita própria atualiza só
+  aquele registro no cache (write-through, sem reler os 1000 lançamentos); a checagem a cada 3 min lê só o `seq`. Veio
+  de excluir em série estourar a capacidade de leitura da tabela (5 RCU).
 - Scripts: `deploy.ps1`, `aws-mfa.ps1`, `publicar-front.ps1`, `seed.sh`, `definir-nome.sh`, `limpar-espaco.py`.
 
 ## Fluxo de branches e versões (convenção simples)
