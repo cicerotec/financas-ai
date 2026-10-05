@@ -33,7 +33,7 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 - 8. [ ] **[Próximo] Carregar os anos anteriores** (do mais novo para o mais antigo). Já dá para importar: meses
   anteriores à data de início do banco são histórico e não são travados pelo fechamento mensal. Antes de importar,
   conferir na planilha as datas fora do mês da aba (no app o mês é o da data, não o da aba).
-- 9. [ ] **[Próximo] Importação do `.xlsx` usando o endpoint de lote** (hoje grava um lançamento por requisição).
+- 9. [x] **Importação do `.xlsx` usando o endpoint de lote** (25 por chamada, com contador de progresso e erro tratado).
 - 23. [ ] **[Depois] Fechamento mensal, melhorias:** "ver mais" na lista (hoje mostra os últimos 12 meses); aviso quando
   um mês conferido deixa de bater com o que foi guardado; "reabrir tudo" de uma vez (hoje reabre do mais novo para o
   mais antigo, um por vez); conferir meses anteriores ao último conferido sem reabrir os mais novos.
@@ -84,6 +84,9 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 - Sincronização da tela por contador `seq`: cada escrita soma 1 no item `SEQ` do espaço; a escrita própria atualiza só
   aquele registro no cache (write-through, sem reler os 1000 lançamentos); a checagem a cada 3 min lê só o `seq`. Veio
   de excluir em série estourar a capacidade de leitura da tabela (5 RCU).
+- Importação da planilha em lote (PR #27): 25 linhas por chamada, ids gerados na tela (reenviar nunca duplica), contador
+  `N/total (%) · tempo` que continua andando enquanto espera o banco, tentativas automáticas em falha de rede/5xx e
+  aviso claro de onde parou. Veio de importar 1413 lançamentos um a um estourar a capacidade de escrita da tabela.
 - Scripts: `deploy.ps1`, `aws-mfa.ps1`, `publicar-front.ps1`, `seed.sh`, `definir-nome.sh`, `limpar-espaco.py`.
 
 ## Fluxo de branches e versões (convenção simples)

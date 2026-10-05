@@ -2940,33 +2940,71 @@ function mostrarPreview(){
   document.getElementById('cardPreview').classList.remove('hidden');
 }
 
+function fmtDuracao(seg){ return seg < 60 ? seg + 's' : Math.floor(seg/60) + 'min ' + String(seg%60).padStart(2,'0') + 's'; }
+function novoIdLinha(){
+  const alfa = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from(crypto.getRandomValues(new Uint8Array(20)), b=>alfa[b % alfa.length]).join('');
+}
+// Importa a planilha em lotes de 25 (endpoint de lote). Cada linha leva um id gerado aqui, então reenviar um lote
+// nunca duplica. Se parar no meio, a prévia é descartada: processar o mesmo arquivo de novo importa só o que faltou.
 async function confirmarImportacao(){
   const btn = document.getElementById('btnConfirmarImport');
   const statusEl = document.getElementById('importStatus');
+  if(!db || !db.importarLancamentos){ await avisar("Importação em lote indisponível nesta visualização."); return; }
+  const itens = lancamentosParaImportar, total = itens.length;
   btn.disabled = true;
-  btn.textContent = 'Processando...';
-  statusEl.textContent = `Importando... 0/${lancamentosParaImportar.length}`;
-  if(!db){ await avisar("Banco de dados indisponível nesta visualização."); btn.disabled=false; btn.textContent='Confirmar importação'; return; }
-  const bancosNovos = new Set(listas.banco);
-  const statusNovos = new Set(listas.status);
-  const tagsNovas = new Set(tagsUsadas);
-  let feitos = 0;
-  for(const l of lancamentosParaImportar){
-    if(l.banco && !bancosNovos.has(l.banco)) bancosNovos.add(l.banco);
-    if(l.status && !statusNovos.has(l.status)) statusNovos.add(l.status);
-    (l.tags||[]).forEach(t=>tagsNovas.add(t));
-    await db.collection("lancamentos").add({...l, criadoEm:new Date().toISOString()});
-    feitos++;
-    statusEl.textContent = `Importando... ${feitos}/${lancamentosParaImportar.length}`;
+  const inicio = Date.now(), est = {feitos:0, espera:0};
+  const desenhar = ()=>{
+    const pct = total ? Math.floor(est.feitos*100/total) : 100;
+    btn.textContent = `Importando ${est.feitos}/${total}…`;
+    statusEl.textContent = `Importando… ${est.feitos}/${total} (${pct}%) · ${fmtDuracao(Math.round((Date.now()-inicio)/1000))}`
+      + (est.espera ? ` · aguardando o banco de dados liberar capacidade (tentativa ${est.espera})…` : '')
+      + ' Não feche esta página.';
+  };
+  desenhar();
+  const tique = setInterval(desenhar, 1000); // o tempo corre mesmo quando está esperando o banco
+  window.onbeforeunload = e=>{ e.preventDefault(); e.returnValue = ''; };
+  let r = null, erro = null;
+  try{
+    // listas e tags ANTES: se a importação parar no meio, o que já entrou não fica com banco, status ou tag desconhecidos
+    const bancosNovos = new Set(listas.banco), statusNovos = new Set(listas.status), tagsNovas = new Set(tagsUsadas);
+    itens.forEach(l=>{
+      if(l.banco) bancosNovos.add(l.banco);
+      if(l.status) statusNovos.add(l.status);
+      (l.tags||[]).forEach(t=>tagsNovas.add(t));
+    });
+    if(bancosNovos.size!==listas.banco.length || statusNovos.size!==listas.status.length){
+      listas.banco = [...bancosNovos]; listas.status = [...statusNovos];
+      await salvarListas();
+    }
+    if(tagsNovas.size!==tagsUsadas.length) await db.doc("config/tags").set({usadas:[...tagsNovas]});
+    const agora = new Date().toISOString();
+    r = await db.importarLancamentos(itens.map(l=>({...l, id:novoIdLinha(), criadoEm:agora})), (feitos, tot, info)=>{
+      est.feitos = feitos; est.espera = info && info.espera ? info.espera : 0; desenhar();
+    });
+  }catch(e){
+    console.error(e);
+    erro = e;
+  }finally{
+    clearInterval(tique);
+    window.onbeforeunload = null;
+    btn.disabled = false;
+    btn.textContent = 'Confirmar importação';
   }
-  listas.banco = [...bancosNovos]; listas.status = [...statusNovos];
-  await salvarListas();
-  await db.doc("config/tags").set({usadas:[...tagsNovas]});
-  statusEl.textContent = `Importação concluída: ${feitos} lançamentos.`;
-  document.getElementById('cardPreview').classList.add('hidden');
-  lancamentosParaImportar = [];
-  btn.disabled = false;
-  btn.textContent = 'Confirmar importação';
+  const dur = fmtDuracao(Math.round((Date.now()-inicio)/1000));
+  if(erro){
+    const gravados = erro.gravados != null ? erro.gravados : 0;
+    statusEl.textContent = `⚠️ A importação parou em ${est.feitos}/${total} (${gravados} gravados): ${(erro && erro.message) || erro}. Nada se perde nem duplica: processe o mesmo arquivo de novo e confirme, que só o que faltou é importado.`;
+    toast('A importação parou. Veja a mensagem na aba Importar.', true);
+    document.getElementById('cardPreview').classList.add('hidden');
+    lancamentosParaImportar = [];
+  }else{
+    statusEl.textContent = `Importação concluída: ${r.gravados} lançamento(s) em ${dur}.`
+      + (r.rejeitados.length ? ` ${r.rejeitados.length} rejeitado(s): ` + r.rejeitados.slice(0,5).map(x=>`#${x.indice+1} ${x.motivo}`).join('; ') + (r.rejeitados.length>5?'…':'') + '.' : '');
+    toast('✓ Importação concluída: ' + r.gravados + ' lançamentos');
+    document.getElementById('cardPreview').classList.add('hidden');
+    lancamentosParaImportar = [];
+  }
   await verificarArquivoXBanco();
 }
 
