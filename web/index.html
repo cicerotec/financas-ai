@@ -2790,11 +2790,13 @@ function parseLinhas(linhas, notaDe){
 // Verifica duplicidade consultando o BANCO DE DADOS diretamente (não o cache limitado
 // da tela, que só guarda os 1000 lançamentos mais recentes e por isso "esquece" de
 // meses antigos assim que o total passa disso).
+// A conta é por quantidade: se o arquivo tem 2 linhas iguais e o banco já tem 1, entra 1; se o banco já tem as 2,
+// nenhuma entra (repetir o mesmo arquivo não duplica). Linhas iguais no arquivo são lançamentos distintos.
 async function deduplicarContraBanco(resultado){
   if(!db) return {resultado, duplicadas:0};
   const bancosNoLote = [...new Set(resultado.map(l=>l.banco||''))];
   const datas = resultado.map(l=>l.dataEvento).filter(Boolean).sort();
-  const existentes = new Set();
+  const existentes = new Map(); // chave -> quantos já estão no banco
   if(datas.length){
     // Um duplicado só pode existir dentro do período do lote (a chave inclui a data exata).
     const de = datas[0], ate = datas[datas.length-1];
@@ -2807,15 +2809,13 @@ async function deduplicarContraBanco(resultado){
         // sem conferir, a importação poderia duplicar: melhor parar do que seguir
         throw new Error(`não consegui conferir duplicidade em "${banco}" (${(e && e.message) || e})`);
       }
-      snap.docs.forEach(d=>existentes.add(chaveLancamento(d.data())));
+      snap.docs.forEach(d=>{ const k = chaveVerif(d.data()); existentes.set(k, (existentes.get(k)||0) + 1); });
     }
   }
-  const vistos = new Set();
   let duplicadas = 0;
   const filtrado = resultado.filter(l=>{
-    const k = chaveLancamento(l);
-    if(existentes.has(k) || vistos.has(k)){ duplicadas++; return false; }
-    vistos.add(k);
+    const k = chaveVerif(l), tem = existentes.get(k) || 0;
+    if(tem > 0){ existentes.set(k, tem - 1); duplicadas++; return false; }
     return true;
   });
   return {resultado: filtrado, duplicadas};
@@ -3114,7 +3114,7 @@ function htmlVerificacao(grupos, lote){
   });
   if(itens.length){
     h += `<div style="max-height:240px;overflow-y:auto;margin-top:8px;">${itens.slice(0,200).join('')}${itens.length>200?`<div class="item-meta">… e mais ${itens.length-200}.</div>`:''}</div>`;
-    if(!lote.porId) h += '<p class="muted">Se a mesma compra aparece mais de uma vez no arquivo (mesmo dia, valor, banco e descrição), o importador grava só uma. Se forem lançamentos diferentes de verdade, cadastre o que faltou na aba Lançar.</p>';
+    if(!lote.porId) h += '<p class="muted">Se alguma linha acima já deveria ter entrado, confira se ela mudou de descrição, valor, banco, data ou tipo no Histórico depois da importação, e importe de novo.</p>';
   }
   return h;
 }
