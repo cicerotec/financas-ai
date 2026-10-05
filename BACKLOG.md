@@ -1,6 +1,6 @@
 # Backlog e roadmap
 
-Atualizado em 2026-10-04. Uma única ordem de prioridade (as três faixas abaixo); os detalhes de cada item ficam nas
+Atualizado em 2026-10-05. Uma única ordem de prioridade (as três faixas abaixo); os detalhes de cada item ficam nas
 seções depois delas. Marque `[x]` ao concluir.
 
 ## Roadmap
@@ -38,6 +38,8 @@ seções depois delas. Marque `[x]` ao concluir.
 19. [ ] **Script de release** (`scripts/lancar-versao.ps1 <versão>`): PR `develop → main`, merge, tag e release em um
     comando, para não depender de lembrar a sequência (ver "Fluxo de branches e versões").
 20. [ ] **Ideias** (seção no fim).
+21. [ ] **UX, próximos passos** (a partir de observar o uso real; detalhes em "UX"): barra de navegação inferior no
+    celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar.
 
 ## Já feito (resumo)
 - Backend AWS (SAM + Go + DynamoDB + Cognito), publicado; login com Cognito (Hosted UI + PKCE).
@@ -48,6 +50,13 @@ seções depois delas. Marque `[x]` ao concluir.
 - Autorização por papel no backend (owner/member) com testes; front por papel; teste com um member de verdade.
 - Nome de exibição (PR #3). Eventos futuros, Parte A (PR #4).
 - Hospedagem do front em S3 privado + CloudFront (PR #5). Primeira release `v0.1.0` na `main`.
+- UX de Lançar e Histórico (v0.2.0, PR #11): aviso ao salvar, botão ocupado contra clique duplo, erro visível, data na
+  transferência, Status/Tipo/Valor na mesma linha, Histórico abre no mês corrente com setas e botão Mês atual, ordem
+  por botão Data ↓/↑, Enter dispara a busca. Guarda de publicação nos scripts (PR #10).
+- Filtro por combos e tags no Histórico (painel recolhido) e nas Tendências, "todas as tags" como padrão (v0.3.0,
+  PR #13).
+- Remover status migra os lançamentos para outro status; remover banco é bloqueado se em uso; X dos bancos só para o
+  dono (v0.3.1, PR #15).
 - Scripts: `deploy.ps1`, `aws-mfa.ps1`, `publicar-front.ps1`, `seed.sh`, `definir-nome.sh`, `limpar-espaco.py`.
 
 ## Fluxo de branches e versões (convenção simples)
@@ -162,6 +171,18 @@ auto-save visível no Histórico). Presença é efêmera, separada dos dados e e
 - Cuidados: o `head.json` público deve ter só o `seq` (presença e nomes vêm da API autenticada); a presença não pode
   incrementar o `seq` dos dados; no AppSync os canais precisam de autorização por espaço, o exemplo usa `aws-amplify`
   (exige bundler; o front não tem build) e é preciso confirmar a disponibilidade em `sa-east-1`.
+
+### UX
+Origem: observar a esposa usando o app (sem explicar nada) e anotar onde ela hesita. Repetir a cada rodada.
+- **Barra inferior no celular** com 4 ou 5 destinos (Lançar, Histórico, Cartão, Saldos, Mais); Listas, Tendências,
+  Futuros e Importar ficam em "Mais". Hoje são 8 abas numa barra que rola na horizontal.
+- **Alvos de toque** de Cartão e Saldos (`font-size:12px; padding:4px 10px`) abaixo de 44px; trocar por linha de ações.
+- **Acessibilidade:** abas sem `role="tablist"`/`aria-selected`; `‹ ›` das janelas de faturas são `<span>`, não
+  funcionam por teclado.
+- **Código:** muito `style` inline; `web/index.html` passa de 2.700 linhas (separar CSS e JS).
+- **Seletor de tags:** o do Lançar e o dos filtros duplicam lógica; unificar em um componente.
+- **Observado e já resolvido:** salvar sem resposta, transferência sem data, Enter sem efeito na busca, tudo na tela
+  em Histórico, X de status apagando sem aviso.
 
 ### Ideias
 - `#Garantia` com filtro de garantias vigentes (data de vencimento na nota).
