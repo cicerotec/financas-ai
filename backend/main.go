@@ -90,6 +90,14 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 		return putCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]), body)
 	case acaoAdicionarTags:
 		return postTags(ctx, sid, body)
+	case acaoLerFech:
+		return getFechamentos(ctx, sid)
+	case acaoEscreverFech:
+		return putFechamentos(ctx, sid, body)
+	case acaoConferirMes:
+		return conferirMes(ctx, sid, u.Sub, body)
+	case acaoReabrirMes:
+		return reabrirMes(ctx, sid, body)
 	case acaoLerAparencia:
 		return getCfg(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA")
 	case acaoEditarPerfil:
@@ -196,10 +204,19 @@ func postTx(ctx context.Context, sid string, u *user, body doc) (resp, error) {
 	if err != nil {
 		return erro(400, "dados invalidos")
 	}
+	al, temAlvo := alvoDe(body)
+	if temAlvo {
+		if r, bloq := respTrava(novasTravas(ctx, sid).checar(al)); bloq {
+			return r, nil
+		}
+	}
 	if _, err := db.PutItem(ctx, &dynamodb.PutItemInput{TableName: &table, Item: item,
 		ConditionExpression: aws.String("attribute_not_exists(PK)")}); err != nil {
 		log.Println("post tx:", err)
 		return erro(500, "erro ao salvar")
+	}
+	if temAlvo {
+		invalidarSaldos(ctx, sid, []alvo{al})
 	}
 	garantirTagsServidor(ctx, sid, tagsDe(body))
 	return out(201, publico(body))
@@ -219,6 +236,8 @@ func postTxBatch(ctx context.Context, sid string, u *user, body doc) (resp, erro
 	var reqs []types.WriteRequest
 	rejeitados := []doc{}
 	vistas := map[string]bool{}
+	tr := novasTravas(ctx, sid)
+	var alvos []alvo
 	for i, x := range bruto {
 		d, ok := x.(map[string]any)
 		if !ok {
@@ -245,17 +264,33 @@ func postTxBatch(ctx context.Context, sid string, u *user, body doc) (resp, erro
 			continue
 		}
 		vistas[d["SK"].(string)] = true
+		al, temAlvo := alvoDe(d)
+		if temAlvo {
+			if err := tr.checar(al); err != nil {
+				var te *travaErro
+				if !errors.As(err, &te) {
+					log.Println("trava:", err)
+					return erro(500, "erro interno")
+				}
+				rejeitados = append(rejeitados, doc{"indice": i, "motivo": "mes conferido e travado (" + te.banco + ", " + te.mes + ")"})
+				continue
+			}
+		}
 		item, err := marshal(d)
 		if err != nil {
 			rejeitados = append(rejeitados, doc{"indice": i, "motivo": "dados invalidos"})
 			continue
 		}
 		reqs = append(reqs, types.WriteRequest{PutRequest: &types.PutRequest{Item: item}})
+		if temAlvo {
+			alvos = append(alvos, al)
+		}
 	}
 	enviados := len(reqs)
 	pend := reqs
 	if enviados > 0 {
 		pend = gravarLote(ctx, reqs)
+		invalidarSaldos(ctx, sid, alvos)
 	}
 	pendentes := []doc{}
 	for _, w := range pend {
@@ -311,6 +346,7 @@ func putTx(ctx context.Context, sid, id, de string, body doc, sub string, restri
 		return erro(http.StatusForbidden, "so e possivel editar os lancamentos criados por voce")
 	}
 	protegidos(body)
+	antes := copiaRasa(antigo)
 	novo := antigo
 	for k, v := range body {
 		novo[k] = v
@@ -322,6 +358,20 @@ func putTx(ctx context.Context, sid, id, de string, body doc, sub string, restri
 	item, err := marshal(novo)
 	if err != nil {
 		return erro(400, "dados invalidos")
+	}
+	var alvos []alvo
+	if mudaSaldo(antes, novo) { // editar descricao, nota ou tags nao mexe no saldo e nao e travado
+		for _, d := range []doc{antes, novo} {
+			if al, ok := alvoDe(d); ok {
+				alvos = append(alvos, al)
+			}
+		}
+		tr := novasTravas(ctx, sid)
+		for _, al := range alvos {
+			if r, bloq := respTrava(tr.checar(al)); bloq {
+				return r, nil
+			}
+		}
 	}
 	if novo["SK"] == txSK(de, id) {
 		_, err = db.PutItem(ctx, &dynamodb.PutItemInput{TableName: &table, Item: item})
@@ -335,6 +385,9 @@ func putTx(ctx context.Context, sid, id, de string, body doc, sub string, restri
 		log.Println("put tx:", err)
 		return erro(500, "erro ao salvar")
 	}
+	if len(alvos) > 0 {
+		invalidarSaldos(ctx, sid, alvos)
+	}
 	garantirTagsServidor(ctx, sid, tagsDe(novo))
 	return out(200, publico(novo))
 }
@@ -344,9 +397,22 @@ func delTx(ctx context.Context, sid, id, de string) (resp, error) {
 	if err != nil {
 		return erro(400, "parametro de (dataEvento atual) obrigatorio")
 	}
+	antigo, err := getItem(ctx, spacePK(sid), txSK(de, id))
+	if err != nil {
+		return erro(500, "erro interno")
+	}
+	al, temAlvo := alvoDe(antigo)
+	if antigo != nil && temAlvo {
+		if r, bloq := respTrava(novasTravas(ctx, sid).checar(al)); bloq {
+			return r, nil
+		}
+	}
 	if _, err := db.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: &table, Key: key(spacePK(sid), txSK(de, id))}); err != nil {
 		log.Println("del tx:", err)
 		return erro(500, "erro ao excluir")
+	}
+	if antigo != nil && temAlvo {
+		invalidarSaldos(ctx, sid, []alvo{al})
 	}
 	return out(200, doc{"ok": true})
 }

@@ -19,6 +19,10 @@ const (
 	acaoLerAparencia    acao = "aparencia.ler"
 	acaoEscreverAparenc acao = "aparencia.escrever"
 	acaoEditarPerfil    acao = "perfil.editar" // o proprio nome de exibicao
+	acaoLerFech         acao = "fechamento.ler"
+	acaoEscreverFech    acao = "fechamento.escrever" // cache dos meses fechados
+	acaoConferirMes     acao = "fechamento.conferir"
+	acaoReabrirMes      acao = "fechamento.reabrir"
 )
 
 type decisao int
@@ -40,12 +44,14 @@ func permitido(papel string, a acao) decisao {
 	case papelOwner:
 		switch a {
 		case acaoLerTx, acaoCriarTx, acaoEditarTx, acaoExcluirTx, acaoImportarTx,
-			acaoLerCfg, acaoEscreverCfg, acaoAdicionarTags, acaoLerAparencia, acaoEscreverAparenc, acaoEditarPerfil:
+			acaoLerCfg, acaoEscreverCfg, acaoAdicionarTags, acaoLerAparencia, acaoEscreverAparenc, acaoEditarPerfil,
+			acaoLerFech, acaoEscreverFech, acaoConferirMes, acaoReabrirMes:
 			return liberado
 		}
 	case papelMember:
 		switch a {
-		case acaoLerTx, acaoCriarTx, acaoLerCfg, acaoAdicionarTags, acaoLerAparencia, acaoEscreverAparenc, acaoEditarPerfil:
+		case acaoLerTx, acaoCriarTx, acaoLerCfg, acaoAdicionarTags, acaoLerAparencia, acaoEscreverAparenc, acaoEditarPerfil,
+			acaoLerFech:
 			return liberado
 		case acaoEditarTx:
 			return soDono
@@ -88,6 +94,17 @@ func rotaParaAcao(metodo string, rest []string) (acao, bool) {
 		case "PUT":
 			return acaoEscreverCfg, true
 		}
+	case len(rest) == 1 && rest[0] == "fechamentos":
+		switch metodo {
+		case "GET":
+			return acaoLerFech, true
+		case "PUT":
+			return acaoEscreverFech, true
+		}
+	case len(rest) == 2 && rest[0] == "fechamentos" && rest[1] == "conferir" && metodo == "POST":
+		return acaoConferirMes, true
+	case len(rest) == 2 && rest[0] == "fechamentos" && rest[1] == "reabrir" && metodo == "POST":
+		return acaoReabrirMes, true
 	case len(rest) == 1 && rest[0] == "tags" && metodo == "POST":
 		return acaoAdicionarTags, true
 	case len(rest) == 1 && rest[0] == "perfil" && metodo == "PUT":
