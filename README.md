@@ -27,7 +27,7 @@ traduz para as rotas da Lambda.
 | Pasta ou arquivo | O que tem |
 |---|---|
 | `web/` | O app. `index.html` (telas e lógica), `api.js` (cliente da API e do login), `config.example.js` (modelo; `config.js` fica fora do git) |
-| `backend/` | Lambda em Go: `main.go` (rotas), `authz.go` (permissões por papel), `store.go` (DynamoDB), `auth.go` (token), `tags.go`, `perfil.go` e os testes `*_test.go` |
+| `backend/` | Lambda em Go: `main.go` (rotas), `authz.go` (permissões por papel), `store.go` (DynamoDB), `auth.go` (token), `tags.go`, `perfil.go`, `fechamento.go` (fechamento mensal dos saldos), `seq.go` (contador de alterações) e os testes `*_test.go` |
 | `template.yaml` | Infra (SAM): tabela, Cognito, Lambda, bucket e distribuição do CloudFront |
 | `scripts/` | Deploy, sessão com MFA, publicação do front, convite de usuários e manutenção (ver abaixo) |
 | `docs/` | Documentos de projeto |
@@ -83,6 +83,7 @@ A regra está em `backend/authz.go` e tem testes; o que não está liberado expl
 | Lançamento | `SPACE#<id>` | `TX#<dataEvento>#<id>` |
 | Configuração compartilhada | `SPACE#<id>` | `CFG#LISTAS`, `CFG#TAGS`, `CFG#COMBOS`, `CFG#CARTOES`, `CFG#SALDOS` |
 | Fechamento mensal de um banco | `SPACE#<id>` | `SALDO#<banco>` |
+| Contador de alterações do espaço | `SPACE#<id>` | `SEQ` |
 | Dados do espaço | `SPACE#<id>` | `META` |
 | Vínculo da pessoa com o espaço (papel) | `USER#<sub>` | `SPACE#<id>` |
 | Aparência da pessoa | `SPACE#<id>` | `USER#<sub>#CFG#APARENCIA` |
@@ -165,8 +166,19 @@ repetidas no arquivo contam como o mesmo lançamento: o app não grava duplicado
 na importação quanto na verificação, que avisa quantas linhas repetidas havia). Linhas sem data ou valor, ignoradas na
 leitura, são contadas à parte.
 
+## Sincronização da tela (contador `seq`)
+O front mantém um cache dos 1000 lançamentos mais recentes. Cada escrita de lançamento (criar, editar, excluir,
+importar) soma 1 no item `SEQ` do espaço e devolve o valor novo em `_seq`.
+- **Escrita própria:** a tela ajusta só aquele registro no cache e o reentrega, sem reler o banco. Se o `_seq` que volta
+  é o anterior mais 1, ninguém gravou no meio; se pulou, outra pessoa gravou e o cache é recarregado.
+- **Checagem periódica** (a cada 3 minutos com a aba visível, e ao voltar para a aba): lê só `GET /spaces/{sid}/seq`
+  (1 leitura). Só recarrega os 1000 lançamentos se o número mudou ou não deu para lê-lo.
+- O `seq` é um número do DynamoDB (até 38 dígitos) e trafega como número JSON, sem conversão para inteiro de 32 bits.
+  Não há log de "o que mudou": quando o número muda, o cache é recarregado inteiro (o log está no BACKLOG, item 12).
+
 ## Limitações conhecidas
 - O front carrega os 1000 lançamentos mais recentes; meses mais antigos são buscados sob demanda pela navegação do
-  Histórico. Saldos e faturas são calculados no navegador, lendo o histórico (mover isso para a Lambda está no backlog).
-- A tela só vê o que outra pessoa gravou ao recarregar ou na checagem periódica; colaboração em tempo real é uma proposta
-  em `docs/`.
+  Histórico. O saldo de cada banco parte do último fechamento mensal e lê só os meses seguintes; as faturas do cartão
+  e as tendências ainda são calculadas no navegador, lendo o histórico (mover isso para a Lambda está no backlog).
+- A tela só vê o que outra pessoa gravou na checagem periódica (a cada 3 minutos, com a aba visível, e ao voltar para a
+  aba); colaboração em tempo real é uma proposta em `docs/`.

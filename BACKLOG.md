@@ -18,7 +18,8 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 ### Backend (Go, DynamoDB, Cognito, API)
 - 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
   ao fechamento mensal; faltam as faturas do cartão e as tendências).
-- 12. [ ] **[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho; quem
+- 12. [ ] **[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho (o contador
+  `seq` e a checagem barata já existem; falta o log do que mudou, para atualizar só os registros afetados); quem
   criou/alterou/ocultou; "novo desde a última visita"; atividade recente; idempotência e edição concorrente
   (exige trabalho no front também).
 - 13. [ ] **[Depois] Colaboração, Fase 2:** presença em tempo real ("fulano está mexendo neste registro agora").
@@ -29,8 +30,13 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 ### Front (funcionalidades novas)
 - 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
   duplicado).
-- 8. [ ] **[Próximo] Carregar os anos anteriores** (do mais novo para o mais antigo).
+- 8. [ ] **[Próximo] Carregar os anos anteriores** (do mais novo para o mais antigo). Já dá para importar: meses
+  anteriores à data de início do banco são histórico e não são travados pelo fechamento mensal. Antes de importar,
+  conferir na planilha as datas fora do mês da aba (no app o mês é o da data, não o da aba).
 - 9. [ ] **[Próximo] Importação do `.xlsx` usando o endpoint de lote** (hoje grava um lançamento por requisição).
+- 23. [ ] **[Depois] Fechamento mensal, melhorias:** "ver mais" na lista (hoje mostra os últimos 12 meses); aviso quando
+  um mês conferido deixa de bater com o que foi guardado; "reabrir tudo" de uma vez (hoje reabre do mais novo para o
+  mais antigo, um por vez); conferir meses anteriores ao último conferido sem reabrir os mais novos.
 - 17. [ ] **[Depois] Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
 - 20. [ ] **[Depois] Ideias** (seção no fim).
 
@@ -46,7 +52,7 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   release em um comando (ver "Fluxo de branches e versões").
 
 ### Operação (tarefas de uso e dados, não de código)
-- 6. [ ] **[Agora] Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
+- 6. [x] **Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
   definir o **início do controle** de cada um (usando a aba Cartão).
 - 1. [x] **Mergear a PR #3** (nome de exibição) e **a #4** (eventos futuros) em `develop`.
 - 4. [x] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
@@ -69,6 +75,15 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   PR #13).
 - Remover status migra os lançamentos para outro status; remover banco é bloqueado se em uso; X dos bancos só para o
   dono (v0.3.1, PR #15).
+- Fechamento mensal por banco (v0.4.0, PR #20): o saldo parte do último fechamento válido e lê só os meses seguintes;
+  conferência com o extrato com ajuste automático da diferença; mês conferido trava ele e os anteriores (só o dono
+  confere e reabre, e só o mais recente reabre); meses anteriores à data de início são histórico e nunca travam.
+  Item `SALDO#<banco>` no DynamoDB e rotas `/fechamentos`.
+- Verificação arquivo x banco de dados na importação (v0.4.0, PR #21): compara o arquivo com o que ficou gravado, por
+  ano e banco; chave igual é o mesmo lançamento (o app não grava duplicados).
+- Sincronização da tela por contador `seq`: cada escrita soma 1 no item `SEQ` do espaço; a escrita própria atualiza só
+  aquele registro no cache (write-through, sem reler os 1000 lançamentos); a checagem a cada 3 min lê só o `seq`. Veio
+  de excluir em série estourar a capacidade de leitura da tabela (5 RCU).
 - Scripts: `deploy.ps1`, `aws-mfa.ps1`, `publicar-front.ps1`, `seed.sh`, `definir-nome.sh`, `limpar-espaco.py`.
 
 ## Fluxo de branches e versões (convenção simples)
@@ -106,6 +121,7 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 | Renomear/excluir tag, combos, bancos, status, flags | sim | não |
 | Ver saldos, cartão, tendências, futuros | sim | sim (só leitura) |
 | Alterar saldo inicial, fechamento, valor do banco, conferir fatura, início do controle | sim | não |
+| Conferir e reabrir mês de um banco (fechamento mensal) | sim | não (só vê) |
 | Aparência (cores, layout, ordem) e o próprio nome | sim | sim, **só a dela** |
 | Importar / exportar / limpeza | sim | não |
 
@@ -126,7 +142,7 @@ complica o desenvolvimento em `localhost`, e o ganho de segurança é pequeno (o
 anônimo ainda chega à Lambda por ele; limitar abuso de verdade pede WAF, que custa). Reavaliar com domínio próprio,
 WAF ou mais usuários; a troca é localizada (URL base em `config.js`, cabeçalho em `api.js` e `auth.go`, template).
 
-Pronto na branch `feature/hospedagem-s3-cloudfront`:
+Pronto (PR #5, no ar):
 - `template.yaml`: bucket S3 privado, OAC, distribuição (HTTPS, cache gerenciado, cabeçalhos de segurança), política do
   bucket; o CORS da Lambda e as URLs de retorno/saída do Cognito aceitam o CloudFront **e** `localhost`; parâmetro
   `ReservedConcurrency` (teto de execuções simultâneas da Lambda), **desligado (0)**: a conta tem limite de 10 execuções
@@ -210,7 +226,7 @@ Origem: observar a esposa usando o app (sem explicar nada) e anotar onde ela hes
 - **Alvos de toque** de Cartão e Saldos (`font-size:12px; padding:4px 10px`) abaixo de 44px; trocar por linha de ações.
 - **Acessibilidade:** abas sem `role="tablist"`/`aria-selected`; `‹ ›` das janelas de faturas são `<span>`, não
   funcionam por teclado.
-- **Código:** muito `style` inline; `web/index.html` passa de 2.700 linhas (separar CSS e JS).
+- **Código:** muito `style` inline; `web/index.html` passa de 3.200 linhas (separar CSS e JS).
 - **Seletor de tags:** o do Lançar e o dos filtros duplicam lógica; unificar em um componente.
 - **Observado e já resolvido:** salvar sem resposta, transferência sem data, Enter sem efeito na busca, tudo na tela
   em Histórico, X de status apagando sem aviso.
