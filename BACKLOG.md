@@ -173,7 +173,7 @@ Limite conhecido: Futuros e o aviso usam os 1000 lançamentos mais recentes carr
 pode ficar de fora.
 
 ### Colaboração em tempo real
-Referência: `colaboracao-tempo-real.md` (gerado no chat do Claude; arquivo do usuário, não versionado). O problema de
+Referência: [`docs/colaboracao-tempo-real.md`](docs/colaboracao-tempo-real.md) (gerado no chat do Claude). O problema de
 origem: a tela de uma pessoa não percebe o que a outra gravou, alterou ou ocultou (cópia em memória só renovada por
 gravação própria ou a cada 2 min).
 
