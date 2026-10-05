@@ -233,7 +233,10 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
       <button type="button" id="filBancoBtn" class="dropdown-btn">Banco: todos</button>
       <div id="filBancoPanel" class="dropdown-panel hidden"></div>
     </div>
-    <select id="filTag"><option value="">Tag: todas</option></select>
+    <div style="flex:1 1 100%;position:relative;">
+      <button type="button" id="filTagBtn" class="dropdown-btn" aria-haspopup="true">Tags: todas ▾</button>
+      <div id="filTagPanel" class="dropdown-panel hidden" style="max-height:70vh;"><div id="histTags"></div></div>
+    </div>
   </div>
   <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);"><input type="checkbox" id="filMostrarOcultos" style="width:auto;"> mostrar ocultos</label>
   <div class="nav-mes" id="navMes">
@@ -293,8 +296,8 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 
 <section id="tab-tendencias" class="hidden">
   <div class="card">
-    <label>Escolha uma tag</label>
-    <select id="tagChartSelect"></select>
+    <label style="margin-top:0;">Gasto por mês de (toque num combo ou escolha tags; sem seleção mostra tudo)</label>
+    <div id="tendTags"></div>
     <div id="chartArea" style="margin-top:10px;"></div>
   </div>
 </section>
@@ -495,6 +498,7 @@ let filaCombos = Promise.resolve();
 let combosVisiveis = [];
 let tagBusca = '';
 let tagsTodasAbertas = false;
+let seletorHist = null, seletorTend = null;
 let filStatusSelecionados = new Set();
 let filBancoSelecionados = new Set();
 let editandoId = null;
@@ -670,6 +674,7 @@ async function init(){
       try{ renderTagPicker(); }catch(e){}
       cartaoUltimaCalc = 0;
       renderHistorico();
+      try{ desenharGrafico(); }catch(e){}
       renderCartao();
     }, ()=>{ document.getElementById('listaLancamentos').innerHTML = '<p class="muted">Sem acesso ao histórico nesta visualização.</p>'; });
   } else {
@@ -873,6 +878,8 @@ function renderTagPicker(){
     l = `<span data-todas="1" style="cursor:pointer;color:var(--accent);font-size:13px;">Todas as tags (${tagsUsadas.length}) ▾</span>`;
   }
   document.getElementById('tagPicker').innerHTML = l;
+  if(seletorHist) seletorHist.render();
+  if(seletorTend) seletorTend.render();
 }
 function renderCombosLista(){
   const el = document.getElementById('listaCombos');
@@ -885,14 +892,81 @@ function renderCombosLista(){
     salvarCombos(); renderCombosLista(); renderTagPicker();
   });
 }
+// Seletor de tags só para filtrar (Histórico e Tendências): mesmos combos e chips do Lançar, sem criar nada.
+function criarSeletorFiltroTags(raiz, aoMudar){
+  const S = {sel:new Set(), busca:'', abertas:false, modo:'todas', combos:[]};
+  raiz.innerHTML = '<div data-p="combos"></div><div class="tags" data-p="marcadas"></div>' +
+    '<input type="text" data-p="busca" placeholder="Buscar tag..." style="margin-top:8px;">' +
+    '<div class="tags" data-p="lista"></div><div class="tags" data-p="modo"></div>';
+  const q = k=>raiz.querySelector('[data-p="'+k+'"]');
+  const chip = t=>`<span class="tag ${S.sel.has(t)?'on':''}" data-tag="${esc(t)}">${esc(t)}</span>`;
+  function render(){
+    [...S.sel].forEach(t=>{ if(!tagsUsadas.includes(t)) S.sel.delete(t); }); // tag excluída/migrada
+    S.combos = combosAtuaisLista();
+    const sel = [...S.sel], kSel = chaveTags(sel);
+    const sug = S.combos.some(c=>!c.salvo);
+    q('combos').innerHTML = S.combos.length
+      ? `<div class="muted">Combos${sug?' (tracejado = sugerido pelo histórico)':''}</div><div class="tags">` +
+        S.combos.map((c,i)=>{
+          const on = sel.length===c.tags.length && chaveTags(c.tags)===kSel;
+          return `<span class="tag ${on?'on':''}" data-combo="${i}" style="border-radius:8px;${c.salvo?'':'border-style:dashed;'}">${esc(c.tags.join(' · '))}${c.n?` <span style="font-size:11px;">${c.n}x</span>`:''}</span>`;
+        }).join('') + '</div>' : '';
+    q('marcadas').innerHTML = sel.length
+      ? '<span class="muted" style="align-self:center;">Marcadas:</span>' + sel.map(chip).join('') +
+        '<span class="tag" data-limpar="1">Limpar</span>' : '';
+    const b = normTxt(S.busca.trim());
+    q('lista').innerHTML = b
+      ? (tagsUsadas.filter(t=>normTxt(t).includes(b)).map(chip).join('') || '<span class="muted">Nenhuma tag encontrada.</span>')
+      : S.abertas
+        ? '<span data-todas="1" style="cursor:pointer;color:var(--accent);font-size:13px;width:100%;">Recolher ▴</span>' + tagsUsadas.map(chip).join('')
+        : `<span data-todas="1" style="cursor:pointer;color:var(--accent);font-size:13px;">Todas as tags (${tagsUsadas.length}) ▾</span>`;
+    q('modo').innerHTML = sel.length>=2
+      ? '<span class="muted" style="align-self:center;">Mostrar lançamentos que têm:</span>' +
+        `<span class="tag ${S.modo==='todas'?'on':''}" data-modo="todas">todas as tags</span>` +
+        `<span class="tag ${S.modo==='qualquer'?'on':''}" data-modo="qualquer">qualquer uma</span>` : '';
+  }
+  const descricaoSel = ()=>[...S.sel].join(S.modo==='todas' ? ' + ' : ' ou ');
+  function mudou(){ render(); aoMudar(); }
+  q('busca').addEventListener('input', e=>{ S.busca = e.target.value; render(); });
+  raiz.addEventListener('click', e=>{
+    const el = e.target.closest('[data-tag],[data-combo],[data-todas],[data-modo],[data-limpar]');
+    if(!el) return;
+    if(el.dataset.tag!==undefined){ const t = el.dataset.tag; S.sel.has(t) ? S.sel.delete(t) : S.sel.add(t); return mudou(); }
+    if(el.dataset.combo!==undefined){
+      const c = S.combos[parseInt(el.dataset.combo,10)];
+      if(!c) return;
+      S.sel = chaveTags([...S.sel])===chaveTags(c.tags) ? new Set() : new Set(c.tags); // tocar de novo no combo desmarca
+      return mudou();
+    }
+    if(el.dataset.modo){ S.modo = el.dataset.modo; return mudou(); }
+    if(el.dataset.limpar){ S.sel = new Set(); return mudou(); }
+    if(el.dataset.todas){ S.abertas = !S.abertas; render(); }
+  });
+  render();
+  return {
+    render,
+    // sem seleção, tudo passa; com seleção, vale "todas" (padrão) ou "qualquer uma"
+    casa(l){
+      if(!S.sel.size) return true;
+      const tg = l.tags||[], sel = [...S.sel];
+      return S.modo==='todas' ? sel.every(t=>tg.includes(t)) : sel.some(t=>tg.includes(t));
+    },
+    descricao(){ return [...S.sel].join(S.modo==='todas' ? ' + ' : ' ou '); },
+    resumo(){
+      const n = S.sel.size;
+      if(!n) return 'todas';
+      return n<=2 ? descricaoSel() : n+' tags';
+    }
+  };
+}
 function renderTagFilter(){
-  document.getElementById('filTag').innerHTML = '<option value="">Tag: todas</option>' + tagsUsadas.map(t=>`<option>${esc(t)}</option>`).join('');
+  if(!seletorHist) seletorHist = criarSeletorFiltroTags(document.getElementById('histTags'), renderHistorico);
+  else seletorHist.render();
 }
 function renderTagChartSelect(){
-  const sel = document.getElementById('tagChartSelect');
-  sel.innerHTML = tagsUsadas.map(t=>`<option>${esc(t)}</option>`).join('');
-  sel.onchange = ()=>desenharGrafico(sel.value);
-  if(tagsUsadas.length) desenharGrafico(sel.value);
+  if(!seletorTend) seletorTend = criarSeletorFiltroTags(document.getElementById('tendTags'), desenharGrafico);
+  else seletorTend.render();
+  desenharGrafico();
 }
 function renderGerenciarTags(){
   const el = document.getElementById('pillTags');
@@ -980,20 +1054,29 @@ function setupHandlers(){
   document.getElementById('btnTransferir').onclick = registrarTransferencia;
   document.getElementById('tData').value = nowLocalInput().slice(0,10);
 
-  ['filTag'].forEach(id=>document.getElementById(id).addEventListener('change', renderHistorico));
 
   document.getElementById('filStatusBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
     document.getElementById('filBancoPanel').classList.add('hidden');
+    document.getElementById('filTagPanel').classList.add('hidden');
     document.getElementById('filStatusPanel').classList.toggle('hidden');
   });
+  document.getElementById('filTagBtn').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.getElementById('filStatusPanel').classList.add('hidden');
+    document.getElementById('filBancoPanel').classList.add('hidden');
+    document.getElementById('filTagPanel').classList.toggle('hidden');
+  });
+  // os chips são redesenhados a cada toque; sem isso o clique "some" do painel e o fecharia
+  document.getElementById('filTagPanel').addEventListener('click', e=>e.stopPropagation());
   document.getElementById('filBancoBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
+    document.getElementById('filTagPanel').classList.add('hidden');
     document.getElementById('filStatusPanel').classList.add('hidden');
     document.getElementById('filBancoPanel').classList.toggle('hidden');
   });
   document.addEventListener('click', (e)=>{
-    [['filStatusPanel','filStatusBtn'],['filBancoPanel','filBancoBtn']].forEach(([pid,bid])=>{
+    [['filStatusPanel','filStatusBtn'],['filBancoPanel','filBancoBtn'],['filTagPanel','filTagBtn']].forEach(([pid,bid])=>{
       const painel = document.getElementById(pid);
       const btn = document.getElementById(bid);
       if(!painel.classList.contains('hidden') && !painel.contains(e.target) && e.target!==btn){
@@ -1310,8 +1393,8 @@ function renderHistorico(){
   const el = document.getElementById('listaLancamentos');
   const fsList = [...filStatusSelecionados];
   const fbList = [...filBancoSelecionados];
-  const ft = document.getElementById('filTag').value;
   const mostrarOcultos = document.getElementById('filMostrarOcultos').checked;
+  if(seletorHist) document.getElementById('filTagBtn').textContent = 'Tags: ' + seletorHist.resumo() + ' ▾';
   const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache.filter(l=>diaLocal(l).slice(0,7)===mesSel));
   document.getElementById('navMes').classList.toggle('hidden', modoBuscaTexto);
   document.getElementById('filMesEspecifico').value = mesSel;
@@ -1322,7 +1405,7 @@ function renderHistorico(){
   let lista = fonte.filter(l=>
     (incluirFuturos || !ehFuturo(l.status)) &&
     (mostrarOcultos || !l.oculto) &&
-    (!fsList.length || fsList.includes(l.status)) && (!fbList.length || fbList.includes(l.banco)) && (!ft || (l.tags||[]).includes(ft)));
+    (!fsList.length || fsList.includes(l.status)) && (!fbList.length || fbList.includes(l.banco)) && (!seletorHist || seletorHist.casa(l)));
   const ordem = document.getElementById('filOrdenacao').value;
   lista = [...lista].sort((a,b)=> ordem==='asc'
     ? new Date(a.dataEvento) - new Date(b.dataEvento)
@@ -1542,17 +1625,18 @@ document.getElementById('btnLimparBusca').addEventListener('click', limparBuscaT
 document.getElementById('filMostrarOcultos').addEventListener('change', renderHistorico);
 document.getElementById('filOrdenacao').addEventListener('change', renderHistorico);
 
-function desenharGrafico(tag){
+function desenharGrafico(){
   const area = document.getElementById('chartArea');
-  if(!tag){ area.innerHTML=''; return; }
+  if(!area || !seletorTend) return;
+  const casa = l=>seletorTend.casa(l);
   const porMes = {};
-  lancamentosCache.filter(l=>(l.tags||[]).includes(tag) && l.tipo==='saida' && ehStatusReal(l.status)).forEach(l=>{
+  lancamentosCache.filter(l=>casa(l) && l.tipo==='saida' && ehStatusReal(l.status)).forEach(l=>{
     const d = new Date(l.dataEvento);
     const chave = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
     porMes[chave] = (porMes[chave]||0) + l.valor;
   });
   const chaves = Object.keys(porMes).sort();
-  if(!chaves.length){ area.innerHTML = '<p class="muted">Sem lançamentos com essa tag ainda.</p>'; return; }
+  if(!chaves.length){ area.innerHTML = '<p class="muted">Sem gastos com essa seleção ainda.</p>'; return; }
   const max = Math.max(...chaves.map(k=>porMes[k]));
   const w=560,h=180,bw=w/chaves.length;
   let bars = chaves.map((k,i)=>{
