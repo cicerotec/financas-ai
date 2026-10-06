@@ -3105,8 +3105,8 @@ async function lerBancoParaVerificar(itens){
 function compararArquivoBanco(itens, docs, porId){
   const grupos = {};
   const g = l=>{
-    const ano = mesDeISO(l.dataEvento).slice(0,4), banco = l.banco || '(sem banco)';
-    return grupos[ano+'|'+banco] = grupos[ano+'|'+banco] || {ano, banco, arq:totalVazio(), grav:totalVazio(), faltando:[], diferentes:[], extras:0, repetidas:0};
+    const mes = mesDeISO(l.dataEvento), ano = mes.slice(0,4), banco = l.banco || '(sem banco)';
+    return grupos[mes+'|'+banco] = grupos[mes+'|'+banco] || {ano, mes, banco, arq:totalVazio(), grav:totalVazio(), faltando:[], diferentes:[], extras:0, repetidas:0};
   };
   if(porId){
     const mapa = new Map(docs.map(d=>[d.id, d]));
@@ -3131,7 +3131,7 @@ function compararArquivoBanco(itens, docs, porId){
     });
     docs.forEach(d=>{ if(!vistas.has(chaveVerif(d))) g(d).extras++; });
   }
-  return Object.values(grupos).sort((a,b)=>(a.ano+a.banco).localeCompare(b.ano+b.banco));
+  return Object.values(grupos).sort((a,b)=>(a.ano+'|'+a.banco+'|'+a.mes).localeCompare(b.ano+'|'+b.banco+'|'+b.mes));
 }
 
 function htmlVerificacao(grupos, lote){
@@ -3142,11 +3142,31 @@ function htmlVerificacao(grupos, lote){
     : `<p style="color:var(--expense);font-weight:600;">⚠ ${ok} de ${total} lançamentos do arquivo conferem` + (faltam?`; ${faltam} não estão no banco`:'') + (dif?`; ${dif} estão com dados diferentes`:'') + '.</p>';
   if(rep) h += `<p class="muted">${rep} linha(s) repetida(s) no arquivo (mesmo dia, valor, banco, descrição, status e tipo) contam como o mesmo lançamento: o app não grava duplicados.</p>`;
   if(lote.ignoradas) h += `<p class="muted">${lote.ignoradas} linha(s) do arquivo foram ignoradas na leitura (sem data ou sem valor) e não entram nesta conta.</p>`;
-  h += '<div style="overflow-x:auto;"><table style="width:100%;font-size:13px;border-collapse:collapse;"><tr class="muted"><td>Ano</td><td>Banco</td><td style="text-align:right;">Arquivo</td><td style="text-align:right;">Entradas</td><td style="text-align:right;">Saídas</td><td style="text-align:right;">No banco</td><td>Situação</td></tr>';
+  // uma linha por ano e banco (recolhida); clicar nela abre os meses. Quem tem divergência já vem aberto.
+  const porAnoBanco = [];
   grupos.forEach(x=>{
-    const bom = !x.faltando.length && !x.diferentes.length;
-    const sit = bom ? '<span style="color:var(--income);">✓ confere</span>' : `<span style="color:var(--expense);">⚠ ${x.faltando.length+x.diferentes.length} divergente(s)</span>`;
-    h += `<tr style="border-top:1px solid var(--border);"><td>${esc(x.ano)}</td><td>${esc(x.banco)}</td><td style="text-align:right;">${x.arq.n}</td><td style="text-align:right;">${fmtMoeda(x.arq.ent)}</td><td style="text-align:right;">${fmtMoeda(x.arq.sai)}</td><td style="text-align:right;">${x.grav.n}</td><td>${sit}${x.extras?` <span class="muted">(+${x.extras} só no banco)</span>`:''}${x.repetidas?` <span class="muted">(+${x.repetidas} repetida${x.repetidas>1?'s':''} no arquivo)</span>`:''}</td></tr>`;
+    let p = porAnoBanco.find(y=>y.ano===x.ano && y.banco===x.banco);
+    if(!p){ p = {ano:x.ano, banco:x.banco, arq:totalVazio(), grav:totalVazio(), faltando:[], diferentes:[], extras:0, repetidas:0, meses:[]}; porAnoBanco.push(p); }
+    p.meses.push(x);
+    p.arq.n += x.arq.n; p.arq.ent += x.arq.ent; p.arq.sai += x.arq.sai; p.grav.n += x.grav.n;
+    p.faltando = p.faltando.concat(x.faltando); p.diferentes = p.diferentes.concat(x.diferentes);
+    p.extras += x.extras; p.repetidas += x.repetidas;
+  });
+  const situacao = x=>{
+    const n = x.faltando.length + x.diferentes.length;
+    return (n ? `<span style="color:var(--expense);">⚠ ${n} divergente(s)</span>` : '<span style="color:var(--income);">✓ confere</span>')
+      + (x.extras ? ` <span class="muted">(+${x.extras} só no banco)</span>` : '')
+      + (x.repetidas ? ` <span class="muted">(+${x.repetidas} repetida${x.repetidas>1?'s':''} no arquivo)</span>` : '');
+  };
+  const num = 'text-align:right;';
+  h += '<p class="muted" style="margin:4px 0;">Toque numa linha de ano e banco para ver os meses.</p>';
+  h += `<div style="overflow-x:auto;"><table style="width:100%;font-size:13px;border-collapse:collapse;"><tr class="muted"><td>Ano · mês</td><td>Banco</td><td style="${num}">Arquivo</td><td style="${num}">Entradas</td><td style="${num}">Saídas</td><td style="${num}">No banco</td><td>Situação</td></tr>`;
+  porAnoBanco.forEach((p, i)=>{
+    const aberto = p.faltando.length > 0 || p.diferentes.length > 0;
+    h += `<tr data-vf="${i}" style="border-top:1px solid var(--border);cursor:pointer;font-weight:600;"><td><span class="vf-seta">${aberto?'▾':'▸'}</span> ${esc(p.ano)}</td><td>${esc(p.banco)}</td><td style="${num}">${p.arq.n}</td><td style="${num}">${fmtMoeda(p.arq.ent)}</td><td style="${num}">${fmtMoeda(p.arq.sai)}</td><td style="${num}">${p.grav.n}</td><td style="font-weight:400;">${situacao(p)}</td></tr>`;
+    p.meses.forEach(m=>{
+      h += `<tr data-pai="${i}" style="${aberto?'':'display:none;'}"><td class="muted" style="padding-left:18px;">${esc(rotuloMesCurto(m.mes))}</td><td></td><td style="${num}">${m.arq.n}</td><td style="${num}">${fmtMoeda(m.arq.ent)}</td><td style="${num}">${fmtMoeda(m.arq.sai)}</td><td style="${num}">${m.grav.n}</td><td>${situacao(m)}</td></tr>`;
+    });
   });
   h += '</table></div>';
   const itens = [];
@@ -3181,6 +3201,15 @@ function guardarLoteArquivo(itens, ignoradas, porId){
   document.getElementById('cardVerif').classList.add('hidden');
 }
 document.getElementById('btnVerificar').addEventListener('click', ()=>verificarArquivoXBanco());
+document.getElementById('verifCorpo').addEventListener('click', e=>{
+  const tr = e.target.closest('tr[data-vf]');
+  if(!tr) return;
+  const filhos = document.querySelectorAll('#verifCorpo tr[data-pai="' + tr.dataset.vf + '"]');
+  if(!filhos.length) return;
+  const abrir = filhos[0].style.display === 'none';
+  filhos.forEach(f=>{ f.style.display = abrir ? '' : 'none'; });
+  tr.querySelector('.vf-seta').textContent = abrir ? '▾' : '▸';
+});
 
 function limparPreview(){
   lancamentosParaImportar = [];
