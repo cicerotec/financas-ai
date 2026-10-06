@@ -1,0 +1,17 @@
+# main -> publica a stack financas (producao). O environment `prod` exige aprovacao manual antes de o job rodar.
+name: Deploy prod
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      ambiente: prod

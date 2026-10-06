@@ -13,7 +13,8 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 - 22. [x] **Ambiente de teste (`dev`)**: segunda stack `financas-dev` com tabela, login, API e front próprios,
   dados fictícios, sempre ligada, publicada à mão a partir da `develop`. No ar (PRs #33, #34 e #35). Detalhes em
   "Ambiente de teste".
-- 24. [ ] **[Próximo] Deploy por GitHub Actions (OIDC)**: o Action assume uma role IAM por OIDC (sem chave nos secrets,
+- 24. [ ] **[Em andamento] Deploy por GitHub Actions (OIDC)** (workflows, template das roles e guia em
+  `docs/deploy-github-actions.md` prontos; falta a configuração única na AWS e no GitHub): o Action assume uma role IAM por OIDC (sem chave nos secrets,
   confiando só neste repositório e nas branches certas). `develop` publica o dev (`sam deploy --config-env dev` e
   front); `main` publica a prod com aprovação manual (environment protegido do GitHub); PR só valida
   (`sam validate --lint` e testes do Go). Roles separadas para dev e prod. Os parâmetros (`samconfig.toml`) e o

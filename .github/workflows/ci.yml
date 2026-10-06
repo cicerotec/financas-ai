@@ -1,0 +1,29 @@
+# Validacao de PR (develop e main): testes do Go e `sam validate --lint`. Nao usa credenciais da AWS nem publica nada.
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      - name: Testes do Go
+        working-directory: backend
+        run: |
+          go vet ./...
+          go test ./...
+      - name: sam validate --lint
+        run: sam validate --lint --region sa-east-1
