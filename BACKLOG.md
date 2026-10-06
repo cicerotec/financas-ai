@@ -10,10 +10,17 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 - 2. [x] **Decidir o `/api/*`: chamada direta à Function URL (opção B)**, front estático no CloudFront. Reavaliar
   rotear a API pelo CloudFront (OAC) quando entrar domínio próprio, WAF ou mais usuários. Detalhe em "Hospedagem".
 - 3. [x] **Hospedar o front em S3 + CloudFront** (HTTPS, `*.cloudfront.net`). No ar (PR #5). Detalhes em "Hospedagem".
-- 22. [ ] **[Próximo] Ambiente de teste (`dev`)**: segunda stack `financas-dev` com tabela, login, API e front próprios,
-  dados fictícios, sempre ligada, publicada à mão a partir da `develop`. Detalhes em "Ambiente de teste".
-- 11. [ ] **[Próximo] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
-  (exportar JSON e/ou point-in-time recovery do DynamoDB).
+- 22. [x] **Ambiente de teste (`dev`)**: segunda stack `financas-dev` com tabela, login, API e front próprios,
+  dados fictícios, sempre ligada, publicada à mão a partir da `develop`. No ar (PRs #33, #34 e #35). Detalhes em
+  "Ambiente de teste".
+- 24. [ ] **[Próximo] Deploy por GitHub Actions (OIDC)**: o Action assume uma role IAM por OIDC (sem chave nos secrets,
+  confiando só neste repositório e nas branches certas). `develop` publica o dev (`sam deploy --config-env dev` e
+  front); `main` publica a prod com aprovação manual (environment protegido do GitHub); PR só valida
+  (`sam validate --lint` e testes do Go). Roles separadas para dev e prod. Os parâmetros (`samconfig.toml`) e o
+  `config.js` (hoje ignorados pelo git) viriam de variáveis do repositório e dos Outputs da stack. Falhar o passo se o
+  changeset trouxer `Remove` ou `Replacement` na tabela. Pré-requisito: o ambiente dev no ar (item 22).
+- 11. [ ] **[Depois] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
+  (exportar JSON e/ou point-in-time recovery do DynamoDB). Adiado por decisão: não será feito agora.
 
 ### Backend (Go, DynamoDB, Cognito, API)
 - 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
@@ -30,9 +37,9 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 ### Front (funcionalidades novas)
 - 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
   duplicado).
-- 8. [ ] **[Próximo] Carregar os anos anteriores** (do mais novo para o mais antigo). Já dá para importar: meses
-  anteriores à data de início do banco são histórico e não são travados pelo fechamento mensal. Antes de importar,
-  conferir na planilha as datas fora do mês da aba (no app o mês é o da data, não o da aba).
+- 8. [x] **Carregar os anos anteriores** (2025 carregado e conferido com a verificação arquivo x banco de dados). Novas
+  cargas virão: meses anteriores à data de início do banco são histórico e não são travados pelo fechamento mensal.
+  Antes de importar, conferir na planilha as datas fora do mês da aba (no app o mês é o da data, não o da aba).
 - 9. [x] **Importação do `.xlsx` usando o endpoint de lote** (25 por chamada, com contador de progresso e erro tratado).
 - 23. [ ] **[Depois] Fechamento mensal, melhorias:** "ver mais" na lista (hoje mostra os últimos 12 meses); aviso quando
   um mês conferido deixa de bater com o que foi guardado; "reabrir tudo" de uma vez (hoje reabre do mais novo para o
@@ -173,7 +180,16 @@ ligado**, **publicação manual** (automatizar a partir da `develop` fica para d
 - Dados: script que cria um dono e um membro de teste (e-mail "+dev") e carrega dados fictícios com volume parecido
   (status, bancos, cartões, combos, centenas de tags) para testar as telas como a esposa usa.
 - Custo: tabela de teste com 5/5 RCU/WCU; o always-free são 25 no total e a produção já usa 5/5, então cabe.
-- Ordem: template e scripts, primeiro deploy do dev, dados de teste.
+- **Concluído.** Parâmetro `Ambiente` no template, `-Ambiente dev` nos scripts e `--dev` no `limpar-espaco.py`. A
+  publicação é **bloqueada** fora da branch do ambiente (`main` para prod, `develop` para dev), sem opção de pular. O
+  perfil `dev` do `samconfig.toml` fica só na máquina (o arquivo é ignorado pelo git): stack `financas-dev`,
+  `Ambiente="dev"`, `CognitoDomainPrefix="financas-cicero-dev"`. O `web/config.dev.js` (fora do git) leva
+  `ambiente: "dev"`, que acende a faixa laranja "AMBIENTE DE TESTE" e o prefixo `[DEV]` no título da aba.
+- Dados: `scripts/dados-ficticios.py` (grava só em `FinancasApp-dev`; ids fixos, rodar de novo sobrescreve; recomeçar do
+  zero com `limpar-espaco.py <space-id> --dev --confirmar`). Dono e membro criados com `scripts/seed.sh financas-dev`.
+- Fica de fora: configuração de **cartões** e **saldo inicial** por banco nos dados fictícios; as despesas superam as
+  entradas, então os saldos ficam negativos (serve para testar esse caso). A URL é a do CloudFront; domínio próprio só
+  se entrar domínio para a produção.
 
 ### Eventos futuros
 Conceito: status marcados como "evento futuro" (PREVISTO, TRANSFERINDO, CREDITANDO) ainda não aconteceram: não contam

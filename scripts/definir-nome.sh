@@ -9,7 +9,8 @@ STACK=${1:?uso: definir-nome.sh <stack> <email> "<nome>" [space-id]}
 EMAIL=${2:?email}
 NOME=${3-}
 SPACE=${4:-}
-TABLE=FinancasApp
+# a tabela do dev e a da stack financas-dev; em qualquer outra, a de producao
+if [ "$STACK" = "financas-dev" ]; then TABLE=FinancasApp-dev; else TABLE=FinancasApp; fi
 
 # normaliza como o servidor: espacos sobrando, no maximo 30 caracteres
 NOME=$(python -c 'import sys;print(" ".join(sys.argv[1].split()))' "$NOME")

@@ -1,5 +1,8 @@
 /local/
 *.json
+# a colecao do Postman nao tem dado real (token vazio, URL de exemplo): pode ir para o git
+!docs/postman/*.json
 .aws-sam/
 samconfig.toml
 web/config.js
+web/config.dev.js

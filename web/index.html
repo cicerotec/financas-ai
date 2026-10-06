@@ -23,8 +23,10 @@
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px);}
 *{box-sizing:border-box;}
+/* faixa do ambiente de teste: so aparece quando o config.js do ambiente traz "ambiente": "dev" */
+.faixa-ambiente{position:sticky;top:0;z-index:6;height:26px;line-height:26px;text-align:center;background:#e8710a;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;}
 body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,sans-serif;min-height:100%;}
-header{position:sticky;top:0;padding:env(safe-area-inset-top,0px) 16px 10px;background:var(--bg);border-bottom:1px solid var(--border);z-index:5;}
+header{position:sticky;top:var(--faixa-h,0px);padding:env(safe-area-inset-top,0px) 16px 10px;background:var(--bg);border-bottom:1px solid var(--border);z-index:5;}
 h1{font-size:18px;margin:10px 0 8px;}
 nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
 nav button{border:1px solid var(--border);background:var(--card);color:var(--text);padding:7px 12px;border-radius:20px;font-size:13px;white-space:nowrap;cursor:pointer;}
@@ -424,6 +426,19 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="config.js"></script>
+<script>
+(function(){
+  var c = window.FINANCAS_CONFIG || {};
+  if(c.ambiente !== 'dev') return;
+  var f = document.createElement('div');
+  f.className = 'faixa-ambiente';
+  f.setAttribute('role', 'status');
+  f.textContent = 'AMBIENTE DE TESTE — dados fictícios';
+  document.body.insertBefore(f, document.body.firstChild);
+  document.documentElement.style.setProperty('--faixa-h', '26px');
+  document.title = '[DEV] ' + document.title;
+})();
+</script>
 <script src="api.js"></script>
 <script>
 let db = null, sample = null;

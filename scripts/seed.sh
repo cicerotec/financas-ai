@@ -8,7 +8,8 @@ STACK=${1:?uso: seed.sh <stack> <email-dono> [<email-membro>] [nome]}
 OWNER=${2:?email do dono}
 MEMBER=${3:-}
 NOME=${4:-Financas da Familia}
-TABLE=FinancasApp
+# a tabela do dev e a da stack financas-dev; em qualquer outra, a de producao
+if [ "$STACK" = "financas-dev" ]; then TABLE=FinancasApp-dev; else TABLE=FinancasApp; fi
 
 POOL=$(aws cloudformation describe-stacks --stack-name "$STACK" \
   --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" --output text)
