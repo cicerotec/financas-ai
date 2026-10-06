@@ -166,8 +166,9 @@ arquivo de novo importa só o que faltou (o que já está no banco é ignorado).
 
 **Verificação arquivo x banco de dados** (aba Importar): depois de importar, e a qualquer momento com o arquivo já
 processado (botão *Conferir arquivo com o banco de dados*), o app lê de volta o que está gravado no mesmo período e
-bancos e compara com o arquivo, por ano e banco: quantidade, entradas e saídas. O que está no arquivo e não está no
-banco aparece linha a linha; o que já existia no banco fora do arquivo só é contado. Na planilha a comparação é por
+bancos e compara com o arquivo: quantidade, entradas e saídas. A tabela tem uma linha por **ano e banco**, recolhida;
+tocar nela abre os **meses** (mês pela data do lançamento, no fuso de Brasília), e quem tem divergência já vem aberta. O
+que está no arquivo e não está no banco aparece linha a linha; o que já existia no banco fora do arquivo só é contado. Na planilha a comparação é por
 status, descrição, valor, banco, data e tipo; no backup `.json`, pelo id (e acusa dados diferentes). Linhas idênticas
 repetidas no arquivo contam como o mesmo lançamento: o app não grava duplicados (chave igual entra uma vez só, tanto
 na importação quanto na verificação, que avisa quantas linhas repetidas havia). Linhas sem data ou valor, ignoradas na

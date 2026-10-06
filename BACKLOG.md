@@ -80,7 +80,7 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   confere e reabre, e só o mais recente reabre); meses anteriores à data de início são histórico e nunca travam.
   Item `SALDO#<banco>` no DynamoDB e rotas `/fechamentos`.
 - Verificação arquivo x banco de dados na importação (v0.4.0, PR #21): compara o arquivo com o que ficou gravado, por
-  ano e banco; chave igual é o mesmo lançamento (o app não grava duplicados).
+  ano e banco, com os meses ao tocar na linha; chave igual é o mesmo lançamento (o app não grava duplicados).
 - Sincronização da tela por contador `seq`: cada escrita soma 1 no item `SEQ` do espaço; a escrita própria atualiza só
   aquele registro no cache (write-through, sem reler os 1000 lançamentos); a checagem a cada 3 min lê só o `seq`. Veio
   de excluir em série estourar a capacidade de leitura da tabela (5 RCU).
