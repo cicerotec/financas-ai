@@ -6,6 +6,7 @@ Mantem sempre: USER# (membros e aparencia pessoal), SPACE# (vinculos) e META.
 Uso (com a sessao do MFA ativa no terminal):
   python scripts/limpar-espaco.py <space-id>               # simulacao: so conta
   python scripts/limpar-espaco.py <space-id> --confirmar   # apaga de verdade
+  python scripts/limpar-espaco.py <space-id> --dev         # age na tabela do ambiente de teste (FinancasApp-dev)
 """
 import json
 import shutil
@@ -13,7 +14,7 @@ import subprocess
 import sys
 import time
 
-TABELA = "FinancasApp"
+TABELA = "FinancasApp-dev" if "--dev" in sys.argv else "FinancasApp"
 AWS = shutil.which("aws") or "aws"
 
 

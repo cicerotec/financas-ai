@@ -3,6 +3,11 @@ Transform: AWS::Serverless-2016-10-31
 Description: Financas - DynamoDB + Cognito + Lambda (Go) com Function URL + front em S3/CloudFront
 
 Parameters:
+  Ambiente:
+    Type: String
+    Default: prod
+    AllowedValues: [prod, dev]
+    Description: prod gera os nomes de sempre (FinancasApp, financas-api, financas). dev acrescenta o sufixo -dev e forma uma stack separada, com dados ficticios.
   FrontOrigin:
     Type: String
     Default: http://localhost:8080
@@ -16,6 +21,7 @@ Parameters:
     Description: Teto de execucoes simultaneas da Lambda (limita o estrago de uma enxurrada de requisicoes e a conta). 0 desliga. A conta precisa manter pelo menos 10 execucoes sem reserva; com o limite da conta em 10 so o 0 funciona. Confira com "aws lambda get-account-settings".
 
 Conditions:
+  EhDev: !Equals [!Ref Ambiente, dev]
   TemTetoDeConcorrencia: !Not [!Equals [!Ref ReservedConcurrency, 0]]
 
 Globals:
@@ -31,7 +37,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      TableName: FinancasApp
+      TableName: !If [EhDev, FinancasApp-dev, FinancasApp]
       BillingMode: PROVISIONED          # dentro do always-free (25 RCU/WCU)
       ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 }
       AttributeDefinitions:
@@ -45,7 +51,7 @@ Resources:
   UserPool:
     Type: AWS::Cognito::UserPool
     Properties:
-      UserPoolName: financas
+      UserPoolName: !If [EhDev, financas-dev, financas]
       UsernameAttributes: [email]
       AutoVerifiedAttributes: [email]
       AdminCreateUserConfig: { AllowAdminCreateUserOnly: true }   # sem auto cadastro: voce convida
@@ -78,7 +84,7 @@ Resources:
   ApiLogs:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/lambda/financas-api
+      LogGroupName: !If [EhDev, /aws/lambda/financas-api-dev, /aws/lambda/financas-api]
       RetentionInDays: 14
 
   ApiFunction:
@@ -87,7 +93,7 @@ Resources:
       BuildMethod: go1.x
     DependsOn: ApiLogs
     Properties:
-      FunctionName: financas-api
+      FunctionName: !If [EhDev, financas-api-dev, financas-api]
       CodeUri: backend/
       Handler: bootstrap
       ReservedConcurrentExecutions: !If [TemTetoDeConcorrencia, !Ref ReservedConcurrency, !Ref 'AWS::NoValue']
@@ -120,7 +126,7 @@ Resources:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
       OriginAccessControlConfig:
-        Name: financas-front
+        Name: !If [EhDev, financas-front-dev, financas-front]
         OriginAccessControlOriginType: s3
         SigningBehavior: always
         SigningProtocol: sigv4
@@ -129,7 +135,7 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
-        Comment: financas front
+        Comment: !If [EhDev, financas front dev, financas front]
         Enabled: true
         DefaultRootObject: index.html
         HttpVersion: http2and3
