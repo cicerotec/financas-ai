@@ -182,7 +182,8 @@ ligado**, **publicação manual** (automatizar a partir da `develop` fica para d
 - Andamento: **template e scripts prontos** (parâmetro `Ambiente`, `-Ambiente dev` nos scripts, `--dev` no
   `limpar-espaco.py`, guarda aceitando a `develop`). O perfil `dev` do `samconfig.toml` fica só na máquina (o arquivo é
   ignorado pelo git): stack `financas-dev`, `Ambiente="dev"`, `CognitoDomainPrefix="financas-cicero-dev"`. Faltam:
-  conferir o changeset da `prod` (não pode mexer na tabela real), primeiro deploy do dev, dados de teste.
+  publicar o front do dev e rodar os dados de teste. Já feitos: changeset da `prod` conferido (só `Modify
+  ApiFunction`), stack `financas-dev` no ar, `scripts/dados-ficticios.py` (grava só em `FinancasApp-dev`).
 - Ordem: template e scripts, primeiro deploy do dev, dados de teste.
 
 ### Eventos futuros
