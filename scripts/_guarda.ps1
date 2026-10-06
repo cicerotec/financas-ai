@@ -1,16 +1,18 @@
 # Apoio dos scripts de publicacao (deploy.ps1 e publicar-front.ps1). Nao e para rodar sozinho.
 # Avisa quando voce esta prestes a publicar de um lugar que provavelmente nao e o que quer:
-# fora da main, com alteracoes sem commit nos arquivos versionados, ou atrasado em relacao ao GitHub.
+# fora da main (ou da develop, no ambiente dev), com alteracoes sem commit nos arquivos versionados, ou atrasado em relacao ao GitHub.
 # O deploy publica o que esta na sua pasta agora, nao o que esta no GitHub.
 
 function Obter-AvisosDePublicacao {
+    param([string]$Ambiente = 'prod')
     $ErrorActionPreference = 'Continue'   # git escreve em stderr quando nao ha upstream; nao e erro
     $avisos = @()
 
     $branch = git rev-parse --abbrev-ref HEAD
     if ($LASTEXITCODE -ne 0 -or -not $branch) { return @("Nao consegui ler a branch atual do Git.") }
     $branch = $branch.Trim()
-    if ($branch -ne 'main') { $avisos += "Voce esta na branch '$branch', nao na main." }
+    $esperada = if ($Ambiente -eq 'dev') { 'develop' } else { 'main' }
+    if ($branch -ne $esperada) { $avisos += "Voce esta na branch '$branch', nao na $esperada (ambiente $Ambiente)." }
 
     # so arquivos versionados (os ignorados, como web/config.js, e os novos nao contam)
     $sujos = @(git status --porcelain --untracked-files=no)
@@ -25,13 +27,13 @@ function Obter-AvisosDePublicacao {
 }
 
 function Confirmar-Publicacao {
-    param([switch]$Forcar)
+    param([switch]$Forcar, [string]$Ambiente = 'prod')
     $ErrorActionPreference = 'Continue'
     $branch = (git rev-parse --abbrev-ref HEAD)
     $versao = (git describe --tags --always)
-    Write-Host "Publicando a partir de: $branch ($versao)" -ForegroundColor Cyan
+    Write-Host "Publicando o ambiente $Ambiente a partir de: $branch ($versao)" -ForegroundColor Cyan
 
-    $avisos = @(Obter-AvisosDePublicacao)
+    $avisos = @(Obter-AvisosDePublicacao -Ambiente $Ambiente)
     if ($avisos.Count -eq 0) { return $true }
 
     foreach ($a in $avisos) { Write-Host "AVISO: $a" -ForegroundColor Yellow }

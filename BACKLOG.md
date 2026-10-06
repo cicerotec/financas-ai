@@ -173,6 +173,10 @@ ligado**, **publicação manual** (automatizar a partir da `develop` fica para d
 - Dados: script que cria um dono e um membro de teste (e-mail "+dev") e carrega dados fictícios com volume parecido
   (status, bancos, cartões, combos, centenas de tags) para testar as telas como a esposa usa.
 - Custo: tabela de teste com 5/5 RCU/WCU; o always-free são 25 no total e a produção já usa 5/5, então cabe.
+- Andamento: **template e scripts prontos** (parâmetro `Ambiente`, `-Ambiente dev` nos scripts, `--dev` no
+  `limpar-espaco.py`, guarda aceitando a `develop`). O perfil `dev` do `samconfig.toml` fica só na máquina (o arquivo é
+  ignorado pelo git): stack `financas-dev`, `Ambiente="dev"`, `CognitoDomainPrefix="financas-cicero-dev"`. Faltam:
+  conferir o changeset da `prod` (não pode mexer na tabela real), primeiro deploy do dev, dados de teste.
 - Ordem: template e scripts, primeiro deploy do dev, dados de teste.
 
 ### Eventos futuros

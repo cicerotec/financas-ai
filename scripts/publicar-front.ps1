@@ -2,24 +2,28 @@
 #   .\scripts\publicar-front.ps1            # publica e invalida o cache
 #   .\scripts\publicar-front.ps1 -Simular   # mostra o que mudaria, sem enviar nada
 #   .\scripts\publicar-front.ps1 -Forcar    # nao pergunta se estiver fora da main / com alteracoes sem commit
+#   .\scripts\publicar-front.ps1 -Ambiente dev   # publica na stack financas-dev, com web/config.dev.js
 # Antes de publicar, avisa se voce nao esta na main, tem alteracoes sem commit ou esta atras do GitHub.
 # Precisa da sessao AWS aberta (MFA): . .\scripts\aws-mfa.ps1 <codigo>
-# O web/config.js fica fora do git (tem a URL da API e os dados do login); precisa existir aqui na maquina.
+# O web/config.js (web/config.dev.js no dev) fica fora do git (tem a URL da API e os dados do login); precisa existir aqui na maquina.
 param(
-    [string]$Stack = "financas",
+    [string]$Stack,
     [switch]$Simular,
-    [switch]$Forcar
+    [switch]$Forcar,
+    [ValidateSet('prod','dev')][string]$Ambiente = 'prod'
 )
 $ErrorActionPreference = 'Stop'
+if (-not $Stack) { $Stack = if ($Ambiente -eq 'dev') { 'financas-dev' } else { 'financas' } }
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
 . "$PSScriptRoot\_guarda.ps1"
 if (-not $Simular) {   # a simulacao nao publica nada, entao nao precisa perguntar
-    if (-not (Confirmar-Publicacao -Forcar:$Forcar)) { throw "Publicacao cancelada." }
+    if (-not (Confirmar-Publicacao -Forcar:$Forcar -Ambiente $Ambiente)) { throw "Publicacao cancelada." }
 }
 
-if (-not (Test-Path "web/config.js")) {
-    throw "web/config.js nao existe. Copie web/config.example.js para web/config.js e preencha com os Outputs do deploy."
+$arquivoConfig = if ($Ambiente -eq 'dev') { 'web/config.dev.js' } else { 'web/config.js' }
+if (-not (Test-Path $arquivoConfig)) {
+    throw "$arquivoConfig nao existe. Copie web/config.example.js para $arquivoConfig e preencha com os Outputs do deploy."
 }
 
 $saidas = aws cloudformation describe-stacks --stack-name $Stack --query "Stacks[0].Outputs" --output json | ConvertFrom-Json
@@ -30,10 +34,19 @@ $url    = ($saidas | Where-Object OutputKey -eq 'FrontUrl').OutputValue
 if (-not $bucket -or -not $dist) { throw "A stack ainda nao tem FrontBucket/DistributionId. Rode primeiro: .\scripts\deploy.ps1 <codigo>" }
 
 # --delete remove do bucket o que nao existe mais em web/. O config.example.js nao precisa ir.
-$parametrosS3 = @("s3", "sync", "web", "s3://$bucket", "--delete", "--exclude", "config.example.js", "--cache-control", "no-cache")
+# No dev, o config.dev.js sobe como config.js (o front sempre le config.js) e o config.js de producao nao vai.
+$parametrosS3 = @("s3", "sync", "web", "s3://$bucket", "--delete", "--exclude", "config.example.js", "--exclude", "config.dev.js", "--cache-control", "no-cache")
+if ($Ambiente -eq 'dev') { $parametrosS3 += @("--exclude", "config.js") }
 if ($Simular) { $parametrosS3 += "--dryrun" }
 aws @parametrosS3
 if ($LASTEXITCODE -ne 0) { throw "aws s3 sync falhou." }
+
+if ($Ambiente -eq 'dev') {
+    $copiar = @("s3", "cp", "web/config.dev.js", "s3://$bucket/config.js", "--cache-control", "no-cache")
+    if ($Simular) { $copiar += "--dryrun" }
+    aws @copiar
+    if ($LASTEXITCODE -ne 0) { throw "aws s3 cp do config.dev.js falhou." }
+}
 
 if ($Simular) { Write-Host "Simulacao: nada foi enviado." -ForegroundColor Yellow; return }
 
