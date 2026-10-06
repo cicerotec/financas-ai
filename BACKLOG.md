@@ -12,8 +12,8 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 - 3. [x] **Hospedar o front em S3 + CloudFront** (HTTPS, `*.cloudfront.net`). No ar (PR #5). Detalhes em "Hospedagem".
 - 22. [ ] **[Próximo] Ambiente de teste (`dev`)**: segunda stack `financas-dev` com tabela, login, API e front próprios,
   dados fictícios, sempre ligada, publicada à mão a partir da `develop`. Detalhes em "Ambiente de teste".
-- 11. [ ] **[Próximo] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
-  (exportar JSON e/ou point-in-time recovery do DynamoDB).
+- 11. [ ] **[Depois] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
+  (exportar JSON e/ou point-in-time recovery do DynamoDB). Adiado por decisão: não será feito agora.
 
 ### Backend (Go, DynamoDB, Cognito, API)
 - 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
@@ -30,9 +30,9 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 ### Front (funcionalidades novas)
 - 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
   duplicado).
-- 8. [ ] **[Próximo] Carregar os anos anteriores** (do mais novo para o mais antigo). Já dá para importar: meses
-  anteriores à data de início do banco são histórico e não são travados pelo fechamento mensal. Antes de importar,
-  conferir na planilha as datas fora do mês da aba (no app o mês é o da data, não o da aba).
+- 8. [x] **Carregar os anos anteriores** (2025 carregado e conferido com a verificação arquivo x banco de dados). Novas
+  cargas virão: meses anteriores à data de início do banco são histórico e não são travados pelo fechamento mensal.
+  Antes de importar, conferir na planilha as datas fora do mês da aba (no app o mês é o da data, não o da aba).
 - 9. [x] **Importação do `.xlsx` usando o endpoint de lote** (25 por chamada, com contador de progresso e erro tratado).
 - 23. [ ] **[Depois] Fechamento mensal, melhorias:** "ver mais" na lista (hoje mostra os últimos 12 meses); aviso quando
   um mês conferido deixa de bater com o que foi guardado; "reabrir tudo" de uma vez (hoje reabre do mais novo para o
