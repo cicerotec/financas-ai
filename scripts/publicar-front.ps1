@@ -1,9 +1,10 @@
 # Envia a pasta web/ para o bucket do front (S3 + CloudFront) e limpa o cache da distribuicao.
 #   .\scripts\publicar-front.ps1            # publica e invalida o cache
 #   .\scripts\publicar-front.ps1 -Simular   # mostra o que mudaria, sem enviar nada
-#   .\scripts\publicar-front.ps1 -Forcar    # nao pergunta se estiver fora da main / com alteracoes sem commit
+#   .\scripts\publicar-front.ps1 -Forcar    # nao pergunta se houver alteracoes sem commit / atraso (a branch errada continua bloqueada)
 #   .\scripts\publicar-front.ps1 -Ambiente dev   # publica na stack financas-dev, com web/config.dev.js
-# Antes de publicar, avisa se voce nao esta na main, tem alteracoes sem commit ou esta atras do GitHub.
+# Fora da branch do ambiente (main para prod, develop para dev) a publicacao e BLOQUEADA, nem -Forcar passa.
+# Antes de publicar, avisa se voce tem alteracoes sem commit ou esta atras do GitHub.
 # Precisa da sessao AWS aberta (MFA): . .\scripts\aws-mfa.ps1 <codigo>
 # O web/config.js (web/config.dev.js no dev) fica fora do git (tem a URL da API e os dados do login); precisa existir aqui na maquina.
 param(

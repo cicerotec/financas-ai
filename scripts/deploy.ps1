@@ -2,9 +2,10 @@
 #   .\scripts\deploy.ps1 324941            # pede o codigo do MFA, builda e publica (confirma o changeset)
 #   .\scripts\deploy.ps1 324941 -Sim       # publica sem perguntar o changeset
 #   .\scripts\deploy.ps1                   # reaproveita a sessao MFA ja aberta neste terminal
-#   .\scripts\deploy.ps1 324941 -Forcar    # nao pergunta se estiver fora da main / com alteracoes sem commit
-#   .\scripts\deploy.ps1 324941 -Ambiente dev   # publica a stack de teste (financas-dev); o esperado e estar na develop
-# Antes de publicar, avisa se voce nao esta na main, tem alteracoes sem commit ou esta atras do GitHub.
+#   .\scripts\deploy.ps1 324941 -Forcar    # nao pergunta se houver alteracoes sem commit / atraso (a branch errada continua bloqueada)
+#   .\scripts\deploy.ps1 324941 -Ambiente dev   # publica a stack de teste (financas-dev); so roda a partir da develop
+# Fora da branch do ambiente (main para prod, develop para dev) a publicacao e BLOQUEADA, nem -Forcar passa.
+# Antes de publicar, avisa se voce tem alteracoes sem commit ou esta atras do GitHub.
 param(
     [string]$Codigo,
     [switch]$Sim,
