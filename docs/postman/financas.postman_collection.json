@@ -1,0 +1,297 @@
+{
+  "info": {
+    "name": "Finanças da Família (API)",
+    "description": "Coleção para aprender a API do app com os dados da própria pessoa.\n\nComo usar: importe esta coleção e o ambiente `financas.postman_environment.json`, preencha `baseUrl` e `token` no ambiente (veja o README desta pasta) e rode primeiro `0. Quem sou eu`, que descobre o `spaceId` sozinho.\n\nPasta 1 só LÊ (segura). Pasta 2 CRIA e ALTERA dados de verdade. Pasta 3 mostra os erros da API de propósito, para aprender a lê-los.\n\nCuidado com o consumo: a tabela é pequena (5 leituras por segundo). Mantenha `limite` baixo e intervalos de datas curtos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "0. Quem sou eu",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('tem pelo menos um espaço', () => pm.expect(j.espacos.length).to.be.above(0));",
+              "// guarda o id do primeiro espaço para as outras requisições",
+              "pm.environment.set('spaceId', j.espacos[0].id);",
+              "console.log('Espaço:', j.espacos[0].nome, '| papel:', j.espacos[0].role);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/me", "host": ["{{baseUrl}}"], "path": ["me"] },
+        "description": "Devolve o seu usuário e os espaços a que você pertence, com o papel em cada um (`owner` ou `member`). O teste desta requisição grava o `spaceId` no ambiente."
+      },
+      "response": []
+    },
+    {
+      "name": "1. Leitura (segura)",
+      "description": "Só lê. Pode rodar à vontade, respeitando o `limite`.",
+      "item": [
+        {
+          "name": "Contador de alterações (seq)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/spaces/{{spaceId}}/seq", "host": ["{{baseUrl}}"], "path": ["spaces", "{{spaceId}}", "seq"] },
+            "description": "Um número que sobe a cada gravação de lançamento. É o que a tela consulta para saber se outra pessoa gravou (uma leitura barata)."
+          },
+          "response": []
+        },
+        {
+          "name": "Lançamentos mais recentes (20)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx?limite=20&ordem=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces", "{{spaceId}}", "tx"],
+              "query": [
+                { "key": "limite", "value": "20", "description": "Quantos itens. Máximo 1000, mas NÃO use isso: lê muito da tabela." },
+                { "key": "ordem", "value": "desc", "description": "desc (mais novo primeiro) ou asc" }
+              ]
+            },
+            "description": "Lista os lançamentos. A resposta tem `itens` e `proximo` (cursor para a próxima página, vazio quando acabou)."
+          },
+          "response": []
+        },
+        {
+          "name": "Lançamentos de um mês (intervalo de datas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx?de=2026-09-01T03:00:00.000Z&ate=2026-10-01T02:59:59.999Z&limite=50&ordem=asc",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces", "{{spaceId}}", "tx"],
+              "query": [
+                { "key": "de", "value": "2026-09-01T03:00:00.000Z", "description": "Início (inclusive), em UTC. 03:00Z é meia-noite em Brasília." },
+                { "key": "ate", "value": "2026-10-01T02:59:59.999Z", "description": "Fim, em UTC. Um lançamento exatamente neste instante fica de fora." },
+                { "key": "limite", "value": "50" },
+                { "key": "ordem", "value": "asc" }
+              ]
+            },
+            "description": "Datas em ISO 8601 UTC. Troque o mês à vontade, mantendo o intervalo curto."
+          },
+          "response": []
+        },
+        {
+          "name": "Lançamentos de um banco",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx?banco={{bancoTeste}}&limite=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces", "{{spaceId}}", "tx"],
+              "query": [
+                { "key": "banco", "value": "{{bancoTeste}}", "description": "Nome do banco, como está nas Listas." },
+                { "key": "limite", "value": "20" },
+                { "key": "status", "value": "", "disabled": true, "description": "Filtro opcional por status." },
+                { "key": "q", "value": "", "disabled": true, "description": "Busca por texto na descrição ou na nota." }
+              ]
+            },
+            "description": "Atenção: o filtro por banco é aplicado depois de ler os itens, então sem `de`/`ate` ele varre bastante. Prefira combinar com um intervalo de datas."
+          },
+          "response": []
+        },
+        {
+          "name": "Configuração: listas (bancos, status)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/spaces/{{spaceId}}/cfg/listas", "host": ["{{baseUrl}}"], "path": ["spaces", "{{spaceId}}", "cfg", "listas"] },
+            "description": "Nomes válidos de cfg: listas, tags, combos, saldos, cartoes. O campo `version` é usado para detectar edição concorrente."
+          },
+          "response": []
+        },
+        {
+          "name": "Configuração: saldos (saldo inicial e data de início)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/spaces/{{spaceId}}/cfg/saldos", "host": ["{{baseUrl}}"], "path": ["spaces", "{{spaceId}}", "cfg", "saldos"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Fechamento mensal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/spaces/{{spaceId}}/fechamentos", "host": ["{{baseUrl}}"], "path": ["spaces", "{{spaceId}}", "fechamentos"] },
+            "description": "Um item por banco, com os meses conferidos e o cache dos fechamentos. Só o dono confere ou reabre meses."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Escrita (cria dados DE VERDADE)",
+      "description": "Estas requisições gravam no app real. Rode na ordem: criar, editar, ocultar. Depois de testar, rode 'Ocultar' para o lançamento de teste sumir do Histórico e dos totais.\n\nAntes, preencha `bancoTeste` (um banco que exista nas Listas) e deixe `statusTeste` como PREVISTO: é um evento futuro, não entra no saldo.\n\nSe você é `member`: só edita e oculta o que você mesma criou, e não pode excluir.",
+      "item": [
+        {
+          "name": "Criar lançamento de teste",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// data e hora de agora, em ISO 8601 (UTC)",
+                  "pm.environment.set('agora', new Date().toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Criado', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "// guarda o id e a data: a edição precisa dos dois (a chave do item inclui a data)",
+                  "pm.environment.set('txId', j.id);",
+                  "pm.environment.set('txDataEvento', j.dataEvento);",
+                  "pm.test('a resposta traz o _seq novo', () => pm.expect(j._seq).to.be.a('number'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dataEvento\": \"{{agora}}\",\n  \"status\": \"{{statusTeste}}\",\n  \"tipo\": \"saida\",\n  \"valor\": 0.01,\n  \"banco\": \"{{bancoTeste}}\",\n  \"descricao\": \"TESTE POSTMAN\",\n  \"nota\": \"criado pelo Postman para aprender\",\n  \"tags\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx", "host": ["{{baseUrl}}"], "path": ["spaces", "{{spaceId}}", "tx"] },
+            "description": "Campos obrigatórios: `dataEvento` (ISO 8601), `status`, `tipo` (entrada ou saida), `valor` (número) e `banco`. O servidor preenche `id`, `criadoEm` e `criadoPor`."
+          },
+          "response": []
+        },
+        {
+          "name": "Editar o lançamento de teste",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"TESTE POSTMAN (editado)\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{txId}}?de={{txDataEvento}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces", "{{spaceId}}", "tx", "{{txId}}"],
+              "query": [{ "key": "de", "value": "{{txDataEvento}}", "description": "A dataEvento ATUAL do lançamento (faz parte da chave dele)." }]
+            },
+            "description": "Só vão no corpo os campos que mudam. Editar descrição, nota ou tags não mexe no saldo."
+          },
+          "response": []
+        },
+        {
+          "name": "Ocultar o lançamento de teste (limpeza)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oculto\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{txId}}?de={{txDataEvento}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces", "{{spaceId}}", "tx", "{{txId}}"],
+              "query": [{ "key": "de", "value": "{{txDataEvento}}" }]
+            },
+            "description": "Oculto some do Histórico e dos totais (dá para ver de novo com 'mostrar ocultos'). É a limpeza possível para quem não pode excluir."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Erros de propósito (para aprender a ler)",
+      "description": "Estas requisições falham de propósito. Veja o status e a mensagem de cada uma.",
+      "item": [
+        {
+          "name": "Sem token → 401",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/me", "host": ["{{baseUrl}}"], "path": ["me"] },
+            "description": "Sem o cabeçalho Authorization a API responde 401 (não autenticado)."
+          },
+          "response": []
+        },
+        {
+          "name": "Espaço que não é seu → 403",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/spaces/espaco-que-nao-existe/tx", "host": ["{{baseUrl}}"], "path": ["spaces", "espaco-que-nao-existe", "tx"] },
+            "description": "Mesmo logada, só se acessa o espaço em que você tem papel. A resposta é 403, sem dizer se o espaço existe."
+          },
+          "response": []
+        },
+        {
+          "name": "Rota inexistente → 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/spaces/{{spaceId}}/nada", "host": ["{{baseUrl}}"], "path": ["spaces", "{{spaceId}}", "nada"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Lançamento inválido → 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dataEvento\": \"ontem\",\n  \"status\": \"PREVISTO\",\n  \"tipo\": \"saida\",\n  \"valor\": 1,\n  \"banco\": \"QUALQUER\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx", "host": ["{{baseUrl}}"], "path": ["spaces", "{{spaceId}}", "tx"] },
+            "description": "A data não está em ISO 8601, então a API recusa (400) e NÃO grava nada. Veja a mensagem em `erro`."
+          },
+          "response": []
+        },
+        {
+          "name": "Excluir (só o dono) → 403 para member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{txId}}?de={{txDataEvento}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces", "{{spaceId}}", "tx", "{{txId}}"],
+              "query": [{ "key": "de", "value": "{{txDataEvento}}" }]
+            },
+            "description": "ATENÇÃO: se você for `owner` isto EXCLUI de verdade o lançamento de teste (use só depois de criá-lo). Para `member` a resposta é 403: é a regra de permissões em ação."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
