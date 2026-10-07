@@ -1,0 +1,97 @@
+# Fluxo de publicacao compartilhado (chamado por deploy-dev.yml e deploy-prod.yml).
+# Variaveis do environment (Settings > Environments > <ambiente> > Variables):
+#   AWS_ROLE_ARN          role OIDC deste ambiente (Output RoleArn de infra/github-oidc.yaml)
+#   COGNITO_DOMAIN_PREFIX prefixo do dominio do login (o mesmo do samconfig.toml)
+#   FRONT_ORIGIN          (opcional) origem local para CORS/callback; padrao http://localhost:8080
+name: Deploy (reutilizavel)
+
+on:
+  workflow_call:
+    inputs:
+      ambiente:
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.ambiente }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ambiente }}
+    env:
+      AWS_REGION: sa-east-1
+      AMBIENTE: ${{ inputs.ambiente }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Testes do Go
+        working-directory: backend
+        run: go test ./...
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Nome da stack
+        run: |
+          if [ "$AMBIENTE" = "dev" ]; then echo "STACK=financas-dev" >> "$GITHUB_ENV"; else echo "STACK=financas" >> "$GITHUB_ENV"; fi
+
+      - name: sam build
+        run: sam build
+
+      # Cria o changeset sem executar, para conferir antes (o samconfig.toml nao vai para o git).
+      - name: sam deploy (so cria o changeset)
+        run: |
+          sam deploy \
+            --stack-name "$STACK" \
+            --region "$AWS_REGION" \
+            --resolve-s3 \
+            --s3-prefix "$STACK" \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides "Ambiente=\"$AMBIENTE\" FrontOrigin=\"${{ vars.FRONT_ORIGIN || 'http://localhost:8080' }}\" CognitoDomainPrefix=\"${{ vars.COGNITO_DOMAIN_PREFIX }}\"" \
+            --no-execute-changeset \
+            --no-fail-on-empty-changeset
+
+      - name: Conferir o changeset (falha se remover ou substituir tabela/login)
+        id: changeset
+        run: scripts/verificar-changeset.sh "$STACK"
+
+      - name: Executar o changeset
+        if: steps.changeset.outputs.changeset != ''
+        run: |
+          aws cloudformation execute-change-set --stack-name "$STACK" --change-set-name "${{ steps.changeset.outputs.changeset }}"
+          # o waiter certo depende de a stack ser nova ou existente
+          aws cloudformation wait stack-update-complete --stack-name "$STACK" \
+            || aws cloudformation wait stack-create-complete --stack-name "$STACK"
+
+      - name: Publicar o front (S3 + CloudFront)
+        run: |
+          saida() { aws cloudformation describe-stacks --stack-name "$STACK" --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
+          BUCKET=$(saida FrontBucket); DIST=$(saida DistributionId)
+          {
+            echo 'window.FINANCAS_CONFIG = {'
+            echo "  apiUrl: \"$(saida ApiUrl)\","
+            echo "  clientId: \"$(saida ClientId)\","
+            echo "  loginDomain: \"$(saida LoginDomain)\"$([ "$AMBIENTE" = dev ] && echo ',')"
+            [ "$AMBIENTE" = dev ] && echo '  ambiente: "dev"'
+            echo '};'
+          } > "$RUNNER_TEMP/config.js"
+          aws s3 sync web "s3://$BUCKET" --delete --cache-control no-cache \
+            --exclude config.example.js --exclude config.dev.js --exclude config.js
+          aws s3 cp "$RUNNER_TEMP/config.js" "s3://$BUCKET/config.js" --cache-control no-cache
+          aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*" > /dev/null
+          echo "Publicado: $(saida FrontUrl)"
