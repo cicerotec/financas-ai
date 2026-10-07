@@ -1,0 +1,189 @@
+# Role IAM que o GitHub Actions assume por OIDC (sem chave de acesso nos secrets). Uma stack por ambiente:
+#   aws cloudformation deploy --stack-name financas-gha-dev  --template-file infra/github-oidc.yaml --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Ambiente=dev
+#   aws cloudformation deploy --stack-name financas-gha-prod --template-file infra/github-oidc.yaml --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Ambiente=prod
+# Pre-requisito (uma vez por conta; confira com `aws iam list-open-id-connect-providers`): o provedor OIDC do GitHub.
+# Passo a passo completo em docs/deploy-github-actions.md.
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Role OIDC do GitHub Actions para publicar o financas.ai
+
+Parameters:
+  Ambiente:
+    Type: String
+    AllowedValues: [dev, prod]
+  Repositorio:
+    Type: String
+    Default: cicerotec@24279229/financas-ai@1394222228
+    Description: Prefixo do `sub` do token OIDC deste repositorio. Este repositorio usa subject imutavel, entao leva os IDs numericos (dono@id/repo@id). Confira com `gh api repos/<dono>/<repo>/actions/oidc/customization/sub` (campo sub_claim_prefix, sem o `repo:`). So este repositorio consegue assumir a role.
+
+Conditions:
+  EhDev: !Equals [!Ref Ambiente, dev]
+
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'financas-gha-${Ambiente}'
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                'token.actions.githubusercontent.com:aud': sts.amazonaws.com
+                # o `sub` leva o environment do GitHub: so jobs do environment <ambiente> (e este so aceita a branch certa)
+                'token.actions.githubusercontent.com:sub': !Sub 'repo:${Repositorio}:environment:${Ambiente}'
+      Policies:
+        - PolicyName: publicar
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: Stack
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:ListChangeSets
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:ListStackResources
+                  - cloudformation:GetTemplate
+                Resource: !Sub
+                  - 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${Stack}/*'
+                  - Stack: !If [EhDev, financas-dev, financas]
+              - Sid: TransformDoSam
+                Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
+              - Sid: ResumoDoTemplate
+                Effect: Allow
+                Action: cloudformation:GetTemplateSummary
+                Resource: '*'
+              - Sid: StackGerenciadaDoSam
+                Effect: Allow
+                Action: [cloudformation:DescribeStacks, cloudformation:DescribeStackEvents]
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/aws-sam-cli-managed-default/*'
+              - Sid: BucketDePacotesDoSam
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:ListBucket, s3:GetBucketLocation, s3:GetBucketVersioning]
+                Resource:
+                  - 'arn:aws:s3:::aws-sam-cli-managed-default-samclisourcebucket-*'
+                  - 'arn:aws:s3:::aws-sam-cli-managed-default-samclisourcebucket-*/*'
+              - Sid: BucketDoFront
+                Effect: Allow
+                Action: 's3:*'
+                Resource:
+                  - !Sub
+                    - 'arn:aws:s3:::${Stack}-frontbucket-*'
+                    - Stack: !If [EhDev, financas-dev, financas]
+                  - !Sub
+                    - 'arn:aws:s3:::${Stack}-frontbucket-*/*'
+                    - Stack: !If [EhDev, financas-dev, financas]
+              - Sid: Tabela
+                Effect: Allow
+                Action: 'dynamodb:*'
+                Resource: !Sub
+                  - 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Tabela}'
+                  - Tabela: !If [EhDev, FinancasApp-dev, FinancasApp]
+              - Sid: NuncaApagarTabela
+                Effect: Deny
+                Action: [dynamodb:DeleteTable, dynamodb:DeleteBackup]
+                Resource: '*'
+              - Sid: Funcao
+                Effect: Allow
+                Action: 'lambda:*'
+                Resource: !Sub
+                  - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Funcao}'
+                  - Funcao: !If [EhDev, financas-api-dev, financas-api]
+              - Sid: Logs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:DeleteLogGroup
+                  - logs:PutRetentionPolicy
+                  - logs:DeleteRetentionPolicy
+                  - logs:TagResource
+                  - logs:UntagResource
+                  - logs:ListTagsForResource
+                Resource: !Sub
+                  - 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${Grupo}*'
+                  - Grupo: !If [EhDev, '/aws/lambda/financas-api-dev', '/aws/lambda/financas-api']
+              - Sid: LerLogs
+                Effect: Allow
+                Action: logs:DescribeLogGroups
+                Resource: '*'
+              - Sid: RoleDaFuncao
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PassRole
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                  - iam:DetachRolePolicy
+                Resource: !Sub
+                  - 'arn:aws:iam::${AWS::AccountId}:role/${Stack}-ApiFunctionRole-*'
+                  - Stack: !If [EhDev, financas-dev, financas]
+              - Sid: SoAPoliticaBasicaDoLambda
+                Effect: Allow
+                Action: iam:AttachRolePolicy
+                Resource: !Sub
+                  - 'arn:aws:iam::${AWS::AccountId}:role/${Stack}-ApiFunctionRole-*'
+                  - Stack: !If [EhDev, financas-dev, financas]
+                Condition:
+                  ArnEquals:
+                    'iam:PolicyARN': 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+              # Cognito e CloudFront nao permitem restringir pelo nome (o id nasce com o recurso). Ficam abertos so para as
+              # acoes usadas pelo template; o changeset que remove/substitui o pool de login e barrado em verificar-changeset.sh.
+              - Sid: Login
+                Effect: Allow
+                Action:
+                  - cognito-idp:CreateUserPool
+                  - cognito-idp:UpdateUserPool
+                  - cognito-idp:DescribeUserPool
+                  - cognito-idp:GetUserPoolMfaConfig
+                  - cognito-idp:CreateUserPoolClient
+                  - cognito-idp:UpdateUserPoolClient
+                  - cognito-idp:DescribeUserPoolClient
+                  - cognito-idp:DeleteUserPoolClient
+                  - cognito-idp:CreateUserPoolDomain
+                  - cognito-idp:DescribeUserPoolDomain
+                  - cognito-idp:DeleteUserPoolDomain
+                  - cognito-idp:TagResource
+                  - cognito-idp:ListTagsForResource
+                Resource: '*'
+              - Sid: CloudFront
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateDistribution
+                  - cloudfront:UpdateDistribution
+                  - cloudfront:GetDistribution
+                  - cloudfront:GetDistributionConfig
+                  - cloudfront:DeleteDistribution
+                  - cloudfront:TagResource
+                  - cloudfront:ListTagsForResource
+                  - cloudfront:CreateOriginAccessControl
+                  - cloudfront:UpdateOriginAccessControl
+                  - cloudfront:GetOriginAccessControl
+                  - cloudfront:DeleteOriginAccessControl
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetInvalidation
+                Resource: '*'
+
+Outputs:
+  RoleArn:
+    Description: Valor da variavel AWS_ROLE_ARN do environment do GitHub
+    Value: !GetAtt Role.Arn

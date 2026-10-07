@@ -1,0 +1,17 @@
+# develop -> publica a stack financas-dev (back e front) sem aprovacao.
+name: Deploy dev
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      ambiente: dev
