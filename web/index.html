@@ -738,9 +738,15 @@ function setupTabs(){
 function renderListas(){
   const fStatus=document.getElementById('fStatus'), fBanco=document.getElementById('fBanco');
   const tOrig=document.getElementById('tBancoOrigem'), tDest=document.getElementById('tBancoDestino');
-  [fStatus].forEach(sel=>{ sel.innerHTML = listas.status.map(s=>`<option>${esc(s)}</option>`).join(''); });
+  // reconstruir os <option> zera o select para o primeiro item; guarda e devolve a escolha atual (se ainda existir)
+  const refazer = (sel, itens)=>{
+    const atual = sel.value;
+    sel.innerHTML = itens.map(s=>`<option>${esc(s)}</option>`).join('');
+    if(atual && itens.includes(atual)) sel.value = atual;
+  };
+  refazer(fStatus, listas.status);
   atualizarCampoFatura();
-  [fBanco,tOrig,tDest].forEach(sel=>{ sel.innerHTML = listas.banco.map(s=>`<option>${esc(s)}</option>`).join(''); });
+  [fBanco,tOrig,tDest].forEach(sel=>refazer(sel, listas.banco));
   // tira da seleção qualquer status que não existe mais
   filStatusSelecionados = new Set([...filStatusSelecionados].filter(s=>listas.status.includes(s) && !ehFuturo(s)));
   renderFilStatusDropdown();

@@ -8,7 +8,7 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 
 ### Bugs (têm prioridade sobre o resto)
 Cada item começa com a área correspondente entre colchetes. A numeração segue a mesma sequência do roadmap.
-- 25. [ ] **[UX/UI] Combo de bancos volta sozinho ao primeiro item ao lançar após copiar pelo Histórico**, o que pode
+- 25. [x] **[UX/UI] Combo de bancos volta sozinho ao primeiro item ao lançar após copiar pelo Histórico**, o que pode
   gerar erro no cadastro. Detalhe em "UX".
 
 ### Infra (AWS, SAM, ambientes, custo, backup)
@@ -257,6 +257,8 @@ Origem: observar a esposa usando o app (sem explicar nada) e anotar onde ela hes
   lançar o registro, o combo de bancos volta sozinho para o primeiro elemento da lista, e isso pode gerar erro no
   cadastro (o lançamento sai no banco errado sem a pessoa perceber). Investigar onde o formulário de Lançar repopula
   ou reinicia os combos (cópia, salvar, atualização da tela por `seq`) e manter o banco escolhido.
+  **Corrigido:** `renderListas()` refazia os `<option>` dos combos (Status, Banco e bancos da transferência) e o
+  navegador voltava ao primeiro; agora a escolha atual é guardada e devolvida depois de refazer a lista.
 - **Observado e já resolvido:** salvar sem resposta, transferência sem data, Enter sem efeito na busca, tudo na tela
   em Histórico, X de status apagando sem aviso.
 
