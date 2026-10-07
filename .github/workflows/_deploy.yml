@@ -53,6 +53,13 @@ jobs:
       - name: sam build
         run: sam build
 
+      # Apaga changesets pendentes de execucoes anteriores, para nunca executar um velho por engano.
+      - name: Limpar changesets pendentes
+        run: |
+          for nome in $(aws cloudformation list-change-sets --stack-name "$STACK" --query "Summaries[?ExecutionStatus=='AVAILABLE'].ChangeSetName" --output text 2>/dev/null); do
+            aws cloudformation delete-change-set --stack-name "$STACK" --change-set-name "$nome"
+          done
+
       # Cria o changeset sem executar, para conferir antes (o samconfig.toml nao vai para o git).
       - name: sam deploy (so cria o changeset)
         run: |
@@ -68,7 +75,7 @@ jobs:
 
       - name: Conferir o changeset (falha se remover ou substituir tabela/login)
         id: changeset
-        run: scripts/verificar-changeset.sh "$STACK"
+        run: bash scripts/verificar-changeset.sh "$STACK"
 
       - name: Executar o changeset
         if: steps.changeset.outputs.changeset != ''
