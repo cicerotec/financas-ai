@@ -12,8 +12,9 @@ execução do changeset e publicação do front. O `config.js` do front é gerad
 
 ## Segurança
 - Sem chave de acesso: o Action troca o token OIDC do GitHub por credenciais temporárias.
-- Cada role só aceita `repo:cicerotec/financas-ai:environment:<ambiente>` (outro repositório ou outro environment não
-  assume). As policies são limitadas aos nomes de cada ambiente e negam `dynamodb:DeleteTable`.
+- Cada role só aceita `repo:cicerotec@24279229/financas-ai@1394222228:environment:<ambiente>` (outro repositório ou outro
+  environment não assume). O repositório usa *subject imutável*, por isso o `sub` leva os IDs numéricos; para conferir:
+  `gh api repos/cicerotec/financas-ai/actions/oidc/customization/sub`. As policies são limitadas aos nomes de cada ambiente e negam `dynamodb:DeleteTable`.
 - Limite conhecido: Cognito e CloudFront não aceitam restrição por nome na criação, então a role de dev também alcança o
   pool e a distribuição de prod pelas ações listadas em `infra/github-oidc.yaml`. A proteção é o environment `dev`
   só aceitar a `develop`.
