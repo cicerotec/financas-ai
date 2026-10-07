@@ -1,4 +1,5 @@
 # main -> publica a stack financas (producao). O environment `prod` exige aprovacao manual antes de o job rodar.
+# Depois do deploy, cria a tag anotada e a release no GitHub (a tag marca o que foi para producao).
 name: Deploy prod
 
 on:
@@ -15,3 +16,18 @@ jobs:
     uses: ./.github/workflows/_deploy.yml
     with:
       ambiente: prod
+
+  lancar-versao:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Criar a tag e a release
+        run: bash scripts/criar-tag-release.sh

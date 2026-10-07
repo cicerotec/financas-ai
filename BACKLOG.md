@@ -75,14 +75,16 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 ### Processo e qualidade (testes, releases, docs)
 - 10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
 - 16. [ ] **[Depois] Testes automatizados** do front (a lógica de faturas e de eventos futuros).
-- 26. [ ] **[Depois] Tag e release automáticas após o deploy da produção**: job no `deploy-prod.yml` com `needs: deploy`
+- 26. [ ] **[Em andamento] Tag e release automáticas após o deploy da produção**: job no `deploy-prod.yml` com `needs: deploy`
   (só roda com a produção publicada, porque a tag marca o que foi para produção), com `contents: write`; cria a tag
   anotada e `gh release create --verify-tag --generate-notes`. Versão: pelos prefixos dos commits (`feat:` sobe o
   número do meio; `fix:` e `docs:`, o último), com rótulo `release:minor|patch` no PR de release para sobrescrever.
   O PR de release recebe um comentário automático (atualizado a cada commit ou rótulo) com a versão calculada, para
   conferir e corrigir o rótulo antes do merge; o rótulo é lido na hora de criar a tag, depois do deploy da produção.
-  Absorve o item 19.
-- 25. [ ] **[Depois] PRs automáticos**: push em `feature/**` abre o PR para a `develop` (rascunho; só se ainda não existir)
+  Absorve o item 19. Implementado (`scripts/proxima-versao.sh`, `criar-tag-release.sh`, `pr-release.sh`, `pr-feature.sh` e
+  os workflows; guia em `docs/deploy-github-actions.md`); falta a configuração única (rótulos e a opção de PRs por Actions)
+  e a validação no primeiro uso.
+- 25. [ ] **[Em andamento] PRs automáticos**: push em `feature/**` abre o PR para a `develop` (rascunho; só se ainda não existir)
   e, depois do deploy do dev, abre o PR `develop → main` com o "O que entra" gerado dos PRs mergeados desde a última
   tag. Pré-requisito: ligar "Allow GitHub Actions to create and approve pull requests" (Settings > Actions >
   General). PR criado com `GITHUB_TOKEN` não dispara outros workflows, então o `ci.yml` precisa rodar também em
