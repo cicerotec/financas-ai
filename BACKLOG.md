@@ -52,6 +52,8 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 - 21. [ ] **[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em "UX"): barra de navegação
   inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
   acessibilidade das abas, unificar o seletor de tags.
+- 25. [ ] **[Agora] Bug: combo de bancos volta sozinho ao primeiro item ao lançar após copiar pelo Histórico.** Detalhe
+  em "UX".
 
 ### Processo e qualidade (testes, releases, docs)
 - 10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
@@ -248,6 +250,10 @@ Origem: observar a esposa usando o app (sem explicar nada) e anotar onde ela hes
   funcionam por teclado.
 - **Código:** muito `style` inline; `web/index.html` passa de 3.200 linhas (separar CSS e JS).
 - **Seletor de tags:** o do Lançar e o dos filtros duplicam lógica; unificar em um componente.
+- **Bug (item 25): combo de bancos reseta após copiar pelo Histórico.** Ao copiar um lançamento pelo Histórico e
+  lançar o registro, o combo de bancos volta sozinho para o primeiro elemento da lista, e isso pode gerar erro no
+  cadastro (o lançamento sai no banco errado sem a pessoa perceber). Investigar onde o formulário de Lançar repopula
+  ou reinicia os combos (cópia, salvar, atualização da tela por `seq`) e manter o banco escolhido.
 - **Observado e já resolvido:** salvar sem resposta, transferência sem data, Enter sem efeito na busca, tudo na tela
   em Histórico, X de status apagando sem aviso.
 
