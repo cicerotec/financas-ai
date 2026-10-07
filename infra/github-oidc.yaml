@@ -12,8 +12,8 @@ Parameters:
     AllowedValues: [dev, prod]
   Repositorio:
     Type: String
-    Default: cicerotec/financas-ai
-    Description: dono/repositorio no GitHub. So este repositorio consegue assumir a role.
+    Default: cicerotec@24279229/financas-ai@1394222228
+    Description: Prefixo do `sub` do token OIDC deste repositorio. Este repositorio usa subject imutavel, entao leva os IDs numericos (dono@id/repo@id). Confira com `gh api repos/<dono>/<repo>/actions/oidc/customization/sub` (campo sub_claim_prefix, sem o `repo:`). So este repositorio consegue assumir a role.
 
 Conditions:
   EhDev: !Equals [!Ref Ambiente, dev]
