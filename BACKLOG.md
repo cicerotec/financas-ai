@@ -31,6 +31,13 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 - 15. [ ] **[Depois] IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
 - 18. [ ] **[Depois] Segurança e escala:** revisar o `localStorage` do token (front), limite de taxa na Function URL
   (infra), mesclar conflito de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
+- 27. [ ] **[Depois] Tela de permissões por usuário** (hoje só há dois papéis fixos, `owner` e `member`, na matriz de
+  `authz.go`): centralizar numa tela do dono o que cada pessoa pode ver e fazer. Motivos vindos do uso real: a esposa
+  clica em "valor estimado" ao lançar (mexe em um campo que não precisa) e vê cartões e saldos de bancos que não são
+  dela. Pontos a decidir: modelo (permissão por usuário ou perfis nomeados), o que é configurável (campos do
+  formulário de Lançar, abas Cartão e Saldos, bancos e cartões visíveis), onde guardar (item do usuário no espaço,
+  perto do `MEMBER#sub`) e aplicar no **backend**, não só esconder no front (a API não pode devolver o que a pessoa
+  não deve ver).
 
 ### Front (funcionalidades novas)
 - 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
