@@ -53,8 +53,18 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 ### Processo e qualidade (testes, releases, docs)
 - 10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
 - 16. [ ] **[Depois] Testes automatizados** do front (a lógica de faturas e de eventos futuros).
+- 26. [ ] **[Depois] Tag e release automáticas após o deploy da produção**: job no `deploy-prod.yml` com `needs: deploy`
+  (só roda com a produção publicada, porque a tag marca o que foi para produção), com `contents: write`; cria a tag
+  anotada e `gh release create --verify-tag --generate-notes`. Versão: pelos prefixos dos commits (`feat:` sobe o
+  número do meio; `fix:` e `docs:`, o último), com rótulo `release:minor|patch` no PR de release para sobrescrever.
+  Absorve o item 19.
+- 25. [ ] **[Depois] PRs automáticos**: push em `feature/**` abre o PR para a `develop` (rascunho; só se ainda não existir)
+  e, depois do deploy do dev, abre o PR `develop → main` com o "O que entra" gerado dos PRs mergeados desde a última
+  tag. Pré-requisito: ligar "Allow GitHub Actions to create and approve pull requests" (Settings > Actions >
+  General). PR criado com `GITHUB_TOKEN` não dispara outros workflows, então o `ci.yml` precisa rodar também em
+  `push` nas `feature/**` (ou usar token de GitHub App/PAT). O merge continua manual.
 - 19. [ ] **[Depois] Script de release** (`scripts/lancar-versao.ps1 <versão>`): PR `develop → main`, merge, tag e
-  release em um comando (ver "Fluxo de branches e versões").
+  release em um comando (ver "Fluxo de branches e versões"). Pode ser dispensado pelos itens 25 e 26.
 
 ### Operação (tarefas de uso e dados, não de código)
 - 6. [x] **Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
