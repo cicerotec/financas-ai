@@ -18,13 +18,10 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 - 22. [x] **Ambiente de teste (`dev`)**: segunda stack `financas-dev` com tabela, login, API e front próprios,
   dados fictícios, sempre ligada, publicada à mão a partir da `develop`. No ar (PRs #33, #34 e #35). Detalhes em
   "Ambiente de teste".
-- 24. [ ] **[Em andamento] Deploy por GitHub Actions (OIDC)** (workflows, template das roles e guia em
-  `docs/deploy-github-actions.md` prontos; falta a configuração única na AWS e no GitHub): o Action assume uma role IAM por OIDC (sem chave nos secrets,
-  confiando só neste repositório e nas branches certas). `develop` publica o dev (`sam deploy --config-env dev` e
-  front); `main` publica a prod com aprovação manual (environment protegido do GitHub); PR só valida
-  (`sam validate --lint` e testes do Go). Roles separadas para dev e prod. Os parâmetros (`samconfig.toml`) e o
-  `config.js` (hoje ignorados pelo git) viriam de variáveis do repositório e dos Outputs da stack. Falhar o passo se o
-  changeset trouxer `Remove` ou `Replacement` na tabela. Pré-requisito: o ambiente dev no ar (item 22).
+- 24. [x] **Deploy por GitHub Actions (OIDC)**: `develop` publica o dev, `main` publica a prod com aprovação manual,
+  PR só valida; roles IAM por OIDC separadas por ambiente, sem chave nos secrets; o deploy falha se o changeset remover
+  ou substituir a tabela ou o login. No ar (PRs #38, #39 e #40, release v0.6.0). Guia em
+  `docs/deploy-github-actions.md`.
 - 11. [ ] **[Depois] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
   (exportar JSON e/ou point-in-time recovery do DynamoDB). Adiado por decisão: não será feito agora.
 
@@ -39,6 +36,23 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 - 15. [ ] **[Depois] IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
 - 18. [ ] **[Depois] Segurança e escala:** revisar o `localStorage` do token (front), limite de taxa na Function URL
   (infra), mesclar conflito de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
+- 27. [ ] **[Depois] Tela de permissões por usuário** (hoje só há dois papéis fixos, `owner` e `member`, na matriz de
+  `authz.go`): centralizar numa tela do dono o que cada pessoa pode ver e fazer. Motivos vindos do uso real: a esposa
+  clica em "valor estimado" ao lançar (campo que hoje não precisa) e vê cartões e saldos de bancos que não são dela.
+  Decidido:
+  - **Valor estimado** é permissão (liga/desliga por pessoa), não preferência de tela: ela pode passar a fazer
+    compras em dólar e então precisar informar o valor estimado.
+  - **Cartões e saldos** são por **banco e cartão individual** (não por aba inteira).
+  - **Banco ou cartão novo nasce invisível** para quem não é dono, até o dono liberar.
+  - **Coerência dos números:** esconder um banco ou cartão para uma pessoa tem que se comportar como o "ocultar"
+    do Histórico: nada dele entra em soma nenhuma na tela dela (saldos, faturas, Histórico, Futuros, Tendências,
+    totais, filtros por tag). Diferença importante: o `oculto` do lançamento vale para todo mundo e tira o valor do
+    saldo; a visibilidade por pessoa **não muda o saldo real**, só o que cada uma enxerga (o dono continua vendo tudo).
+  A decidir: modelo (permissão por usuário ou perfis nomeados) e onde guardar (item do usuário no espaço, perto do
+  `MEMBER#sub`). Aplicar no **backend**, não só esconder no front: a API não devolve lançamentos, saldos (itens
+  `SALDO#<banco>`) nem faturas do que a pessoa não pode ver. Como o navegador é quem calcula o saldo a partir do que
+  recebe, filtrar na origem já mantém as contas dela coerentes; conferir os agregados que misturam bancos (totais,
+  Tendências) e as telas de conferência e fechamento, que continuam só do dono.
 
 ### Front (funcionalidades novas)
 - 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
@@ -61,8 +75,20 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 ### Processo e qualidade (testes, releases, docs)
 - 10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
 - 16. [ ] **[Depois] Testes automatizados** do front (a lógica de faturas e de eventos futuros).
+- 26. [ ] **[Depois] Tag e release automáticas após o deploy da produção**: job no `deploy-prod.yml` com `needs: deploy`
+  (só roda com a produção publicada, porque a tag marca o que foi para produção), com `contents: write`; cria a tag
+  anotada e `gh release create --verify-tag --generate-notes`. Versão: pelos prefixos dos commits (`feat:` sobe o
+  número do meio; `fix:` e `docs:`, o último), com rótulo `release:minor|patch` no PR de release para sobrescrever.
+  O PR de release recebe um comentário automático (atualizado a cada commit ou rótulo) com a versão calculada, para
+  conferir e corrigir o rótulo antes do merge; o rótulo é lido na hora de criar a tag, depois do deploy da produção.
+  Absorve o item 19.
+- 25. [ ] **[Depois] PRs automáticos**: push em `feature/**` abre o PR para a `develop` (rascunho; só se ainda não existir)
+  e, depois do deploy do dev, abre o PR `develop → main` com o "O que entra" gerado dos PRs mergeados desde a última
+  tag. Pré-requisito: ligar "Allow GitHub Actions to create and approve pull requests" (Settings > Actions >
+  General). PR criado com `GITHUB_TOKEN` não dispara outros workflows, então o `ci.yml` precisa rodar também em
+  `push` nas `feature/**` (ou usar token de GitHub App/PAT). O merge continua manual.
 - 19. [ ] **[Depois] Script de release** (`scripts/lancar-versao.ps1 <versão>`): PR `develop → main`, merge, tag e
-  release em um comando (ver "Fluxo de branches e versões").
+  release em um comando (ver "Fluxo de branches e versões"). Pode ser dispensado pelos itens 25 e 26.
 
 ### Operação (tarefas de uso e dados, não de código)
 - 6. [x] **Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
