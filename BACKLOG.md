@@ -33,11 +33,15 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   (infra), mesclar conflito de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
 - 27. [ ] **[Depois] Tela de permissões por usuário** (hoje só há dois papéis fixos, `owner` e `member`, na matriz de
   `authz.go`): centralizar numa tela do dono o que cada pessoa pode ver e fazer. Motivos vindos do uso real: a esposa
-  clica em "valor estimado" ao lançar (mexe em um campo que não precisa) e vê cartões e saldos de bancos que não são
-  dela. Pontos a decidir: modelo (permissão por usuário ou perfis nomeados), o que é configurável (campos do
-  formulário de Lançar, abas Cartão e Saldos, bancos e cartões visíveis), onde guardar (item do usuário no espaço,
-  perto do `MEMBER#sub`) e aplicar no **backend**, não só esconder no front (a API não pode devolver o que a pessoa
-  não deve ver).
+  clica em "valor estimado" ao lançar (campo que hoje não precisa) e vê cartões e saldos de bancos que não são dela.
+  Decidido:
+  - **Valor estimado** é permissão (liga/desliga por pessoa), não preferência de tela: ela pode passar a fazer
+    compras em dólar e então precisar informar o valor estimado.
+  - **Cartões e saldos** são por **banco e cartão individual** (não por aba inteira).
+  A decidir: modelo (permissão por usuário ou perfis nomeados), onde guardar (item do usuário no espaço, perto do
+  `MEMBER#sub`) e como o padrão trata banco ou cartão novo (visível ou escondido até liberar). Aplicar no
+  **backend**, não só esconder no front: a API não pode devolver o que a pessoa não deve ver (inclui saldos,
+  faturas e lançamentos ligados ao banco ou cartão escondido).
 
 ### Front (funcionalidades novas)
 - 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
