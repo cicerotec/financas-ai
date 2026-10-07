@@ -6,6 +6,11 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 
 ## Roadmap
 
+### Bugs (têm prioridade sobre o resto)
+Cada item começa com a área correspondente entre colchetes. A numeração segue a mesma sequência do roadmap.
+- 25. [ ] **[UX/UI] Combo de bancos volta sozinho ao primeiro item ao lançar após copiar pelo Histórico**, o que pode
+  gerar erro no cadastro. Detalhe em "UX".
+
 ### Infra (AWS, SAM, ambientes, custo, backup)
 - 2. [x] **Decidir o `/api/*`: chamada direta à Function URL (opção B)**, front estático no CloudFront. Reavaliar
   rotear a API pelo CloudFront (OAC) quando entrar domínio próprio, WAF ou mais usuários. Detalhe em "Hospedagem".
@@ -52,8 +57,6 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 - 21. [ ] **[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em "UX"): barra de navegação
   inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
   acessibilidade das abas, unificar o seletor de tags.
-- 25. [ ] **[Agora] Bug: combo de bancos volta sozinho ao primeiro item ao lançar após copiar pelo Histórico.** Detalhe
-  em "UX".
 
 ### Processo e qualidade (testes, releases, docs)
 - 10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
