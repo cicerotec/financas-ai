@@ -74,6 +74,8 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   (só roda com a produção publicada, porque a tag marca o que foi para produção), com `contents: write`; cria a tag
   anotada e `gh release create --verify-tag --generate-notes`. Versão: pelos prefixos dos commits (`feat:` sobe o
   número do meio; `fix:` e `docs:`, o último), com rótulo `release:minor|patch` no PR de release para sobrescrever.
+  O PR de release recebe um comentário automático (atualizado a cada commit ou rótulo) com a versão calculada, para
+  conferir e corrigir o rótulo antes do merge; o rótulo é lido na hora de criar a tag, depois do deploy da produção.
   Absorve o item 19.
 - 25. [ ] **[Depois] PRs automáticos**: push em `feature/**` abre o PR para a `develop` (rascunho; só se ainda não existir)
   e, depois do deploy do dev, abre o PR `develop → main` com o "O que entra" gerado dos PRs mergeados desde a última
