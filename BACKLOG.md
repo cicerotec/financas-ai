@@ -38,10 +38,16 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
   - **Valor estimado** é permissão (liga/desliga por pessoa), não preferência de tela: ela pode passar a fazer
     compras em dólar e então precisar informar o valor estimado.
   - **Cartões e saldos** são por **banco e cartão individual** (não por aba inteira).
-  A decidir: modelo (permissão por usuário ou perfis nomeados), onde guardar (item do usuário no espaço, perto do
-  `MEMBER#sub`) e como o padrão trata banco ou cartão novo (visível ou escondido até liberar). Aplicar no
-  **backend**, não só esconder no front: a API não pode devolver o que a pessoa não deve ver (inclui saldos,
-  faturas e lançamentos ligados ao banco ou cartão escondido).
+  - **Banco ou cartão novo nasce invisível** para quem não é dono, até o dono liberar.
+  - **Coerência dos números:** esconder um banco ou cartão para uma pessoa tem que se comportar como o "ocultar"
+    do Histórico: nada dele entra em soma nenhuma na tela dela (saldos, faturas, Histórico, Futuros, Tendências,
+    totais, filtros por tag). Diferença importante: o `oculto` do lançamento vale para todo mundo e tira o valor do
+    saldo; a visibilidade por pessoa **não muda o saldo real**, só o que cada uma enxerga (o dono continua vendo tudo).
+  A decidir: modelo (permissão por usuário ou perfis nomeados) e onde guardar (item do usuário no espaço, perto do
+  `MEMBER#sub`). Aplicar no **backend**, não só esconder no front: a API não devolve lançamentos, saldos (itens
+  `SALDO#<banco>`) nem faturas do que a pessoa não pode ver. Como o navegador é quem calcula o saldo a partir do que
+  recebe, filtrar na origem já mantém as contas dela coerentes; conferir os agregados que misturam bancos (totais,
+  Tendências) e as telas de conferência e fechamento, que continuam só do dono.
 
 ### Front (funcionalidades novas)
 - 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
