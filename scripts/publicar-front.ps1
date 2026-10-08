@@ -36,7 +36,7 @@ if (-not $bucket -or -not $dist) { throw "A stack ainda nao tem FrontBucket/Dist
 
 # --delete remove do bucket o que nao existe mais em web/. O config.example.js nao precisa ir.
 # No dev, o config.dev.js sobe como config.js (o front sempre le config.js) e o config.js de producao nao vai.
-$parametrosS3 = @("s3", "sync", "web", "s3://$bucket", "--delete", "--exclude", "config.example.js", "--exclude", "config.dev.js", "--cache-control", "no-cache")
+$parametrosS3 = @("s3", "sync", "web", "s3://$bucket", "--delete", "--exclude", "config.example.js", "--exclude", "config.dev.js", "--exclude", "*.test.js", "--cache-control", "no-cache")
 if ($Ambiente -eq 'dev') { $parametrosS3 += @("--exclude", "config.js") }
 if ($Simular) { $parametrosS3 += "--dryrun" }
 aws @parametrosS3

@@ -33,5 +33,7 @@ jobs:
         run: |
           go vet ./...
           go test ./...
+      - name: Testes do front (logica de repeticao dos eventos futuros)
+        run: node web/recorrencia.test.js
       - name: sam validate --lint
         run: sam validate --lint --region sa-east-1

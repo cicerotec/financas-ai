@@ -106,6 +106,7 @@ A regra está em `backend/authz.go` e tem testes; o que não está liberado expl
 | `transferParId` | texto | liga as duas pontas de uma transferência entre bancos |
 | `faturaAjuste` | -1, 0 ou 1 | só em crédito: 1 = fatura seguinte à da data; -1 = anterior; ausente = pela data |
 | `valorEstimado` | booleano | só em crédito: valor ainda estimado (ex.: compra em dólar) |
+| `serie` | objeto | opcional: `{ id, indice, intervalo }` liga as cópias criadas por Prever ou Repetir ao lançar (`indice` = posição na série, `intervalo` = meses entre ocorrências) |
 | `aviso` | objeto | opcional, em evento futuro: `{ dias: [3,1,0], insistir: true }` avisa no Telegram nos dias combinados antes do vencimento e, com `insistir`, todo dia depois dele (ver [`docs/avisos.md`](docs/avisos.md)) |
 
 ### Configurações
