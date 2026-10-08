@@ -27,7 +27,7 @@ traduz para as rotas da Lambda.
 | Pasta ou arquivo | O que tem |
 |---|---|
 | `web/` | O app. `index.html` (telas e lógica), `api.js` (cliente da API e do login), `config.example.js` (modelo; `config.js` fica fora do git) |
-| `backend/` | Lambda em Go: `main.go` (rotas), `authz.go` (permissões por papel), `store.go` (DynamoDB), `auth.go` (token), `tags.go`, `perfil.go`, `fechamento.go` (fechamento mensal dos saldos), `seq.go` (contador de alterações) e os testes `*_test.go` |
+| `backend/` | Lambda em Go: `main.go` (rotas), `authz.go` (permissões por papel), `store.go` (DynamoDB), `auth.go` (token), `tags.go`, `perfil.go` (apelido e chat id do Telegram), `avisos.go` e `telegram.go` (avisos diários de lançamentos futuros), `fechamento.go` (fechamento mensal dos saldos), `seq.go` (contador de alterações) e os testes `*_test.go` |
 | `template.yaml` | Infra (SAM): tabela, Cognito, Lambda, bucket e distribuição do CloudFront |
 | `scripts/` | Deploy, sessão com MFA, publicação do front, convite de usuários e manutenção (ver abaixo) |
 | `docs/` | Documentos de projeto |
@@ -85,7 +85,8 @@ A regra está em `backend/authz.go` e tem testes; o que não está liberado expl
 | Fechamento mensal de um banco | `SPACE#<id>` | `SALDO#<banco>` |
 | Contador de alterações do espaço | `SPACE#<id>` | `SEQ` |
 | Dados do espaço | `SPACE#<id>` | `META` |
-| Vínculo da pessoa com o espaço (papel) | `USER#<sub>` | `SPACE#<id>` |
+| Vínculo da pessoa com o espaço (papel, apelido, `telegramChatId`) | `USER#<sub>` | `SPACE#<id>` |
+| Aviso ativo de um lançamento (auxiliar da rotina diária) | `AVISOS#ATIVOS` | `<espaço>#<id do lançamento>` |
 | Aparência da pessoa | `SPACE#<id>` | `USER#<sub>#CFG#APARENCIA` |
 
 ### Lançamento
@@ -105,6 +106,7 @@ A regra está em `backend/authz.go` e tem testes; o que não está liberado expl
 | `transferParId` | texto | liga as duas pontas de uma transferência entre bancos |
 | `faturaAjuste` | -1, 0 ou 1 | só em crédito: 1 = fatura seguinte à da data; -1 = anterior; ausente = pela data |
 | `valorEstimado` | booleano | só em crédito: valor ainda estimado (ex.: compra em dólar) |
+| `aviso` | objeto | opcional, em evento futuro: `{ dias: [3,1,0], insistir: true }` avisa no Telegram nos dias combinados antes do vencimento e, com `insistir`, todo dia depois dele (ver [`docs/avisos.md`](docs/avisos.md)) |
 
 ### Configurações
 - `listas`: `status` e `banco` (listas de textos); `statusReal` (status → conta como real; só `false` exclui);
