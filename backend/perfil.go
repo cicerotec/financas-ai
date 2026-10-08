@@ -113,7 +113,7 @@ func postAvisoTeste(ctx context.Context, sid string, u *user) (resp, error) {
 	if chat == "" {
 		return erro(http.StatusBadRequest, "cadastre o seu chat id do Telegram primeiro")
 	}
-	err = enviarMensagem(ctx, chat, "🔔 Teste do financas.ai: se você recebeu esta mensagem, os avisos vão chegar aqui.")
+	err = enviarMensagem(ctx, chat, "🔔 "+marcaAmbiente()+"Teste do financas.ai: se você recebeu esta mensagem, os avisos vão chegar aqui.")
 	switch {
 	case errors.Is(err, errTelegramNaoConfigurado):
 		return erro(http.StatusServiceUnavailable, "o envio pelo Telegram ainda nao foi configurado no servidor")
