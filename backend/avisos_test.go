@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// Os testes nao dependem do ambiente em que rodam: o deploy do dev executa "go test" com AMBIENTE=dev, o que poria
+// [DEV] nas mensagens esperadas sem marca. Quem testa a marca define ambienteApp por conta propria.
+func init() { ambienteApp = "" }
+
 // ---------- validacao ----------
 
 func TestValidarAviso(t *testing.T) {
