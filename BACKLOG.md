@@ -82,8 +82,8 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 - 25. [x] **PRs automáticos**: push em `feature/**` (e `fix/`, `bug/`, `docs/`, `chore/`) abre o PR rascunho para a
   `develop`; depois do deploy do dev, abre o PR `develop → main`. O CI roda também em `push`. No ar (PR #44). O
   `CI` por `pull_request` do PR criado pelo robô espera "Approve and run" (limite do `GITHUB_TOKEN`); não bloqueia.
-- 19. [ ] **[Depois] Script de release** (`scripts/lancar-versao.ps1 <versão>`): PR `develop → main`, merge, tag e
-  release em um comando (ver "Fluxo de branches e versões"). Pode ser dispensado pelos itens 25 e 26.
+- 19. [x] **Script de release**: dispensado e substituído pela automação dos itens 25 e 26 (PR de release aberto pelo
+  robô, tag e release criadas depois do deploy da produção). Funcionou na v0.7.0.
 
 ### Operação (tarefas de uso e dados, não de código)
 - 6. [x] **Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
