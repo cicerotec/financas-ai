@@ -442,3 +442,49 @@ func rodarAvisos(ctx context.Context, agora time.Time) (int, error) {
 	log.Printf("avisos: %d item(ns) ativos, %d resumo(s) enviado(s)", len(itens), enviados)
 	return enviados, nil
 }
+
+// ---------- serie (repeticao de eventos futuros) ----------
+
+const (
+	maxIndiceSerie    = 999
+	maxIntervaloSerie = 120 // meses
+)
+
+// validarSerie confere e normaliza d["serie"]: { id, indice, intervalo }. Liga as copias criadas por uma repeticao
+// ("Prever" ou "Repetir" ao lancar): indice = posicao na serie e intervalo = meses entre uma ocorrencia e a seguinte.
+// null remove o campo.
+func validarSerie(d doc) error {
+	bruto, existe := d["serie"]
+	if !existe {
+		return nil
+	}
+	if bruto == nil {
+		delete(d, "serie")
+		return nil
+	}
+	m, ok := bruto.(map[string]any)
+	if !ok {
+		return errors.New("serie deve ser um objeto")
+	}
+	id, _ := m["id"].(string)
+	if !reID.MatchString(id) {
+		return errors.New("serie.id invalido (6 a 40 letras minusculas ou numeros)")
+	}
+	inteiro := func(campo string, max float64) (float64, error) {
+		f, ok := m[campo].(float64)
+		if !ok || f != math.Trunc(f) || f < 1 || f > max {
+			return 0, fmt.Errorf("serie.%s: use um inteiro de 1 a %d", campo, int(max))
+		}
+		return f, nil
+	}
+	indice, err := inteiro("indice", maxIndiceSerie)
+	if err != nil {
+		return err
+	}
+	intervalo, err := inteiro("intervalo", maxIntervaloSerie)
+	if err != nil {
+		return err
+	}
+	d["serie"] = doc{"id": id, "indice": indice, "intervalo": intervalo}
+	return nil
+}
