@@ -1,0 +1,29 @@
+# Push numa branch de trabalho (feature/, fix/, bug/, docs/ ou chore/) abre o PR para a develop como RASCUNHO, se ainda
+# nao houver um. Quando terminar, clique em "Ready for review". Exige ligar, em Settings > Actions > General:
+# "Allow GitHub Actions to create and approve pull requests".
+name: PR da branch
+
+on:
+  push:
+    branches: ['feature/**', 'fix/**', 'bug/**', 'docs/**', 'chore/**']
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-branch-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  abrir-pr:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Abrir o PR (rascunho) para a develop
+        run: bash scripts/pr-feature.sh

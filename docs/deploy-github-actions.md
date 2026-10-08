@@ -2,7 +2,7 @@
 
 | Quando | Workflow | O que faz |
 |---|---|---|
-| PR para `develop` ou `main` | `ci.yml` | `go vet`, `go test`, `sam validate --lint`. Sem credenciais da AWS. |
+| PR para `develop` ou `main`, ou push em branch de trabalho / `develop` | `ci.yml` | `go vet`, `go test`, `sam validate --lint`. Sem credenciais da AWS. |
 | push na `develop` | `deploy-dev.yml` | publica a stack `financas-dev` (back e front). Sem aprovação. |
 | push na `main` | `deploy-prod.yml` | publica a stack `financas`. **Espera a aprovação** do environment `prod`. |
 
@@ -40,3 +40,29 @@ execução do changeset e publicação do front. O `config.js` do front é gerad
 
 O deploy manual (`scripts/deploy.ps1`) continua funcionando. Se o Action e o deploy manual disputarem a stack, o
 CloudFormation recusa o segundo (a stack fica em atualização).
+
+## PRs e releases automáticos
+
+| Quando | Workflow | O que faz |
+|---|---|---|
+| push em `feature/**`, `fix/**`, `bug/**`, `docs/**` ou `chore/**` | `pr-feature.yml` | abre o PR **rascunho** para a `develop`, se não houver um (PR fechado sem merge não é reaberto). Clique em *Ready for review* quando terminar. |
+| `Deploy dev` bem-sucedido | job `pr-release` em `deploy-dev.yml` | abre o PR `develop → main` (se não houver) e comenta a **próxima versão** e a lista do que entra. |
+| rótulo ou commits mudam no PR de release | `pr-release-versao.yml` | atualiza esse comentário. |
+| `Deploy prod` bem-sucedido | job `lancar-versao` em `deploy-prod.yml` | cria a tag anotada `vX.Y.Z` no commit publicado e a release (`--generate-notes`). |
+
+**Versão** (`scripts/proxima-versao.sh`, a partir da última tag `v*`): algum commit `feat:` sobe o número do meio; senão
+sobe o último (`fix:`, `docs:`, `chore:`, `test:` etc.). O rótulo `release:minor` ou `release:patch` no PR de release
+manda por cima; vale o que estiver nele quando a tag for criada (depois do deploy da produção). Se o commit já tiver
+tag, nada é criado.
+
+Configuração única (sua):
+1. Settings > Actions > General > Workflow permissions: marcar **Allow GitHub Actions to create and approve pull requests**.
+2. Criar os rótulos:
+   ```bash
+   gh label create "release:minor" --color 0e8a16 --description "Release: sobe o numero do meio"
+   gh label create "release:patch" --color 1d76db --description "Release: sobe o ultimo numero"
+   ```
+3. Antes do primeiro release automático, a última versão lançada precisa ter tag (o cálculo parte dela).
+
+PR criado com o `GITHUB_TOKEN` não dispara outros workflows; por isso o CI roda também em `push` e o primeiro comentário
+do PR de release é feito pelo próprio job que o cria.

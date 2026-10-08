@@ -1,12 +1,20 @@
-# Validacao de PR (develop e main): testes do Go e `sam validate --lint`. Nao usa credenciais da AWS nem publica nada.
+# Validacao de PR (develop e main) e de push nas branches de trabalho: testes do Go e `sam validate --lint`. Nao usa credenciais da AWS nem publica nada.
 name: CI
 
 on:
   pull_request:
     branches: [develop, main]
+  # PR criado pelo Actions (GITHUB_TOKEN) nao dispara o evento de PR; o push garante o CI nas branches de trabalho e,
+  # na develop, o resultado aparece no PR de release.
+  push:
+    branches: ['feature/**', 'fix/**', 'bug/**', 'docs/**', 'chore/**', develop]
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   validar:
