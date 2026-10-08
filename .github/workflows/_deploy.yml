@@ -80,10 +80,20 @@ jobs:
       - name: Executar o changeset
         if: steps.changeset.outputs.changeset != ''
         run: |
-          aws cloudformation execute-change-set --stack-name "$STACK" --change-set-name "${{ steps.changeset.outputs.changeset }}"
-          # o waiter certo depende de a stack ser nova ou existente
-          aws cloudformation wait stack-update-complete --stack-name "$STACK" \
-            || aws cloudformation wait stack-create-complete --stack-name "$STACK"
+          nome="${{ steps.changeset.outputs.changeset }}"
+          # o waiter certo depende de a stack ser nova (CREATE) ou existente (UPDATE)
+          tipo=$(aws cloudformation describe-change-set --stack-name "$STACK" --change-set-name "$nome" --query ChangeSetType --output text)
+          aws cloudformation execute-change-set --stack-name "$STACK" --change-set-name "$nome"
+          if [ "$tipo" = "CREATE" ]; then espera=stack-create-complete; else espera=stack-update-complete; fi
+          if ! aws cloudformation wait "$espera" --stack-name "$STACK"; then
+            # rollback ou falha: o job NAO pode ficar verde (a stack voltou ao estado anterior)
+            status=$(aws cloudformation describe-stacks --stack-name "$STACK" --query 'Stacks[0].StackStatus' --output text)
+            echo "::error::A stack $STACK terminou em $status"
+            echo "Recursos que falharam:" >&2
+            aws cloudformation describe-stack-events --stack-name "$STACK" --max-items 50 \
+              --query "StackEvents[?contains(ResourceStatus, 'FAILED')].[LogicalResourceId, ResourceStatusReason]" --output text >&2
+            exit 1
+          fi
 
       - name: Publicar o front (S3 + CloudFront)
         run: |
