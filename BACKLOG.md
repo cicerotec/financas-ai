@@ -24,6 +24,12 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   `docs/deploy-github-actions.md`.
 - 11. [ ] **[Depois] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
   (exportar JSON e/ou point-in-time recovery do DynamoDB). Adiado por decisão: não será feito agora.
+  - O **AWS Budget** controla o **custo da própria conta AWS**, não é um orçamento do app de finanças. Define-se um
+    limite mensal em dólar (aqui, US$ 1, já que o projeto fica no free tier) e a AWS manda e-mail ao chegar em 80%
+    do gasto real e quando a previsão passar de 100%. Protege contra cobrança inesperada (enxurrada de requisições na
+    Function URL, recurso esquecido). Console: Billing > Budgets > Create budget > Cost budget; os 2 primeiros são grátis.
+  - **Backup:** o `template.yaml` declara `PointInTimeRecoveryEnabled: false`; ligar o PITR no console sem mudar o
+    template seria desfeito no próximo deploy. Hoje só existe o botão Exportar (`.json`) como cópia manual.
 
 ### Backend (Go, DynamoDB, Cognito, API)
 - 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
