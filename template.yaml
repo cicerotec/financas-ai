@@ -102,8 +102,24 @@ Resources:
           TABLE_NAME: !Ref Table
           USER_POOL_ID: !Ref UserPool
           CLIENT_ID: !Ref UserPoolClient
+          TELEGRAM_TOKEN_PARAM: !If [EhDev, /financas/dev/telegram-token, /financas/prod/telegram-token]
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        # token do bot do Telegram (SecureString criado a mao; ver docs/avisos.md). Sem o parametro, os avisos nao saem.
+        - SSMParameterReadPolicy: { ParameterName: !If [EhDev, financas/dev/telegram-token, financas/prod/telegram-token] }
+        - Statement:
+            - Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*'
+              Condition:
+                StringEquals: { 'kms:ViaService': !Sub 'ssm.${AWS::Region}.amazonaws.com' }
+      Events:
+        AvisosDiarios:
+          Type: Schedule
+          Properties:
+            Description: Avisos diarios de lancamentos futuros (Telegram)
+            Schedule: cron(0 11 * * ? *)      # 08:00 em Sao Paulo (UTC-3, sem horario de verao)
+            Input: '{"acao":"avisos"}'
       FunctionUrlConfig:
         AuthType: NONE               # o JWT do Cognito e validado dentro da Lambda
         Cors:

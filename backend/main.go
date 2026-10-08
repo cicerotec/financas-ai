@@ -104,6 +104,8 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 		return getCfg(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA")
 	case acaoEditarPerfil:
 		return putPerfil(ctx, sid, u, body)
+	case acaoTestarAviso:
+		return postAvisoTeste(ctx, sid, u)
 	case acaoEscreverAparenc:
 		return putAparencia(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA", body)
 	}
@@ -137,7 +139,7 @@ func getMe(ctx context.Context, u *user) (resp, error) {
 				nome = n
 			}
 		}
-		espacos = append(espacos, doc{"id": id, "nome": nome, "role": d["role"], "apelido": d["apelido"]})
+		espacos = append(espacos, doc{"id": id, "nome": nome, "role": d["role"], "apelido": d["apelido"], "telegramChatId": d["telegramChatId"]})
 	}
 	return out(200, doc{"sub": u.Sub, "email": u.Email, "espacos": espacos})
 }
@@ -182,7 +184,7 @@ func validarTx(d doc) error {
 			return errors.New(c + " obrigatorio")
 		}
 	}
-	return nil
+	return validarAviso(d)
 }
 
 func protegidos(d doc) {
@@ -221,6 +223,7 @@ func postTx(ctx context.Context, sid string, u *user, body doc) (resp, error) {
 		invalidarSaldos(ctx, sid, []alvo{al})
 	}
 	garantirTagsServidor(ctx, sid, tagsDe(body))
+	sincronizarAviso(ctx, sid, body)
 	return out(201, comSeq(ctx, sid, publico(body)))
 }
 
@@ -240,6 +243,7 @@ func postTxBatch(ctx context.Context, sid string, u *user, body doc) (resp, erro
 	vistas := map[string]bool{}
 	tr := novasTravas(ctx, sid)
 	var alvos []alvo
+	var aceitos []doc
 	for i, x := range bruto {
 		d, ok := x.(map[string]any)
 		if !ok {
@@ -284,6 +288,7 @@ func postTxBatch(ctx context.Context, sid string, u *user, body doc) (resp, erro
 			continue
 		}
 		reqs = append(reqs, types.WriteRequest{PutRequest: &types.PutRequest{Item: item}})
+		aceitos = append(aceitos, d)
 		if temAlvo {
 			alvos = append(alvos, al)
 		}
@@ -295,10 +300,19 @@ func postTxBatch(ctx context.Context, sid string, u *user, body doc) (resp, erro
 		invalidarSaldos(ctx, sid, alvos)
 	}
 	pendentes := []doc{}
+	naoGravados := map[string]bool{}
 	for _, w := range pend {
 		var d doc
 		if attributevalue.UnmarshalMap(w.PutRequest.Item, &d) == nil {
+			if sk, _ := d["SK"].(string); sk != "" {
+				naoGravados[sk] = true
+			}
 			pendentes = append(pendentes, publico(d))
+		}
+	}
+	for _, d := range aceitos {
+		if sk, _ := d["SK"].(string); !naoGravados[sk] {
+			sincronizarAviso(ctx, sid, d)
 		}
 	}
 	resposta := doc{}
@@ -396,6 +410,7 @@ func putTx(ctx context.Context, sid, id, de string, body doc, sub string, restri
 		invalidarSaldos(ctx, sid, alvos)
 	}
 	garantirTagsServidor(ctx, sid, tagsDe(novo))
+	sincronizarAviso(ctx, sid, novo)
 	return out(200, comSeq(ctx, sid, publico(novo)))
 }
 
@@ -418,6 +433,7 @@ func delTx(ctx context.Context, sid, id, de string) (resp, error) {
 		log.Println("del tx:", err)
 		return erro(500, "erro ao excluir")
 	}
+	removerAviso(ctx, sid, id)
 	if antigo != nil && temAlvo {
 		invalidarSaldos(ctx, sid, []alvo{al})
 	}
@@ -502,9 +518,26 @@ func putAparencia(ctx context.Context, pk, sk string, body doc) (resp, error) {
 	return out(200, publico(body))
 }
 
+// entrada separa os dois tipos de evento que a Lambda recebe: a chamada HTTP da Function URL e o agendamento diario
+// do EventBridge ({"acao":"avisos"}, enviado como entrada fixa da regra).
+func entrada(ctx context.Context, raw json.RawMessage) (any, error) {
+	var ev struct {
+		Acao string `json:"acao"`
+	}
+	if json.Unmarshal(raw, &ev) == nil && ev.Acao == "avisos" {
+		n, err := rodarAvisos(ctx, time.Now())
+		return doc{"enviados": n}, err
+	}
+	var r req
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return nil, err
+	}
+	return handler(ctx, r)
+}
+
 func main() {
 	if err := initDB(context.Background()); err != nil {
 		log.Fatal(err)
 	}
-	lambda.Start(handler)
+	lambda.Start(entrada)
 }
