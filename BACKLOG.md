@@ -75,20 +75,13 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 ### Processo e qualidade (testes, releases, docs)
 - 10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
 - 16. [ ] **[Depois] Testes automatizados** do front (a lógica de faturas e de eventos futuros).
-- 26. [ ] **[Em andamento] Tag e release automáticas após o deploy da produção**: job no `deploy-prod.yml` com `needs: deploy`
-  (só roda com a produção publicada, porque a tag marca o que foi para produção), com `contents: write`; cria a tag
-  anotada e `gh release create --verify-tag --generate-notes`. Versão: pelos prefixos dos commits (`feat:` sobe o
-  número do meio; `fix:` e `docs:`, o último), com rótulo `release:minor|patch` no PR de release para sobrescrever.
-  O PR de release recebe um comentário automático (atualizado a cada commit ou rótulo) com a versão calculada, para
-  conferir e corrigir o rótulo antes do merge; o rótulo é lido na hora de criar a tag, depois do deploy da produção.
-  Absorve o item 19. Implementado (`scripts/proxima-versao.sh`, `criar-tag-release.sh`, `pr-release.sh`, `pr-feature.sh` e
-  os workflows; guia em `docs/deploy-github-actions.md`); falta a configuração única (rótulos e a opção de PRs por Actions)
-  e a validação no primeiro uso.
-- 25. [ ] **[Em andamento] PRs automáticos**: push em `feature/**` abre o PR para a `develop` (rascunho; só se ainda não existir)
-  e, depois do deploy do dev, abre o PR `develop → main` com o "O que entra" gerado dos PRs mergeados desde a última
-  tag. Pré-requisito: ligar "Allow GitHub Actions to create and approve pull requests" (Settings > Actions >
-  General). PR criado com `GITHUB_TOKEN` não dispara outros workflows, então o `ci.yml` precisa rodar também em
-  `push` nas `feature/**` (ou usar token de GitHub App/PAT). O merge continua manual.
+- 26. [x] **Tag e release automáticas após o deploy da produção**: o job `lancar-versao` (em `deploy-prod.yml`) cria a
+  tag anotada e a release depois do deploy da `main`. Versão pelos commits (`feat:` sobe o número do meio, o resto
+  sobe o último) com os rótulos `release:minor|patch` no PR de release por cima; o PR de release recebe um comentário
+  com a versão calculada. No ar (PRs #44 e #45, release v0.7.0). Detalhes em `docs/deploy-github-actions.md`.
+- 25. [x] **PRs automáticos**: push em `feature/**` (e `fix/`, `bug/`, `docs/`, `chore/`) abre o PR rascunho para a
+  `develop`; depois do deploy do dev, abre o PR `develop → main`. O CI roda também em `push`. No ar (PR #44). O
+  `CI` por `pull_request` do PR criado pelo robô espera "Approve and run" (limite do `GITHUB_TOKEN`); não bloqueia.
 - 19. [ ] **[Depois] Script de release** (`scripts/lancar-versao.ps1 <versão>`): PR `develop → main`, merge, tag e
   release em um comando (ver "Fluxo de branches e versões"). Pode ser dispensado pelos itens 25 e 26.
 
