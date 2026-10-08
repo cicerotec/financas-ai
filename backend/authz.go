@@ -24,6 +24,7 @@ const (
 	acaoEscreverFech    acao = "fechamento.escrever" // cache dos meses fechados
 	acaoConferirMes     acao = "fechamento.conferir"
 	acaoReabrirMes      acao = "fechamento.reabrir"
+	acaoTestarAviso     acao = "avisos.testar" // manda uma mensagem de teste para o proprio Telegram
 )
 
 type decisao int
@@ -46,13 +47,13 @@ func permitido(papel string, a acao) decisao {
 		switch a {
 		case acaoLerTx, acaoCriarTx, acaoEditarTx, acaoExcluirTx, acaoImportarTx,
 			acaoLerCfg, acaoEscreverCfg, acaoAdicionarTags, acaoLerAparencia, acaoEscreverAparenc, acaoEditarPerfil,
-			acaoLerFech, acaoEscreverFech, acaoConferirMes, acaoReabrirMes, acaoLerSeq:
+			acaoLerFech, acaoEscreverFech, acaoConferirMes, acaoReabrirMes, acaoLerSeq, acaoTestarAviso:
 			return liberado
 		}
 	case papelMember:
 		switch a {
 		case acaoLerTx, acaoCriarTx, acaoLerCfg, acaoAdicionarTags, acaoLerAparencia, acaoEscreverAparenc, acaoEditarPerfil,
-			acaoLerFech, acaoLerSeq:
+			acaoLerFech, acaoLerSeq, acaoTestarAviso:
 			return liberado
 		case acaoEditarTx:
 			return soDono
@@ -112,6 +113,8 @@ func rotaParaAcao(metodo string, rest []string) (acao, bool) {
 		return acaoAdicionarTags, true
 	case len(rest) == 1 && rest[0] == "perfil" && metodo == "PUT":
 		return acaoEditarPerfil, true
+	case len(rest) == 2 && rest[0] == "avisos" && rest[1] == "teste" && metodo == "POST":
+		return acaoTestarAviso, true
 	case len(rest) == 1 && rest[0] == "aparencia":
 		switch metodo {
 		case "GET":
