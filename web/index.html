@@ -176,6 +176,19 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
       <div><label for="fValor">Valor R$</label><input id="fValor" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
     </div>
     <p class="muted" id="fFuturoDica"></p>
+    <div id="fAvisoWrap" class="hidden">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" id="fAvisar" style="width:auto;"> 🔔 Avisar no Telegram</label>
+      <div id="fAvisoOpcoes" class="hidden" style="margin:6px 0 0 4px;">
+        <div id="fAvisoDias" style="display:flex;flex-wrap:wrap;gap:6px 14px;">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="7" style="width:auto;"> 7 dias antes</label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="3" style="width:auto;"> 3 dias antes</label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="1" style="width:auto;"> 1 dia antes</label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="0" style="width:auto;"> No dia</label>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px;"><input type="checkbox" id="fAvisoInsistir" style="width:auto;"> Insistir todo dia depois do vencimento, até pagar</label>
+      </div>
+      <p class="muted" id="fAvisoDica"></p>
+    </div>
     <div id="fFaturaWrap" class="hidden">
       <label>Fatura do cartão</label>
       <select id="fFatura"><option value="0">Pela data (padrão)</option><option value="1">Próxima fatura</option><option value="-1">Fatura anterior</option></select>
@@ -269,6 +282,12 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
     <p class="muted">Aparece no topo da tela para a sua família. Só você altera o seu.</p>
     <div class="row"><input id="perfilNome" maxlength="30" placeholder="ex: Maria"><button class="ghost" id="btnSalvarNome">Salvar</button></div>
     <p class="muted" id="perfilMsg"></p>
+  </div>
+  <div class="card" id="telegramCard">
+    <b>Avisos no Telegram</b>
+    <p class="muted">Para receber os avisos dos lançamentos futuros: abra o bot do app no Telegram e toque em Iniciar; depois descubra o seu Id conversando com o @userinfobot e cole aqui.</p>
+    <div class="row"><input id="telegramChatId" inputmode="numeric" maxlength="21" placeholder="ex: 123456789"><button class="ghost" id="btnSalvarTelegram">Salvar</button><button class="ghost" id="btnTesteTelegram">Enviar aviso de teste</button></div>
+    <p class="muted" id="telegramMsg"></p>
   </div>
   <div class="card">
     <b>Aparência</b>
@@ -510,7 +529,45 @@ function atualizarCampoFatura(){
   const fd = document.getElementById('fFuturoDica');
   if(fd) fd.textContent = ehFuturo(st) ? 'Evento futuro: aparece na aba Futuros, não no Histórico, e não mexe no saldo.' : '';
   w.classList.toggle('hidden', !ehCredito(st));
+  atualizarCampoAviso();
   document.getElementById('fFaturaDica').textContent = ehCreditoEX(st) ? 'Registros com status CRÉDITO EX já vão para a próxima fatura.' : (ehCreditoIN(st) ? 'Registros com status CRÉDITO IN já entram na fatura anterior (a que fecha neste mês).' : '');
+}
+// ---------- aviso (Telegram) do lancamento futuro ----------
+function telegramVinculado(){ return !!(window.claude && claude.telegramChatId && claude.telegramChatId()); }
+function atualizarCampoAviso(){
+  const w = document.getElementById('fAvisoWrap');
+  if(!w) return;
+  const st = document.getElementById('fStatus').value;
+  const mostrar = ehFuturo(st);
+  w.classList.toggle('hidden', !mostrar);
+  document.getElementById('fAvisoOpcoes').classList.toggle('hidden', !document.getElementById('fAvisar').checked);
+  document.getElementById('fAvisoDica').textContent = (mostrar && document.getElementById('fAvisar').checked && !telegramVinculado())
+    ? 'Você ainda não vinculou o Telegram: o aviso é guardado, mas só chega depois que você cadastrar o chat id em Listas.' : '';
+}
+// null = sem aviso; 'incompleto' = marcado sem nenhum dia nem "insistir"
+function lerAvisoDoFormulario(){
+  if(document.getElementById('fAvisoWrap').classList.contains('hidden') || !document.getElementById('fAvisar').checked) return null;
+  const dias = [...document.querySelectorAll('#fAvisoDias input:checked')].map(i=>parseInt(i.value,10));
+  const insistir = document.getElementById('fAvisoInsistir').checked;
+  if(!dias.length && !insistir) return 'incompleto';
+  return {dias, insistir};
+}
+function preencherAvisoNoFormulario(aviso){
+  const tem = !!(aviso && typeof aviso === 'object');
+  document.getElementById('fAvisar').checked = tem;
+  const dias = tem && Array.isArray(aviso.dias) ? aviso.dias : [];
+  document.querySelectorAll('#fAvisoDias input').forEach(i=>{ i.checked = dias.includes(parseInt(i.value,10)); });
+  document.getElementById('fAvisoInsistir').checked = tem && aviso.insistir === true;
+  atualizarCampoAviso();
+}
+// ao ligar "Avisar" num formulario vazio: sugere 1 dia antes, no dia, e insistir depois (o caso da multa)
+function aoMarcarAvisar(){
+  const algum = document.querySelectorAll('#fAvisoDias input:checked').length || document.getElementById('fAvisoInsistir').checked;
+  if(document.getElementById('fAvisar').checked && !algum){
+    document.querySelectorAll('#fAvisoDias input').forEach(i=>{ i.checked = (i.value==='1' || i.value==='0'); });
+    document.getElementById('fAvisoInsistir').checked = true;
+  }
+  atualizarCampoAviso();
 }
 let lancamentosCache = [];
 let modoMesEspecifico = false;
@@ -651,8 +708,10 @@ async function init(){
   document.body.classList.toggle('papel-member', papelAtual !== 'owner');
   if(window.claude && claude.definirApelido){
     document.getElementById('perfilNome').value = (claude.apelido && claude.apelido()) || '';
+    document.getElementById('telegramChatId').value = (claude.telegramChatId && claude.telegramChatId()) || '';
   } else {
     document.getElementById('perfilCard').classList.add('hidden'); // ambiente sem perfil (artifact do Claude)
+    document.getElementById('telegramCard').classList.add('hidden');
   }
   if(papelAtual !== 'owner'){
     const dica = document.getElementById('saldoDica');
@@ -1088,6 +1147,7 @@ async function garantirTags(novasTags){
 }
 
 function setupHandlers(){
+  document.getElementById('fAvisar').addEventListener('change', aoMarcarAvisar);
   document.getElementById('fStatus').addEventListener('change', ()=>{
     document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
     atualizarCampoFatura();
@@ -1322,6 +1382,10 @@ async function salvarLancamentoInterno(){
     doc.faturaAjuste = parseInt(document.getElementById('fFatura').value,10) || 0;
     doc.valorEstimado = document.getElementById('fEstimado').checked;
   }
+  const aviso = lerAvisoDoFormulario();
+  if(aviso === 'incompleto'){ await avisar("Marque pelo menos um dia de aviso ou \"Insistir todo dia\"."); return; }
+  if(aviso) doc.aviso = aviso;
+  else if(editandoId && ehFuturo(statusEscolhido)) doc.aviso = null; // desligou o aviso na edicao
   const jaExiste = lancamentosCache.some(l=>l.id!==editandoId && chaveLancamento(l)===chaveLancamento(doc));
   if(jaExiste && !(await confirmarModal("Já existe um lançamento igual (mesmo status, descrição, valor, banco e data). Salvar mesmo assim?"))) return;
   if(editandoId){
@@ -1348,6 +1412,7 @@ function limparFormulario(){
   tagBusca = ''; document.getElementById('tagBusca').value = '';
   document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
   document.getElementById('fEstimado').checked = false;
+  preencherAvisoNoFormulario(null);
   atualizarCampoFatura();
   renderTagPicker();
 }
@@ -1419,6 +1484,14 @@ function gruposFuturos(lista, hojeKey){
   return grupos;
 }
 
+function chipAviso(l){
+  const a = l && l.aviso;
+  if(!a || typeof a !== 'object' || !ehFuturo(l.status)) return '';
+  const dias = (Array.isArray(a.dias) ? a.dias : []).map(d=>d===0?'no dia':d+'d antes');
+  if(a.insistir) dias.push('todo dia depois');
+  return ` <span class="chip" title="Aviso no Telegram: ${esc(dias.join(', '))}">🔔</span>`;
+}
+
 function htmlItemLancamento(l, o){
   o = o || {};
   const fut = ehFuturo(l.status);
@@ -1435,7 +1508,7 @@ function htmlItemLancamento(l, o){
   return `
     <div class="item ${l.oculto?'oculto':''} ${fut?'futuro':''} ${atrasado?'atrasado':''}" style="${estiloItemCor(l.status)}">
       <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span>${htmlValorLinha(l)}</div>
-      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}${prazo}${seu}</div>
+      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)}${chipAviso(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}${prazo}${seu}</div>
       ${marca}
       ${l.nota?`<div class="item-meta">${escHtml(l.nota)}</div>`:''}
       <div class="item-acoes">
@@ -1542,6 +1615,7 @@ function iniciarEdicao(id){
   document.getElementById('fStatus').value = l.status;
   document.getElementById('fFatura').value = String(ajusteEfetivo(l));
   document.getElementById('fEstimado').checked = l.valorEstimado === true;
+  preencherAvisoNoFormulario(l.aviso);
   atualizarCampoFatura();
   document.getElementById('fTipo').value = l.tipo;
   document.getElementById('fValor').value = l.valor;
@@ -1567,6 +1641,7 @@ function iniciarCopia(id){
   document.getElementById('fStatus').value = l.status;
   document.getElementById('fFatura').value = String(ajustePadrao(l.status));
   document.getElementById('fEstimado').checked = false;
+  preencherAvisoNoFormulario(null); // a copia tem outra data: o aviso e escolhido de novo
   atualizarCampoFatura();
   document.getElementById('fTipo').value = l.tipo;
   document.getElementById('fValor').value = l.valor;
@@ -3300,6 +3375,27 @@ async function salvarNomePerfil(){
   }
 }
 document.getElementById('btnSalvarNome').addEventListener('click', salvarNomePerfil);
+
+async function salvarTelegram(){
+  const msg = document.getElementById('telegramMsg'), inp = document.getElementById('telegramChatId');
+  if(!window.claude || !claude.definirTelegram){ msg.textContent = 'Indisponível nesta versão.'; return; }
+  msg.textContent = 'Salvando...';
+  try{
+    const chat = await claude.definirTelegram(inp.value);
+    inp.value = chat;
+    msg.textContent = chat ? 'Salvo ✓ Use "Enviar aviso de teste" para conferir.' : 'Telegram desvinculado ✓';
+    atualizarCampoAviso();
+  }catch(e){ msg.textContent = '⚠️ ' + ((e && e.message) || e); }
+}
+async function testarTelegram(){
+  const msg = document.getElementById('telegramMsg');
+  if(!window.claude || !claude.testarAviso){ msg.textContent = 'Indisponível nesta versão.'; return; }
+  msg.textContent = 'Enviando...';
+  try{ await claude.testarAviso(); msg.textContent = 'Enviado ✓ Confira o Telegram.'; }
+  catch(e){ msg.textContent = '⚠️ ' + ((e && e.message) || e); }
+}
+document.getElementById('btnSalvarTelegram').addEventListener('click', salvarTelegram);
+document.getElementById('btnTesteTelegram').addEventListener('click', testarTelegram);
 
 window.addEventListener('unhandledrejection', ev=>{
   const r = ev.reason;
