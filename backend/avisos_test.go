@@ -475,3 +475,28 @@ func TestGetMeDevolveOChatID(t *testing.T) {
 		t.Errorf("espaco = %v", esp)
 	}
 }
+
+func TestMensagensDoDevTemMarcaDev(t *testing.T) {
+	linhas := []linhaAviso{{kind: avisoHoje, venc: "2026-10-07", tipo: "saida", descricao: "Luz", valor: 10, banco: "ITAU"}}
+	original := ambienteApp
+	t.Cleanup(func() { ambienteApp = original })
+
+	ambienteApp = "dev"
+	if r := montarResumo("2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10\n") {
+		t.Errorf("resumo do dev sem [DEV]:\n%s", r)
+	}
+	f := cenario(t)
+	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member", "telegramChatId": "222222"})
+	env := trocaEnvio(t, nil)
+	chamar(t, "mem", "POST", "spaces/s1/avisos/teste", nil, "{}")
+	if len(*env) != 1 || !strings.HasPrefix((*env)[0].texto, "🔔 [DEV] Teste") {
+		t.Errorf("teste do dev sem [DEV]: %v", *env)
+	}
+
+	for _, amb := range []string{"prod", ""} {
+		ambienteApp = amb
+		if r := montarResumo("2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10\n") {
+			t.Errorf("ambiente %q nao deve ter [DEV]:\n%s", amb, r)
+		}
+	}
+}

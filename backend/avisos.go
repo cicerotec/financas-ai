@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +36,17 @@ const (
 	maxItensAviso  = 8
 	maxAtrasoAviso = 60 // depois disso o item auxiliar sai e o aviso para de insistir
 )
+
+// ambienteApp vem do parametro Ambiente do template ("dev" ou "prod"). Os dois ambientes usam o mesmo bot e o mesmo
+// chat, entao o dev marca as mensagens com [DEV] para nao parecerem avisos reais.
+var ambienteApp = os.Getenv("AMBIENTE")
+
+func marcaAmbiente() string {
+	if ambienteApp == "dev" {
+		return "[DEV] "
+	}
+	return ""
+}
 
 // O Brasil nao tem horario de verao desde 2019, entao um fuso fixo basta (e dispensa o banco de fusos na Lambda).
 var fusoBR = time.FixedZone("BRT", -3*3600)
@@ -279,7 +291,7 @@ func montarResumo(hoje string, linhas []linhaAviso) string {
 		}
 		return a.venc < b.venc
 	})
-	partes := []string{"🔔 Avisos de " + ddmm(hoje)}
+	partes := []string{"🔔 " + marcaAmbiente() + "Avisos de " + ddmm(hoje)}
 	for _, l := range linhas {
 		partes = append(partes, l.texto())
 	}

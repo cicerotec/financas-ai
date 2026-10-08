@@ -102,6 +102,7 @@ Resources:
           TABLE_NAME: !Ref Table
           USER_POOL_ID: !Ref UserPool
           CLIENT_ID: !Ref UserPoolClient
+          AMBIENTE: !Ref Ambiente
           TELEGRAM_TOKEN_PARAM: !If [EhDev, /financas/dev/telegram-token, /financas/prod/telegram-token]
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref Table }
