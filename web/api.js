@@ -157,6 +157,16 @@
     return ESPACO.apelido;
   }
 
+  // Chat id do Telegram de quem esta logado (para onde vao os avisos). Vazio desvincula.
+  async function definirTelegram(chatId) {
+    const { body } = await api('PUT', (await base()) + '/perfil', { telegramChatId: String(chatId || '').trim() });
+    ESPACO.telegramChatId = body.telegramChatId || '';
+    return ESPACO.telegramChatId;
+  }
+  async function testarAviso() {
+    await api('POST', (await base()) + '/avisos/teste', {});
+  }
+
   // ---------- configuracoes (documentos) ----------
   // A aparencia e pessoal (cada pessoa a sua); o resto de config/listas e compartilhado.
   const PESSOAL = ['statusCor', 'estiloCor', 'layoutSaldos', 'ordemSaldos', 'ordemManual'];
@@ -454,6 +464,9 @@
     sub: () => SUB,
     apelido: () => (ESPACO && ESPACO.apelido) || '',
     definirApelido,
+    telegramChatId: () => (ESPACO && ESPACO.telegramChatId) || '',
+    definirTelegram,
+    testarAviso,
     use: async (nome) => {
       if (nome === 'db') {
         try { await espaco(); } catch (e) { alert(e.message); return null; }

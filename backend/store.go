@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
 type doc = map[string]any
@@ -41,6 +42,7 @@ func initDB(ctx context.Context) error {
 		return err
 	}
 	db = dynamodb.NewFromConfig(cfg)
+	ssmCli = ssm.NewFromConfig(cfg)
 	return nil
 }
 

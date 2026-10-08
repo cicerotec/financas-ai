@@ -6,3 +6,4 @@
 samconfig.toml
 web/config.js
 web/config.dev.js
+*.exe

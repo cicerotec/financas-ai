@@ -10,6 +10,11 @@ outros trechos referenciam os números). Os detalhes ficam nas seções depois d
 Cada item começa com a área correspondente entre colchetes. A numeração segue a mesma sequência do roadmap.
 - 25. [x] **[UX/UI] Combo de bancos volta sozinho ao primeiro item ao lançar após copiar pelo Histórico**, o que pode
   gerar erro no cadastro. Detalhe em "UX".
+- 29. [ ] **[UX/UI] O botão do formulário de Lançar volta a dizer "Salvar edição" depois de salvar uma edição**, já
+  num formulário vazio para um lançamento novo (o `editandoId` fica `null`, então salvar cria um lançamento novo, mas o
+  rótulo engana). Causa: `comBotaoOcupado` (`web/index.html`) guarda o texto do botão antes da ação e o restaura no
+  `finally`, desfazendo o "Salvar lançamento" que o `cancelarEdicao` acabou de pôr. Já existia antes dos avisos; foi
+  achado ao testá-los. Correção provável: restaurar o texto só se ele não mudou durante a ação.
 
 ### Infra (AWS, SAM, ambientes, custo, backup)
 - 2. [x] **Decidir o `/api/*`: chamada direta à Function URL (opção B)**, front estático no CloudFront. Reavaliar
@@ -24,6 +29,12 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   `docs/deploy-github-actions.md`.
 - 11. [ ] **[Depois] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
   (exportar JSON e/ou point-in-time recovery do DynamoDB). Adiado por decisão: não será feito agora.
+  - O **AWS Budget** controla o **custo da própria conta AWS**, não é um orçamento do app de finanças. Define-se um
+    limite mensal em dólar (aqui, US$ 1, já que o projeto fica no free tier) e a AWS manda e-mail ao chegar em 80%
+    do gasto real e quando a previsão passar de 100%. Protege contra cobrança inesperada (enxurrada de requisições na
+    Function URL, recurso esquecido). Console: Billing > Budgets > Create budget > Cost budget; os 2 primeiros são grátis.
+  - **Backup:** o `template.yaml` declara `PointInTimeRecoveryEnabled: false`; ligar o PITR no console sem mudar o
+    template seria desfeito no próximo deploy. Hoje só existe o botão Exportar (`.json`) como cópia manual.
 
 ### Backend (Go, DynamoDB, Cognito, API)
 - 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
@@ -36,6 +47,14 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 - 15. [ ] **[Depois] IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
 - 18. [ ] **[Depois] Segurança e escala:** revisar o `localStorage` do token (front), limite de taxa na Function URL
   (infra), mesclar conflito de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
+- 28. [x] **Avisos de lançamentos futuros no Telegram**: campo `aviso` no lançamento (dias antes do vencimento e
+  "insistir todo dia depois"), desligado por padrão e independente do status (o PREVISTO continua sendo só a previsão
+  que soma em Futuros); rotina diária às 8h pela mesma Lambda (EventBridge), um resumo por pessoa (quem criou e o
+  dono); token do bot no SSM; chat id colado em Listas, com botão de teste. No ar e validado no dev (PRs #49 e #52):
+  o aviso de teste e a rotina chegaram no Telegram. Na produção depende da configuração única (guia em
+  `docs/avisos.md`): role `financas-gha-prod` atualizada, `/financas/prod/telegram-token` no SSM e o chat id
+  cadastrado no app de produção. Depois: vínculo automático por link (webhook), outros canais (Web Push, e-mail) e
+  respeitar a visibilidade por pessoa do item 27.
 - 27. [ ] **[Depois] Tela de permissões por usuário** (hoje só há dois papéis fixos, `owner` e `member`, na matriz de
   `authz.go`): centralizar numa tela do dono o que cada pessoa pode ver e fazer. Motivos vindos do uso real: a esposa
   clica em "valor estimado" ao lançar (campo que hoje não precisa) e vê cartões e saldos de bancos que não são dela.
@@ -82,8 +101,8 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 - 25. [x] **PRs automáticos**: push em `feature/**` (e `fix/`, `bug/`, `docs/`, `chore/`) abre o PR rascunho para a
   `develop`; depois do deploy do dev, abre o PR `develop → main`. O CI roda também em `push`. No ar (PR #44). O
   `CI` por `pull_request` do PR criado pelo robô espera "Approve and run" (limite do `GITHUB_TOKEN`); não bloqueia.
-- 19. [ ] **[Depois] Script de release** (`scripts/lancar-versao.ps1 <versão>`): PR `develop → main`, merge, tag e
-  release em um comando (ver "Fluxo de branches e versões"). Pode ser dispensado pelos itens 25 e 26.
+- 19. [x] **Script de release**: dispensado e substituído pela automação dos itens 25 e 26 (PR de release aberto pelo
+  robô, tag e release criadas depois do deploy da produção). Funcionou na v0.7.0.
 
 ### Operação (tarefas de uso e dados, não de código)
 - 6. [x] **Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e

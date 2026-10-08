@@ -107,13 +107,23 @@ func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, 
 	if !ok {
 		return nil, &types.ConditionalCheckFailedException{}
 	}
-	switch aws.ToString(in.UpdateExpression) {
-	case "SET apelido = :a":
-		it["apelido"] = in.ExpressionAttributeValues[":a"]
-	case "REMOVE apelido":
-		delete(it, "apelido")
-	default:
-		return nil, errors.New("UpdateExpression nao suportada no banco simulado")
+	// "SET a = :x, b = :y" e/ou "REMOVE a, b" (o que o perfil usa)
+	expr := aws.ToString(in.UpdateExpression)
+	for _, parte := range strings.Split(expr, "REMOVE") {
+		parte = strings.TrimSpace(parte)
+		if strings.HasPrefix(parte, "SET ") {
+			for _, atrib := range strings.Split(strings.TrimPrefix(parte, "SET "), ",") {
+				nome, ph, ok := strings.Cut(strings.TrimSpace(atrib), " = ")
+				if !ok {
+					return nil, errors.New("UpdateExpression nao suportada no banco simulado")
+				}
+				it[nome] = in.ExpressionAttributeValues[ph]
+			}
+		} else if parte != "" {
+			for _, nome := range strings.Split(parte, ",") {
+				delete(it, strings.TrimSpace(nome))
+			}
+		}
 	}
 	return &dynamodb.UpdateItemOutput{}, nil
 }
