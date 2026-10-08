@@ -42,13 +42,14 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 - 15. [ ] **[Depois] IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
 - 18. [ ] **[Depois] Segurança e escala:** revisar o `localStorage` do token (front), limite de taxa na Function URL
   (infra), mesclar conflito de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
-- 28. [ ] **[Em andamento] Avisos de lançamentos futuros no Telegram**: campo `aviso` no lançamento (dias antes do
-  vencimento e "insistir todo dia depois"), desligado por padrão e independente do status (o PREVISTO continua sendo
-  só a previsão que soma em Futuros); rotina diária às 8h pela mesma Lambda (EventBridge), um resumo por pessoa
-  (quem criou e o dono); token do bot no SSM; chat id colado em Listas, com botão de teste. Implementado
-  (`avisos.go`, `telegram.go`, front, `template.yaml`; guia em `docs/avisos.md`); falta a configuração única (bot,
-  parâmetro no SSM, roles do Actions) e a validação no primeiro uso. Depois: vínculo automático por link
-  (webhook), outros canais (Web Push, e-mail) e respeitar a visibilidade por pessoa do item 27.
+- 28. [x] **Avisos de lançamentos futuros no Telegram**: campo `aviso` no lançamento (dias antes do vencimento e
+  "insistir todo dia depois"), desligado por padrão e independente do status (o PREVISTO continua sendo só a previsão
+  que soma em Futuros); rotina diária às 8h pela mesma Lambda (EventBridge), um resumo por pessoa (quem criou e o
+  dono); token do bot no SSM; chat id colado em Listas, com botão de teste. No ar e validado no dev (PRs #49 e #52):
+  o aviso de teste e a rotina chegaram no Telegram. Na produção depende da configuração única (guia em
+  `docs/avisos.md`): role `financas-gha-prod` atualizada, `/financas/prod/telegram-token` no SSM e o chat id
+  cadastrado no app de produção. Depois: vínculo automático por link (webhook), outros canais (Web Push, e-mail) e
+  respeitar a visibilidade por pessoa do item 27.
 - 27. [ ] **[Depois] Tela de permissões por usuário** (hoje só há dois papéis fixos, `owner` e `member`, na matriz de
   `authz.go`): centralizar numa tela do dono o que cada pessoa pode ver e fazer. Motivos vindos do uso real: a esposa
   clica em "valor estimado" ao lançar (campo que hoje não precisa) e vê cartões e saldos de bancos que não são dela.
