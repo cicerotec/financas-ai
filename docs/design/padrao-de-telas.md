@@ -100,8 +100,9 @@ texto explicativo longo.
 ## Padrão do computador (janela larga)
 Mesma tela, mesmos dados, desenho de tabela.
 - **Tabela de largura total** com cabeçalho cinza e uma linha por evento, em grade de colunas:
-  `100px minmax(190px,1fr) 80px 90px 118px 110px 360px` = data, evento, banco, status, prazo, valor (alinhado à
-  direita), ações. O espaçamento entre colunas é de 12 px. A tabela tem largura mínima de **1120 px** e rola na
+  `92px minmax(170px,1fr) 90px 140px 112px 104px 340px` = data, evento, banco, status, prazo, valor (alinhado à
+  direita), ações. A coluna do banco corta nomes compridos com reticências (o nome inteiro vai no `title`), e as
+  colunas de status e prazo não quebram linha. O espaçamento entre colunas é de 12 px. A tabela tem largura mínima de **1120 px** e rola na
   horizontal dentro do próprio quadro abaixo disso. A visão de tabela começa em **1160 px de janela** (1120 px de
   tabela mais as margens do container); abaixo disso vale a visão do celular. (A soma das colunas fixas mais o `minmax` tem de caber na largura
   mínima, senão a coluna do nome colapsa e as colunas se sobrepõem.)
@@ -140,7 +141,9 @@ Mesma tela, mesmos dados, desenho de tabela.
   rodas por script, ajuste `scrollTop` **e** dispare `dispatchEvent(new Event('scroll'))`. No celular real o evento
   dispara sozinho (a roda usa `scroll-snap` e lê a posição 90 ms depois de parar).
 - Grade de colunas cuja soma passa da largura da tabela faz a coluna `1fr` colapsar e sobrepõe o texto.
-- Rótulo longo estoura a coluna de ações (na Futuros, "Estender série" empurrava "Editar" para cima do valor). Meça
-  a coluna com o rótulo mais longo e confira, em janela larga, a folga entre a primeira ação e o valor em todas as linhas.
+- Rótulo longo estoura a coluna (na Futuros, "Estender série" empurrava "Editar" para cima do valor, e a pílula
+  CREDITANDO invadia o prazo). **Meça todas as colunas com o pior caso**: status mais longo (TRANSFERINDO), banco de nome
+  comprido, atraso de três dígitos, valor de cinco dígitos, descrição longa com série, sino e oculto. Confira em janela
+  larga que nenhum conteúdo passa da própria coluna nem encosta no vizinho, e que a primeira ação não toca o valor.
 - Data sem ano (`31/01`) é ambígua quando o intervalo passa de um ano.
 - `\n` dentro de heredoc do shell no Windows se corrompe: edite arquivos com a ferramenta de edição.
