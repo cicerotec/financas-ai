@@ -195,6 +195,15 @@ novas e para ajustes em telas que já existem.
     regras; só o desenho muda com a largura da janela.
   - **Sempre:** cores só pelos tokens do app (claro e escuro), datas com ano (`dd/mm/aaaa`), limites à vista, e a
     demo diz o que a proposta faz perder.
+- **Mantenha o padrão em dia (obrigatório):** ao implementar ou testar uma tela e descobrir um ajuste (largura de coluna,
+  rótulo, limite, comportamento, token), corrija **na mesma entrega** a demo em `docs/design/demos/`, o guia
+  `docs/design/padrao-de-telas.md` (inclusive uma linha em "Armadilhas já encontradas") e este resumo, e diga ao dono
+  o que mudou no padrão. Se só o código do app mudar, a demo deixa de ser a fonte da verdade e a próxima tela repete o
+  erro. Antes do PR, confira que `web/` e `docs/design/` andam juntos quando o padrão mudou.
+- **Antes de entregar uma tela, meça o pior caso:** rótulo mais longo de cada coluna (status, ação, série), banco ou
+  descrição comprida, atraso de três dígitos, valor de cinco dígitos, item com todos os adornos, lista vazia e cheia;
+  celular (≈ 390 px) e janela larga (≥ 1280 px), nos dois temas. Meça por script que nenhum conteúdo passa da própria
+  coluna nem encosta no vizinho, em todas as colunas, e olhe uma captura.
 - **Telas:** demo antes do código (regra acima), com limites e custos ditos na própria resposta. Se não consegue ver o
   resultado (toque real no celular, por exemplo), diga isso em vez de afirmar que funciona.
 - **Git:** rode `git branch --show-current` antes de commitar e use `git push origin <branch>` com o nome da branch. Não

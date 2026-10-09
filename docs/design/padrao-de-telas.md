@@ -127,6 +127,31 @@ Mesma tela, mesmos dados, desenho de tabela.
 - Respeitar `prefers-reduced-motion` (a bolinha do interruptor e a seta animam só quando permitido).
 - Tema claro e escuro **pelos tokens**, nunca por cor literal; testar os dois.
 
+## Manter o padrão em dia (regra obrigatória)
+As demos de `demos/` são a fonte da verdade deste padrão. Elas só continuam sendo a fonte da verdade se quem **implementa
+ou testa** uma tela devolver o que descobriu. Sempre que a implementação, o teste ou o uso real mostrar que algo do
+padrão estava errado ou incompleto (largura de coluna, rótulo, limite, comportamento, token, caso de borda), faça, **na
+mesma entrega** (o mesmo PR, ou um PR de documentação aberto junto):
+1. **Corrija a demo** de referência em `demos/` para refletir o que ficou certo.
+2. **Atualize este guia**: as medidas e os padrões afetados, e uma linha em "Armadilhas já encontradas" dizendo o que
+   aconteceu e como evitar.
+3. **Atualize o resumo** da seção "Recomendações para IA" do `BACKLOG.md` se o resumo mudou.
+4. **Diga ao dono**, na resposta e na descrição do PR, o que mudou no padrão e por quê.
+
+Não deixe a correção só no código do app: a próxima tela vai copiar a demo e repetir o erro. Antes de abrir o PR,
+confira se `git diff` mostra `web/` e `docs/design/` andando juntos quando o padrão mudou.
+
+### Antes de entregar uma tela, meça o pior caso
+Uma tela que funciona com os dados de teste bonitos ainda pode quebrar com os dados reais. Semeie e confira, no
+celular (≈ 390 px) e numa janela larga (≥ 1280 px), nos dois temas:
+- o rótulo mais longo de cada coluna e botão (status, ação, série);
+- nome de banco ou de pessoa comprido, descrição longa, atraso de três dígitos, valor de cinco dígitos;
+- itens com todos os adornos ao mesmo tempo (sino, série, oculto);
+- lista vazia, com um item e com muitos itens.
+
+Meça por script que nenhum conteúdo passa da própria coluna nem encosta no vizinho, em **todas** as colunas (não só nas
+ações), e tire uma captura para olhar.
+
 ## Como reproduzir numa tela nova (receita)
 1. Liste o que a tela precisa mostrar e decidir. O que não for essencial sai da vista (padrão 1).
 2. Escolha os padrões desta lista; não invente um componente novo se um existente serve.
@@ -134,7 +159,9 @@ Mesma tela, mesmos dados, desenho de tabela.
    página com link que abre no celular (artefato privado); o widget do chat só aparece no desktop.
 4. Inclua na demo o que se perde com a proposta e a visão "como está hoje" para comparar.
 5. Espere o ok do dono. Só então implemente, com os tokens do app (tabela acima) e a lógica real por baixo.
-6. Teste no navegador: celular (≈ 390 px) e janela larga (≥ 1280 px), tema claro e escuro, e os limites e os erros.
+6. Teste no navegador: celular (≈ 390 px) e janela larga (≥ 1280 px), tema claro e escuro, e os limites e os erros,
+   com o pior caso de cada coluna (seção acima).
+7. Devolva ao padrão o que descobriu (seção "Manter o padrão em dia"): demo, guia e recomendações, na mesma entrega.
 
 ## Armadilhas já encontradas
 - O navegador de teste do painel não gera o evento `scroll` quando a página não está sendo desenhada: para testar as
@@ -146,4 +173,6 @@ Mesma tela, mesmos dados, desenho de tabela.
   comprido, atraso de três dígitos, valor de cinco dígitos, descrição longa com série, sino e oculto. Confira em janela
   larga que nenhum conteúdo passa da própria coluna nem encosta no vizinho, e que a primeira ação não toca o valor.
 - Data sem ano (`31/01`) é ambígua quando o intervalo passa de um ano.
+- Corrigir só o código do app e esquecer a demo e o guia: a demo continua errada e a próxima tela copia o erro. Aconteceu
+  duas vezes na tela Futuros (ações sobre o valor e pílula sobre o prazo). A regra está em "Manter o padrão em dia".
 - `\n` dentro de heredoc do shell no Windows se corrompe: edite arquivos com a ferramenta de edição.
