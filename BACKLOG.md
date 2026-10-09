@@ -176,12 +176,25 @@ novas e para ajustes em telas que já existem.
 - Padrões aprovados, pensando primeiro na largura do celular: um resumo numa linha que abre uma tela cheia com seta de
   voltar; lista que acumula opções com check redondo; "Outro..." que abre janela com rodas de número e unidade;
   interruptor no topo para ligar e desligar; contador de limite visível ("2 de 6 prazos"); janela de baixo para o que é
-  rápido. Referência: demo de Repetir e Avisar (https://claude.ai/artifact/5g5rGUsToRAB34Huc1cYkW).
+  rápido. O guia completo, com tokens, medidas e a versão para computador, está em `docs/design/padrao-de-telas.md`;
+  as demos aprovadas ficam em `docs/design/demos/` e são a fonte da verdade (Repetir e Avisar, e Futuros no celular
+  e no computador).
 - Datas sempre com o ano (`dd/mm/aaaa`), em tela e em mensagem.
 - A grande mudança de UX/UI prevista (item 21) segue a mesma regra, tela por tela. O Figma é a ferramenta do time de
   design; o conector ainda não está autorizado nesta conta.
 
 ### Recomendações para IA que programa neste repositório
+- **Padrão de telas aprovado (celular primeiro, com versão para computador):** leia `docs/design/padrao-de-telas.md` e
+  abra as demos de `docs/design/demos/` antes de desenhar ou alterar qualquer tela. Em resumo:
+  - **Celular:** uma linha-resumo que abre tela cheia; lista que acumula com check redondo (ou escolha única);
+    interruptor no topo; "Outro..." com rodas de número e unidade numa janela de baixo, com resumo ao vivo e erro na
+    própria janela; contador de limite visível; um evento por linha, com as ações numa janela de baixo; resumo em
+    faixa; linhas de pelo menos 56 px.
+  - **Computador:** a mesma tela vira uma tabela de largura total (colunas alinhadas, mínimo de 1100 px, container de
+    até 1200 px) com as ações na própria linha, apagadas até o mouse passar ou o foco entrar. Mesmos dados e mesmas
+    regras; só o desenho muda com a largura da janela.
+  - **Sempre:** cores só pelos tokens do app (claro e escuro), datas com ano (`dd/mm/aaaa`), limites à vista, e a
+    demo diz o que a proposta faz perder.
 - **Telas:** demo antes do código (regra acima), com limites e custos ditos na própria resposta. Se não consegue ver o
   resultado (toque real no celular, por exemplo), diga isso em vez de afirmar que funciona.
 - **Git:** rode `git branch --show-current` antes de commitar e use `git push origin <branch>` com o nome da branch. Não

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Demo aprovada em 2026-10-08: tela Futuros no celular e no computador. Referencia do padrao de telas. Guia: ../padrao-de-telas.md -->
+<title>Demo da tela Futuros</title>
+<style>
+/* Futuros no celular: uma linha por evento, acoes numa janela de baixo, resumo em uma faixa. Compara com a tela de hoje. */
+:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--faint:#8c938d;--line:#e4e2dc;--ck:#d3d6d2;--accent:#0f6b4f;--onaccent:#ffffff;--accent-bg:#dcefe5;--danger:#a3321f;--danger-bg:#f6e0db;--ok:#1d6b45}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.4;padding-inline:16px;padding-block:18px;max-width:440px;margin-inline:auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.seg{display:flex;gap:6px;margin:0 0 12px}
+.seg button{flex:1;padding:9px 6px;border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:10px;font-size:14px;font-family:inherit}
+.seg button[aria-pressed="true"]{background:var(--card);border-color:var(--accent);color:var(--accent);font-weight:600}
+.phone{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:22px;height:680px;overflow:hidden}
+.scr{position:absolute;inset:0;overflow-y:auto;padding:14px 12px 28px}
+.sum{display:flex;gap:8px;margin:0 0 10px}
+.sum div{flex:1;background:var(--card);border-radius:14px;padding:10px 12px;min-width:0}
+.sum small{display:block;color:var(--muted);font-size:12px}
+.sum b{font-size:16px;font-weight:600;display:block;overflow-wrap:anywhere}
+.sum .bad b{color:var(--danger)}
+.opt{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;color:var(--muted);font-size:13px}
+.sw{width:44px;height:26px;border-radius:13px;border:0;background:var(--ck);position:relative;flex:none;padding:0}
+.sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+.sw[aria-checked="true"]{background:var(--accent)}
+.sw[aria-checked="true"] i{left:21px}
+.gt{font-size:13px;font-weight:600;color:var(--muted);margin:10px 4px 6px;text-transform:none}
+.gt.bad{color:var(--danger)}
+.card{background:var(--card);border-radius:16px;overflow:hidden;margin:0 0 6px}
+.ev{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);color:var(--fg);font:inherit;padding:11px 14px;min-height:62px}
+.ev:first-child{border-top:0}
+.ev .l{flex:1;min-width:0}
+.ev .d{font-weight:600;display:block;overflow-wrap:anywhere}
+.ev .m{display:block;color:var(--muted);font-size:12.5px;margin-top:1px}
+.ev .r{text-align:right;flex:none}
+.ev .v{font-weight:600;display:block;font-variant-numeric:tabular-nums}
+.ev .v.out{color:var(--danger)}
+.ev .v.in{color:var(--ok)}
+.ev .p{display:inline-block;margin-top:2px;font-size:12px;color:var(--muted)}
+.ev .p.bad{color:var(--danger);font-weight:600}
+.ev.oc{opacity:.5}
+.ic{font-size:13px;color:var(--accent)}
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end}
+.sheet{background:var(--card);width:100%;border-radius:22px 22px 0 0;padding:14px 8px 10px}
+.sheet h3{margin:0 8px 2px;font-size:16px;font-weight:600;overflow-wrap:anywhere}
+.sheet .mm{margin:0 8px 8px;color:var(--muted);font-size:13px}
+.ac{display:flex;align-items:center;gap:12px;width:100%;background:transparent;border:0;border-top:1px solid var(--line);color:var(--fg);font:inherit;padding:0 10px;min-height:52px;text-align:left}
+.ac.danger{color:var(--danger)}
+.toast{position:absolute;left:14px;right:14px;bottom:14px;background:var(--fg);color:var(--bg);border-radius:12px;padding:11px 14px;font-size:13px}
+.old{font-size:13px;color:var(--muted)}
+.old .intro{margin:0 0 8px}
+.old .cards{display:flex;gap:8px;margin:0 0 8px}
+.old .cards div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0}
+.old .cards b{display:block;color:var(--fg);font-size:15px}
+.old .item{background:var(--card);border:1px solid var(--line);border-left:4px dashed var(--accent);border-radius:10px;padding:10px 12px;margin:0 0 8px;color:var(--fg)}
+.old .item .top{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.old .item .meta{color:var(--muted);font-size:12px;margin:2px 0 6px}
+.old .btns{display:flex;flex-wrap:wrap;gap:5px}
+.old .btns span{border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:12px}
+.dec{margin-top:16px;border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--muted)}
+.dec b{color:var(--fg);font-weight:600}
+.dec ul{margin:6px 0 0;padding-left:18px}
+body.wide{max-width:1200px}
+.desk .toast{position:sticky;left:auto;right:auto;bottom:12px;margin-top:10px}
+.desk{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px}
+.desk .sum{max-width:600px}
+.tw{overflow-x:auto}
+.tb{min-width:1100px}
+.dt{display:grid;grid-template-columns:100px minmax(190px,1fr) 80px 90px 118px 110px 310px;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);background:var(--card)}
+.dt.h{font-size:12px;color:var(--faint);background:transparent;border-top:0;padding-block:4px}
+.dt.oc{opacity:.5}
+.dt .d b{font-weight:600}
+.dt .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.dt .v.out{color:var(--danger)}
+.dt .v.in{color:var(--ok)}
+.dt .pz{font-size:12.5px;color:var(--muted)}
+.dt .pz.bad{color:var(--danger);font-weight:600}
+.acts{display:flex;gap:6px;justify-content:flex-end;opacity:.25;transition:opacity .12s}
+.dt:hover .acts,.dt:focus-within .acts{opacity:1}
+.acts button{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;padding:5px 9px;font-size:12.5px;font-family:inherit;white-space:nowrap}
+.acts button.danger{color:var(--danger)}
+.gtw{border-radius:14px;overflow:hidden;margin:0 0 8px}
+@media (prefers-reduced-motion:reduce){.sw i{transition:none}}
+</style>
+</head>
+<body>
+<h1>Futuros no celular</h1>
+<p class="sub">Demonstração: Celular, Computador (use uma janela larga) e como está Hoje. Nada é salvo no app.</p>
+<div class="seg" role="group" aria-label="Versão da tela">
+  <button id="bNovo" type="button" aria-pressed="true">Celular</button>
+  <button id="bDesk" type="button" aria-pressed="false">Computador</button>
+  <button id="bHoje" type="button" aria-pressed="false">Hoje</button>
+</div>
+<div class="phone" id="phone"></div>
+<div class="dec"><b>O que esta proposta muda, para você confirmar</b>
+<ul>
+<li>Cada evento vira uma linha: descrição, data, banco e valor. Os cinco botões (Editar, Copiar, Prever ou Estender, Ocultar, Excluir) saem da linha e ficam numa janela que abre ao tocar.</li>
+<li>O resumo (a pagar, a receber, atrasados) fica numa faixa de três números. O texto explicativo de cima sai da tela.</li>
+<li>"Mostrar ocultos" vira um interruptor pequeno, e o evento oculto continua fora dos totais.</li>
+<li>Atrasados vão para um grupo próprio no topo, em vermelho, e o prazo ("em 3 dias", "hoje") fica ao lado do valor.</li>
+<li>O custo: Editar e os outros passam a pedir um toque a mais. Em troca, cabem uns três eventos a mais por tela.</li>
+<li><b>No computador</b> a mesma tela vira uma tabela de largura total: data, evento, banco, status, prazo e valor em colunas, e as ações aparecem na própria linha ao passar o mouse ou usar Tab. Não há janela de baixo nem toque extra. Os dados, os totais e as regras são os mesmos; só o desenho muda com a largura da janela.</li>
+</ul></div>
+<script>
+var HOJE=new Date(2026,9,8);
+var itens=[
+ {id:1,d:'Internet',v:120,tipo:'saida',data:new Date(2026,9,5),st:'PREVISTO',banco:'NUBANK',aviso:true,serie:null,oc:false},
+ {id:2,d:'Conta de luz',v:230.5,tipo:'saida',data:new Date(2026,9,8),st:'PREVISTO',banco:'ITAU',aviso:true,serie:null,oc:false},
+ {id:3,d:'Condomínio',v:800,tipo:'saida',data:new Date(2026,9,11),st:'PREVISTO',banco:'ITAU',aviso:true,serie:null,oc:false},
+ {id:4,d:'Aluguel recebido',v:2500,tipo:'entrada',data:new Date(2026,9,15),st:'PREVISTO',banco:'ITAU',aviso:false,serie:null,oc:false},
+ {id:5,d:'Seguro auto',v:230.5,tipo:'saida',data:new Date(2026,10,30),st:'PREVISTO',banco:'ITAU',aviso:true,serie:'3 de 12',oc:false},
+ {id:6,d:'IPTU 2/3',v:100,tipo:'saida',data:new Date(2026,10,10),st:'PREVISTO',banco:'ITAU',aviso:false,serie:'2 de 3',oc:false}
+];
+var ui={mostrarOc:false,aberto:null,toast:''};
+var phone=document.getElementById('phone');
+function moeda(v){return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function dt(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()}
+function dias(d){return Math.round((d-HOJE)/86400000)}
+function prazo(it){var n=dias(it.data);if(n<0)return {t:'atrasado '+(-n)+(n===-1?' dia':' dias'),bad:true};if(n===0)return {t:'hoje',bad:false};return {t:'em '+n+(n===1?' dia':' dias'),bad:false}}
+function mes(d){var m=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][d.getMonth()];return m.charAt(0).toUpperCase()+m.slice(1)+' de '+d.getFullYear()}
+function visiveis(){return itens.filter(function(i){return ui.mostrarOc||!i.oc}).sort(function(a,b){return a.data-b.data})}
+function totais(){
+  var ativos=itens.filter(function(i){return !i.oc});
+  return {pagar:ativos.filter(function(i){return i.tipo==='saida'}).reduce(function(s,i){return s+i.v},0),
+    receber:ativos.filter(function(i){return i.tipo==='entrada'}).reduce(function(s,i){return s+i.v},0),
+    atras:ativos.filter(function(i){return dias(i.data)<0}).length};
+}
+function linha(it){
+  var p=prazo(it);
+  return '<button class="ev'+(it.oc?' oc':'')+'" type="button" data-a="abrir" data-id="'+it.id+'"><span class="l"><span class="d">'+it.d+(it.aviso?' <span class="ic" aria-label="Com aviso no Telegram">&#128276;</span>':'')+'</span><span class="m">'+dt(it.data)+' · '+it.st+' · '+it.banco+(it.serie?' · série '+it.serie:'')+(it.oc?' · oculto':'')+'</span></span><span class="r"><span class="v '+(it.tipo==='saida'?'out':'in')+'">'+(it.tipo==='saida'?'-':'+')+moeda(it.v)+'</span><span class="p'+(p.bad?' bad':'')+'">'+p.t+'</span></span></button>';
+}
+function novo(){
+  var t=totais(),vs=visiveis();
+  var atras=vs.filter(function(i){return dias(i.data)<0});
+  var resto=vs.filter(function(i){return dias(i.data)>=0});
+  var grupos=[];resto.forEach(function(i){var k=mes(i.data);var g=grupos.filter(function(x){return x.k===k})[0];if(!g){g={k:k,l:[]};grupos.push(g)}g.l.push(i)});
+  var h='<div class="sum"><div><small>A pagar</small><b>'+moeda(t.pagar)+'</b></div><div><small>A receber</small><b>'+moeda(t.receber)+'</b></div><div class="'+(t.atras?'bad':'')+'"><small>Atrasados</small><b>'+t.atras+'</b></div></div>'+
+   '<div class="opt"><button class="sw" type="button" role="switch" aria-checked="'+ui.mostrarOc+'" data-a="oc" aria-label="Mostrar ocultos"><i></i></button><span>Mostrar ocultos (ficam fora dos totais)</span></div>';
+  if(atras.length)h+='<div class="gt bad">Atrasados</div><div class="card">'+atras.map(linha).join('')+'</div>';
+  grupos.forEach(function(g){h+='<div class="gt">'+g.k+'</div><div class="card">'+g.l.map(linha).join('')+'</div>'});
+  return h;
+}
+function linhaDesk(it){
+  var p=prazo(it);
+  return '<div class="dt'+(it.oc?' oc':'')+'" tabindex="0"><span>'+dt(it.data)+'</span><span class="d"><b>'+it.d+'</b>'+(it.aviso?' <span class="ic" aria-label="Com aviso no Telegram">&#128276;</span>':'')+(it.serie?' <span class="pz">série '+it.serie+'</span>':'')+(it.oc?' <span class="pz">oculto</span>':'')+'</span><span>'+it.banco+'</span><span>'+it.st+'</span><span class="pz'+(p.bad?' bad':'')+'">'+p.t+'</span><span class="v '+(it.tipo==='saida'?'out':'in')+'">'+(it.tipo==='saida'?'-':'+')+moeda(it.v)+'</span>'+
+   '<span class="acts"><button type="button" data-a="dk" data-k="Editar" data-id="'+it.id+'">Editar</button><button type="button" data-a="dk" data-k="Copiar" data-id="'+it.id+'">Copiar</button><button type="button" data-a="dk" data-k="Prever" data-id="'+it.id+'">'+(it.serie?'Estender série':'Prever')+'</button><button type="button" data-a="dk" data-k="Ocultar" data-id="'+it.id+'">'+(it.oc?'Mostrar':'Ocultar')+'</button><button type="button" class="danger" data-a="dk" data-k="Excluir" data-id="'+it.id+'">Excluir</button></span></div>';
+}
+function desk(){
+  var t=totais(),vs=visiveis();
+  var atras=vs.filter(function(i){return dias(i.data)<0});
+  var resto=vs.filter(function(i){return dias(i.data)>=0});
+  var grupos=[];resto.forEach(function(i){var k=mes(i.data);var g=grupos.filter(function(x){return x.k===k})[0];if(!g){g={k:k,l:[]};grupos.push(g)}g.l.push(i)});
+  var cab='<div class="dt h"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span>Prazo</span><span style="text-align:right">Valor</span><span></span></div>';
+  var h='<div class="sum"><div><small>A pagar</small><b>'+moeda(t.pagar)+'</b></div><div><small>A receber</small><b>'+moeda(t.receber)+'</b></div><div class="'+(t.atras?'bad':'')+'"><small>Atrasados</small><b>'+t.atras+'</b></div></div>'+
+   '<div class="opt"><button class="sw" type="button" role="switch" aria-checked="'+ui.mostrarOc+'" data-a="oc" aria-label="Mostrar ocultos"><i></i></button><span>Mostrar ocultos (ficam fora dos totais)</span></div><div class="tw"><div class="tb">'+cab;
+  if(atras.length)h+='<div class="gt bad">Atrasados</div><div class="gtw">'+atras.map(linhaDesk).join('')+'</div>';
+  grupos.forEach(function(g){h+='<div class="gt">'+g.k+'</div><div class="gtw">'+g.l.map(linhaDesk).join('')+'</div>'});
+  return h+'</div></div><p class="sub" style="margin:10px 4px 0">Passe o mouse (ou use Tab) sobre uma linha para ver as ações.</p>';
+}
+function sheet(){
+  if(ui.aberto===null)return '';
+  var it=itens.filter(function(i){return i.id===ui.aberto})[0];
+  function ac(k,t,cl){return '<button class="ac'+(cl?' '+cl:'')+'" type="button" data-a="ac" data-k="'+k+'">'+t+'</button>'}
+  return '<div class="ov" data-a="fecha"><div class="sheet" role="dialog" aria-label="Ações de '+it.d+'"><h3>'+it.d+'</h3><p class="mm">'+moeda(it.v)+' · '+dt(it.data)+' · '+it.banco+'</p>'+
+    ac('Editar','Editar')+ac('Copiar','Copiar')+ac('Prever',it.serie?'Estender série':'Prever próximas datas')+ac('Ocultar',it.oc?'Mostrar':'Ocultar')+ac('Excluir','Excluir','danger')+'</div></div>';
+}
+function render(){
+  var y=phone.querySelector('.scr')?phone.querySelector('.scr').scrollTop:0;
+  phone.innerHTML='<div class="scr">'+novo()+'</div>'+sheet()+(ui.toast?'<div class="toast" role="status">'+ui.toast+'</div>':'');
+  phone.querySelector('.scr').scrollTop=y;
+}
+phone.addEventListener('click',function(e){
+  var b=e.target.closest('[data-a]');if(!b)return;
+  var a=b.dataset.a;
+  if(a==='oc'){ui.mostrarOc=!ui.mostrarOc;if(modoAtual==='desk')renderDesk();else render();return}
+  if(a==='dk'){var it2=itens.filter(function(i){return i.id===parseInt(b.dataset.id,10)})[0],k2=b.dataset.k;
+    if(k2==='Ocultar'){it2.oc=!it2.oc;ui.toast=it2.oc?'Oculto: saiu dos totais.':'Voltou aos totais.'}
+    else ui.toast='Demonstração: abriria "'+(k2==='Prever'?(it2.serie?'Estender série':'Prever'):k2)+'".';
+    renderDesk();setTimeout(function(){ui.toast='';if(modoAtual==='desk')renderDesk()},2200);return}
+  if(a==='abrir'){ui.aberto=parseInt(b.dataset.id,10);ui.toast='';render();return}
+  if(a==='fecha'){if(e.target===b){ui.aberto=null;render()}return}
+  if(a==='ac'){
+    var it=itens.filter(function(i){return i.id===ui.aberto})[0],k=b.dataset.k;
+    if(k==='Ocultar'){it.oc=!it.oc;ui.toast=it.oc?'Oculto: saiu dos totais.':'Voltou aos totais.'}
+    else ui.toast='Demonstração: abriria "'+(k==='Prever'?(it.serie?'Estender série':'Prever'):k)+'".';
+    ui.aberto=null;render();
+    setTimeout(function(){ui.toast='';if(phone.querySelector('.toast'))render()},2200);
+  }
+});
+function hoje(){
+  var t=totais();
+  function btns(){return '<div class="btns"><span>✏️ Editar</span><span>📋 Copiar</span><span>🔮 Prever</span><span>🙈 Ocultar</span><span>🗑️ Excluir</span></div>'}
+  function item(it){var p=prazo(it);return '<div class="item"><div class="top"><span>'+it.d+'</span><span>'+(it.tipo==='saida'?'-':'+')+moeda(it.v)+'</span></div><div class="meta">'+dt(it.data)+' · '+it.st+(it.aviso?' 🔔':'')+' · '+it.banco+' · '+p.t+'</div>'+btns()+'</div>'}
+  phone.innerHTML='<div class="scr"><div class="old"><p class="intro">Eventos que ainda não aconteceram (status marcados como "evento futuro" em Listas). Quando acontecer, toque em Editar e troque o status e a data.</p>'+
+   '<div class="cards"><div>A pagar<b>'+moeda(t.pagar)+'</b></div><div>A receber<b>'+moeda(t.receber)+'</b></div><div>Atrasados<b>'+t.atras+'</b></div></div>'+
+   '<p class="intro"><label><input type="checkbox"> mostrar ocultos (fora dos totais)</label></p>'+
+   '<div class="gt bad">Atrasados</div>'+itens.slice(0,2).map(item).join('')+'</div></div>';
+}
+var modoAtual='novo';
+function modo(m){
+  modoAtual=m;
+  document.getElementById('bNovo').setAttribute('aria-pressed',String(m==='novo'));
+  document.getElementById('bDesk').setAttribute('aria-pressed',String(m==='desk'));
+  document.getElementById('bHoje').setAttribute('aria-pressed',String(m==='hoje'));
+  document.body.classList.toggle('wide',m==='desk');
+  phone.className=m==='desk'?'desk':'phone';
+  ui.aberto=null;ui.toast='';
+  if(m==='novo')render();else if(m==='desk')renderDesk();else hoje();
+}
+function renderDesk(){
+  phone.innerHTML=desk()+(ui.toast?'<div class="toast" role="status">'+ui.toast+'</div>':'');
+}
+document.getElementById('bNovo').onclick=function(){modo('novo')};
+document.getElementById('bDesk').onclick=function(){modo('desk')};
+document.getElementById('bHoje').onclick=function(){modo('hoje')};
+modo('novo');
+</script>
+</body>
+</html>
