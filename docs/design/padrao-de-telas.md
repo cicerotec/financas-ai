@@ -11,7 +11,8 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Demo | Arquivo | O que mostra |
 |---|---|---|
 | Repetir e avisar | [`demos/demo-repeticao-e-aviso.html`](demos/demo-repeticao-e-aviso.html) | linha-resumo que abre tela cheia, lista que acumula, escolha única, interruptor, janela com rodas, contador de limite |
-| Futuros | [`demos/demo-futuros.html`](demos/demo-futuros.html) | uma linha por evento, ações numa janela de baixo, resumo em faixa, e a **versão para computador** (tabela) |
+| Futuros | [`demos/demo-futuros.html`](demos/demo-futuros.html) | uma linha por evento, ações numa janela de baixo, resumo com faixa de atraso, e a **versão para computador** (tabela) |
+| Resumo da Futuros | [`demos/demo-resumo-futuros.html`](demos/demo-resumo-futuros.html) | a comparação que decidiu o resumo (opção A), com valores extremos e larguras de 320 a 390 px |
 
 ## Princípios
 1. **Celular primeiro.** O dono usa o app no Android. Desenhe a largura de 360 a 400 px e só depois amplie.
@@ -39,11 +40,12 @@ Use as variáveis que o app já tem (`web/index.html`, bloco `:root`). Onde a de
 | `--faint` | (novo) | `#8c938d` | `#7b827c` | datas, legendas, itens fora da seleção |
 | `--ck` | (novo) | `#d3d6d2` | `#3b413d` | check vazio e interruptor desligado |
 | `--accent-bg` | (novo) | `#dcefe5` | `#1c3a2e` | faixa de destaque da roda |
+| `--danger-bg` | (novo) | `#f8e6e2` | `#3a1f1a` | fundo da faixa de atraso |
 
 A demo usa `--bg2` (`#e9e8e3` claro, `#0c0f0d` escuro) só para o fundo do quadro de celular que fica atrás dos cartões; no
 app esse papel é do próprio `--bg`, e os cartões continuam em `--card`. Nada de `--bg2` no app.
 
-Os três "novos" entram no `:root` do app, com os dois temas, no mesmo formato dos que já existem (claro em `:root`,
+Os quatro "novos" entram no `:root` do app, com os dois temas, no mesmo formato dos que já existem (claro em `:root`,
 escuro em `prefers-color-scheme` com `:root:not([data-theme="light"])` e em `:root[data-theme="dark"]`). Nunca use cor
 literal num componente.
 
@@ -92,15 +94,18 @@ e um grupo "Atrasados" no topo, em `--danger`. Evento oculto fica a 50% de opaci
 ações em lista (Editar, Copiar, Prever ou Estender série, Ocultar ou Mostrar, Excluir). "Excluir" em `--danger`. Nada de
 fileira de botões dentro da linha.
 
-**10. Resumo em faixa.** Três blocos lado a lado no topo (a pagar, a receber, atrasados), número em 16 px. Substitui o
-texto explicativo longo.
+**10. Resumo.** No topo, "A pagar" e "A receber" lado a lado (metade da largura cada um), com o valor em **18 px**. "Atrasados"
+é uma **faixa** de largura total embaixo, com fundo `--danger-bg`, o nome à esquerda e "N · valor" à direita em 16 px, e
+**só aparece quando há atraso** (sem atraso o resumo volta a ter cerca de 60 px). Substitui o texto explicativo longo.
+**O valor monetário nunca quebra** (`white-space:nowrap`): se faltar espaço, a linha cresce, e não o número. Três
+blocos iguais lado a lado só no computador (padrão abaixo).
 
 **11. Aviso rápido (toast).** Faixa escura na base da tela, 2 segundos, para confirmar ("Oculto: saiu dos totais.").
 
 ## Padrão do computador (janela larga)
 Mesma tela, mesmos dados, desenho de tabela.
 - **Tabela de largura total** com cabeçalho cinza e uma linha por evento, em grade de colunas:
-  `92px minmax(170px,1fr) 90px 140px 112px 104px 340px` = data, evento, banco, status, prazo, valor (alinhado à
+  `92px minmax(170px,1fr) 90px 140px 112px 128px 316px` = data, evento, banco, status, prazo, valor (alinhado à
   direita), ações. A coluna do banco corta nomes compridos com reticências (o nome inteiro vai no `title`), e as
   colunas de status e prazo não quebram linha. O espaçamento entre colunas é de 12 px. A tabela tem largura mínima de **1120 px** e rola na
   horizontal dentro do próprio quadro abaixo disso. A visão de tabela começa em **1160 px de janela** (1120 px de
@@ -110,7 +115,9 @@ Mesma tela, mesmos dados, desenho de tabela.
   no computador; a tela larga precisa de um modificador, e não de trocar o `main` para todas as telas.
 - **Ações na própria linha**, no fim, em botões de texto pequenos, **apagadas (opacidade 0,25) até o mouse passar ou o
   foco entrar** (`:hover` e `:focus-within`, linha com `tabindex="0"`). Sem janela de baixo e sem toque extra.
-- **Resumo e interruptor de ocultos** ficam no topo, como no celular; os totais continuam excluindo os ocultos.
+- **Resumo:** três blocos lado a lado, até 600 px de largura (cada um com uns 195 px), valor em 16 px, e "Atrasados" sempre
+  visível, inclusive com 0. O **interruptor de ocultos** fica no topo, como no celular; os totais continuam excluindo os
+  ocultos.
 - **Texto curto nas ações da tabela** ("Estender", "Prever") e o texto completo na janela de baixo do celular
   ("Estender série", "Prever próximas datas").
 - Telas em largura média (tablet) usam a visão do celular até haver uma demo própria.
@@ -127,6 +134,31 @@ Mesma tela, mesmos dados, desenho de tabela.
 - Respeitar `prefers-reduced-motion` (a bolinha do interruptor e a seta animam só quando permitido).
 - Tema claro e escuro **pelos tokens**, nunca por cor literal; testar os dois.
 
+## Manter o padrão em dia (regra obrigatória)
+As demos de `demos/` são a fonte da verdade deste padrão. Elas só continuam sendo a fonte da verdade se quem **implementa
+ou testa** uma tela devolver o que descobriu. Sempre que a implementação, o teste ou o uso real mostrar que algo do
+padrão estava errado ou incompleto (largura de coluna, rótulo, limite, comportamento, token, caso de borda), faça, **na
+mesma entrega** (o mesmo PR, ou um PR de documentação aberto junto):
+1. **Corrija a demo** de referência em `demos/` para refletir o que ficou certo.
+2. **Atualize este guia**: as medidas e os padrões afetados, e uma linha em "Armadilhas já encontradas" dizendo o que
+   aconteceu e como evitar.
+3. **Atualize o resumo** da seção "Recomendações para IA" do `BACKLOG.md` se o resumo mudou.
+4. **Diga ao dono**, na resposta e na descrição do PR, o que mudou no padrão e por quê.
+
+Não deixe a correção só no código do app: a próxima tela vai copiar a demo e repetir o erro. Antes de abrir o PR,
+confira se `git diff` mostra `web/` e `docs/design/` andando juntos quando o padrão mudou.
+
+### Antes de entregar uma tela, meça o pior caso
+Uma tela que funciona com os dados de teste bonitos ainda pode quebrar com os dados reais. Semeie e confira, no
+celular (≈ 390 px) e numa janela larga (≥ 1280 px), nos dois temas:
+- o rótulo mais longo de cada coluna e botão (status, ação, série);
+- nome de banco ou de pessoa comprido, descrição longa, atraso de três dígitos, valor de cinco dígitos;
+- itens com todos os adornos ao mesmo tempo (sino, série, oculto);
+- lista vazia, com um item e com muitos itens.
+
+Meça por script que nenhum conteúdo passa da própria coluna nem encosta no vizinho, em **todas** as colunas (não só nas
+ações), e tire uma captura para olhar.
+
 ## Como reproduzir numa tela nova (receita)
 1. Liste o que a tela precisa mostrar e decidir. O que não for essencial sai da vista (padrão 1).
 2. Escolha os padrões desta lista; não invente um componente novo se um existente serve.
@@ -134,7 +166,9 @@ Mesma tela, mesmos dados, desenho de tabela.
    página com link que abre no celular (artefato privado); o widget do chat só aparece no desktop.
 4. Inclua na demo o que se perde com a proposta e a visão "como está hoje" para comparar.
 5. Espere o ok do dono. Só então implemente, com os tokens do app (tabela acima) e a lógica real por baixo.
-6. Teste no navegador: celular (≈ 390 px) e janela larga (≥ 1280 px), tema claro e escuro, e os limites e os erros.
+6. Teste no navegador: celular (≈ 390 px) e janela larga (≥ 1280 px), tema claro e escuro, e os limites e os erros,
+   com o pior caso de cada coluna (seção acima).
+7. Devolva ao padrão o que descobriu (seção "Manter o padrão em dia"): demo, guia e recomendações, na mesma entrega.
 
 ## Armadilhas já encontradas
 - O navegador de teste do painel não gera o evento `scroll` quando a página não está sendo desenhada: para testar as
@@ -146,4 +180,13 @@ Mesma tela, mesmos dados, desenho de tabela.
   comprido, atraso de três dígitos, valor de cinco dígitos, descrição longa com série, sino e oculto. Confira em janela
   larga que nenhum conteúdo passa da própria coluna nem encosta no vizinho, e que a primeira ação não toca o valor.
 - Data sem ano (`31/01`) é ambígua quando o intervalo passa de um ano.
+- Corrigir só o código do app e esquecer a demo e o guia: a demo continua errada e a próxima tela copia o erro. Aconteceu
+  duas vezes na tela Futuros (ações sobre o valor e pílula sobre o prazo). A regra está em "Manter o padrão em dia".
+- Três colunas iguais para números de largura variável: o valor quebra no meio ("R$ 182.012,2 / 7") quando passa de
+  uns R$ 99.999,99 num celular. Valor monetário leva `white-space:nowrap`, e o layout é que cede (faixa embaixo,
+  linha que cresce). Meça com valores de seis e sete dígitos em 320, 360 e 390 px.
+- Esconder um elemento cujo `display` foi definido por **id** com uma regra só de classe não funciona: o id vence.
+  Use o mesmo id na regra (`#futMetricaAtras.sem-atraso`). Sempre confira por `getComputedStyle(...).display`.
+- `scrollWidth` não acusa estouro para a **esquerda** em linha com `justify-content:flex-end` (as ações da tabela). Meça
+  as extremidades com `getBoundingClientRect()` da coluna e do primeiro e do último botão.
 - `\n` dentro de heredoc do shell no Windows se corrompe: edite arquivos com a ferramenta de edição.

@@ -7,7 +7,7 @@
 <title>Demo da tela Futuros</title>
 <style>
 /* Futuros no celular: uma linha por evento, acoes numa janela de baixo, resumo em uma faixa. Compara com a tela de hoje. */
-:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--faint:#8c938d;--line:#e4e2dc;--ck:#d3d6d2;--accent:#0f6b4f;--onaccent:#ffffff;--accent-bg:#dcefe5;--danger:#a3321f;--danger-bg:#f6e0db;--ok:#1d6b45}
+:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--faint:#8c938d;--line:#e4e2dc;--ck:#d3d6d2;--accent:#0f6b4f;--onaccent:#ffffff;--accent-bg:#dcefe5;--danger:#a3321f;--danger-bg:#f8e6e2;--ok:#1d6b45}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;color-scheme:dark}
 body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.4;padding-inline:16px;padding-block:18px;max-width:440px;margin-inline:auto}
@@ -18,11 +18,15 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
 .seg button[aria-pressed="true"]{background:var(--card);border-color:var(--accent);color:var(--accent);font-weight:600}
 .phone{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:22px;height:680px;overflow:hidden}
 .scr{position:absolute;inset:0;overflow-y:auto;padding:14px 12px 28px}
-.sum{display:flex;gap:8px;margin:0 0 10px}
-.sum div{flex:1;background:var(--card);border-radius:14px;padding:10px 12px;min-width:0}
+/* resumo: celular = dois blocos + faixa de atraso (so quando ha atraso); o valor nunca quebra */
+.sum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 10px}
+.sum div{background:var(--card);border-radius:14px;padding:10px 12px;min-width:0}
 .sum small{display:block;color:var(--muted);font-size:12px}
-.sum b{font-size:16px;font-weight:600;display:block;overflow-wrap:anywhere}
-.sum .bad b{color:var(--danger)}
+.sum b{font-size:18px;font-weight:600;display:block;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sum .at{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sum .at b{font-size:16px;color:var(--danger)}
+.sum .at.bad{background:var(--danger-bg)}
+.sum .at.zero{display:none}
 .opt{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;color:var(--muted);font-size:13px}
 .sw{width:44px;height:26px;border-radius:13px;border:0;background:var(--ck);position:relative;flex:none;padding:0}
 .sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
@@ -67,21 +71,23 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
 body.wide{max-width:1200px}
 .desk .toast{position:sticky;left:auto;right:auto;bottom:12px;margin-top:10px}
 .desk{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px}
-.desk .sum{max-width:600px}
+.desk .sum{grid-template-columns:repeat(3,minmax(0,1fr));max-width:600px}
+.desk .sum b{font-size:16px}
+.desk .sum .at,.desk .sum .at.zero{grid-column:auto;display:block}
 .tw{overflow-x:auto}
 .tb{min-width:1120px}
-.dt{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 112px 104px 340px;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);background:var(--card)}
+.dt{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 112px 128px 316px;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);background:var(--card)}
 .dt.h{font-size:12px;color:var(--faint);background:transparent;border-top:0;padding-block:4px}
 .dt.oc{opacity:.5}
 .dt .d b{font-weight:600}
-.dt .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.dt .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .dt .v.out{color:var(--danger)}
 .dt .v.in{color:var(--ok)}
 .dt .pz{font-size:12.5px;color:var(--muted)}
 .dt .pz.bad{color:var(--danger);font-weight:600}
-.acts{display:flex;gap:6px;justify-content:flex-end;opacity:.25;transition:opacity .12s}
+.acts{display:flex;gap:4px;justify-content:flex-end;opacity:.25;transition:opacity .12s}
 .dt:hover .acts,.dt:focus-within .acts{opacity:1}
-.acts button{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;padding:5px 9px;font-size:12.5px;font-family:inherit;white-space:nowrap}
+.acts button{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;padding:5px 8px;font-size:12.5px;font-family:inherit;white-space:nowrap}
 .acts button.danger{color:var(--danger)}
 .gtw{border-radius:14px;overflow:hidden;margin:0 0 8px}
 @media (prefers-reduced-motion:reduce){.sw i{transition:none}}
@@ -123,11 +129,15 @@ function dias(d){return Math.round((d-HOJE)/86400000)}
 function prazo(it){var n=dias(it.data);if(n<0)return {t:'atrasado '+(-n)+(n===-1?' dia':' dias'),bad:true};if(n===0)return {t:'hoje',bad:false};return {t:'em '+n+(n===1?' dia':' dias'),bad:false}}
 function mes(d){var m=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][d.getMonth()];return m.charAt(0).toUpperCase()+m.slice(1)+' de '+d.getFullYear()}
 function visiveis(){return itens.filter(function(i){return ui.mostrarOc||!i.oc}).sort(function(a,b){return a.data-b.data})}
+function resumoHtml(t){
+  return '<div class="sum"><div><small>A pagar</small><b>'+moeda(t.pagar)+'</b></div><div><small>A receber</small><b>'+moeda(t.receber)+'</b></div><div class="at '+(t.atras?'bad':'zero')+'"><small>Atrasados</small><b>'+(t.atras?t.atras+' · '+moeda(t.somaAtras):'0')+'</b></div></div>';
+}
 function totais(){
   var ativos=itens.filter(function(i){return !i.oc});
   return {pagar:ativos.filter(function(i){return i.tipo==='saida'}).reduce(function(s,i){return s+i.v},0),
     receber:ativos.filter(function(i){return i.tipo==='entrada'}).reduce(function(s,i){return s+i.v},0),
-    atras:ativos.filter(function(i){return dias(i.data)<0}).length};
+    atras:ativos.filter(function(i){return dias(i.data)<0}).length,
+    somaAtras:ativos.filter(function(i){return dias(i.data)<0}).reduce(function(s,i){return s+i.v},0)};
 }
 function linha(it){
   var p=prazo(it);
@@ -138,7 +148,7 @@ function novo(){
   var atras=vs.filter(function(i){return dias(i.data)<0});
   var resto=vs.filter(function(i){return dias(i.data)>=0});
   var grupos=[];resto.forEach(function(i){var k=mes(i.data);var g=grupos.filter(function(x){return x.k===k})[0];if(!g){g={k:k,l:[]};grupos.push(g)}g.l.push(i)});
-  var h='<div class="sum"><div><small>A pagar</small><b>'+moeda(t.pagar)+'</b></div><div><small>A receber</small><b>'+moeda(t.receber)+'</b></div><div class="'+(t.atras?'bad':'')+'"><small>Atrasados</small><b>'+t.atras+'</b></div></div>'+
+  var h=resumoHtml(t)+
    '<div class="opt"><button class="sw" type="button" role="switch" aria-checked="'+ui.mostrarOc+'" data-a="oc" aria-label="Mostrar ocultos"><i></i></button><span>Mostrar ocultos (ficam fora dos totais)</span></div>';
   if(atras.length)h+='<div class="gt bad">Atrasados</div><div class="card">'+atras.map(linha).join('')+'</div>';
   grupos.forEach(function(g){h+='<div class="gt">'+g.k+'</div><div class="card">'+g.l.map(linha).join('')+'</div>'});
@@ -155,7 +165,7 @@ function desk(){
   var resto=vs.filter(function(i){return dias(i.data)>=0});
   var grupos=[];resto.forEach(function(i){var k=mes(i.data);var g=grupos.filter(function(x){return x.k===k})[0];if(!g){g={k:k,l:[]};grupos.push(g)}g.l.push(i)});
   var cab='<div class="dt h"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span>Prazo</span><span style="text-align:right">Valor</span><span></span></div>';
-  var h='<div class="sum"><div><small>A pagar</small><b>'+moeda(t.pagar)+'</b></div><div><small>A receber</small><b>'+moeda(t.receber)+'</b></div><div class="'+(t.atras?'bad':'')+'"><small>Atrasados</small><b>'+t.atras+'</b></div></div>'+
+  var h=resumoHtml(t)+
    '<div class="opt"><button class="sw" type="button" role="switch" aria-checked="'+ui.mostrarOc+'" data-a="oc" aria-label="Mostrar ocultos"><i></i></button><span>Mostrar ocultos (ficam fora dos totais)</span></div><div class="tw"><div class="tb">'+cab;
   if(atras.length)h+='<div class="gt bad">Atrasados</div><div class="gtw">'+atras.map(linhaDesk).join('')+'</div>';
   grupos.forEach(function(g){h+='<div class="gt">'+g.k+'</div><div class="gtw">'+g.l.map(linhaDesk).join('')+'</div>'});
