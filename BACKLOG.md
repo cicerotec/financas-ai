@@ -54,6 +54,9 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   (os dois ambientes usam o mesmo bot). No ar e validado no dev e na produção (v0.8.0; PRs #49, #52, #54 e #55). A
   configuração única está em `docs/avisos.md`. Depois: vínculo automático por link (webhook), outros canais (Web Push,
   e-mail) e respeitar a visibilidade por pessoa do item 27.
+  Limite conhecido, decidido não tratar agora: o resumo do dia vai numa única mensagem e o Telegram recusa acima de
+  4096 caracteres (uns 40 avisos no mesmo dia para a mesma pessoa); nesse caso nenhum aviso chega naquele dia. A
+  correção seria dividir o resumo em mensagens menores (detalhe em `docs/avisos.md`).
 - 27. [ ] **[Depois] Tela de permissões por usuário** (hoje só há dois papéis fixos, `owner` e `member`, na matriz de
   `authz.go`): centralizar numa tela do dono o que cada pessoa pode ver e fazer. Motivos vindos do uso real: a esposa
   clica em "valor estimado" ao lançar (campo que hoje não precisa) e vê cartões e saldos de bancos que não são dela.
@@ -163,6 +166,50 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   `develop` segue em frente.
 - **Publicar na AWS é separado** da release: backend com `deploy.ps1`, front com `publicar-front.ps1`. Para a versão
   no ar bater com a tag, publicar a partir da `main` depois de lançar.
+
+## Telas: toda mudança vem com uma demo
+**Regra (2026-10-08):** nenhuma alteração de tela vai para o código antes de uma **tela demo aprovada** pelo dono. Ele vê
+só o visual e decide; quem propõe diz o que faz sentido, o que não faz e o que a proposta faz perder. Vale para telas
+novas e para ajustes em telas que já existem.
+- A demo é uma página interativa publicada com link que abre no celular (artefato privado). O widget inline do chat só
+  aparece no app de desktop, então não serve como entrega.
+- Padrões aprovados, pensando primeiro na largura do celular: um resumo numa linha que abre uma tela cheia com seta de
+  voltar; lista que acumula opções com check redondo; "Outro..." que abre janela com rodas de número e unidade;
+  interruptor no topo para ligar e desligar; contador de limite visível ("2 de 6 prazos"); janela de baixo para o que é
+  rápido. O guia completo, com tokens, medidas e a versão para computador, está em `docs/design/padrao-de-telas.md`;
+  as demos aprovadas ficam em `docs/design/demos/` e são a fonte da verdade (Repetir e Avisar, e Futuros no celular
+  e no computador).
+- Datas sempre com o ano (`dd/mm/aaaa`), em tela e em mensagem.
+- A grande mudança de UX/UI prevista (item 21) segue a mesma regra, tela por tela. O Figma é a ferramenta do time de
+  design; o conector ainda não está autorizado nesta conta.
+
+### Recomendações para IA que programa neste repositório
+- **Padrão de telas aprovado (celular primeiro, com versão para computador):** leia `docs/design/padrao-de-telas.md` e
+  abra as demos de `docs/design/demos/` antes de desenhar ou alterar qualquer tela. Em resumo:
+  - **Celular:** uma linha-resumo que abre tela cheia; lista que acumula com check redondo (ou escolha única);
+    interruptor no topo; "Outro..." com rodas de número e unidade numa janela de baixo, com resumo ao vivo e erro na
+    própria janela; contador de limite visível; um evento por linha, com as ações numa janela de baixo; resumo em
+    faixa; linhas de pelo menos 56 px.
+  - **Computador:** a mesma tela vira uma tabela de largura total (colunas alinhadas, mínimo de 1120 px a partir de
+    1160 px de janela, container de até 1200 px) com as ações na própria linha, apagadas até o mouse passar ou o foco entrar. Mesmos dados e mesmas
+    regras; só o desenho muda com a largura da janela.
+  - **Sempre:** cores só pelos tokens do app (claro e escuro), datas com ano (`dd/mm/aaaa`), limites à vista, e a
+    demo diz o que a proposta faz perder.
+- **Telas:** demo antes do código (regra acima), com limites e custos ditos na própria resposta. Se não consegue ver o
+  resultado (toque real no celular, por exemplo), diga isso em vez de afirmar que funciona.
+- **Git:** rode `git branch --show-current` antes de commitar e use `git push origin <branch>` com o nome da branch. Não
+  commite direto em `develop` ou `main`: o push numa branch de trabalho abre o PR rascunho sozinho. Veja o `git status`
+  antes de `git add -A` (um `.exe` de build já foi parar num commit).
+- **Segredos:** nunca peça nem repita token, chave ou senha no chat, e nunca os passe na linha de comando; guarde no SSM
+  e leia com `Read-Host -AsSecureString`. Se um segredo aparecer numa conversa, recomende revogar.
+- **Testes:** rode `go test ./...` em `backend/` e `node web/recorrencia.test.js` antes de commitar. Quebre o código de
+  propósito uma vez para ver o teste falhar. Teste não pode depender de variável de ambiente do CI (o deploy roda com
+  `AMBIENTE=dev`).
+- **Deploy:** o job verde não basta: confira o changeset e o status final da stack. Permissão nova na infra exige
+  atualizar as roles do Actions (`infra/github-oidc.yaml`, uma stack por ambiente, com `Repositorio` explícito) antes do
+  merge.
+- **Provas:** não escreva "provavelmente" sobre o que dá para ler no log ou no código; leia e mostre a evidência.
+- **Windows:** edições com `\n` dentro de heredocs do shell se corrompem; use a ferramenta de edição de arquivos.
 
 ## Decisões fechadas
 
