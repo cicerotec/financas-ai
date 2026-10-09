@@ -8,6 +8,7 @@
 :root{
   --bg:#f7f7f5; --card:#fff; --text:#1a1a1a; --muted:#6b6b6b; --border:#e3e2de;
   --accent:#2f6f4f; --accent-ink:#fff; --danger:#b3413a; --income:#2f6f4f; --expense:#b3413a;
+  --faint:#8c938d; --ck:#d3d6d2; --accent-bg:#dcefe5;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -15,11 +16,13 @@
   :root:not([data-theme="light"]){
     --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
     --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
+    --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e;
   }
 }
 :root[data-theme="dark"]{
   --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
   --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
+    --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e;
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px);}
 *{box-sizing:border-box;}
@@ -127,13 +130,57 @@ body.papel-member nav button[data-tab="importar"]{display:none;}
 body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 .aviso-fut{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:color-mix(in srgb,#BA7517 14%,transparent);border:1px solid #BA7517;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:13px;}
 .aviso-fut a{color:var(--text);text-decoration:underline;white-space:nowrap;}
-.fut-metricas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0;}
-.fut-metrica{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;}
-.fut-metrica.alerta{border-color:var(--danger);}
+/* Futuros: padrao de telas (docs/design/padrao-de-telas.md). Celular: uma linha por evento e as acoes numa janela de baixo.
+   Janela larga (>= 1160px): tabela de largura total com as acoes na propria linha. */
+body[data-aba="futuros"] main{max-width:1200px;}
+.fut-metricas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 10px;}
+.fut-metrica{background:var(--card);border-radius:14px;padding:10px 12px;min-width:0;}
+.fut-metrica .muted{font-size:12px;}
 .fut-metrica.alerta .fut-num{color:var(--danger);}
-.fut-num{font-size:17px;font-weight:600;}
-.fut-titulo{font-size:12px;color:var(--muted);margin:14px 0 6px;}
+.fut-num{font-size:16px;font-weight:600;overflow-wrap:anywhere;}
+.fut-sw{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;font-size:13px;color:var(--muted);cursor:pointer;}
+.fut-sw input{appearance:none;-webkit-appearance:none;width:44px;height:26px;border-radius:13px;background:var(--ck);position:relative;flex:none;margin:0;cursor:pointer;transition:background .15s;}
+.fut-sw input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;}
+.fut-sw input:checked{background:var(--accent);}
+.fut-sw input:checked::after{left:21px;}
+.fut-sw input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.fut-titulo{font-size:13px;font-weight:600;color:var(--muted);margin:12px 4px 6px;}
 .fut-titulo.atras{color:var(--danger);}
+.fut-grupo{background:var(--card);border-radius:16px;overflow:hidden;margin:0 0 6px;}
+.fut-row{border-top:1px solid var(--border);}
+.fut-row:first-child{border-top:0;}
+.fut-row.oculto{opacity:.5;}
+.fut-m{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;color:var(--text);font:inherit;padding:11px 14px;min-height:62px;cursor:pointer;}
+.fut-m .l{flex:1;min-width:0;}
+.fut-m .d{font-weight:600;display:block;overflow-wrap:anywhere;}
+.fut-m .mt{display:block;color:var(--muted);font-size:12.5px;margin-top:1px;}
+.fut-m .r{text-align:right;flex:none;}
+.fut-m .valor{display:block;font-weight:600;font-variant-numeric:tabular-nums;}
+.fut-prazo{display:inline-block;margin-top:2px;font-size:12px;color:var(--muted);}
+.fut-prazo.atras{color:var(--danger);font-weight:600;}
+.fut-dk,.fut-cab{display:none;}
+.fut-tabela{overflow-x:auto;}
+.fut-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;z-index:60;}
+.fut-sheet{background:var(--card);width:100%;max-width:640px;margin:0 auto;border-radius:22px 22px 0 0;padding:14px 8px calc(10px + env(safe-area-inset-bottom,0px));}
+.fut-sheet h3{margin:0 8px 2px;font-size:16px;font-weight:600;overflow-wrap:anywhere;}
+.fut-sheet .mm{margin:0 8px 8px;color:var(--muted);font-size:13px;}
+.fut-ac{display:flex;align-items:center;width:100%;background:transparent;border:0;border-top:1px solid var(--border);border-radius:0;color:var(--text);font:inherit;padding:0 10px;min-height:52px;text-align:left;cursor:pointer;}
+.fut-ac.perigo{color:var(--danger);}
+@media (min-width:1160px){
+  .fut-tabela-in{min-width:1120px;}
+  .fut-m{display:none;}
+  .fut-cab,.fut-dk{display:grid;grid-template-columns:100px minmax(190px,1fr) 80px 90px 118px 110px 360px;align-items:center;gap:12px;padding:10px 14px;}
+  .fut-cab{font-size:12px;color:var(--faint);padding-block:4px;}
+  .fut-dk .v{text-align:right;}
+  .fut-dk .valor{font-weight:600;font-variant-numeric:tabular-nums;}
+  .fut-dk .d{font-weight:600;overflow-wrap:anywhere;}
+  .fut-acoes{display:flex;gap:6px;justify-content:flex-end;opacity:.25;transition:opacity .12s;}
+  .fut-dk:hover .fut-acoes,.fut-dk:focus-within .fut-acoes{opacity:1;}
+  .fut-acoes button{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:5px 9px;font-size:12.5px;white-space:nowrap;cursor:pointer;}
+  .fut-acoes button.perigo{color:var(--danger);}
+  .fut-metricas{max-width:600px;}
+}
+@media (prefers-reduced-motion:reduce){.fut-sw input,.fut-sw input::after,.fut-acoes{transition:none;}}
 .item.futuro{border-style:dashed !important;}
 .item.atrasado{border-color:var(--danger) !important;}
 .chip{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;}
@@ -370,13 +417,12 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 </section>
 
 <section id="tab-futuros" class="hidden">
-  <p class="muted">Eventos que ainda não aconteceram (status marcados como "evento futuro" em Listas). Quando acontecer, toque em Editar e troque o status e a data.</p>
   <div class="fut-metricas">
     <div class="fut-metrica"><div class="muted">A pagar</div><div class="fut-num" id="futPagar">···</div></div>
     <div class="fut-metrica"><div class="muted">A receber</div><div class="fut-num" id="futReceber">···</div></div>
     <div class="fut-metrica" id="futMetricaAtras"><div class="muted">Atrasados</div><div class="fut-num" id="futAtrasados">···</div></div>
   </div>
-  <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);"><input type="checkbox" id="futMostrarOcultos" style="width:auto;"> mostrar ocultos (fora dos totais)</label>
+  <label class="fut-sw"><input type="checkbox" id="futMostrarOcultos" role="switch"><span>Mostrar ocultos (ficam fora dos totais)</span></label>
   <div id="listaFuturos"></div>
 </section>
 
@@ -981,6 +1027,7 @@ async function init(){
 let abaOrigemEdicao = null;
 function abaAtual(){ const b = document.querySelector('nav button.active'); return b ? b.dataset.tab : 'lancar'; }
 function irParaAba(t){
+  document.body.dataset.aba = t;
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active', x.dataset.tab===t));
   document.querySelectorAll('main section').forEach(sec=>sec.classList.add('hidden'));
   document.getElementById('tab-'+t).classList.remove('hidden');
@@ -1774,9 +1821,74 @@ function renderFuturos(){
     el.innerHTML = '<p class="muted">Nenhum evento futuro. Crie um lançamento na aba Lançar com um status de evento futuro (ex.: PREVISTO).</p>';
     return;
   }
-  el.innerHTML = gruposFuturos(todos, hoje).map(g=>
-    `<div class="fut-titulo ${g.atrasado?'atras':''}">${esc(g.titulo)}</div>` + g.itens.map(l=>htmlItemLancamento(l, {prazo:true})).join('')).join('');
+  el.innerHTML = '<div class="fut-tabela"><div class="fut-tabela-in">'+
+    '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span>Prazo</span><span style="text-align:right">Valor</span><span></span></div>'+
+    gruposFuturos(todos, hoje).map(g=>
+      `<div class="fut-titulo ${g.atrasado?'atras':''}">${esc(g.titulo)}</div><div class="fut-grupo">${g.itens.map(htmlEventoFuturo).join('')}</div>`).join('')+
+    '</div></div>';
 }
+
+// ---------- Futuros: uma linha por evento (celular) e tabela (janela larga) ----------
+function prazoFuturo(l){
+  if(l.oculto) return {t:'', atras:false};
+  const n = diasAte(diaLocal(l));
+  if(n < 0) return {t:`atrasado ${-n} dia${n===-1?'':'s'}`, atras:true};
+  if(n === 0) return {t:'hoje', atras:false};
+  return {t:`em ${n} dia${n===1?'':'s'}`, atras:false};
+}
+function dataBR(l){ return new Date(l.dataEvento).toLocaleDateString('pt-BR'); }
+// Acoes de um evento, na ordem e com as mesmas permissoes de antes. t = texto da janela; c = texto curto da tabela.
+function acoesDoEvento(l){
+  const a = [];
+  if(podeMexer(l)) a.push({k:'editar', t:'Editar', c:'Editar'});
+  a.push({k:'copiar', t:'Copiar', c:'Copiar'});
+  if(!l.transferParId) a.push({k:'prever', t:l.serie?'Estender série':'Prever próximas datas', c:l.serie?'Estender':'Prever'});
+  if(podeMexer(l)) a.push({k:'ocultar', t:l.oculto?'Mostrar':'Ocultar', c:l.oculto?'Mostrar':'Ocultar'});
+  if(ehOwner()) a.push({k:'excluir', t:'Excluir', c:'Excluir', perigo:true});
+  return a;
+}
+function htmlEventoFuturo(l){
+  const p = prazoFuturo(l), id = esc(l.id);
+  const serie = l.serie && l.serie.indice ? ` · série ${l.serie.indice}` : '';
+  const prazo = `<span class="fut-prazo ${p.atras?'atras':''}">${p.t}</span>`;
+  const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
+  return `<div class="fut-row ${l.oculto?'oculto':''}">
+    <button type="button" class="fut-m" data-fut-abrir="${id}" aria-haspopup="dialog">
+      <span class="l"><span class="d">${esc(l.descricao)}${chipAviso(l)}</span><span class="mt">${dataBR(l)} · ${esc(l.status)} · ${esc(l.banco||'-')}${serie}${l.oculto?' · oculto':''}</span></span>
+      <span class="r">${htmlValorLinha(l)}${prazo}</span>
+    </button>
+    <div class="fut-dk" tabindex="0">
+      <span>${dataBR(l)}</span>
+      <span class="d">${esc(l.descricao)}${chipAviso(l)}<span class="muted">${serie}${l.oculto?' · oculto':''}</span></span>
+      <span>${esc(l.banco||'-')}</span>
+      <span>${seloStatus(l.status)}</span>
+      ${prazo}
+      <span class="v">${htmlValorLinha(l)}</span>
+      <span class="fut-acoes">${botoes}</span>
+    </div>
+  </div>`;
+}
+// Janela de baixo com as acoes do evento (celular).
+function abrirAcoesFuturo(id){
+  const l = acharLancamento(id);
+  if(!l) return;
+  fecharAcoesFuturo();
+  const ov = document.createElement('div');
+  ov.className = 'fut-ov'; ov.id = 'futOv';
+  ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Ações de ${esc(l.descricao)}">
+    <h3>${esc(l.descricao)}</h3><p class="mm">${fmtMoeda(Math.abs(valorAssinado(l)))} · ${dataBR(l)} · ${esc(l.banco||'-')}</p>
+    ${acoesDoEvento(l).map(a=>`<button type="button" class="fut-ac${a.perigo?' perigo':''}" data-acao="${a.k}" data-id="${esc(l.id)}">${a.t}</button>`).join('')}</div>`;
+  ov.addEventListener('click', e=>{
+    const b = e.target.closest('button[data-acao]');
+    if(b){ fecharAcoesFuturo(); executarAcaoRegistro(b.dataset.acao, b.dataset.id); return; }
+    if(e.target === ov) fecharAcoesFuturo();
+  });
+  document.body.appendChild(ov);
+  const primeiro = ov.querySelector('.fut-ac');
+  if(primeiro) primeiro.focus();
+}
+function fecharAcoesFuturo(){ const o = document.getElementById('futOv'); if(o) o.remove(); }
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') fecharAcoesFuturo(); });
 
 // No mês buscado os eventos futuros não aparecem na lista; se o mês tiver algum, avisa e leva para a aba Futuros.
 function renderAvisoMesFuturos(){
@@ -1910,18 +2022,24 @@ async function excluirLancamento(id){
   removerLocal(id);
 }
 
+function executarAcaoRegistro(acao, id){
+  if(acao==='editar') iniciarEdicao(id);
+  if(acao==='copiar') iniciarCopia(id);
+  if(acao==='prever') preverLancamento(id);
+  if(acao==='ocultar') ocultarLancamento(id);
+  if(acao==='excluir') excluirLancamento(id);
+}
 function cliqueAcaoRegistro(e){
   const btn = e.target.closest('button[data-acao]');
   if(!btn) return;
-  const id = btn.dataset.id;
-  if(btn.dataset.acao==='editar') iniciarEdicao(id);
-  if(btn.dataset.acao==='copiar') iniciarCopia(id);
-  if(btn.dataset.acao==='prever') preverLancamento(id);
-  if(btn.dataset.acao==='ocultar') ocultarLancamento(id);
-  if(btn.dataset.acao==='excluir') excluirLancamento(id);
+  executarAcaoRegistro(btn.dataset.acao, btn.dataset.id);
 }
 document.getElementById('listaLancamentos').addEventListener('click', cliqueAcaoRegistro);
 document.getElementById('listaFuturos').addEventListener('click', cliqueAcaoRegistro);
+document.getElementById('listaFuturos').addEventListener('click', e=>{
+  const b = e.target.closest('[data-fut-abrir]');
+  if(b) abrirAcoesFuturo(b.dataset.futAbrir);
+});
 document.getElementById('avisoMesFuturos').addEventListener('click', (e)=>{
   const a = e.target.closest('[data-ir-aba]');
   if(a){ e.preventDefault(); irParaAba(a.dataset.irAba); }
