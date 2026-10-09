@@ -169,8 +169,11 @@ body[data-aba="futuros"] main{max-width:1200px;}
 @media (min-width:1160px){
   .fut-tabela-in{min-width:1120px;}
   .fut-m{display:none;}
-  .fut-cab,.fut-dk{display:grid;grid-template-columns:100px minmax(190px,1fr) 80px 90px 118px 110px 360px;align-items:center;gap:12px;padding:10px 14px;}
+  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 112px 104px 340px;align-items:center;gap:12px;padding:10px 14px;}
   .fut-cab{font-size:12px;color:var(--faint);padding-block:4px;}
+  .fut-dk>span,.fut-cab>span{min-width:0;}
+  .fut-dk .bk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fut-dk .st,.fut-dk .fut-prazo{white-space:nowrap;}
   .fut-dk .v{text-align:right;}
   .fut-dk .valor{font-weight:600;font-variant-numeric:tabular-nums;}
   .fut-dk .d{font-weight:600;overflow-wrap:anywhere;}
@@ -1860,8 +1863,8 @@ function htmlEventoFuturo(l){
     <div class="fut-dk" tabindex="0">
       <span>${dataBR(l)}</span>
       <span class="d">${esc(l.descricao)}${chipAviso(l)}<span class="muted">${serie}${l.oculto?' · oculto':''}</span></span>
-      <span>${esc(l.banco||'-')}</span>
-      <span>${seloStatus(l.status)}</span>
+      <span class="bk" title="${esc(l.banco||'-')}">${esc(l.banco||'-')}</span>
+      <span class="st">${seloStatus(l.status)}</span>
       ${prazo}
       <span class="v">${htmlValorLinha(l)}</span>
       <span class="fut-acoes">${botoes}</span>
