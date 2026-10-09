@@ -190,8 +190,8 @@ novas e para ajustes em telas que já existem.
     interruptor no topo; "Outro..." com rodas de número e unidade numa janela de baixo, com resumo ao vivo e erro na
     própria janela; contador de limite visível; um evento por linha, com as ações numa janela de baixo; resumo em
     faixa; linhas de pelo menos 56 px.
-  - **Computador:** a mesma tela vira uma tabela de largura total (colunas alinhadas, mínimo de 1100 px, container de
-    até 1200 px) com as ações na própria linha, apagadas até o mouse passar ou o foco entrar. Mesmos dados e mesmas
+  - **Computador:** a mesma tela vira uma tabela de largura total (colunas alinhadas, mínimo de 1120 px a partir de
+    1160 px de janela, container de até 1200 px) com as ações na própria linha, apagadas até o mouse passar ou o foco entrar. Mesmos dados e mesmas
     regras; só o desenho muda com a largura da janela.
   - **Sempre:** cores só pelos tokens do app (claro e escuro), datas com ano (`dd/mm/aaaa`), limites à vista, e a
     demo diz o que a proposta faz perder.

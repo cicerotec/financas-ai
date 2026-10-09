@@ -100,16 +100,19 @@ texto explicativo longo.
 ## Padrão do computador (janela larga)
 Mesma tela, mesmos dados, desenho de tabela.
 - **Tabela de largura total** com cabeçalho cinza e uma linha por evento, em grade de colunas:
-  `100px minmax(190px,1fr) 80px 90px 118px 110px 310px` = data, evento, banco, status, prazo, valor (alinhado à
-  direita), ações. O espaçamento entre colunas é de 12 px. A tabela tem largura mínima de **1100 px** e rola na
-  horizontal dentro do próprio quadro abaixo disso. (A soma das colunas fixas mais o `minmax` tem de caber na largura
+  `100px minmax(190px,1fr) 80px 90px 118px 110px 360px` = data, evento, banco, status, prazo, valor (alinhado à
+  direita), ações. O espaçamento entre colunas é de 12 px. A tabela tem largura mínima de **1120 px** e rola na
+  horizontal dentro do próprio quadro abaixo disso. A visão de tabela começa em **1160 px de janela** (1120 px de
+  tabela mais as margens do container); abaixo disso vale a visão do celular. (A soma das colunas fixas mais o `minmax` tem de caber na largura
   mínima, senão a coluna do nome colapsa e as colunas se sobrepõem.)
 - **Container largo:** o conteúdo passa a até 1200 px. No app, o `main{max-width:640px}` é o que deixa a tela estreita
   no computador; a tela larga precisa de um modificador, e não de trocar o `main` para todas as telas.
 - **Ações na própria linha**, no fim, em botões de texto pequenos, **apagadas (opacidade 0,25) até o mouse passar ou o
   foco entrar** (`:hover` e `:focus-within`, linha com `tabindex="0"`). Sem janela de baixo e sem toque extra.
 - **Resumo e interruptor de ocultos** ficam no topo, como no celular; os totais continuam excluindo os ocultos.
-- Quando existirem telas em largura média (tablet), tratar como a visão do celular até haver uma demo própria.
+- **Texto curto nas ações da tabela** ("Estender", "Prever") e o texto completo na janela de baixo do celular
+  ("Estender série", "Prever próximas datas").
+- Telas em largura média (tablet) usam a visão do celular até haver uma demo própria.
 
 ## Regras de conteúdo
 - **Datas sempre com o ano**, `dd/mm/aaaa`, em tela e em mensagem. Moeda em pt-BR (`R$ 1.234,56`).
@@ -137,5 +140,7 @@ Mesma tela, mesmos dados, desenho de tabela.
   rodas por script, ajuste `scrollTop` **e** dispare `dispatchEvent(new Event('scroll'))`. No celular real o evento
   dispara sozinho (a roda usa `scroll-snap` e lê a posição 90 ms depois de parar).
 - Grade de colunas cuja soma passa da largura da tabela faz a coluna `1fr` colapsar e sobrepõe o texto.
+- Rótulo longo estoura a coluna de ações (na Futuros, "Estender série" empurrava "Editar" para cima do valor). Meça
+  a coluna com o rótulo mais longo e confira, em janela larga, a folga entre a primeira ação e o valor em todas as linhas.
 - Data sem ano (`31/01`) é ambígua quando o intervalo passa de um ano.
 - `\n` dentro de heredoc do shell no Windows se corrompe: edite arquivos com a ferramenta de edição.

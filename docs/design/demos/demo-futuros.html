@@ -69,8 +69,8 @@ body.wide{max-width:1200px}
 .desk{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px}
 .desk .sum{max-width:600px}
 .tw{overflow-x:auto}
-.tb{min-width:1100px}
-.dt{display:grid;grid-template-columns:100px minmax(190px,1fr) 80px 90px 118px 110px 310px;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);background:var(--card)}
+.tb{min-width:1120px}
+.dt{display:grid;grid-template-columns:100px minmax(190px,1fr) 80px 90px 118px 110px 360px;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);background:var(--card)}
 .dt.h{font-size:12px;color:var(--faint);background:transparent;border-top:0;padding-block:4px}
 .dt.oc{opacity:.5}
 .dt .d b{font-weight:600}
@@ -147,7 +147,7 @@ function novo(){
 function linhaDesk(it){
   var p=prazo(it);
   return '<div class="dt'+(it.oc?' oc':'')+'" tabindex="0"><span>'+dt(it.data)+'</span><span class="d"><b>'+it.d+'</b>'+(it.aviso?' <span class="ic" aria-label="Com aviso no Telegram">&#128276;</span>':'')+(it.serie?' <span class="pz">série '+it.serie+'</span>':'')+(it.oc?' <span class="pz">oculto</span>':'')+'</span><span>'+it.banco+'</span><span>'+it.st+'</span><span class="pz'+(p.bad?' bad':'')+'">'+p.t+'</span><span class="v '+(it.tipo==='saida'?'out':'in')+'">'+(it.tipo==='saida'?'-':'+')+moeda(it.v)+'</span>'+
-   '<span class="acts"><button type="button" data-a="dk" data-k="Editar" data-id="'+it.id+'">Editar</button><button type="button" data-a="dk" data-k="Copiar" data-id="'+it.id+'">Copiar</button><button type="button" data-a="dk" data-k="Prever" data-id="'+it.id+'">'+(it.serie?'Estender série':'Prever')+'</button><button type="button" data-a="dk" data-k="Ocultar" data-id="'+it.id+'">'+(it.oc?'Mostrar':'Ocultar')+'</button><button type="button" class="danger" data-a="dk" data-k="Excluir" data-id="'+it.id+'">Excluir</button></span></div>';
+   '<span class="acts"><button type="button" data-a="dk" data-k="Editar" data-id="'+it.id+'">Editar</button><button type="button" data-a="dk" data-k="Copiar" data-id="'+it.id+'">Copiar</button><button type="button" data-a="dk" data-k="Prever" data-id="'+it.id+'">'+(it.serie?'Estender':'Prever')+'</button><button type="button" data-a="dk" data-k="Ocultar" data-id="'+it.id+'">'+(it.oc?'Mostrar':'Ocultar')+'</button><button type="button" class="danger" data-a="dk" data-k="Excluir" data-id="'+it.id+'">Excluir</button></span></div>';
 }
 function desk(){
   var t=totais(),vs=visiveis();
