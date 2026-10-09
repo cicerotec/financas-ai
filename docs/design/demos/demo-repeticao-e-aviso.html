@@ -49,6 +49,9 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
 .btns button{flex:1;padding:14px;border-radius:14px;border:0;font:inherit;font-weight:600}
 .btns .no{background:var(--ck);color:var(--fg)}
 .btns .ok{background:var(--accent);color:var(--onaccent)}
+.barra{position:absolute;left:0;right:0;bottom:0;padding:10px 14px;background:var(--bg2);border-top:1px solid var(--line)}
+.criar{display:block;width:100%;padding:14px;border-radius:14px;border:0;background:var(--accent);color:var(--onaccent);font:inherit;font-weight:600}
+.toast{position:absolute;left:14px;right:14px;bottom:78px;background:var(--fg);color:var(--bg);border-radius:12px;padding:11px 14px;font-size:13px}
 .dec{margin-top:16px;border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--muted)}
 .dec b{color:var(--fg);font-weight:600}
 .dec ul{margin:6px 0 0;padding-left:18px}
@@ -66,10 +69,12 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
 <li>A rotina roda uma vez por dia, às 8h. Por isso não há horas nem minutos.</li>
 <li>Até 6 prazos de aviso por lançamento: os quatro atalhos mais dois prazos próprios.</li>
 <li>Toda data, na tela e na mensagem do Telegram, mostra o ano (dd/mm/aaaa).</li>
+<li><b>Prever e Estender usam esta mesma tela</b> e acrescentam o que ela não mostrava: a linha "Status das cópias" e o botão fixo "Criar N eventos". Em produção, o botão mostra o andamento ("Criando 3/12…"); eventos que já existem aparecem com a escolha "Pular os que já existem" ou "Criar mesmo assim"; e uma falha no meio mostra onde parou e deixa tentar de novo sem repetir.</li>
 </ul></div>
 <script>
 var DUE=new Date(2026,0,31,9,0);
-var st={tela:'main',aviso:true,dias:[1,0],insistir:true,meses:1,qtd:3,sheet:null};
+var st={tela:'main',aviso:true,dias:[1,0],insistir:true,meses:1,qtd:3,sheet:null,status:'PREVISTO',toast:''};
+var STATUS=['PREVISTO','TRANSFERINDO','CREDITANDO'];
 var PRE=[0,1,3,7];
 var MAXP=6;
 var INTS=[{m:1,l:'Mensal'},{m:3,l:'Trimestral'},{m:6,l:'Semestral'},{m:12,l:'Anual'}];
@@ -97,7 +102,8 @@ function head(t){return '<div class="hd"><button type="button" data-a="go" data-
 function telaMain(){
   var ds=datasRep().slice(0,4).map(fdy).join(', ')+(st.qtd>4?' e mais '+(st.qtd-4):'');
   return '<p class="ctx">Seguro auto · R$ 230,50 · PREVISTO · 31/01/2026</p>'+
-  '<div class="card"><button class="li" type="button" data-a="go" data-to="rep"><span class="t"><b>Repetir</b><span class="s">'+fraseRep()+'</span></span><span class="go" aria-hidden="true">&#8250;</span></button>'+
+  '<div class="card"><button class="li" type="button" data-a="go" data-to="status"><span class="t"><b>Status das cópias</b><span class="s">'+st.status+'</span></span><span class="go" aria-hidden="true">&#8250;</span></button>'+
+  '<button class="li" type="button" data-a="go" data-to="rep"><span class="t"><b>Repetir</b><span class="s">'+fraseRep()+'</span></span><span class="go" aria-hidden="true">&#8250;</span></button>'+
   '<button class="li" type="button" data-a="go" data-to="avi"><span class="t"><b>Avisar no Telegram</b><span class="s">'+fraseAviso()+'</span></span><span class="go" aria-hidden="true">&#8250;</span></button></div>'+
   '<p class="note">Cria este e mais '+st.qtd+': <b>'+ds+'</b><br>Total '+(230.5*(st.qtd+1)).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})+'</p>';
 }
@@ -125,6 +131,10 @@ function telaAviso(){
   '<div class="card">'+linhaOutro()+'</div>'+
   '<div class="card"><div class="li"><span class="t"><b>Insistir depois do vencimento</b><span class="s">Avisa todo dia, até pagar</span></span><button class="sw" type="button" role="switch" aria-checked="'+st.insistir+'" data-a="ins" aria-label="Insistir depois do vencimento"><i></i></button></div></div>'+
   '<p class="note">Para um vencimento em 31/01/2026, avisa em '+(datas||'nenhum dia')+(st.insistir?' e todo dia depois':'')+'.</p>'+balao():'<p class="note">Sem aviso, o lançamento só aparece em Futuros.</p>');
+}
+function telaStatus(){
+  var rows=STATUS.map(function(s){var on=s===st.status;return '<button class="li" type="button" role="radio" aria-checked="'+on+'" data-a="st" data-v="'+s+'"><span class="t">'+s+'</span>'+ck(on)+'</button>'}).join('');
+  return head('Status das cópias')+'<div class="card">'+rows+'</div><p class="note">As cópias nascem com este status e aparecem em Futuros.</p>';
 }
 function telaRep(){
   var ehPre=INTS.some(function(i){return i.m===st.meses});
@@ -187,9 +197,10 @@ function montaRodas(){
   pintaLive();
 }
 function render(){
-  var scr=st.tela==='main'?telaMain():(st.tela==='avi'?telaAviso():telaRep());
+  var scr=st.tela==='main'?telaMain():(st.tela==='avi'?telaAviso():(st.tela==='status'?telaStatus():telaRep()));
   var y=phone.querySelector('.scr')?phone.querySelector('.scr').scrollTop:0;
-  phone.innerHTML='<div class="scr">'+scr+'</div>'+sheetHtml();
+  var barra=st.tela==='main'?'<div class="barra"><button class="criar" type="button" data-a="criar">Criar '+(st.qtd)+' evento'+(st.qtd===1?'':'s')+'</button></div>':'';
+  phone.innerHTML='<div class="scr" style="'+(st.tela==='main'?'padding-bottom:90px':'')+'">'+scr+'</div>'+barra+(st.toast&&st.tela==='main'?'<div class="toast" role="status">'+st.toast+'</div>':'')+sheetHtml();
   phone.querySelector('.scr').scrollTop=y;
   montaRodas();
 }
@@ -197,6 +208,8 @@ phone.addEventListener('click',function(e){
   var b=e.target.closest('[data-a]');if(!b)return;
   var a=b.dataset.a;
   if(a==='go'){st.tela=b.dataset.to;st.sheet=null;phone.querySelector('.scr')&&(phone.querySelector('.scr').scrollTop=0);render();return}
+  if(a==='st'){st.status=b.dataset.v;st.tela='main';render();return}
+  if(a==='criar'){st.toast='Demonstração: criaria '+st.qtd+' evento'+(st.qtd===1?'':'s')+' como '+st.status+'.';render();setTimeout(function(){st.toast='';if(phone.querySelector('.toast'))render()},2200);return}
   if(a==='sw'){st.aviso=!st.aviso;render();return}
   if(a==='ins'){st.insistir=!st.insistir;render();return}
   if(a==='dia'){var d=parseInt(b.dataset.d,10),i=st.dias.indexOf(d);if(i>=0)st.dias.splice(i,1);else st.dias.push(d);render();return}
