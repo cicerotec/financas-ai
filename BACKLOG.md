@@ -207,7 +207,9 @@ novas e para ajustes em telas que já existem.
 - **Telas:** demo antes do código (regra acima), com limites e custos ditos na própria resposta. Se não consegue ver o
   resultado (toque real no celular, por exemplo), diga isso em vez de afirmar que funciona.
 - **Git:** rode `git branch --show-current` antes de commitar e use `git push origin <branch>` com o nome da branch. Não
-  commite direto em `develop` ou `main`: o push numa branch de trabalho abre o PR rascunho sozinho. Veja o `git status`
+  commite direto em `develop` ou `main`: o push numa branch de trabalho abre o PR rascunho sozinho. Depois que o PR de uma
+  branch for mergeado, **não envie mais nada para ela**: o robô abre um PR novo só com esse commit (foi o #63, que colidiu com
+  o #64) e o commit pode ficar de fora do merge que você esperava. Abra uma branch nova a partir da `develop`. Veja o `git status`
   antes de `git add -A` (um `.exe` de build já foi parar num commit).
 - **Segredos:** nunca peça nem repita token, chave ou senha no chat, e nunca os passe na linha de comando; guarde no SSM
   e leia com `Read-Host -AsSecureString`. Se um segredo aparecer numa conversa, recomende revogar.
