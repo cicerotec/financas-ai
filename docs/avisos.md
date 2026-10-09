@@ -38,3 +38,8 @@ se marcado, **todo dia** depois dele até o lançamento deixar de ser evento fut
 - O horário é fixo (8h). Sem horário de verão no Brasil, a regra em UTC (`cron(0 11 * * ? *)`) não deriva.
 - Se o token não existir no SSM, a rotina registra no log e encerra sem erro; o resto do app não é afetado.
 - Visibilidade por pessoa (item 27 do BACKLOG): quando existir, os avisos devem respeitá-la.
+- **Mensagem longa (limite conhecido, decidido não tratar agora):** o resumo do dia vai numa única mensagem, e o Telegram
+  recusa mensagens acima de **4096 caracteres**. Cada aviso ocupa cerca de 100 caracteres, então a partir de uns 40
+  avisos no mesmo dia para a mesma pessoa o resumo inteiro seria recusado (erro 400 no log, nenhum aviso chega naquele
+  dia). Se isso passar a acontecer, a correção é dividir o resumo em várias mensagens menores.
+- As datas das mensagens trazem o ano (`dd/mm/aaaa`).

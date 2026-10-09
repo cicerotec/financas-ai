@@ -127,7 +127,7 @@ func TestMontarResumoOrdenaAtrasadosPrimeiro(t *testing.T) {
 		{kind: avisoHoje, venc: "2026-10-07", tipo: "entrada", descricao: "Aluguel", valor: 2500, banco: "ITAU"},
 	}
 	r := montarResumo("2026-10-07", linhas)
-	ordem := []string{"Atrasado há 2 dias (05/10): Internet — R$ 120,00 (NUBANK)", "A receber hoje (07/10): Aluguel", "Vence em 3 dias (10/10): Condomínio — R$ 800,00 (ITAU)"}
+	ordem := []string{"Atrasado há 2 dias (05/10/2026): Internet — R$ 120,00 (NUBANK)", "A receber hoje (07/10/2026): Aluguel", "Vence em 3 dias (10/10/2026): Condomínio — R$ 800,00 (ITAU)"}
 	ult := -1
 	for _, trecho := range ordem {
 		i := strings.Index(r, trecho)
@@ -139,10 +139,10 @@ func TestMontarResumoOrdenaAtrasadosPrimeiro(t *testing.T) {
 		}
 		ult = i
 	}
-	if !strings.HasPrefix(r, "🔔 Avisos de 07/10\n") {
+	if !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
 		t.Errorf("cabecalho inesperado:\n%s", r)
 	}
-	if !strings.Contains(montarResumo("2026-10-07", []linhaAviso{{kind: avisoAntes, n: 1, venc: "2026-10-08", descricao: " "}}), "Vence em 1 dia (08/10): (sem descrição)") {
+	if !strings.Contains(montarResumo("2026-10-07", []linhaAviso{{kind: avisoAntes, n: 1, venc: "2026-10-08", descricao: " "}}), "Vence em 1 dia (08/10/2026): (sem descrição)") {
 		t.Error("singular e descricao vazia")
 	}
 }
@@ -274,7 +274,7 @@ func TestRotinaAvisaCriadorEDonoUmaVezCada(t *testing.T) {
 		chats[e.chat] = e.texto
 	}
 	for _, chat := range []string{"111111", "222222"} {
-		if !strings.Contains(chats[chat], "Vence em 3 dias (10/10): Conta de luz — R$ 230,50 (ITAU)") {
+		if !strings.Contains(chats[chat], "Vence em 3 dias (10/10/2026): Conta de luz — R$ 230,50 (ITAU)") {
 			t.Errorf("chat %s recebeu %q", chat, chats[chat])
 		}
 	}
@@ -309,7 +309,7 @@ func TestRotinaInsistirAvisaAtrasadoAteResolver(t *testing.T) {
 	f, id := cenarioAvisos(t)
 	chamar(t, "mem", "PUT", "spaces/s1/tx/"+id, map[string]string{"de": "2026-10-10T12:00:00.000Z"}, `{"aviso":{"dias":[],"insistir":true}}`)
 	env := trocaEnvio(t, nil)
-	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-10-13")); n != 2 || !strings.Contains((*env)[0].texto, "Atrasado há 3 dias (10/10)") {
+	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-10-13")); n != 2 || !strings.Contains((*env)[0].texto, "Atrasado há 3 dias (10/10/2026)") {
 		t.Fatalf("atrasado: %d, %v", n, *env)
 	}
 	// pagou: status deixa de ser evento futuro, para de avisar
@@ -486,7 +486,7 @@ func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 	t.Cleanup(func() { ambienteApp = original })
 
 	ambienteApp = "dev"
-	if r := montarResumo("2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10\n") {
+	if r := montarResumo("2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10/2026\n") {
 		t.Errorf("resumo do dev sem [DEV]:\n%s", r)
 	}
 	f := cenario(t)
@@ -499,7 +499,7 @@ func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 
 	for _, amb := range []string{"prod", ""} {
 		ambienteApp = amb
-		if r := montarResumo("2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10\n") {
+		if r := montarResumo("2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
 			t.Errorf("ambiente %q nao deve ter [DEV]:\n%s", amb, r)
 		}
 	}

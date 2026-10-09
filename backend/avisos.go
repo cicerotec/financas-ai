@@ -234,12 +234,13 @@ func plural(n int, um, varios string) string {
 	return fmt.Sprintf("%d %s", n, varios)
 }
 
-func ddmm(dia string) string {
+// dataBR mostra a data com o ano (dd/mm/aaaa): um aviso de "10/01" nao diz de que ano e.
+func dataBR(dia string) string {
 	t, err := diaParaTempo(dia)
 	if err != nil {
 		return dia
 	}
-	return t.Format("02/01")
+	return t.Format("02/01/2006")
 }
 
 type linhaAviso struct {
@@ -279,7 +280,7 @@ func (l linhaAviso) texto() string {
 	if desc == "" {
 		desc = "(sem descrição)"
 	}
-	return fmt.Sprintf("• %s (%s): %s — %s (%s)", quando, ddmm(l.venc), desc, moeda(l.valor), l.banco)
+	return fmt.Sprintf("• %s (%s): %s — %s (%s)", quando, dataBR(l.venc), desc, moeda(l.valor), l.banco)
 }
 
 // montarResumo junta as linhas de uma pessoa: atrasados primeiro, depois hoje, depois os que ainda vao vencer.
@@ -291,7 +292,7 @@ func montarResumo(hoje string, linhas []linhaAviso) string {
 		}
 		return a.venc < b.venc
 	})
-	partes := []string{"🔔 " + marcaAmbiente() + "Avisos de " + ddmm(hoje)}
+	partes := []string{"🔔 " + marcaAmbiente() + "Avisos de " + dataBR(hoje)}
 	for _, l := range linhas {
 		partes = append(partes, l.texto())
 	}
