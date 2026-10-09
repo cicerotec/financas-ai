@@ -8,7 +8,7 @@
 :root{
   --bg:#f7f7f5; --card:#fff; --text:#1a1a1a; --muted:#6b6b6b; --border:#e3e2de;
   --accent:#2f6f4f; --accent-ink:#fff; --danger:#b3413a; --income:#2f6f4f; --expense:#b3413a;
-  --faint:#8c938d; --ck:#d3d6d2; --accent-bg:#dcefe5;
+  --faint:#8c938d; --ck:#d3d6d2; --accent-bg:#dcefe5; --danger-bg:#f8e6e2;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -16,13 +16,13 @@
   :root:not([data-theme="light"]){
     --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
     --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
-    --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e;
+    --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e; --danger-bg:#3a1f1a;
   }
 }
 :root[data-theme="dark"]{
   --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
   --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
-    --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e;
+    --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e; --danger-bg:#3a1f1a;
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px);}
 *{box-sizing:border-box;}
@@ -133,11 +133,17 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 /* Futuros: padrao de telas (docs/design/padrao-de-telas.md). Celular: uma linha por evento e as acoes numa janela de baixo.
    Janela larga (>= 1160px): tabela de largura total com as acoes na propria linha. */
 body[data-aba="futuros"] main{max-width:1200px;}
-.fut-metricas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 10px;}
+/* Resumo: no celular, "A pagar" e "A receber" lado a lado e "Atrasados" numa faixa embaixo, so quando ha atraso.
+   O valor nunca quebra (nowrap): se faltar espaco, a linha cresce. Janela larga: tres blocos (ver mais abaixo). */
+.fut-metricas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 10px;}
 .fut-metrica{background:var(--card);border-radius:14px;padding:10px 12px;min-width:0;}
 .fut-metrica .muted{font-size:12px;}
+.fut-num{font-size:18px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
+#futMetricaAtras{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+#futMetricaAtras .fut-num{font-size:16px;}
+#futMetricaAtras.alerta{background:var(--danger-bg);}
 .fut-metrica.alerta .fut-num{color:var(--danger);}
-.fut-num{font-size:16px;font-weight:600;overflow-wrap:anywhere;}
+@media (max-width:1159.98px){#futMetricaAtras.sem-atraso{display:none;}}
 .fut-sw{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;font-size:13px;color:var(--muted);cursor:pointer;}
 .fut-sw input{appearance:none;-webkit-appearance:none;width:44px;height:26px;border-radius:13px;background:var(--ck);position:relative;flex:none;margin:0;cursor:pointer;transition:background .15s;}
 .fut-sw input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;}
@@ -169,19 +175,21 @@ body[data-aba="futuros"] main{max-width:1200px;}
 @media (min-width:1160px){
   .fut-tabela-in{min-width:1120px;}
   .fut-m{display:none;}
-  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 112px 104px 340px;align-items:center;gap:12px;padding:10px 14px;}
+  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 112px 128px 316px;align-items:center;gap:12px;padding:10px 14px;}
   .fut-cab{font-size:12px;color:var(--faint);padding-block:4px;}
   .fut-dk>span,.fut-cab>span{min-width:0;}
   .fut-dk .bk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .fut-dk .st,.fut-dk .fut-prazo{white-space:nowrap;}
   .fut-dk .v{text-align:right;}
-  .fut-dk .valor{font-weight:600;font-variant-numeric:tabular-nums;}
+  .fut-dk .valor{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
   .fut-dk .d{font-weight:600;overflow-wrap:anywhere;}
-  .fut-acoes{display:flex;gap:6px;justify-content:flex-end;opacity:.25;transition:opacity .12s;}
+  .fut-acoes{display:flex;gap:4px;justify-content:flex-end;opacity:.25;transition:opacity .12s;}
   .fut-dk:hover .fut-acoes,.fut-dk:focus-within .fut-acoes{opacity:1;}
-  .fut-acoes button{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:5px 9px;font-size:12.5px;white-space:nowrap;cursor:pointer;}
+  .fut-acoes button{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:5px 8px;font-size:12.5px;white-space:nowrap;cursor:pointer;}
   .fut-acoes button.perigo{color:var(--danger);}
-  .fut-metricas{max-width:600px;}
+  .fut-metricas{grid-template-columns:repeat(3,minmax(0,1fr));max-width:600px;}
+  #futMetricaAtras{grid-column:auto;display:block;}
+  .fut-num{font-size:16px;}
 }
 @media (prefers-reduced-motion:reduce){.fut-sw input,.fut-sw input::after,.fut-acoes{transition:none;}}
 .item.futuro{border-style:dashed !important;}
@@ -1820,6 +1828,7 @@ function renderFuturos(){
   document.getElementById('futReceber').textContent = fmtMoeda(r.receber);
   document.getElementById('futAtrasados').textContent = r.atrasados ? `${r.atrasados} · ${fmtMoeda(r.somaAtrasados)}` : '0';
   document.getElementById('futMetricaAtras').classList.toggle('alerta', r.atrasados > 0);
+  document.getElementById('futMetricaAtras').classList.toggle('sem-atraso', r.atrasados === 0);
   if(!todos.length){
     el.innerHTML = '<p class="muted">Nenhum evento futuro. Crie um lançamento na aba Lançar com um status de evento futuro (ex.: PREVISTO).</p>';
     return;
