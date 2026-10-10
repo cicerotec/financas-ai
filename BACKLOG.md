@@ -90,6 +90,10 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 - 20. [ ] **[Depois] Ideias** (seção no fim).
 
 ### UX/UI (usabilidade do que já existe)
+- 30. [ ] **[Próximo] Formulário de Lançar no padrão de telas**: hoje o Lançar ainda mostra à vista os controles antigos de
+  aviso e de repetição (17 controles, pouco usáveis no celular). Passar "Repetir" e "Avisar" para linhas-resumo que
+  abrem as telas cheias do Prever (a lógica e os componentes já existem em `web/index.html`, bloco "Prever e Estender").
+  Pelo padrão, começa com uma demo do formulário completo para aprovação.
 - 21. [ ] **[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em "UX"): barra de navegação
   inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
   acessibilidade das abas, unificar o seletor de tags.
@@ -311,10 +315,11 @@ como reais, não mexem no saldo, saem do Histórico e aparecem na aba **Futuros*
 "conta como real" e "afeta saldo" sem apagar os valores guardados. A Parte A está feita (PR #4).
 
 **Parte B, feita.** Duas entradas, a mesma lógica (`web/recorrencia.js`, testada com `node web/recorrencia.test.js`):
-- **Botão Prever** em cada registro do Histórico e de Futuros (não aparece nas pontas de transferência): janela com o
-  status das cópias (PREVISTO, CREDITANDO ou TRANSFERINDO), quantas cópias (1 a 36; atalhos 1, 3, 6 e 12), a
-  periodicidade (Mensal, Trimestral, Semestral, Anual ou "Outro" com N meses), o aviso (herda o do original) e uma
-  prévia das datas e do total antes de criar.
+- **Botão Prever** em cada registro do Histórico e de Futuros (não aparece nas pontas de transferência): abre um fluxo em
+  **tela cheia** no padrão de telas (`docs/design/padrao-de-telas.md`, padrão 12), com as linhas Status das cópias
+  (PREVISTO, CREDITANDO ou TRANSFERINDO), Repetir (Mensal, Trimestral, Semestral, Anual, "Outro intervalo" em meses ou
+  anos, e "Repetir quantas vezes" de 1 a 36, por rodas) e Avisar no Telegram (lista que acumula, até 6 prazos; herda o
+  do original), a prévia das datas e do total, e o botão fixo "Criar N eventos".
 - **Repetir ao lançar:** num evento futuro novo, "Total de ocorrências" cria este e as repetições já com o aviso.
 - **Datas:** mesma data e hora do original; dia que não existe no mês vira o último, sempre a partir da data base
   (31/01 mensal: 28/02, 31/03, 30/04; 29/02 anual: 28/02/2029 e volta a 29/02 em 2032).

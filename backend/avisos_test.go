@@ -29,6 +29,11 @@ func TestValidarAviso(t *testing.T) {
 		t.Error("insistir deveria continuar true")
 	}
 
+	// o teto de 6 prazos e valido (os quatro atalhos mais dois proprios)
+	seis := doc{"aviso": map[string]any{"dias": []any{30.0, 14.0, 7.0, 3.0, 1.0, 0.0}}}
+	if err := validarAviso(seis); err != nil {
+		t.Errorf("seis prazos deveriam valer: %v", err)
+	}
 	// so insistir, sem dias, e valido
 	if err := validarAviso(doc{"aviso": map[string]any{"insistir": true}}); err != nil {
 		t.Errorf("so insistir deveria valer: %v", err)
@@ -55,7 +60,7 @@ func TestValidarAviso(t *testing.T) {
 		map[string]any{"dias": []any{1.5}},
 		map[string]any{"dias": []any{"1"}},
 		map[string]any{"dias": "1"},
-		map[string]any{"dias": []any{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0}}, // mais de 8
+		map[string]any{"dias": []any{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}, // mais de 6
 	}
 	for i, r := range ruins {
 		if err := validarAviso(doc{"aviso": r}); err == nil {

@@ -33,7 +33,7 @@ import (
 const (
 	pkAvisos       = "AVISOS#ATIVOS"
 	maxDiasAviso   = 30
-	maxItensAviso  = 8
+	maxItensAviso  = 6 // os quatro atalhos da tela mais dois prazos proprios (docs/design/padrao-de-telas.md)
 	maxAtrasoAviso = 60 // depois disso o item auxiliar sai e o aviso para de insistir
 )
 
