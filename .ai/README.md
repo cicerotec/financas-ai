@@ -7,7 +7,7 @@ feito e ideias).
 |---|---|
 | [`guardrails.md`](guardrails.md) | Regras que valem para toda tarefa (arquitetura, telas, git, segurança, testes) |
 | [`arquitetura.md`](arquitetura.md) | Camadas, regras no servidor, histórico imutável, domínio do cartão |
-| [`security.md`](security.md) | Papéis owner e member e a matriz de permissões |
+| [`security.md`](security.md) | Autenticação, papéis e permissões, dados, segredos, infraestrutura e pontos em aberto |
 | [`decisoes.md`](decisoes.md) | Decisões de produto fechadas e descartadas |
 | [`padrao-de-telas.md`](padrao-de-telas.md) e [`demos/`](demos/) | Padrão de telas aprovado e as demos que são a fonte da verdade |
 | [`ux.md`](ux.md) | Observações de uso real e próximos passos de UX |
