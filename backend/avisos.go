@@ -33,7 +33,7 @@ import (
 const (
 	pkAvisos       = "AVISOS#ATIVOS"
 	maxDiasAviso   = 30
-	maxItensAviso  = 8
+	maxItensAviso  = 6 // os quatro atalhos da tela mais dois prazos proprios (docs/design/padrao-de-telas.md)
 	maxAtrasoAviso = 60 // depois disso o item auxiliar sai e o aviso para de insistir
 )
 
@@ -234,12 +234,13 @@ func plural(n int, um, varios string) string {
 	return fmt.Sprintf("%d %s", n, varios)
 }
 
-func ddmm(dia string) string {
+// dataBR mostra a data com o ano (dd/mm/aaaa): um aviso de "10/01" nao diz de que ano e.
+func dataBR(dia string) string {
 	t, err := diaParaTempo(dia)
 	if err != nil {
 		return dia
 	}
-	return t.Format("02/01")
+	return t.Format("02/01/2006")
 }
 
 type linhaAviso struct {
@@ -279,7 +280,7 @@ func (l linhaAviso) texto() string {
 	if desc == "" {
 		desc = "(sem descrição)"
 	}
-	return fmt.Sprintf("• %s (%s): %s — %s (%s)", quando, ddmm(l.venc), desc, moeda(l.valor), l.banco)
+	return fmt.Sprintf("• %s (%s): %s — %s (%s)", quando, dataBR(l.venc), desc, moeda(l.valor), l.banco)
 }
 
 // montarResumo junta as linhas de uma pessoa: atrasados primeiro, depois hoje, depois os que ainda vao vencer.
@@ -291,7 +292,7 @@ func montarResumo(hoje string, linhas []linhaAviso) string {
 		}
 		return a.venc < b.venc
 	})
-	partes := []string{"🔔 " + marcaAmbiente() + "Avisos de " + ddmm(hoje)}
+	partes := []string{"🔔 " + marcaAmbiente() + "Avisos de " + dataBR(hoje)}
 	for _, l := range linhas {
 		partes = append(partes, l.texto())
 	}
@@ -441,4 +442,50 @@ func rodarAvisos(ctx context.Context, agora time.Time) (int, error) {
 	}
 	log.Printf("avisos: %d item(ns) ativos, %d resumo(s) enviado(s)", len(itens), enviados)
 	return enviados, nil
+}
+
+// ---------- serie (repeticao de eventos futuros) ----------
+
+const (
+	maxIndiceSerie    = 999
+	maxIntervaloSerie = 120 // meses
+)
+
+// validarSerie confere e normaliza d["serie"]: { id, indice, intervalo }. Liga as copias criadas por uma repeticao
+// ("Prever" ou "Repetir" ao lancar): indice = posicao na serie e intervalo = meses entre uma ocorrencia e a seguinte.
+// null remove o campo.
+func validarSerie(d doc) error {
+	bruto, existe := d["serie"]
+	if !existe {
+		return nil
+	}
+	if bruto == nil {
+		delete(d, "serie")
+		return nil
+	}
+	m, ok := bruto.(map[string]any)
+	if !ok {
+		return errors.New("serie deve ser um objeto")
+	}
+	id, _ := m["id"].(string)
+	if !reID.MatchString(id) {
+		return errors.New("serie.id invalido (6 a 40 letras minusculas ou numeros)")
+	}
+	inteiro := func(campo string, max float64) (float64, error) {
+		f, ok := m[campo].(float64)
+		if !ok || f != math.Trunc(f) || f < 1 || f > max {
+			return 0, fmt.Errorf("serie.%s: use um inteiro de 1 a %d", campo, int(max))
+		}
+		return f, nil
+	}
+	indice, err := inteiro("indice", maxIndiceSerie)
+	if err != nil {
+		return err
+	}
+	intervalo, err := inteiro("intervalo", maxIntervaloSerie)
+	if err != nil {
+		return err
+	}
+	d["serie"] = doc{"id": id, "indice": indice, "intervalo": intervalo}
+	return nil
 }

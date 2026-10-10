@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Demo aprovada em 2026-10-09: Futuros por largura. Prazo embaixo do valor, descricao em ate 2 linhas, "⋯" na lista, botoes na tabela (a partir de 1160 px) e realce na cor do status. Vale sobre demo-futuros.html onde diferirem. Guia: ../padrao-de-telas.md -->
+<title>Futuros por largura</title>
+<style>
+:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--faint:#8c938d;--line:#e4e2dc;--ck:#d3d6d2;--accent:#0f6b4f;--onaccent:#ffffff;--accent-bg:#dcefe5;--danger:#a3321f;--danger-bg:#f8e6e2;--ok:#1d6b45;--pv-bg:#e8d5b5;--pv-fg:#3b2f17;--cr-bg:#f0c9bd;--cr-fg:#5a2417}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;--pv-bg:#4a3d22;--pv-fg:#f0dfb8;--cr-bg:#5a2a20;--cr-fg:#f6d0c4;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;--pv-bg:#4a3d22;--pv-fg:#f0dfb8;--cr-bg:#5a2a20;--cr-fg:#f6d0c4;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.4;padding-inline:16px;padding-block:18px;margin:0}
+.pg{max-width:1360px;margin-inline:auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.ctl .lb{flex-basis:100%;font-size:12px;color:var(--muted);margin-top:4px}
+.ctl button{padding:8px 12px;border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:10px;font-size:14px;font-family:inherit}
+.ctl button[aria-pressed="true"]{background:var(--card);border-color:var(--accent);color:var(--accent);font-weight:600}
+.read{font-size:13px;color:var(--muted);margin:6px 0 10px;min-height:20px}
+.read b{color:var(--fg)}
+.vpw{overflow:hidden;border-radius:14px;border:1px solid var(--line)}
+.vp{position:relative;background:var(--bg2);transform-origin:top left;box-sizing:border-box}
+.vp.fone{height:680px;overflow:hidden}
+.vp.fone .scr{position:absolute;inset:0;overflow-y:auto}
+.scr{padding:14px 12px 28px}
+.vp:not(.fone) .scr{padding:16px 24px 28px;min-height:520px}
+.col{margin-inline:auto}
+.pill{display:inline-block;padding:2px 8px;border-radius:8px;font-weight:700;font-size:14px;background:color-mix(in srgb,var(--cor) 32%,transparent);color:var(--fg);white-space:nowrap}
+/* realce ao passar o mouse (e ao tocar): a cor do status misturada com o fundo do cartao */
+.dt,.ev{transition:background .12s}
+.vp:not(.sh) .dt:hover,.vp:not(.sh) .dt:focus-within,.vp:not(.sh) .ev:hover,.vp:not(.sh) .ev:active,.vp:not(.sh) .ev:focus-visible{background:color-mix(in srgb,var(--cor) 16%,var(--card))}
+.vp .dt.h:hover{background:transparent}
+.pal{display:flex;gap:8px;align-items:center;flex-basis:100%;margin-top:2px}
+.pal button{width:28px;height:28px;min-width:28px;padding:0;border-radius:50%;border:2px solid var(--line);background:var(--c)}
+.pal button[aria-pressed="true"]{border-color:var(--fg)}
+/* resumo */
+.sum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 10px}
+.sum div{background:var(--card);border-radius:14px;padding:10px 12px;min-width:0}
+.sum small{display:block;color:var(--muted);font-size:12px}
+.sum b{font-size:18px;font-weight:600;display:block;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sum .at{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sum .at b{font-size:16px;color:var(--danger)}
+.sum .at.bad{background:var(--danger-bg)}
+.sum.tres{grid-template-columns:repeat(3,minmax(0,1fr));max-width:600px}
+.sum.tres b{font-size:16px}
+.sum.tres .at{display:block}
+.opt{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;color:var(--muted);font-size:13px}
+.sw{width:44px;height:26px;border-radius:13px;background:var(--ck);position:relative;flex:none}
+.sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+.gt{font-size:13px;font-weight:600;color:var(--muted);margin:10px 4px 6px}
+.gt.bad{color:var(--danger)}
+.card{background:var(--card);border-radius:16px;overflow:hidden;margin:0 0 6px}
+/* lista: linha toda abre a janela de acoes; "..." mostra que ha acoes */
+.ev{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;row-gap:2px;width:100%;box-sizing:border-box;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);color:var(--fg);font:inherit;padding:11px 8px 11px 14px;min-height:62px;cursor:pointer}
+.ev:first-child{border-top:0}
+.ev .l{flex:1 1 120px;min-width:0}
+.ev .d{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-weight:600}
+.ev.sem-corte .d{display:block;overflow:visible}
+.ev .m{display:block;color:var(--muted);font-size:12.5px;margin-top:1px;overflow-wrap:anywhere}
+.ev .r{text-align:right;flex:0 0 auto;margin-left:auto}
+.ev .v{font-weight:600;display:block;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ev .p{display:block;font-size:12px;color:var(--muted)}
+.mais{flex:none;width:28px;height:36px;display:grid;place-items:center;color:var(--muted)}
+.mais svg{display:block}
+.out{color:var(--danger)}
+.in{color:var(--ok)}
+.bad{color:var(--danger);font-weight:600}
+.ic{font-size:13px;color:var(--accent);flex:none}
+/* tabela */
+.dt{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 316px;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);background:var(--card)}
+.tb.hj .dt{grid-template-columns:92px minmax(170px,1fr) 90px 140px 112px 128px 316px}
+.dt .v small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+.dt .v small.bad{color:var(--danger);font-weight:600}
+.tb.hj .dt .tx{display:block;overflow:visible}
+.dt.h{font-size:12px;color:var(--faint);background:transparent;border-top:0;padding-block:4px}
+.dt .dd{min-width:0}
+.dt .dl{display:flex;align-items:flex-start;gap:6px}
+.dt .tx{font-weight:600;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.dt .sb{display:block;font-size:12.5px;color:var(--muted)}
+.dt .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dt .pz{font-size:12.5px;color:var(--muted)}
+.acts{display:flex;gap:4px;justify-content:flex-end;opacity:.25;transition:opacity .12s}
+.dt:hover .acts,.dt:focus-within .acts{opacity:1}
+.acts button{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;padding:5px 8px;font-size:12.5px;font-family:inherit;white-space:nowrap}
+.acts button.danger{color:var(--danger)}
+.gtw{border-radius:14px;overflow:hidden;margin:0 0 8px}
+/* janela de acoes */
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end}
+.sheet{background:var(--card);width:100%;max-width:640px;margin-inline:auto;border-radius:22px 22px 0 0;padding:14px 8px 10px;box-sizing:border-box}
+.sheet h3{margin:0 8px 2px;font-size:16px;font-weight:600;overflow-wrap:anywhere}
+.sheet .mm{margin:0 8px 8px;color:var(--muted);font-size:13px}
+.ac{display:flex;align-items:center;width:100%;background:transparent;border:0;border-top:1px solid var(--line);color:var(--fg);font:inherit;padding:0 10px;min-height:52px;text-align:left}
+.ac.danger{color:var(--danger)}
+.toast{position:absolute;left:14px;right:14px;bottom:14px;background:var(--fg);color:var(--bg);border-radius:12px;padding:11px 14px;font-size:13px;z-index:2}
+.dec{margin-top:16px;border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--muted);max-width:760px}
+.dec b{color:var(--fg);font-weight:600}
+.dec ul{margin:6px 0 0;padding-left:18px}
+@media (prefers-reduced-motion:reduce){.acts,.dt,.ev{transition:none}}
+</style>
+</head>
+<body>
+<div class="pg">
+<h1>Futuros: como a tela muda com a largura da janela</h1>
+<p class="sub">Demonstração. Escolha uma largura; telas maiores que a sua janela aparecem reduzidas (o valor real fica abaixo). Toque numa linha para abrir as ações. Nada é salvo no app.</p>
+<div class="ctl" role="group" aria-label="Largura da janela">
+  <span class="lb">Largura da janela</span>
+  <button type="button" data-w="320">320 px · celular pequeno</button>
+  <button type="button" data-w="390">390 px · celular</button>
+  <button type="button" data-w="768">768 px · tablet em pé</button>
+  <button type="button" data-w="1130">1130 px</button>
+  <button type="button" data-w="1253">1253 px · sua captura</button>
+  <button type="button" data-w="1400">1400 px</button>
+  <button type="button" data-w="1920">1920 px</button>
+</div>
+<div class="ctl" role="group" aria-label="Versão e opções">
+  <span class="lb">Versão</span>
+  <button type="button" id="bNovo" aria-pressed="true">Proposta</button>
+  <button type="button" id="bHoje" aria-pressed="false">Como está hoje</button>
+  <button type="button" id="bHov" aria-pressed="true">Realce ao passar o mouse</button>
+  <span class="lb">Cor escolhida para PREVISTO em Listas (o realce segue a cor)</span>
+  <span class="pal" id="pal"></span>
+</div>
+<div class="read" id="read" role="status"></div>
+<div class="vpw" id="vpw"><div class="vp" id="vp"></div></div>
+<div class="dec"><b>A regra, para você confirmar</b>
+<ul>
+<li><b>O prazo ("hoje", "atrasado 1 dia") fica embaixo do valor em todas as telas.</b> A coluna Prazo some da tabela.</li>
+<li><b>A descrição ocupa até 2 linhas</b> em todas as telas, com reticências se passar. O texto inteiro aparece na janela de ações e em Editar.</li>
+<li><b>A única diferença entre as telas:</b> nas estreitas (até 1159 px) a linha mostra "⋯" e abre a janela de ações; nas largas (1160 px ou mais) o "⋯" sai e os cinco botões aparecem na própria linha. O ponto de troca continua o de hoje.</li>
+<li><b>Realce ao passar o mouse:</b> a linha ganha um fundo com a cor do status (a que você escolhe em Listas), no mesmo gatilho dos botões (mouse ou Tab). No celular, a linha se realça ao ser tocada, antes de abrir a janela de ações. Troque a cor do PREVISTO acima para ver o realce acompanhar.</li>
+<li>O sino do aviso e a série ("7 de 12") ficam fora do trecho cortado, para nunca sumirem.</li>
+<li>Em tela estreita, se o valor e o "⋯" não deixam ao menos 120 px para a descrição, o valor desce para a segunda linha, à direita (veja a parcela do financiamento em 320 px).</li>
+</ul></div>
+</div>
+<script>
+var HOJE=new Date(2026,9,9);
+var itens=[
+ {id:1,d:'Pedagio',v:220.83,tipo:'saida',data:new Date(2026,9,8),st:'PREVISTO',banco:'Inter',aviso:true,serie:null},
+ {id:2,d:'Fatura VIVOFIBRA INTERNET - 500MB + 2 LINHAS DE CELULAR 5G - DEB. AUTOM.',v:602.3,tipo:'saida',data:new Date(2026,9,9),st:'CREDITANDO',banco:'Inter',aviso:false,serie:null},
+ {id:3,d:'Agua',v:648.13,tipo:'saida',data:new Date(2026,9,9),st:'PREVISTO',banco:'C6',aviso:false,serie:null},
+ {id:4,d:'Parcela 7 de 12 do financiamento do veículo Toyota Corolla Cross XRE Hybrid 2024, contrato 0045871233, débito automático em conta corrente',v:1234567.89,tipo:'saida',data:new Date(2026,9,15),st:'TRANSFERINDO',banco:'NUBANK',aviso:true,serie:'7 de 12'},
+ {id:5,d:'Salário',v:8500,tipo:'entrada',data:new Date(2026,10,5),st:'PREVISTO',banco:'ITAU',aviso:false,serie:null},
+ {id:6,d:'Seguro auto',v:230.5,tipo:'saida',data:new Date(2026,10,30),st:'PREVISTO',banco:'ITAU',aviso:true,serie:'3 de 12'}
+];
+var COR={PREVISTO:'#BA7517',CREDITANDO:'#D85A30',TRANSFERINDO:'#3B7DD8'};
+var PALETA=['#BA7517','#639922','#3B7DD8','#D85A30','#8E5BD0'];
+var ui={w:1253,hoje:false,hov:true,aberto:null,toast:''};
+function cs(it){return COR[it.st]||'#888780'}
+var vp=document.getElementById('vp'),vpw=document.getElementById('vpw'),readEl=document.getElementById('read');
+function moeda(v){return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function dt(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()}
+function dias(d){return Math.round((d-HOJE)/86400000)}
+function prazo(it){var n=dias(it.data);if(n<0)return {t:'atrasado '+(-n)+(n===-1?' dia':' dias'),bad:true};if(n===0)return {t:'hoje',bad:false};return {t:'em '+n+(n===1?' dia':' dias'),bad:false}}
+function mes(d){var m=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][d.getMonth()];return m.charAt(0).toUpperCase()+m.slice(1)+' de '+d.getFullYear()}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function modoTabela(){return ui.w>=1160}
+function totais(){
+  var s={pagar:0,receber:0,atras:0,somaAtras:0};
+  itens.forEach(function(i){if(i.tipo==='saida')s.pagar+=i.v;else s.receber+=i.v;if(dias(i.data)<0){s.atras++;s.somaAtras+=i.v}});
+  return s;
+}
+function resumo(tres){
+  var t=totais();
+  return '<div class="sum'+(tres?' tres':'')+'"><div><small>A pagar</small><b>'+moeda(t.pagar)+'</b></div><div><small>A receber</small><b>'+moeda(t.receber)+'</b></div><div class="at bad"><small>Atrasados</small><b>'+t.atras+' · '+moeda(t.somaAtras)+'</b></div></div>'+
+   '<div class="opt"><span class="sw" aria-hidden="true"><i></i></span><span>Mostrar ocultos (ficam fora dos totais)</span></div>';
+}
+function grupos(){
+  var ord=itens.slice().sort(function(a,b){return a.data-b.data});
+  var out=[{k:'Atrasados',bad:true,l:ord.filter(function(i){return dias(i.data)<0})}];
+  ord.filter(function(i){return dias(i.data)>=0}).forEach(function(i){var k=mes(i.data);var g=out.filter(function(x){return x.k===k})[0];if(!g){g={k:k,l:[]};out.push(g)}g.l.push(i)});
+  return out.filter(function(g){return g.l.length});
+}
+var PONTOS='<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.7" fill="currentColor"/><circle cx="10" cy="10" r="1.7" fill="currentColor"/><circle cx="16" cy="10" r="1.7" fill="currentColor"/></svg>';
+function linha(it){
+  var p=prazo(it),sino=it.aviso?'<span class="ic" aria-label="Com aviso no Telegram">&#128276;</span> ':'';
+  return '<button class="ev'+(ui.hoje?' sem-corte':'')+'" style="--cor:'+cs(it)+'" type="button" data-a="abrir" data-id="'+it.id+'" aria-label="Ações de '+esc(it.d)+'">'+
+   '<span class="l"><span class="d">'+esc(it.d)+'</span><span class="m">'+sino+dt(it.data)+' · '+it.st+' · '+it.banco+(it.serie?' · série '+it.serie:'')+'</span></span>'+
+   '<span class="r"><span class="v '+(it.tipo==='saida'?'out':'in')+'">'+(it.tipo==='saida'?'-':'+')+moeda(it.v)+'</span><span class="p'+(p.bad?' bad':'')+'">'+p.t+'</span></span>'+
+   (ui.hoje?'':'<span class="mais">'+PONTOS+'</span>')+'</button>';
+}
+function lista(){
+  var h='<div class="col lista">'+resumo(false);
+  grupos().forEach(function(g){h+='<div class="gt'+(g.bad?' bad':'')+'">'+g.k+'</div><div class="card">'+g.l.map(linha).join('')+'</div>'});
+  return h+'</div>';
+}
+function linhaTab(it){
+  var p=prazo(it),sino=it.aviso?'<span class="ic" aria-label="Com aviso no Telegram">&#128276;</span>':'';
+  var sub=it.serie?'<span class="sb">série '+it.serie+'</span>':'';
+  var k=function(n,c){return '<button type="button"'+(c?' class="'+c+'"':'')+' data-a="dk" data-k="'+n+'">'+n+'</button>'};
+  var pill='<span><span class="pill">'+it.st+'</span></span>';
+  var valor='<span class="v '+(it.tipo==='saida'?'out':'in')+'">'+(it.tipo==='saida'?'-':'+')+moeda(it.v)+(ui.hoje?'':'<small'+(p.bad?' class="bad"':'')+'>'+p.t+'</small>')+'</span>';
+  return '<div class="dt" tabindex="0" style="--cor:'+cs(it)+'"><span>'+dt(it.data)+'</span>'+
+   '<span class="dd"><span class="dl"><span class="tx">'+esc(it.d)+'</span>'+sino+'</span>'+sub+'</span>'+
+   '<span>'+it.banco+'</span>'+pill+(ui.hoje?'<span class="pz'+(p.bad?' bad':'')+'">'+p.t+'</span>':'')+valor+
+   '<span class="acts">'+k('Editar')+k('Copiar')+k(it.serie?'Estender':'Prever')+k('Ocultar')+k('Excluir','danger')+'</span></div>';
+}
+function tabela(){
+  var cab='<div class="dt h"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span>'+(ui.hoje?'<span>Prazo</span>':'')+'<span style="text-align:right">Valor</span><span></span></div>';
+  var h=resumo(true)+'<div class="tb'+(ui.hoje?' hj':'')+'">'+cab;
+  grupos().forEach(function(g){h+='<div class="gt'+(g.bad?' bad':'')+'">'+g.k+'</div><div class="gtw">'+g.l.map(linhaTab).join('')+'</div>'});
+  return h+'</div>';
+}
+function sheet(){
+  if(ui.aberto===null)return '';
+  var it=itens.filter(function(i){return i.id===ui.aberto})[0];
+  function ac(k,t,c){return '<button class="ac'+(c?' '+c:'')+'" type="button" data-a="ac" data-k="'+k+'">'+t+'</button>'}
+  return '<div class="ov" data-a="fecha"><div class="sheet" role="dialog" aria-label="Ações de '+esc(it.d)+'"><h3>'+esc(it.d)+'</h3><p class="mm">'+moeda(it.v)+' · '+dt(it.data)+' · '+it.banco+'</p>'+
+    ac('Editar','Editar')+ac('Copiar','Copiar')+ac('Prever',it.serie?'Estender série':'Prever próximas datas')+ac('Ocultar','Ocultar')+ac('Excluir','Excluir','danger')+'</div></div>';
+}
+function render(){
+  var fone=ui.w<600;
+  var y=vp.querySelector('.scr')?vp.querySelector('.scr').scrollTop:0;
+  vp.style.width=ui.w+'px';
+  vp.className='vp'+(fone?' fone':'')+(ui.hov?'':' sh');
+  vp.innerHTML='<div class="scr">'+(modoTabela()?tabela():lista())+'</div>'+sheet()+(ui.toast?'<div class="toast" role="status">'+ui.toast+'</div>':'');
+  if(vp.querySelector('.scr'))vp.querySelector('.scr').scrollTop=y;
+  var av=vpw.parentElement.clientWidth,esc2=av>0?Math.min(1,av/ui.w):1;
+  vp.style.transform='scale('+esc2+')';
+  vpw.style.width=Math.round(ui.w*esc2)+'px';
+  vpw.style.height=Math.round(vp.offsetHeight*esc2)+'px';
+  Array.prototype.forEach.call(document.querySelectorAll('[data-w]'),function(b){b.setAttribute('aria-pressed',String(+b.dataset.w===ui.w))});
+  document.getElementById('bNovo').setAttribute('aria-pressed',String(!ui.hoje));
+  document.getElementById('bHoje').setAttribute('aria-pressed',String(ui.hoje));
+  document.getElementById('bHov').setAttribute('aria-pressed',String(ui.hov));
+  document.getElementById('pal').innerHTML=PALETA.map(function(c){return '<button type="button" style="--c:'+c+'" data-pc="'+c+'" aria-label="Cor '+c+'" aria-pressed="'+(COR.PREVISTO===c)+'"></button>'}).join('');
+  medir(esc2);
+}
+function medir(esc2){
+  var linhaFin=vp.querySelector('[data-id="4"] .d')||vp.querySelectorAll('.dt .tx')[0];
+  var el=null;
+  if(modoTabela()){var tx=vp.querySelectorAll('.dt .tx');for(var i=0;i<tx.length;i++){if(tx[i].textContent.indexOf('Toyota')>=0)el=tx[i]}}
+  else el=vp.querySelector('[data-id="4"] .d');
+  var base='<b>'+ui.w+' px</b> · '+(modoTabela()?'tabela':'lista')+(esc2<1?' · mostrada a '+Math.round(esc2*100)+'% do tamanho real':'');
+  if(!el){readEl.innerHTML=base;return}
+  var cortada=el.scrollHeight>el.clientHeight+1;
+  readEl.innerHTML=base+' · descrição do financiamento ('+itens[3].d.length+' caracteres): coluna de <b>'+el.clientWidth+' px</b>'+(cortada?', cortada em 2 linhas':', cabe sem corte');
+}
+vp.addEventListener('click',function(e){
+  var b=e.target.closest('[data-a]');if(!b)return;
+  var a=b.dataset.a;
+  if(a==='abrir'){ui.aberto=parseInt(b.dataset.id,10);ui.toast='';render();return}
+  if(a==='fecha'){if(e.target===b){ui.aberto=null;render()}return}
+  if(a==='ac'||a==='dk'){
+    ui.toast='Demonstração: abriria "'+b.dataset.k+'".';ui.aberto=null;render();
+    setTimeout(function(){ui.toast='';render()},2000);
+  }
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-w]'),function(b){b.onclick=function(){ui.w=+b.dataset.w;ui.aberto=null;render()}});
+document.getElementById('bHov').onclick=function(){ui.hov=!ui.hov;render()};
+document.getElementById('pal').addEventListener('click',function(e){var b=e.target.closest('[data-pc]');if(b){COR.PREVISTO=b.dataset.pc;render()}});
+document.getElementById('bNovo').onclick=function(){ui.hoje=false;render()};
+document.getElementById('bHoje').onclick=function(){ui.hoje=true;ui.aberto=null;render()};
+window.addEventListener('resize',render);
+render();
+</script>
+</body>
+</html>

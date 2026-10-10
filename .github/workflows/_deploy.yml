@@ -108,7 +108,7 @@ jobs:
             echo '};'
           } > "$RUNNER_TEMP/config.js"
           aws s3 sync web "s3://$BUCKET" --delete --cache-control no-cache \
-            --exclude config.example.js --exclude config.dev.js --exclude config.js
+            --exclude config.example.js --exclude config.dev.js --exclude config.js --exclude '*.test.js'
           aws s3 cp "$RUNNER_TEMP/config.js" "s3://$BUCKET/config.js" --cache-control no-cache
           aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*" > /dev/null
           echo "Publicado: $(saida FrontUrl)"

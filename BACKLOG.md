@@ -50,11 +50,13 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 - 28. [x] **Avisos de lançamentos futuros no Telegram**: campo `aviso` no lançamento (dias antes do vencimento e
   "insistir todo dia depois"), desligado por padrão e independente do status (o PREVISTO continua sendo só a previsão
   que soma em Futuros); rotina diária às 8h pela mesma Lambda (EventBridge), um resumo por pessoa (quem criou e o
-  dono); token do bot no SSM; chat id colado em Listas, com botão de teste. No ar e validado no dev (PRs #49 e #52):
-  o aviso de teste e a rotina chegaram no Telegram. Na produção depende da configuração única (guia em
-  `docs/avisos.md`): role `financas-gha-prod` atualizada, `/financas/prod/telegram-token` no SSM e o chat id
-  cadastrado no app de produção. Depois: vínculo automático por link (webhook), outros canais (Web Push, e-mail) e
-  respeitar a visibilidade por pessoa do item 27.
+  dono); token do bot no SSM; chat id colado em Listas, com botão de teste; mensagens do dev começam com `[DEV]`
+  (os dois ambientes usam o mesmo bot). No ar e validado no dev e na produção (v0.8.0; PRs #49, #52, #54 e #55). A
+  configuração única está em `docs/avisos.md`. Depois: vínculo automático por link (webhook), outros canais (Web Push,
+  e-mail) e respeitar a visibilidade por pessoa do item 27.
+  Limite conhecido, decidido não tratar agora: o resumo do dia vai numa única mensagem e o Telegram recusa acima de
+  4096 caracteres (uns 40 avisos no mesmo dia para a mesma pessoa); nesse caso nenhum aviso chega naquele dia. A
+  correção seria dividir o resumo em mensagens menores (detalhe em `docs/avisos.md`).
 - 27. [ ] **[Depois] Tela de permissões por usuário** (hoje só há dois papéis fixos, `owner` e `member`, na matriz de
   `authz.go`): centralizar numa tela do dono o que cada pessoa pode ver e fazer. Motivos vindos do uso real: a esposa
   clica em "valor estimado" ao lançar (campo que hoje não precisa) e vê cartões e saldos de bancos que não são dela.
@@ -74,8 +76,9 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   Tendências) e as telas de conferência e fechamento, que continuam só do dono.
 
 ### Front (funcionalidades novas)
-- 7. [ ] **[Próximo] Parte B dos eventos futuros: botão Prever** (cópias nos meses seguintes, parcelas, aviso de
-  duplicado).
+- 7. [x] **Parte B dos eventos futuros: botão Prever e repetição ao lançar**: cópias nos meses seguintes (mensal,
+  trimestral, semestral, anual ou a cada N meses), parcelas numeradas, aviso de duplicado, aviso herdado das cópias,
+  "Estender série" nas linhas de uma série. Detalhes em "Eventos futuros".
 - 8. [x] **Carregar os anos anteriores** (2025 carregado e conferido com a verificação arquivo x banco de dados). Novas
   cargas virão: meses anteriores à data de início do banco são histórico e não são travados pelo fechamento mensal.
   Antes de importar, conferir na planilha as datas fora do mês da aba (no app o mês é o da data, não o da aba).
@@ -87,6 +90,10 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 - 20. [ ] **[Depois] Ideias** (seção no fim).
 
 ### UX/UI (usabilidade do que já existe)
+- 30. [ ] **[Próximo] Formulário de Lançar no padrão de telas**: hoje o Lançar ainda mostra à vista os controles antigos de
+  aviso e de repetição (17 controles, pouco usáveis no celular). Passar "Repetir" e "Avisar" para linhas-resumo que
+  abrem as telas cheias do Prever (a lógica e os componentes já existem em `web/index.html`, bloco "Prever e Estender").
+  Pelo padrão, começa com uma demo do formulário completo para aprovação.
 - 21. [ ] **[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em "UX"): barra de navegação
   inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
   acessibilidade das abas, unificar o seletor de tags.
@@ -163,6 +170,71 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   `develop` segue em frente.
 - **Publicar na AWS é separado** da release: backend com `deploy.ps1`, front com `publicar-front.ps1`. Para a versão
   no ar bater com a tag, publicar a partir da `main` depois de lançar.
+
+## Telas: toda mudança vem com uma demo
+**Regra (2026-10-08):** nenhuma alteração de tela vai para o código antes de uma **tela demo aprovada** pelo dono. Ele vê
+só o visual e decide; quem propõe diz o que faz sentido, o que não faz e o que a proposta faz perder. Vale para telas
+novas e para ajustes em telas que já existem.
+- A demo é uma página interativa publicada com link que abre no celular (artefato privado). O widget inline do chat só
+  aparece no app de desktop, então não serve como entrega.
+- Padrões aprovados, pensando primeiro na largura do celular: um resumo numa linha que abre uma tela cheia com seta de
+  voltar; lista que acumula opções com check redondo; "Outro..." que abre janela com rodas de número e unidade;
+  interruptor no topo para ligar e desligar; contador de limite visível ("2 de 6 prazos"); janela de baixo para o que é
+  rápido. O guia completo, com tokens, medidas e a versão para computador, está em `docs/design/padrao-de-telas.md`;
+  as demos aprovadas ficam em `docs/design/demos/` e são a fonte da verdade (Repetir e Avisar, e Futuros no celular
+  e no computador).
+- Datas sempre com o ano (`dd/mm/aaaa`), em tela e em mensagem.
+- A grande mudança de UX/UI prevista (item 21) segue a mesma regra, tela por tela. O Figma é a ferramenta do time de
+  design; o conector ainda não está autorizado nesta conta.
+
+### Recomendações para IA que programa neste repositório
+- **Padrão de telas aprovado (celular primeiro, com versão para computador):** leia `docs/design/padrao-de-telas.md` e
+  abra as demos de `docs/design/demos/` antes de desenhar ou alterar qualquer tela. Em resumo:
+  - **Celular:** uma linha-resumo que abre tela cheia; lista que acumula com check redondo (ou escolha única);
+    interruptor no topo; "Outro..." com rodas de número e unidade numa janela de baixo, com resumo ao vivo e erro na
+    própria janela; contador de limite visível; um evento por linha, com as ações numa janela de baixo; resumo com dois
+    blocos e uma faixa de atraso (só quando há atraso), valores que nunca quebram; linhas de pelo menos 56 px.
+  - **Computador:** a mesma tela vira uma tabela de largura total (colunas alinhadas, mínimo de 1120 px a partir de
+    1160 px de janela, container de até 1200 px) com as ações na própria linha, apagadas até o mouse passar ou o foco entrar. Mesmos dados e mesmas
+    regras; só o desenho muda com a largura da janela.
+  - **Sempre:** cores só pelos tokens do app (claro e escuro), datas com ano (`dd/mm/aaaa`), limites à vista, e a
+    demo diz o que a proposta faz perder.
+- **Mantenha o padrão em dia (obrigatório):** ao implementar ou testar uma tela e descobrir um ajuste (largura de coluna,
+  rótulo, limite, comportamento, token), corrija **na mesma entrega** a demo em `docs/design/demos/`, o guia
+  `docs/design/padrao-de-telas.md` (inclusive uma linha em "Armadilhas já encontradas") e este resumo, e diga ao dono
+  o que mudou no padrão. Se só o código do app mudar, a demo deixa de ser a fonte da verdade e a próxima tela repete o
+  erro. Antes do PR, confira que `web/` e `docs/design/` andam juntos quando o padrão mudou.
+- **Antes de entregar uma tela, meça o pior caso:** rótulo mais longo de cada coluna (status, ação, série), banco ou
+  descrição comprida, atraso de três dígitos, valor de cinco dígitos, item com todos os adornos, lista vazia e cheia;
+  celular (≈ 390 px) e janela larga (≥ 1280 px), nos dois temas. Meça por script que nenhum conteúdo passa da própria
+  coluna nem encosta no vizinho, em todas as colunas, e olhe uma captura.
+- **Telas:** demo antes do código (regra acima), com limites e custos ditos na própria resposta. Se não consegue ver o
+  resultado (toque real no celular, por exemplo), diga isso em vez de afirmar que funciona.
+- **Git:** rode `git branch --show-current` antes de commitar e use `git push origin <branch>` com o nome da branch. Não
+  commite direto em `develop` ou `main`: o push numa branch de trabalho abre o PR rascunho sozinho. Depois que o PR de uma
+  branch for mergeado, **não envie mais nada para ela**: o robô abre um PR novo só com esse commit (foi o #63, que colidiu com
+  o #64) e o commit pode ficar de fora do merge que você esperava. Abra uma branch nova a partir da `develop`.
+  **Mantra para começar qualquer trabalho** (sempre, nesta ordem):
+  ```
+  git fetch
+  git checkout develop
+  git pull
+  git checkout -b feature/xxxx
+  ```
+  Use o prefixo da branch que combina com o assunto (`feature/`, `fix/`, `bug/`, `docs/` ou `chore/`), que é o que faz o
+  robô abrir o PR rascunho no primeiro push. Antes do mantra, confira o `git status`: se houver alterações não
+  commitadas, guarde-as ou commite-as, em vez de arrastá-las para a branch nova. Pelo mesmo motivo, veja o
+  `git status` antes de `git add -A` (um `.exe` de build já foi parar num commit).
+- **Segredos:** nunca peça nem repita token, chave ou senha no chat, e nunca os passe na linha de comando; guarde no SSM
+  e leia com `Read-Host -AsSecureString`. Se um segredo aparecer numa conversa, recomende revogar.
+- **Testes:** rode `go test ./...` em `backend/` e `node web/recorrencia.test.js` antes de commitar. Quebre o código de
+  propósito uma vez para ver o teste falhar. Teste não pode depender de variável de ambiente do CI (o deploy roda com
+  `AMBIENTE=dev`).
+- **Deploy:** o job verde não basta: confira o changeset e o status final da stack. Permissão nova na infra exige
+  atualizar as roles do Actions (`infra/github-oidc.yaml`, uma stack por ambiente, com `Repositorio` explícito) antes do
+  merge.
+- **Provas:** não escreva "provavelmente" sobre o que dá para ler no log ou no código; leia e mostre a evidência.
+- **Windows:** edições com `\n` dentro de heredocs do shell se corrompem; use a ferramenta de edição de arquivos.
 
 ## Decisões fechadas
 
@@ -242,14 +314,22 @@ Conceito: status marcados como "evento futuro" (PREVISTO, TRANSFERINDO, CREDITAN
 como reais, não mexem no saldo, saem do Histórico e aparecem na aba **Futuros**. O marcador manda por cima das caixas
 "conta como real" e "afeta saldo" sem apagar os valores guardados. A Parte A está feita (PR #4).
 
-**Parte B, botão Prever** em cada registro do Histórico: cria cópias como PREVISTO, CREDITANDO ou TRANSFERINDO com a
-mesma data e hora nos meses seguintes.
-- "Repetir N meses" além do original (compras parceladas).
-- Dia que não existe no mês vira o último dia, calculado a partir da data original (31/10 gera 30/11, 31/12, 31/01).
-- Numeração `1/3` vira `2/3`, `3/3` na descrição.
-- Aviso antes de criar se já existe evento igual (status, descrição, valor, banco e data, sem a hora): pular, criar
-  mesmo assim ou cancelar.
-- Pode ser oferecido também nas linhas de Futuros (estender a recorrência).
+**Parte B, feita.** Duas entradas, a mesma lógica (`web/recorrencia.js`, testada com `node web/recorrencia.test.js`):
+- **Botão Prever** em cada registro do Histórico e de Futuros (não aparece nas pontas de transferência): abre um fluxo em
+  **tela cheia** no padrão de telas (`docs/design/padrao-de-telas.md`, padrão 12), com as linhas Status das cópias
+  (PREVISTO, CREDITANDO ou TRANSFERINDO), Repetir (Mensal, Trimestral, Semestral, Anual, "Outro intervalo" em meses ou
+  anos, e "Repetir quantas vezes" de 1 a 36, por rodas) e Avisar no Telegram (lista que acumula, até 6 prazos; herda o
+  do original), a prévia das datas e do total, e o botão fixo "Criar N eventos".
+- **Repetir ao lançar:** num evento futuro novo, "Total de ocorrências" cria este e as repetições já com o aviso.
+- **Datas:** mesma data e hora do original; dia que não existe no mês vira o último, sempre a partir da data base
+  (31/01 mensal: 28/02, 31/03, 30/04; 29/02 anual: 28/02/2029 e volta a 29/02 em 2032).
+- **Parcelas:** `2/10` na descrição vira `3/10`, `4/10`... (opcional) e a quantidade para no total.
+- **Duplicado:** avisa antes de criar (status, descrição, valor, banco e dia, sem a hora) e deixa pular os iguais ou
+  criar mesmo assim. Se uma criação falhar no meio, a janela diz onde parou e o "tentar de novo" pula o que já existe.
+- **Série:** as cópias levam `serie: { id, indice, intervalo }`; num registro de série o botão vira **Estender série**
+  e parte da última ocorrência carregada, com o mesmo intervalo.
+- Criação feita pelo front, uma chamada por cópia (o membro também pode). Fica de fora: editar ou apagar a série
+  inteira de uma vez (o `serie.id` já permite) e regra recorrente sem fim.
 
 Limite conhecido: Futuros e o aviso usam os 1000 lançamentos mais recentes carregados; um evento futuro muito antigo
 pode ficar de fora.

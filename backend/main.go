@@ -184,7 +184,10 @@ func validarTx(d doc) error {
 			return errors.New(c + " obrigatorio")
 		}
 	}
-	return validarAviso(d)
+	if err := validarAviso(d); err != nil {
+		return err
+	}
+	return validarSerie(d)
 }
 
 func protegidos(d doc) {

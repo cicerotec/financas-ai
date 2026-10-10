@@ -29,6 +29,11 @@ func TestValidarAviso(t *testing.T) {
 		t.Error("insistir deveria continuar true")
 	}
 
+	// o teto de 6 prazos e valido (os quatro atalhos mais dois proprios)
+	seis := doc{"aviso": map[string]any{"dias": []any{30.0, 14.0, 7.0, 3.0, 1.0, 0.0}}}
+	if err := validarAviso(seis); err != nil {
+		t.Errorf("seis prazos deveriam valer: %v", err)
+	}
 	// so insistir, sem dias, e valido
 	if err := validarAviso(doc{"aviso": map[string]any{"insistir": true}}); err != nil {
 		t.Errorf("so insistir deveria valer: %v", err)
@@ -55,7 +60,7 @@ func TestValidarAviso(t *testing.T) {
 		map[string]any{"dias": []any{1.5}},
 		map[string]any{"dias": []any{"1"}},
 		map[string]any{"dias": "1"},
-		map[string]any{"dias": []any{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0}}, // mais de 8
+		map[string]any{"dias": []any{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}, // mais de 6
 	}
 	for i, r := range ruins {
 		if err := validarAviso(doc{"aviso": r}); err == nil {
@@ -127,7 +132,7 @@ func TestMontarResumoOrdenaAtrasadosPrimeiro(t *testing.T) {
 		{kind: avisoHoje, venc: "2026-10-07", tipo: "entrada", descricao: "Aluguel", valor: 2500, banco: "ITAU"},
 	}
 	r := montarResumo("2026-10-07", linhas)
-	ordem := []string{"Atrasado há 2 dias (05/10): Internet — R$ 120,00 (NUBANK)", "A receber hoje (07/10): Aluguel", "Vence em 3 dias (10/10): Condomínio — R$ 800,00 (ITAU)"}
+	ordem := []string{"Atrasado há 2 dias (05/10/2026): Internet — R$ 120,00 (NUBANK)", "A receber hoje (07/10/2026): Aluguel", "Vence em 3 dias (10/10/2026): Condomínio — R$ 800,00 (ITAU)"}
 	ult := -1
 	for _, trecho := range ordem {
 		i := strings.Index(r, trecho)
@@ -139,10 +144,10 @@ func TestMontarResumoOrdenaAtrasadosPrimeiro(t *testing.T) {
 		}
 		ult = i
 	}
-	if !strings.HasPrefix(r, "🔔 Avisos de 07/10\n") {
+	if !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
 		t.Errorf("cabecalho inesperado:\n%s", r)
 	}
-	if !strings.Contains(montarResumo("2026-10-07", []linhaAviso{{kind: avisoAntes, n: 1, venc: "2026-10-08", descricao: " "}}), "Vence em 1 dia (08/10): (sem descrição)") {
+	if !strings.Contains(montarResumo("2026-10-07", []linhaAviso{{kind: avisoAntes, n: 1, venc: "2026-10-08", descricao: " "}}), "Vence em 1 dia (08/10/2026): (sem descrição)") {
 		t.Error("singular e descricao vazia")
 	}
 }
@@ -274,7 +279,7 @@ func TestRotinaAvisaCriadorEDonoUmaVezCada(t *testing.T) {
 		chats[e.chat] = e.texto
 	}
 	for _, chat := range []string{"111111", "222222"} {
-		if !strings.Contains(chats[chat], "Vence em 3 dias (10/10): Conta de luz — R$ 230,50 (ITAU)") {
+		if !strings.Contains(chats[chat], "Vence em 3 dias (10/10/2026): Conta de luz — R$ 230,50 (ITAU)") {
 			t.Errorf("chat %s recebeu %q", chat, chats[chat])
 		}
 	}
@@ -309,7 +314,7 @@ func TestRotinaInsistirAvisaAtrasadoAteResolver(t *testing.T) {
 	f, id := cenarioAvisos(t)
 	chamar(t, "mem", "PUT", "spaces/s1/tx/"+id, map[string]string{"de": "2026-10-10T12:00:00.000Z"}, `{"aviso":{"dias":[],"insistir":true}}`)
 	env := trocaEnvio(t, nil)
-	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-10-13")); n != 2 || !strings.Contains((*env)[0].texto, "Atrasado há 3 dias (10/10)") {
+	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-10-13")); n != 2 || !strings.Contains((*env)[0].texto, "Atrasado há 3 dias (10/10/2026)") {
 		t.Fatalf("atrasado: %d, %v", n, *env)
 	}
 	// pagou: status deixa de ser evento futuro, para de avisar
@@ -486,7 +491,7 @@ func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 	t.Cleanup(func() { ambienteApp = original })
 
 	ambienteApp = "dev"
-	if r := montarResumo("2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10\n") {
+	if r := montarResumo("2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10/2026\n") {
 		t.Errorf("resumo do dev sem [DEV]:\n%s", r)
 	}
 	f := cenario(t)
@@ -499,7 +504,7 @@ func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 
 	for _, amb := range []string{"prod", ""} {
 		ambienteApp = amb
-		if r := montarResumo("2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10\n") {
+		if r := montarResumo("2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
 			t.Errorf("ambiente %q nao deve ter [DEV]:\n%s", amb, r)
 		}
 	}

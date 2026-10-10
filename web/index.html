@@ -8,6 +8,7 @@
 :root{
   --bg:#f7f7f5; --card:#fff; --text:#1a1a1a; --muted:#6b6b6b; --border:#e3e2de;
   --accent:#2f6f4f; --accent-ink:#fff; --danger:#b3413a; --income:#2f6f4f; --expense:#b3413a;
+  --faint:#8c938d; --ck:#d3d6d2; --accent-bg:#dcefe5; --danger-bg:#f8e6e2;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -15,11 +16,13 @@
   :root:not([data-theme="light"]){
     --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
     --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
+    --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e; --danger-bg:#3a1f1a;
   }
 }
 :root[data-theme="dark"]{
   --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
   --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
+    --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e; --danger-bg:#3a1f1a;
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px);}
 *{box-sizing:border-box;}
@@ -126,13 +129,124 @@ body.papel-member nav button[data-tab="importar"]{display:none;}
 body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 .aviso-fut{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:color-mix(in srgb,#BA7517 14%,transparent);border:1px solid #BA7517;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:13px;}
 .aviso-fut a{color:var(--text);text-decoration:underline;white-space:nowrap;}
-.fut-metricas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0;}
-.fut-metrica{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;}
-.fut-metrica.alerta{border-color:var(--danger);}
+/* Telas cheias e rodas (docs/design/padrao-de-telas.md): Prever e Estender. Demo: docs/design/demos/demo-repeticao-e-aviso.html */
+.tc{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;}
+.tc-scr{flex:1;overflow-y:auto;padding:14px 14px 24px;padding-top:calc(14px + env(safe-area-inset-top,0px));-webkit-overflow-scrolling:touch;}
+.tc-col{max-width:560px;margin:0 auto;}
+.tc-hd{display:flex;align-items:center;gap:6px;margin:0 0 12px;}
+.tc-hd button{border:0;background:transparent;color:var(--text);font-size:24px;line-height:1;padding:6px 10px;border-radius:10px;cursor:pointer;}
+.tc-hd h2{font-size:18px;margin:0;font-weight:600;}
+.tc-ctx{color:var(--muted);font-size:13px;margin:0 0 10px;overflow-wrap:anywhere;}
+.tc-card{background:var(--card);border-radius:16px;margin:0 0 10px;overflow:hidden;}
+.tc-li{display:flex;align-items:center;gap:12px;padding:8px 16px;min-height:58px;width:100%;background:transparent;border:0;border-top:1px solid var(--border);border-radius:0;color:var(--text);font:inherit;text-align:left;cursor:pointer;}
+.tc-li:first-child{border-top:0;}
+div.tc-li{cursor:default;}
+.tc-li .t{flex:1;min-width:0;overflow-wrap:anywhere;}
+.tc-li .t b{font-weight:600;}
+.tc-li .s{display:block;color:var(--muted);font-size:13px;}
+.tc-li .go{color:var(--faint);font-size:22px;}
+.tc-li.cheio{opacity:.75;}
+.tc-li.cheio .s{color:var(--danger);}
+.tc-ck{width:28px;height:28px;border-radius:50%;background:var(--ck);display:flex;align-items:center;justify-content:center;color:var(--accent-ink);font-size:16px;font-weight:700;flex:none;}
+.tc-ck.on{background:var(--accent);}
+.tc-sw{width:52px;height:30px;border-radius:15px;border:0;background:var(--ck);position:relative;flex:none;padding:0;cursor:pointer;}
+.tc-sw i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s;}
+.tc-sw[aria-checked="true"]{background:var(--accent);}
+.tc-sw[aria-checked="true"] i{left:25px;}
+.tc-nota{font-size:13px;color:var(--muted);padding:2px 4px 0;margin:0 0 10px;overflow-wrap:anywhere;}
+.tc-nota b{color:var(--text);font-weight:600;}
+.tc-erro{color:var(--danger);background:var(--danger-bg);border-radius:12px;padding:10px 12px;font-size:13px;margin:0 0 10px;overflow-wrap:anywhere;}
+.tc-barra{padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--border);}
+.tc-criar{display:block;width:100%;max-width:560px;margin:0 auto;padding:14px;border-radius:14px;border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;cursor:pointer;}
+.tc-criar[aria-busy="true"]{opacity:.7;cursor:wait;}
+.tc-ov{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;}
+.tc-sheet{background:var(--card);width:100%;max-width:560px;margin:0 auto;border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px));}
+.tc-sheet h3{text-align:center;margin:0;font-size:17px;font-weight:600;}
+.tc-live{text-align:center;color:var(--muted);font-size:13px;margin:2px 0 4px;min-height:36px;}
+.tc-live.err{color:var(--danger);}
+.tc-wheels{display:flex;gap:8px;}
+.tc-wh{position:relative;height:132px;flex:1;}
+.tc-wh .bar{position:absolute;left:0;right:0;top:44px;height:44px;background:var(--accent-bg);border-radius:10px;pointer-events:none;}
+.tc-wh .sc{position:relative;height:132px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;padding-block:44px;box-sizing:border-box;-webkit-overflow-scrolling:touch;}
+.tc-wh .sc::-webkit-scrollbar{display:none;}
+.tc-wh .it{height:44px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--faint);cursor:pointer;}
+.tc-wh .it.on{color:var(--accent);font-weight:600;font-size:22px;}
+.tc-btns{display:flex;gap:10px;margin-top:12px;}
+.tc-btns button{flex:1;padding:14px;border-radius:14px;border:0;font:inherit;font-weight:600;cursor:pointer;}
+.tc-btns .no{background:var(--ck);color:var(--text);}
+.tc-btns .ok{background:var(--accent);color:var(--accent-ink);}
+@media (prefers-reduced-motion:reduce){.tc-sw i{transition:none;}}
+/* Futuros: padrao de telas (docs/design/padrao-de-telas.md). Celular: uma linha por evento e as acoes numa janela de baixo.
+   Janela larga (>= 1160px): tabela de largura total com as acoes na propria linha. */
+body[data-aba="futuros"] main{max-width:1600px;}
+/* Resumo: no celular, "A pagar" e "A receber" lado a lado e "Atrasados" numa faixa embaixo, so quando ha atraso.
+   O valor nunca quebra (nowrap): se faltar espaco, a linha cresce. Janela larga: tres blocos (ver mais abaixo). */
+.fut-metricas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 10px;}
+.fut-metrica{background:var(--card);border-radius:14px;padding:10px 12px;min-width:0;}
+.fut-metrica .muted{font-size:12px;}
+.fut-num{font-size:18px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
+#futMetricaAtras{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+#futMetricaAtras .fut-num{font-size:16px;}
+#futMetricaAtras.alerta{background:var(--danger-bg);}
 .fut-metrica.alerta .fut-num{color:var(--danger);}
-.fut-num{font-size:17px;font-weight:600;}
-.fut-titulo{font-size:12px;color:var(--muted);margin:14px 0 6px;}
+@media (max-width:1159.98px){#futMetricaAtras.sem-atraso{display:none;}}
+.fut-sw{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;font-size:13px;color:var(--muted);cursor:pointer;}
+.fut-sw input{appearance:none;-webkit-appearance:none;width:44px;height:26px;border-radius:13px;background:var(--ck);position:relative;flex:none;margin:0;cursor:pointer;transition:background .15s;}
+.fut-sw input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;}
+.fut-sw input:checked{background:var(--accent);}
+.fut-sw input:checked::after{left:21px;}
+.fut-sw input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.fut-titulo{font-size:13px;font-weight:600;color:var(--muted);margin:12px 4px 6px;}
 .fut-titulo.atras{color:var(--danger);}
+.fut-grupo{background:var(--card);border-radius:16px;overflow:hidden;margin:0 0 6px;}
+.fut-row{border-top:1px solid var(--border);}
+.fut-row:first-child{border-top:0;}
+.fut-row.oculto{opacity:.5;}
+.fut-m{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;row-gap:2px;width:100%;box-sizing:border-box;text-align:left;background:transparent;border:0;color:var(--text);font:inherit;padding:11px 8px 11px 14px;min-height:62px;cursor:pointer;transition:background .12s;}
+.fut-m:active,.fut-m:focus-visible{background:color-mix(in srgb,var(--cor) 16%,var(--card));}
+.fut-m .l{flex:1 1 120px;min-width:0;}
+/* descricao em ate 2 linhas; o texto inteiro fica na janela de acoes e em Editar */
+.fut-m .d,.fut-dk .dl .d{font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;min-width:0;}
+.fut-m .mt{display:block;color:var(--muted);font-size:12.5px;margin-top:1px;overflow-wrap:anywhere;}
+.fut-m .r{text-align:right;flex:0 0 auto;margin-left:auto;}
+.fut-m .valor{display:block;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.fut-mais{flex:none;width:28px;height:36px;display:grid;place-items:center;color:var(--muted);}
+.fut-mais svg{display:block;}
+.fut-prazo{display:block;font-size:12px;color:var(--muted);}
+.fut-prazo.atras{color:var(--danger);font-weight:600;}
+.fut-dk,.fut-cab{display:none;}
+.fut-tabela{overflow-x:auto;}
+.fut-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;z-index:60;}
+.fut-sheet{background:var(--card);width:100%;max-width:640px;margin:0 auto;border-radius:22px 22px 0 0;padding:14px 8px calc(10px + env(safe-area-inset-bottom,0px));}
+.fut-sheet h3{margin:0 8px 2px;font-size:16px;font-weight:600;overflow-wrap:anywhere;}
+.fut-sheet .mm{margin:0 8px 8px;color:var(--muted);font-size:13px;}
+.fut-ac{display:flex;align-items:center;width:100%;background:transparent;border:0;border-top:1px solid var(--border);border-radius:0;color:var(--text);font:inherit;padding:0 10px;min-height:52px;text-align:left;cursor:pointer;}
+.fut-ac.perigo{color:var(--danger);}
+@media (hover:hover){.fut-m:hover{background:color-mix(in srgb,var(--cor) 16%,var(--card));}}
+@media (min-width:1160px){
+  .fut-tabela-in{min-width:1120px;}
+  .fut-m{display:none;}
+  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 316px;align-items:center;gap:12px;padding:10px 14px;}
+  .fut-cab{font-size:12px;color:var(--faint);padding-block:4px;}
+  .fut-dk>span,.fut-cab>span{min-width:0;}
+  .fut-dk .bk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fut-dk .st,.fut-dk .fut-prazo{white-space:nowrap;}
+  .fut-dk .v{text-align:right;}
+  .fut-dk .valor{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .fut-dk{transition:background .12s;}
+  .fut-dk:hover,.fut-dk:focus-within{background:color-mix(in srgb,var(--cor) 16%,var(--card));}
+  .fut-dk .dl{display:flex;align-items:flex-start;gap:6px;}
+  .fut-dk .dl .chip{flex:none;}
+  .fut-dk .sub{display:block;font-size:12.5px;color:var(--muted);}
+  .fut-acoes{display:flex;gap:4px;justify-content:flex-end;opacity:.25;transition:opacity .12s;}
+  .fut-dk:hover .fut-acoes,.fut-dk:focus-within .fut-acoes{opacity:1;}
+  .fut-acoes button{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:5px 8px;font-size:12.5px;white-space:nowrap;cursor:pointer;}
+  .fut-acoes button.perigo{color:var(--danger);}
+  .fut-metricas{grid-template-columns:repeat(3,minmax(0,1fr));max-width:600px;}
+  #futMetricaAtras{grid-column:auto;display:block;}
+  .fut-num{font-size:16px;}
+}
+@media (prefers-reduced-motion:reduce){.fut-sw input,.fut-sw input::after,.fut-acoes,.fut-m,.fut-dk{transition:none;}}
 .item.futuro{border-style:dashed !important;}
 .item.atrasado{border-color:var(--danger) !important;}
 .chip{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;}
@@ -176,18 +290,11 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
       <div><label for="fValor">Valor R$</label><input id="fValor" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
     </div>
     <p class="muted" id="fFuturoDica"></p>
-    <div id="fAvisoWrap" class="hidden">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" id="fAvisar" style="width:auto;"> 🔔 Avisar no Telegram</label>
-      <div id="fAvisoOpcoes" class="hidden" style="margin:6px 0 0 4px;">
-        <div id="fAvisoDias" style="display:flex;flex-wrap:wrap;gap:6px 14px;">
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="7" style="width:auto;"> 7 dias antes</label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="3" style="width:auto;"> 3 dias antes</label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="1" style="width:auto;"> 1 dia antes</label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="0" style="width:auto;"> No dia</label>
-        </div>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px;"><input type="checkbox" id="fAvisoInsistir" style="width:auto;"> Insistir todo dia depois do vencimento, até pagar</label>
-      </div>
-      <p class="muted" id="fAvisoDica"></p>
+    <div id="fAvisoMount"></div>
+    <div id="fRepetirWrap" class="hidden">
+      <label style="margin-top:8px;">🔁 Repetir (opcional)</label>
+      <div id="fRepetirMount"></div>
+      <p class="muted" id="fRepetirDica"></p>
     </div>
     <div id="fFaturaWrap" class="hidden">
       <label>Fatura do cartão</label>
@@ -376,13 +483,12 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 </section>
 
 <section id="tab-futuros" class="hidden">
-  <p class="muted">Eventos que ainda não aconteceram (status marcados como "evento futuro" em Listas). Quando acontecer, toque em Editar e troque o status e a data.</p>
   <div class="fut-metricas">
     <div class="fut-metrica"><div class="muted">A pagar</div><div class="fut-num" id="futPagar">···</div></div>
     <div class="fut-metrica"><div class="muted">A receber</div><div class="fut-num" id="futReceber">···</div></div>
     <div class="fut-metrica" id="futMetricaAtras"><div class="muted">Atrasados</div><div class="fut-num" id="futAtrasados">···</div></div>
   </div>
-  <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);"><input type="checkbox" id="futMostrarOcultos" style="width:auto;"> mostrar ocultos (fora dos totais)</label>
+  <label class="fut-sw"><input type="checkbox" id="futMostrarOcultos" role="switch"><span>Mostrar ocultos (ficam fora dos totais)</span></label>
   <div id="listaFuturos"></div>
 </section>
 
@@ -459,6 +565,7 @@ body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 })();
 </script>
 <script src="api.js"></script>
+<script src="recorrencia.js"></script>
 <script>
 let db = null, sample = null;
 let papelAtual = 'owner', meuSub = '';
@@ -532,43 +639,427 @@ function atualizarCampoFatura(){
   atualizarCampoAviso();
   document.getElementById('fFaturaDica').textContent = ehCreditoEX(st) ? 'Registros com status CRÉDITO EX já vão para a próxima fatura.' : (ehCreditoIN(st) ? 'Registros com status CRÉDITO IN já entram na fatura anterior (a que fecha neste mês).' : '');
 }
-// ---------- aviso (Telegram) do lancamento futuro ----------
+// ---------- aviso (Telegram): controles reutilizados pelo formulario (prefixo f) e pela janela de repeticao (pv) ----------
 function telegramVinculado(){ return !!(window.claude && claude.telegramChatId && claude.telegramChatId()); }
-function atualizarCampoAviso(){
-  const w = document.getElementById('fAvisoWrap');
+const avisoVisivel = { f: ()=>ehFuturo(document.getElementById('fStatus').value), pv: ()=>true };
+function htmlAviso(p){
+  const dias = [[7,'7 dias antes'],[3,'3 dias antes'],[1,'1 dia antes'],[0,'No dia']];
+  return `<div id="${p}AvisoWrap" class="hidden">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" id="${p}Avisar" style="width:auto;"> 🔔 Avisar no Telegram</label>
+    <div id="${p}AvisoOpcoes" class="hidden" style="margin:6px 0 0 4px;">
+      <div id="${p}AvisoDias" style="display:flex;flex-wrap:wrap;gap:6px 14px;">
+        ${dias.map(([v,t])=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="${v}" style="width:auto;"> ${t}</label>`).join('')}
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px;"><input type="checkbox" id="${p}AvisoInsistir" style="width:auto;"> Insistir todo dia depois do vencimento, até pagar</label>
+    </div>
+    <p class="muted" id="${p}AvisoDica"></p>
+  </div>`;
+}
+function atualizarAviso(p){
+  const w = document.getElementById(p+'AvisoWrap');
   if(!w) return;
-  const st = document.getElementById('fStatus').value;
-  const mostrar = ehFuturo(st);
+  const mostrar = avisoVisivel[p]();
+  const marcado = document.getElementById(p+'Avisar').checked;
   w.classList.toggle('hidden', !mostrar);
-  document.getElementById('fAvisoOpcoes').classList.toggle('hidden', !document.getElementById('fAvisar').checked);
-  document.getElementById('fAvisoDica').textContent = (mostrar && document.getElementById('fAvisar').checked && !telegramVinculado())
+  document.getElementById(p+'AvisoOpcoes').classList.toggle('hidden', !marcado);
+  document.getElementById(p+'AvisoDica').textContent = (mostrar && marcado && !telegramVinculado())
     ? 'Você ainda não vinculou o Telegram: o aviso é guardado, mas só chega depois que você cadastrar o chat id em Listas.' : '';
 }
 // null = sem aviso; 'incompleto' = marcado sem nenhum dia nem "insistir"
-function lerAvisoDoFormulario(){
-  if(document.getElementById('fAvisoWrap').classList.contains('hidden') || !document.getElementById('fAvisar').checked) return null;
-  const dias = [...document.querySelectorAll('#fAvisoDias input:checked')].map(i=>parseInt(i.value,10));
-  const insistir = document.getElementById('fAvisoInsistir').checked;
+function lerAviso(p){
+  if(document.getElementById(p+'AvisoWrap').classList.contains('hidden') || !document.getElementById(p+'Avisar').checked) return null;
+  const dias = [...document.querySelectorAll('#'+p+'AvisoDias input:checked')].map(i=>parseInt(i.value,10));
+  const insistir = document.getElementById(p+'AvisoInsistir').checked;
   if(!dias.length && !insistir) return 'incompleto';
   return {dias, insistir};
 }
-function preencherAvisoNoFormulario(aviso){
+function preencherAviso(p, aviso){
   const tem = !!(aviso && typeof aviso === 'object');
-  document.getElementById('fAvisar').checked = tem;
+  document.getElementById(p+'Avisar').checked = tem;
   const dias = tem && Array.isArray(aviso.dias) ? aviso.dias : [];
-  document.querySelectorAll('#fAvisoDias input').forEach(i=>{ i.checked = dias.includes(parseInt(i.value,10)); });
-  document.getElementById('fAvisoInsistir').checked = tem && aviso.insistir === true;
-  atualizarCampoAviso();
+  document.querySelectorAll('#'+p+'AvisoDias input').forEach(i=>{ i.checked = dias.includes(parseInt(i.value,10)); });
+  document.getElementById(p+'AvisoInsistir').checked = tem && aviso.insistir === true;
+  atualizarAviso(p);
 }
-// ao ligar "Avisar" num formulario vazio: sugere 1 dia antes, no dia, e insistir depois (o caso da multa)
-function aoMarcarAvisar(){
-  const algum = document.querySelectorAll('#fAvisoDias input:checked').length || document.getElementById('fAvisoInsistir').checked;
-  if(document.getElementById('fAvisar').checked && !algum){
-    document.querySelectorAll('#fAvisoDias input').forEach(i=>{ i.checked = (i.value==='1' || i.value==='0'); });
-    document.getElementById('fAvisoInsistir').checked = true;
+// ao ligar "Avisar" sem nada marcado: sugere 1 dia antes, no dia, e insistir depois (o caso da multa)
+function ligarAviso(p, aoMudar){
+  document.getElementById(p+'Avisar').addEventListener('change', ()=>{
+    const algum = document.querySelectorAll('#'+p+'AvisoDias input:checked').length || document.getElementById(p+'AvisoInsistir').checked;
+    if(document.getElementById(p+'Avisar').checked && !algum){
+      document.querySelectorAll('#'+p+'AvisoDias input').forEach(i=>{ i.checked = (i.value==='1' || i.value==='0'); });
+      document.getElementById(p+'AvisoInsistir').checked = true;
+    }
+    atualizarAviso(p);
+    if(aoMudar) aoMudar();
+  });
+  document.getElementById(p+'AvisoWrap').addEventListener('change', e=>{ if(e.target.id!==p+'Avisar' && aoMudar) aoMudar(); });
+}
+function atualizarCampoAviso(){ atualizarAviso('f'); atualizarCampoRepetir(); }
+function lerAvisoDoFormulario(){ return lerAviso('f'); }
+function preencherAvisoNoFormulario(aviso){ preencherAviso('f', aviso); }
+
+// ---------- repeticao de eventos futuros (Prever, Estender e "Repetir" ao lancar) ----------
+// Controles de quantidade e periodicidade; a logica de datas fica em recorrencia.js (testada em node).
+function htmlRepeticao(p, o){
+  const radios = Recorrencia.INTERVALOS.map(i=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="${p}Meses" value="${i.meses}" ${i.meses===1?'checked':''} style="width:auto;"> ${i.rotulo}</label>`).join('');
+  return `<div id="${p}Repeticao">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;">
+      <label for="${p}Qtd" style="margin:0;">${o.rotuloQtd}</label>
+      <input type="number" id="${p}Qtd" min="1" max="${Recorrencia.MAX_OCORRENCIAS}" value="${o.qtd}" inputmode="numeric" style="width:76px;">
+      ${[1,3,6,12].map(n=>`<button type="button" class="ghost" data-qtd-rapida="${n}" data-p="${p}" style="padding:2px 10px;">${n}</button>`).join('')}
+    </div>
+    <label style="margin-top:8px;">A cada</label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;">
+      ${radios}
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="${p}Meses" value="0" style="width:auto;"> Outro</label>
+      <input type="number" id="${p}Outro" min="1" max="${Recorrencia.MAX_INTERVALO_MESES}" placeholder="meses" inputmode="numeric" class="hidden" style="width:90px;">
+    </div>
+  </div>`;
+}
+function ligarRepeticao(p, aoMudar){
+  const raiz = document.getElementById(p+'Repeticao');
+  raiz.addEventListener('change', e=>{
+    if(e.target.name === p+'Meses') document.getElementById(p+'Outro').classList.toggle('hidden', e.target.value !== '0');
+    if(aoMudar) aoMudar();
+  });
+  raiz.addEventListener('input', ()=>{ if(aoMudar) aoMudar(); });
+  raiz.addEventListener('click', e=>{
+    const b = e.target.closest('button[data-qtd-rapida]');
+    if(b && b.dataset.p === p){ document.getElementById(p+'Qtd').value = b.dataset.qtdRapida; if(aoMudar) aoMudar(); }
+  });
+}
+function lerRepeticao(p){
+  const quantidade = parseInt(document.getElementById(p+'Qtd').value, 10);
+  const sel = document.querySelector(`input[name="${p}Meses"]:checked`);
+  let meses = sel ? parseInt(sel.value, 10) : 1;
+  if(meses === 0) meses = parseInt(document.getElementById(p+'Outro').value, 10);
+  return {quantidade, intervaloMeses: meses};
+}
+function definirIntervalo(p, meses){
+  const radio = [...document.querySelectorAll(`input[name="${p}Meses"]`)].find(r=>parseInt(r.value,10)===meses && meses>0);
+  if(radio){ radio.checked = true; document.getElementById(p+'Outro').classList.add('hidden'); return; }
+  document.querySelector(`input[name="${p}Meses"][value="0"]`).checked = true;
+  const o = document.getElementById(p+'Outro'); o.classList.remove('hidden'); o.value = meses;
+}
+function novoSerieId(){
+  return 'ser' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10).padEnd(8, '0');
+}
+function dataCurta(d){ return d.toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'}); }
+function chavesExistentes(){ return new Set(lancamentosCache.filter(x=>!x.oculto).map(Recorrencia.chaveDuplicado)); }
+
+// Repeticao ao lancar: so em evento futuro novo (na edicao nao aparece). "Total de ocorrencias" inclui o proprio lancamento.
+function atualizarCampoRepetir(){
+  const w = document.getElementById('fRepetirWrap');
+  if(!w) return;
+  const mostrar = !editandoId && ehFuturo(document.getElementById('fStatus').value);
+  w.classList.toggle('hidden', !mostrar);
+  if(mostrar) atualizarDicaRepeticao();
+}
+function atualizarDicaRepeticao(){
+  const dica = document.getElementById('fRepetirDica');
+  const r = lerRepeticao('fr');
+  if(!(r.quantidade > 1)){ dica.textContent = 'Total 1 = só este evento. Aumente para criar as repetições já com o aviso acima.'; return; }
+  const erro = Recorrencia.validar(r.intervaloMeses, r.quantidade - 1);
+  if(erro){ dica.textContent = erro; return; }
+  const base = new Date(document.getElementById('fData').value || Date.now());
+  if(isNaN(base)){ dica.textContent = ''; return; }
+  const datas = Recorrencia.gerarDatas(base, r.intervaloMeses, r.quantidade - 1);
+  dica.textContent = `Cria este e mais ${datas.length} (${Recorrencia.rotuloIntervalo(r.intervaloMeses)}), até ${datas[datas.length-1].toLocaleDateString('pt-BR')}.`;
+}
+
+// Cria os eventos um a um (o membro tambem pode: e o mesmo POST de um lancamento). Devolve quantos foram criados;
+// se um falhar, lanca o erro com .criados para a tela dizer onde parou.
+async function criarEventos(docs, aoProgredir){
+  let criados = 0;
+  for(const doc of docs){
+    try{ await db.collection("lancamentos").add({...doc, criadoEm: new Date().toISOString()}); }
+    catch(err){ err.criados = criados; throw err; }
+    criados++;
+    if(aoProgredir) aoProgredir(criados, docs.length);
   }
-  atualizarCampoAviso();
+  return criados;
 }
+
+// ---------- Prever e Estender no padrao de telas (docs/design/padrao-de-telas.md) ----------
+// Tela cheia com tres linhas-resumo (Status das copias, Repetir, Avisar no Telegram), a previa das datas e o botao de
+// criar. Cada linha abre uma tela cheia propria; "Outro..." abre rodas numa janela de baixo. As datas, os prazos e as
+// frases vem de recorrencia.js (testado em node). Demo: docs/design/demos/demo-repeticao-e-aviso.html.
+let pv = null;
+
+function tcCk(on){ return `<span class="tc-ck${on?' on':''}" aria-hidden="true">${on?'✓':''}</span>`; }
+function tcCabeca(titulo, acao){ return `<div class="tc-hd"><button type="button" data-a="${acao}" aria-label="Voltar">←</button><h2>${esc(titulo)}</h2></div>`; }
+function tcLinha(para, titulo, valor){
+  return `<button type="button" class="tc-li" data-a="ir" data-to="${para}"><span class="t"><b>${titulo}</b><span class="s">${valor}</span></span><span class="go" aria-hidden="true">›</span></button>`;
+}
+function tcInterruptor(a, titulo, sub, ligado){
+  return `<div class="tc-li"><span class="t"><b>${titulo}</b>${sub?`<span class="s">${sub}</span>`:''}</span><button type="button" class="tc-sw" role="switch" aria-checked="${ligado}" data-a="${a}" aria-label="${esc(titulo)}"><i></i></button></div>`;
+}
+function tcOpcao(papel, a, rotulo, marcado, dado){
+  return `<button type="button" class="tc-li" role="${papel}" aria-checked="${marcado}" data-a="${a}" ${dado}><span class="t">${rotulo}</span>${tcCk(marcado)}</button>`;
+}
+function pvData(iso){ return new Date(iso).toLocaleDateString('pt-BR'); }
+
+// Copias a criar, com o que ja existe marcado, a partir do estado das telas.
+function pvCalcular(){
+  const aviso = Recorrencia.avisoDoEstado(pv.aviso);
+  let erro = Recorrencia.validar(pv.meses, pv.qtd);
+  if(!erro && aviso === 'incompleto') erro = 'Escolha pelo menos um prazo de aviso ou ligue "Insistir depois do vencimento".';
+  let docs = [];
+  if(!erro) docs = Recorrencia.montarCopias(pv.base, {intervaloMeses:pv.meses, quantidade:pv.qtd, status:pv.status,
+    aviso: aviso || null, numerar:pv.numerar, serieId:pv.ctx.serieId, indiceInicial:pv.ctx.indiceInicial});
+  const existentes = chavesExistentes();
+  const iguais = new Set();
+  docs.forEach((d,i)=>{ if(existentes.has(Recorrencia.chaveDuplicado(d))) iguais.add(i); });
+  return {docs, iguais, erro};
+}
+
+function pvTelaPrincipal(){
+  const c = pv.calc = pvCalcular(), b = pv.base, qtd = c.docs.length;
+  const valor = Math.abs(valorAssinado(b));
+  const datas = c.docs.slice(0,4).map(d=>pvData(d.dataEvento)).join(', ') + (qtd>4 ? ` e mais ${qtd-4}` : '');
+  let h = tcCabeca(pv.ctx.estender ? 'Estender a série' : 'Prever próximas datas', 'fechar');
+  h += `<p class="tc-ctx">${pv.ctx.estender?'A partir de: ':''}${esc(b.descricao)} · ${fmtMoeda(valor)} · ${esc(b.status)} · ${dataBR(b)}</p>`;
+  h += `<div class="tc-card">${tcLinha('status','Status das cópias',esc(pv.status))}${tcLinha('rep','Repetir',Recorrencia.fraseRepeticao(pv.qtd,pv.meses))}${tcLinha('avi','Avisar no Telegram',Recorrencia.fraseAviso(pv.aviso))}</div>`;
+  if(pv.temParcela) h += `<div class="tc-card">${tcInterruptor('num','Continuar a numeração das parcelas','2/10 vira 3/10, 4/10…',pv.numerar)}</div>`;
+  if(!c.erro) h += `<p class="tc-nota">Cria <b>${qtd}</b> evento${qtd===1?'':'s'}: <b>${datas}</b><br>Total <b>${fmtMoeda(valor*qtd)}</b>${pv.numerar && pv.qtd>qtd ? ` · a numeração só comporta mais ${qtd}` : ''}</p>`;
+  if(c.iguais.size){
+    const lista = [...c.iguais].slice(0,4).map(i=>pvData(c.docs[i].dataEvento)).join(', ');
+    h += `<p class="tc-nota" style="color:var(--danger)"><b style="color:var(--danger)">${c.iguais.size}</b> já exist${c.iguais.size===1?'e':'em'}: ${lista}</p>`+
+      `<div class="tc-card">${tcOpcao('radio','dup','Pular os que já existem',pv.dup==='pular','data-v="pular"')}${tcOpcao('radio','dup','Criar mesmo assim',pv.dup==='criar','data-v="criar"')}</div>`;
+  }
+  const msg = pv.erro || c.erro;
+  if(msg) h += `<div class="tc-erro" role="alert">${esc(msg)}</div>`;
+  return h;
+}
+function pvBarra(){
+  const n = pv.calc ? pv.calc.docs.length : 0;
+  const rotulo = pv.ocupado ? pv.progresso : (n ? `Criar ${n} evento${n===1?'':'s'}` : 'Criar');
+  return `<div class="tc-barra"><button type="button" class="tc-criar" id="tcCriar" data-a="criar" aria-busy="${pv.ocupado}">${rotulo}</button></div>`;
+}
+function pvTelaStatus(){
+  return tcCabeca('Status das cópias','voltar')+
+    `<div class="tc-card">${pv.futuros.map(st=>tcOpcao('radio','status',esc(st),st===pv.status,`data-v="${esc(st)}"`)).join('')}</div>`+
+    '<p class="tc-nota">As cópias nascem com este status e aparecem em Futuros.</p>';
+}
+function pvTelaRepetir(){
+  const ehPre = Recorrencia.INTERVALOS.some(i=>i.meses===pv.meses);
+  let linhas = Recorrencia.INTERVALOS.map(i=>tcOpcao('radio','int',i.rotulo,i.meses===pv.meses,`data-m="${i.meses}"`)).join('');
+  if(!ehPre){ const t = Recorrencia.rotuloIntervalo(pv.meses); linhas += tcOpcao('radio','int',t.charAt(0).toUpperCase()+t.slice(1),true,`data-m="${pv.meses}"`); }
+  const c = pvCalcular();
+  const datas = c.docs.map(d=>pvData(d.dataEvento)).join(', ');
+  return tcCabeca('Repetir','voltar')+
+    `<div class="tc-card">${linhas}</div>`+
+    '<div class="tc-card"><button type="button" class="tc-li" data-a="janela" data-tipo="int"><span class="t">Outro intervalo</span><span class="go" aria-hidden="true">›</span></button></div>'+
+    `<div class="tc-card"><button type="button" class="tc-li" data-a="janela" data-tipo="qtd"><span class="t"><b>Repetir quantas vezes</b><span class="s">Além deste lançamento</span></span><span style="color:var(--muted)">${pv.qtd}</span><span class="go" aria-hidden="true">›</span></button></div>`+
+    (c.erro ? '' : `<p class="tc-nota">Datas: <b>${datas}</b><br>Dia que não existe no mês vira o último (31/01 mensal: 28/02, 31/03).</p>`);
+}
+function pvBalao(c){
+  const ds = [...pv.aviso.dias].sort((a,b)=>b-a);
+  if(!ds.length) return '';
+  const d = ds[0], ref = c.docs[0] || pv.base, venc = new Date(ref.dataEvento);
+  const aviso = new Date(venc); aviso.setDate(aviso.getDate()-d);
+  const saida = ref.tipo !== 'entrada';
+  const quando = d===0 ? (saida?'Vence hoje':'A receber hoje') : `${saida?'Vence em':'A receber em'} ${d} ${d===1?'dia':'dias'}`;
+  return `<div class="tc-card" style="margin-top:10px"><div style="padding:12px 16px;font-size:13px"><div style="color:var(--faint);margin:0 0 6px">Assim chega no Telegram</div>`+
+    `<div>🔔 Avisos de ${pvData(aviso)}<br>• ${quando} (${pvData(venc)}): ${esc(ref.descricao)} — ${fmtMoeda(Math.abs(valorAssinado(ref)))} (${esc(ref.banco||'-')})</div></div></div>`;
+}
+function pvTelaAvisar(){
+  const av = pv.aviso, c = pvCalcular();
+  const lista = Recorrencia.listaDePrazos(av.dias).map(d=>tcOpcao('checkbox','dia',Recorrencia.rotuloPrazo(d),av.dias.includes(d),`data-d="${d}"`)).join('');
+  const n = av.dias.length, max = Recorrencia.MAX_PRAZOS;
+  const outro = n >= max
+    ? `<button type="button" class="tc-li cheio" data-a="cheio"><span class="t">Outro prazo<span class="s">Limite de ${max} prazos. Desmarque um para adicionar outro.</span></span></button>`
+    : `<button type="button" class="tc-li" data-a="janela" data-tipo="prazo"><span class="t">Outro prazo<span class="s">${n} de ${max} prazos</span></span><span class="go" aria-hidden="true">›</span></button>`;
+  const venc = new Date((c.docs[0] || pv.base).dataEvento);
+  const datas = [...av.dias].sort((a,b)=>b-a).map(d=>{ const x = new Date(venc); x.setDate(x.getDate()-d); return `<b>${pvData(x)}</b>`; }).join(', ');
+  return tcCabeca('Avisar no Telegram','voltar')+
+    `<div class="tc-card">${tcInterruptor('sw','Avisar','',av.on)}</div>`+
+    (av.on
+      ? `<div class="tc-card">${lista}</div><div class="tc-card">${outro}</div>`+
+        `<div class="tc-card">${tcInterruptor('ins','Insistir depois do vencimento','Avisa todo dia, até pagar',av.insistir)}</div>`+
+        `<p class="tc-nota">Para um vencimento em ${pvData(venc)}, avisa em ${datas||'nenhum dia'}${av.insistir?' e todo dia depois':''}.</p>${pvBalao(c)}`
+      : '<p class="tc-nota">Sem aviso, o lançamento só aparece em Futuros.</p>');
+}
+
+// Janela de baixo com rodas (Outro prazo, Outro intervalo, Repetir quantas vezes).
+const PV_JANELAS = {prazo:'Outro prazo', int:'Outro intervalo', qtd:'Repetir quantas vezes'};
+function pvHtmlJanela(){
+  const j = pv.sheet;
+  if(!j) return '';
+  return `<div class="tc-ov"><div class="tc-sheet" role="dialog" aria-modal="true" aria-label="${PV_JANELAS[j.tipo]}"><h3>${PV_JANELAS[j.tipo]}</h3>`+
+    '<div class="tc-live" id="tcLive"></div><div class="tc-wheels" id="tcWheels"></div>'+
+    '<div class="tc-btns"><button type="button" class="no" data-a="no">Cancelar</button><button type="button" class="ok" data-a="ok">OK</button></div></div></div>';
+}
+function pvValidarJanela(j){
+  if(j.tipo === 'prazo') return Recorrencia.validarPrazoNovo(pv.aviso.dias, j.n, j.un===1);
+  if(j.tipo === 'int') return Recorrencia.validarIntervaloNovo(j.n, j.un===1);
+  return {valor:j.n, texto:`Repetir ${j.n} ${j.n===1?'vez':'vezes'}, além deste lançamento`};
+}
+function pvPintarJanela(){
+  const r = pvValidarJanela(pv.sheet), el = document.getElementById('tcLive');
+  if(!el) return;
+  el.className = 'tc-live' + (r.erro ? ' err' : '');
+  el.textContent = r.erro || r.texto;
+}
+function tcRoda(itens, sel, aoMudar){
+  const caixa = document.createElement('div');
+  caixa.className = 'tc-wh';
+  caixa.innerHTML = '<div class="bar"></div><div class="sc"></div>';
+  const sc = caixa.querySelector('.sc');
+  itens.forEach((t,i)=>{
+    const d = document.createElement('div');
+    d.className = 'it' + (i===sel ? ' on' : ''); d.textContent = t;
+    d.onclick = ()=>sc.scrollTo({top:i*44, behavior:'smooth'});
+    sc.appendChild(d);
+  });
+  let espera;
+  sc.addEventListener('scroll', ()=>{
+    clearTimeout(espera);
+    espera = setTimeout(()=>{
+      const i = Math.max(0, Math.min(itens.length-1, Math.round(sc.scrollTop/44)));
+      sc.querySelectorAll('.it').forEach((e,k)=>e.classList.toggle('on', k===i));
+      aoMudar(i);
+    }, 90);
+  });
+  setTimeout(()=>{ sc.scrollTop = sel*44; }, 0);
+  return caixa;
+}
+function pvMontarRodas(){
+  const j = pv && pv.sheet, alvo = document.getElementById('tcWheels');
+  if(!j || !alvo) return;
+  const nums = (a,b)=>Array.from({length:b-a+1}, (_,i)=>String(a+i));
+  const maximo = j.tipo==='qtd' ? Recorrencia.MAX_OCORRENCIAS : (j.tipo==='prazo' ? Recorrencia.MAX_DIAS_AVISO : 60);
+  alvo.appendChild(tcRoda(nums(1,maximo), j.n-1, i=>{ j.n = i+1; pvPintarJanela(); }));
+  if(j.tipo==='prazo') alvo.appendChild(tcRoda(['dia','semana'], j.un, i=>{ j.un = i; pvPintarJanela(); }));
+  if(j.tipo==='int') alvo.appendChild(tcRoda(['mês','ano'], j.un, i=>{ j.un = i; pvPintarJanela(); }));
+  pvPintarJanela();
+}
+
+function pvRender(topo){
+  const el = document.getElementById('tc');
+  if(!el || !pv) return;
+  const antes = el.querySelector('.tc-scr');
+  const y = (!topo && antes) ? antes.scrollTop : 0;
+  const tela = pv.tela==='rep' ? pvTelaRepetir() : pv.tela==='avi' ? pvTelaAvisar() : pv.tela==='status' ? pvTelaStatus() : pvTelaPrincipal();
+  el.innerHTML = `<div class="tc-scr"><div class="tc-col">${tela}</div></div>${pv.tela==='main' ? pvBarra() : ''}${pvHtmlJanela()}`;
+  el.querySelector('.tc-scr').scrollTop = y;
+  pvMontarRodas();
+}
+function pvVoltar(){
+  if(!pv || pv.ocupado) return;
+  if(pv.sheet){ pv.sheet = null; return pvRender(false); }
+  if(pv.tela !== 'main'){ pv.tela = 'main'; return pvRender(true); }
+  fecharPrever();
+}
+function fecharPrever(){
+  const el = document.getElementById('tc');
+  if(el) el.remove();
+  document.documentElement.style.overflow = '';
+  pv = null;
+}
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && pv) pvVoltar(); });
+
+async function pvCriar(){
+  if(!pv || pv.ocupado) return;
+  const c = pvCalcular();
+  if(c.erro){ pv.erro = c.erro; return pvRender(false); }
+  const pular = c.iguais.size > 0 && pv.dup === 'pular';
+  const aCriar = c.docs.filter((_,i)=>!(pular && c.iguais.has(i)));
+  if(!aCriar.length){ pv.erro = 'Todos os eventos já existem: nada a criar.'; return pvRender(false); }
+  pv.ocupado = true; pv.erro = ''; pv.progresso = `Criando 0/${aCriar.length}…`; pvRender(false);
+  try{
+    const n = await criarEventos(aCriar, (feitos,total)=>{
+      if(!pv) return;
+      pv.progresso = `Criando ${feitos}/${total}…`;
+      const b = document.getElementById('tcCriar'); if(b) b.textContent = pv.progresso;
+    });
+    fecharPrever();
+    toast(`✓ ${n} evento${n===1?'':'s'} criado${n===1?'':'s'}`);
+  }catch(err){
+    console.error(err);
+    await new Promise(r=>setTimeout(r, 400));   // o que ja foi criado entra no cache; a previa volta a apontar o "ja existe"
+    if(!pv) return;
+    pv.ocupado = false; pv.dup = 'pular';
+    pv.erro = `Parou depois de ${err.criados||0} de ${aCriar.length}: ${msgErro(err,'erro ao salvar')} Os que foram criados aparecem como "já existem"; deixe "Pular os que já existem" e tente de novo.`;
+    pvRender(false);
+  }
+}
+
+function pvClique(e){
+  const b = e.target.closest('[data-a]');
+  if(!b || !pv) return;
+  const a = b.dataset.a, av = pv.aviso;
+  if(a==='fechar') return pvVoltar();
+  if(a==='voltar'){ pv.tela = 'main'; pv.sheet = null; return pvRender(true); }
+  if(a==='ir'){ pv.tela = b.dataset.to; pv.erro = ''; return pvRender(true); }
+  if(a==='criar') return pvCriar();
+  if(a==='num'){ pv.numerar = !pv.numerar; return pvRender(false); }
+  if(a==='dup'){ pv.dup = b.dataset.v; return pvRender(false); }
+  if(a==='status'){ pv.status = b.dataset.v; pv.tela = 'main'; return pvRender(true); }
+  if(a==='int'){ pv.meses = parseInt(b.dataset.m,10); return pvRender(false); }
+  if(a==='sw'){ av.on = !av.on; return pvRender(false); }
+  if(a==='ins'){ av.insistir = !av.insistir; return pvRender(false); }
+  if(a==='dia'){
+    const d = parseInt(b.dataset.d,10), i = av.dias.indexOf(d);
+    if(i >= 0) av.dias.splice(i,1); else av.dias.push(d);
+    return pvRender(false);
+  }
+  if(a==='cheio') return;
+  if(a==='janela'){
+    pv.sheet = {tipo:b.dataset.tipo, n:b.dataset.tipo==='qtd' ? pv.qtd : (b.dataset.tipo==='prazo' ? 5 : 4), un:0};
+    return pvRender(false);
+  }
+  if(a==='no'){ pv.sheet = null; return pvRender(false); }
+  if(a==='ok'){
+    const j = pv.sheet, r = pvValidarJanela(j);
+    if(r.erro) return;
+    if(j.tipo==='prazo') av.dias.push(r.valor);
+    if(j.tipo==='int') pv.meses = r.valor;
+    if(j.tipo==='qtd') pv.qtd = r.valor;
+    pv.sheet = null; return pvRender(false);
+  }
+}
+
+// Abre o fluxo. base = o evento de partida (o ultimo da serie, no Estender); ctx = { estender, serieId, indiceInicial, intervaloPadrao }.
+function abrirPrever(base, ctx){
+  const futuros = listas.status.filter(ehFuturo);
+  if(!futuros.length){ avisar('Marque algum status como evento futuro em Listas antes de prever.'); return; }
+  fecharPrever();
+  const aviso = base.aviso && typeof base.aviso === 'object' ? base.aviso : null;
+  const temParcela = Recorrencia.lerParcela(base.descricao) !== null;
+  pv = {
+    base, ctx, futuros, temParcela, numerar: temParcela, dup:'pular', tela:'main', sheet:null, erro:'', ocupado:false, progresso:'',
+    status: ehFuturo(base.status) ? base.status : (futuros.includes('PREVISTO') ? 'PREVISTO' : futuros[0]),
+    qtd: 3, meses: ctx.intervaloPadrao || 1,
+    aviso: {on: !!aviso, dias: aviso && Array.isArray(aviso.dias) ? [...aviso.dias] : [1,0], insistir: aviso ? aviso.insistir === true : true}
+  };
+  const el = document.createElement('div');
+  el.className = 'tc'; el.id = 'tc';
+  el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
+  el.setAttribute('aria-label', ctx.estender ? 'Estender a série' : 'Prever próximas datas');
+  el.addEventListener('click', pvClique);
+  document.body.appendChild(el);
+  document.documentElement.style.overflow = 'hidden';
+  pvRender(true);
+  const voltar = el.querySelector('.tc-hd button');
+  if(voltar) voltar.focus();
+}
+
+// Botao Prever (registro sem serie) ou Estender (registro de uma serie: parte da ultima ocorrencia carregada).
+async function preverLancamento(id){
+  const l = acharLancamento(id);
+  if(!l || !db) return;
+  let base = l, ctx;
+  if(l.serie){
+    const ultima = Recorrencia.ultimaDaSerie(lancamentosCache, l.serie.id) || l;
+    base = ultima;
+    ctx = {estender:true, serieId:l.serie.id, indiceInicial:(ultima.serie ? ultima.serie.indice : l.serie.indice)+1, intervaloPadrao:(ultima.serie||l.serie).intervalo};
+  } else {
+    ctx = {estender:false, serieId:novoSerieId(), indiceInicial:1};
+  }
+  abrirPrever(base, ctx);
+}
+
 let lancamentosCache = [];
 let modoMesEspecifico = false;
 function mesAtualYM(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
@@ -781,6 +1272,7 @@ async function init(){
 let abaOrigemEdicao = null;
 function abaAtual(){ const b = document.querySelector('nav button.active'); return b ? b.dataset.tab : 'lancar'; }
 function irParaAba(t){
+  document.body.dataset.aba = t;
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active', x.dataset.tab===t));
   document.querySelectorAll('main section').forEach(sec=>sec.classList.add('hidden'));
   document.getElementById('tab-'+t).classList.remove('hidden');
@@ -1147,7 +1639,11 @@ async function garantirTags(novasTags){
 }
 
 function setupHandlers(){
-  document.getElementById('fAvisar').addEventListener('change', aoMarcarAvisar);
+  document.getElementById('fAvisoMount').innerHTML = htmlAviso('f');
+  document.getElementById('fRepetirMount').innerHTML = htmlRepeticao('fr', {qtd:1, rotuloQtd:'Total de ocorrências (com este)'});
+  ligarAviso('f');
+  ligarRepeticao('fr', atualizarDicaRepeticao);
+  document.getElementById('fData').addEventListener('change', atualizarDicaRepeticao);
   document.getElementById('fStatus').addEventListener('change', ()=>{
     document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
     atualizarCampoFatura();
@@ -1386,6 +1882,22 @@ async function salvarLancamentoInterno(){
   if(aviso === 'incompleto'){ await avisar("Marque pelo menos um dia de aviso ou \"Insistir todo dia\"."); return; }
   if(aviso) doc.aviso = aviso;
   else if(editandoId && ehFuturo(statusEscolhido)) doc.aviso = null; // desligou o aviso na edicao
+  // repeticao (so evento futuro novo): este + as copias, ligados por uma serie
+  let copias = [];
+  if(!editandoId && ehFuturo(statusEscolhido)){
+    const rep = lerRepeticao('fr');
+    if(rep.quantidade > 1){
+      const erroRep = Recorrencia.validar(rep.intervaloMeses, rep.quantidade - 1);
+      if(erroRep){ await avisar(erroRep); return; }
+      const serieId = novoSerieId();
+      doc.serie = {id: serieId, indice: 1, intervalo: rep.intervaloMeses};
+      copias = Recorrencia.montarCopias(doc, {intervaloMeses:rep.intervaloMeses, quantidade:rep.quantidade-1, status:statusEscolhido,
+        aviso: doc.aviso || null, numerar:false, serieId, indiceInicial:2});
+      const existentes = chavesExistentes();
+      const iguais = copias.filter(c=>existentes.has(Recorrencia.chaveDuplicado(c))).length;
+      if(iguais && !(await confirmarModal(`${iguais} das repetições já existem (mesmo status, descrição, valor, banco e dia). Criar mesmo assim?`))) return;
+    }
+  }
   const jaExiste = lancamentosCache.some(l=>l.id!==editandoId && chaveLancamento(l)===chaveLancamento(doc));
   if(jaExiste && !(await confirmarModal("Já existe um lançamento igual (mesmo status, descrição, valor, banco e data). Salvar mesmo assim?"))) return;
   if(editandoId){
@@ -1396,8 +1908,16 @@ async function salvarLancamentoInterno(){
     cancelarEdicao();
   }else{
     await db.collection("lancamentos").add({...doc, criadoEm: new Date().toISOString()});
-    document.getElementById('iaStatus').textContent = "Lançamento salvo ✓";
-    toast('✓ Lançamento salvo: ' + doc.descricao + ' · ' + fmtMoeda(doc.valor));
+    let extra = '';
+    if(copias.length){
+      try{ const n = await criarEventos(copias); extra = ` + ${n} repetição${n===1?'':'ões'}`; }
+      catch(err){
+        console.error(err);
+        await avisar(`O lançamento foi salvo, mas as repetições pararam depois de ${err.criados||0} de ${copias.length}: ${msgErro(err, 'erro ao salvar')} Use Prever no lançamento para completar a série.`);
+      }
+    }
+    document.getElementById('iaStatus').textContent = "Lançamento salvo ✓" + extra;
+    toast('✓ Lançamento salvo: ' + doc.descricao + ' · ' + fmtMoeda(doc.valor) + extra);
     limparFormulario();
   }
 }
@@ -1413,6 +1933,7 @@ function limparFormulario(){
   document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
   document.getElementById('fEstimado').checked = false;
   preencherAvisoNoFormulario(null);
+  if(document.getElementById('frQtd')){ document.getElementById('frQtd').value = '1'; definirIntervalo('fr', 1); }
   atualizarCampoFatura();
   renderTagPicker();
 }
@@ -1514,6 +2035,7 @@ function htmlItemLancamento(l, o){
       <div class="item-acoes">
         ${podeMexer(l)?`<button data-acao="editar" data-id="${esc(l.id)}">✏️ Editar</button>`:''}
         <button data-acao="copiar" data-id="${esc(l.id)}">📋 Copiar</button>
+        ${l.transferParId?'':`<button data-acao="prever" data-id="${esc(l.id)}">${l.serie?'➕ Estender série':'🔮 Prever'}</button>`}
         ${podeMexer(l)?`<button data-acao="ocultar" data-id="${esc(l.id)}">${l.oculto?'👁️ Mostrar':'🙈 Ocultar'}</button>`:''}
         ${ehOwner()?`<button data-acao="excluir" data-id="${esc(l.id)}">🗑️ Excluir</button>`:''}
       </div>
@@ -1540,13 +2062,82 @@ function renderFuturos(){
   document.getElementById('futReceber').textContent = fmtMoeda(r.receber);
   document.getElementById('futAtrasados').textContent = r.atrasados ? `${r.atrasados} · ${fmtMoeda(r.somaAtrasados)}` : '0';
   document.getElementById('futMetricaAtras').classList.toggle('alerta', r.atrasados > 0);
+  document.getElementById('futMetricaAtras').classList.toggle('sem-atraso', r.atrasados === 0);
   if(!todos.length){
     el.innerHTML = '<p class="muted">Nenhum evento futuro. Crie um lançamento na aba Lançar com um status de evento futuro (ex.: PREVISTO).</p>';
     return;
   }
-  el.innerHTML = gruposFuturos(todos, hoje).map(g=>
-    `<div class="fut-titulo ${g.atrasado?'atras':''}">${esc(g.titulo)}</div>` + g.itens.map(l=>htmlItemLancamento(l, {prazo:true})).join('')).join('');
+  el.innerHTML = '<div class="fut-tabela"><div class="fut-tabela-in">'+
+    '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>'+
+    gruposFuturos(todos, hoje).map(g=>
+      `<div class="fut-titulo ${g.atrasado?'atras':''}">${esc(g.titulo)}</div><div class="fut-grupo">${g.itens.map(htmlEventoFuturo).join('')}</div>`).join('')+
+    '</div></div>';
 }
+
+// ---------- Futuros: uma linha por evento (celular) e tabela (janela larga) ----------
+function prazoFuturo(l){
+  if(l.oculto) return {t:'', atras:false};
+  const n = diasAte(diaLocal(l));
+  if(n < 0) return {t:`atrasado ${-n} dia${n===-1?'':'s'}`, atras:true};
+  if(n === 0) return {t:'hoje', atras:false};
+  return {t:`em ${n} dia${n===1?'':'s'}`, atras:false};
+}
+function dataBR(l){ return new Date(l.dataEvento).toLocaleDateString('pt-BR'); }
+// Acoes de um evento, na ordem e com as mesmas permissoes de antes. t = texto da janela; c = texto curto da tabela.
+function acoesDoEvento(l){
+  const a = [];
+  if(podeMexer(l)) a.push({k:'editar', t:'Editar', c:'Editar'});
+  a.push({k:'copiar', t:'Copiar', c:'Copiar'});
+  if(!l.transferParId) a.push({k:'prever', t:l.serie?'Estender série':'Prever próximas datas', c:l.serie?'Estender':'Prever'});
+  if(podeMexer(l)) a.push({k:'ocultar', t:l.oculto?'Mostrar':'Ocultar', c:l.oculto?'Mostrar':'Ocultar'});
+  if(ehOwner()) a.push({k:'excluir', t:'Excluir', c:'Excluir', perigo:true});
+  return a;
+}
+const PONTOS_FUT = '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.7" fill="currentColor"/><circle cx="10" cy="10" r="1.7" fill="currentColor"/><circle cx="16" cy="10" r="1.7" fill="currentColor"/></svg>';
+function htmlEventoFuturo(l){
+  const p = prazoFuturo(l), id = esc(l.id);
+  const serie = l.serie && l.serie.indice ? `série ${l.serie.indice}` : '';
+  const prazo = `<span class="fut-prazo ${p.atras?'atras':''}">${p.t}</span>`;
+  const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
+  const cor = estiloCor==='nenhum' ? 'var(--faint)' : corStatus(l.status);
+  const sub = [serie, l.oculto?'oculto':''].filter(Boolean).join(' · ');
+  return `<div class="fut-row ${l.oculto?'oculto':''}" style="--cor:${cor}">
+    <button type="button" class="fut-m" data-fut-abrir="${id}" aria-haspopup="dialog">
+      <span class="l"><span class="d">${esc(l.descricao)}</span><span class="mt">${chipAviso(l).trim()} ${dataBR(l)} · ${esc(l.status)} · ${esc(l.banco||'-')}${serie?' · '+serie:''}${l.oculto?' · oculto':''}</span></span>
+      <span class="r">${htmlValorLinha(l)}${prazo}</span>
+      <span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>
+    </button>
+    <div class="fut-dk" tabindex="0">
+      <span>${dataBR(l)}</span>
+      <span class="dd"><span class="dl"><span class="d" title="${esc(l.descricao)}">${esc(l.descricao)}</span>${chipAviso(l)}</span>${sub?`<span class="sub">${esc(sub)}</span>`:''}</span>
+      <span class="bk" title="${esc(l.banco||'-')}">${esc(l.banco||'-')}</span>
+      <span class="st">${seloStatus(l.status)}</span>
+      <span class="v">${htmlValorLinha(l)}${prazo}</span>
+      <span class="fut-acoes">${botoes}</span>
+    </div>
+  </div>`;
+}
+// Janela de baixo com as acoes do evento (celular).
+function abrirAcoesFuturo(id){
+  const l = acharLancamento(id);
+  if(!l) return;
+  fecharAcoesFuturo();
+  const ov = document.createElement('div');
+  ov.className = 'fut-ov'; ov.id = 'futOv';
+  ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Ações de ${esc(l.descricao)}">
+    <h3>${esc(l.descricao)}</h3><p class="mm">${fmtMoeda(Math.abs(valorAssinado(l)))} · ${dataBR(l)} · ${esc(l.banco||'-')}</p>
+    ${acoesDoEvento(l).map(a=>`<button type="button" class="fut-ac${a.perigo?' perigo':''}" data-acao="${a.k}" data-id="${esc(l.id)}">${a.t}</button>`).join('')}</div>`;
+  ov.addEventListener('click', e=>{
+    const b = e.target.closest('button[data-acao]');
+    if(b){ fecharAcoesFuturo(); executarAcaoRegistro(b.dataset.acao, b.dataset.id); return; }
+    if(e.target === ov) fecharAcoesFuturo();
+  });
+  document.body.appendChild(ov);
+  const primeiro = ov.querySelector('.fut-ac');
+  if(primeiro) primeiro.focus();
+}
+function fecharAcoesFuturo(){ const o = document.getElementById('futOv'); if(o) o.remove(); }
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') fecharAcoesFuturo(); });
 
 // No mês buscado os eventos futuros não aparecem na lista; se o mês tiver algum, avisa e leva para a aba Futuros.
 function renderAvisoMesFuturos(){
@@ -1680,17 +2271,24 @@ async function excluirLancamento(id){
   removerLocal(id);
 }
 
+function executarAcaoRegistro(acao, id){
+  if(acao==='editar') iniciarEdicao(id);
+  if(acao==='copiar') iniciarCopia(id);
+  if(acao==='prever') preverLancamento(id);
+  if(acao==='ocultar') ocultarLancamento(id);
+  if(acao==='excluir') excluirLancamento(id);
+}
 function cliqueAcaoRegistro(e){
   const btn = e.target.closest('button[data-acao]');
   if(!btn) return;
-  const id = btn.dataset.id;
-  if(btn.dataset.acao==='editar') iniciarEdicao(id);
-  if(btn.dataset.acao==='copiar') iniciarCopia(id);
-  if(btn.dataset.acao==='ocultar') ocultarLancamento(id);
-  if(btn.dataset.acao==='excluir') excluirLancamento(id);
+  executarAcaoRegistro(btn.dataset.acao, btn.dataset.id);
 }
 document.getElementById('listaLancamentos').addEventListener('click', cliqueAcaoRegistro);
 document.getElementById('listaFuturos').addEventListener('click', cliqueAcaoRegistro);
+document.getElementById('listaFuturos').addEventListener('click', e=>{
+  const b = e.target.closest('[data-fut-abrir]');
+  if(b) abrirAcoesFuturo(b.dataset.futAbrir);
+});
 document.getElementById('avisoMesFuturos').addEventListener('click', (e)=>{
   const a = e.target.closest('[data-ir-aba]');
   if(a){ e.preventDefault(); irParaAba(a.dataset.irAba); }

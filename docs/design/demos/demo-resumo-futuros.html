@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Demo que decidiu o resumo da Futuros no celular (2026-10-09): opcao A aprovada. Guia: ../padrao-de-telas.md -->
+<title>Demo do resumo de Futuros</title>
+<style>
+/* Resumo (a pagar, a receber, atrasados) da tela Futuros: hoje quebra o numero no celular. Opcoes testadas com valores extremos. */
+:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--faint:#8c938d;--line:#e4e2dc;--ck:#d3d6d2;--accent:#0f6b4f;--onaccent:#ffffff;--danger:#a3321f;--danger-bg:#f8e6e2;--ok:#1d6b45}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.4;padding-inline:16px;padding-block:18px;max-width:460px;margin-inline:auto}
+body.wide{max-width:1100px}
+body.wide .h3{max-width:600px}
+h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.grp{margin:0 0 10px}
+.grp small{display:block;color:var(--faint);font-size:12px;margin:0 0 4px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:0;padding:8px 6px;border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:10px;font-size:13px;font-family:inherit}
+.seg button[aria-pressed="true"]{background:var(--card);border-color:var(--accent);color:var(--accent);font-weight:600}
+.res{margin:10px 0;padding:10px 12px;border-radius:12px;font-size:13px;background:var(--card);border:1px solid var(--line)}
+.res b{font-weight:600}
+.res.ruim{border-color:var(--danger);color:var(--danger)}
+.res.bom b{color:var(--ok)}
+.tela{background:var(--bg2);border:1px solid var(--line);border-radius:22px;padding:14px 12px 16px;margin-inline:auto;overflow:hidden}
+.lab{display:block;color:var(--muted);font-size:12px}
+.val{font-weight:600;font-variant-numeric:tabular-nums}
+.val.bad{color:var(--danger)}
+/* hoje */
+.h3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.h3 div{background:var(--card);border-radius:14px;padding:10px 12px;min-width:0}
+.h3 .val{font-size:16px;overflow-wrap:anywhere}
+/* opcao A: dois blocos e uma faixa de alerta */
+.a2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.a2 div{background:var(--card);border-radius:14px;padding:10px 12px;min-width:0}
+.a2 .val{font-size:18px;white-space:nowrap}
+.faixa{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:8px;background:var(--card);border-radius:14px;padding:10px 12px;min-width:0}
+.faixa.bad{background:var(--danger-bg)}
+.faixa .val{font-size:16px;white-space:nowrap}
+/* opcao B: um cartao, tres linhas */
+.cb{background:var(--card);border-radius:16px;overflow:hidden}
+.cb .l{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:11px 14px;border-top:1px solid var(--line);min-width:0}
+.cb .l:first-child{border-top:0}
+.cb .l .lab{font-size:13px;flex:none}
+.cb .val{font-size:18px;white-space:nowrap;text-align:right}
+/* contexto: switch e dois eventos */
+.opt{display:flex;align-items:center;gap:10px;padding:10px 4px 6px;color:var(--muted);font-size:13px}
+.sw{width:44px;height:26px;border-radius:13px;background:var(--ck);position:relative;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+.gt{font-size:13px;font-weight:600;color:var(--danger);margin:6px 4px 6px}
+.card{background:var(--card);border-radius:16px;overflow:hidden}
+.ev{display:flex;align-items:center;gap:10px;padding:11px 14px;min-height:62px;border-top:1px solid var(--line)}
+.ev:first-child{border-top:0}
+.ev .l{flex:1;min-width:0}
+.ev .d{font-weight:600;display:block}
+.ev .m{display:block;color:var(--muted);font-size:12.5px}
+.ev .r{text-align:right;flex:none}
+.ev .v{display:block;font-weight:600;color:var(--danger)}
+.ev .p{font-size:12px;color:var(--danger);font-weight:600}
+.dec{margin-top:16px;border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--muted)}
+.dec b{color:var(--fg);font-weight:600}
+.dec ul{margin:6px 0 0;padding-left:18px}
+</style>
+</head>
+<body>
+<h1>Resumo da tela Futuros no celular</h1>
+<p class="sub">Demonstração. Mude a opção, os valores e a largura para ver quando o número quebra.</p>
+<div class="grp"><small>Opção</small><div class="seg" id="sOp" role="group" aria-label="Opção">
+  <button type="button" data-v="hoje" aria-pressed="false">Hoje</button>
+  <button type="button" data-v="a" aria-pressed="true">A: 2 + faixa</button>
+  <button type="button" data-v="b" aria-pressed="false">B: um cartão</button></div></div>
+<div class="grp"><small>Valores</small><div class="seg" id="sVal" role="group" aria-label="Valores">
+  <button type="button" data-v="normal" aria-pressed="false">Normais</button>
+  <button type="button" data-v="zero" aria-pressed="false">Sem atraso</button>
+  <button type="button" data-v="grande" aria-pressed="true">Grandes</button>
+  <button type="button" data-v="extremo" aria-pressed="false">Extremos</button></div></div>
+<div class="grp"><small>Largura do aparelho</small><div class="seg" id="sLar" role="group" aria-label="Largura">
+  <button type="button" data-v="320" aria-pressed="false">320</button>
+  <button type="button" data-v="360" aria-pressed="false">360</button>
+  <button type="button" data-v="390" aria-pressed="true">390</button>
+  <button type="button" data-v="desk" aria-pressed="false">Computador</button></div></div>
+<div class="res" id="res" role="status"></div>
+<div class="tela" id="tela"></div>
+<div class="dec"><b>O que muda em cada opção, para você decidir</b>
+<ul>
+<li><b>Hoje:</b> três blocos iguais, cada um com cerca de um terço da largura. Mede 59 px de altura, mas o número quebra no meio a partir de uns R$ 99.999,99, em qualquer largura de celular.</li>
+<li><b>A (recomendada):</b> "A pagar" e "A receber" lado a lado, com metade da largura cada um, e "Atrasados" numa faixa vermelha embaixo, <b>só quando há atraso</b>. Fonte de 18 px. Sem atraso fica com a altura de hoje (cerca de 64 px); com atraso, 112 px. O número não quebra nem com R$ 9.876.543,21 num aparelho de 320 px.</li>
+<li><b>B:</b> um cartão com três linhas, nome à esquerda e valor à direita, 18 px. É o desenho mais folgado, mas fica sempre com 144 px de altura (cerca de 85 px a mais que hoje, ou um evento e meio a menos por tela).</li>
+<li><b>Computador (1160 px ou mais):</b> os três blocos lado a lado continuam servindo (o resumo tem até 600 px, então cada bloco passa de 170 px). A e B só valem para o celular.</li>
+<li>Nas duas propostas a fonte <b>sobe</b> de 16 para 18 px e o valor nunca quebra: se faltar espaço, a linha cresce, e não o número.</li>
+</ul></div>
+<script>
+var VAL={
+  normal:{pagar:1481,receber:2500,n:1,atr:120},
+  zero:{pagar:1481,receber:2500,n:0,atr:0},
+  grande:{pagar:182012.27,receber:75106.69,n:1,atr:220.83},
+  extremo:{pagar:1234567.89,receber:9876543.21,n:12,atr:1234567.89}
+};
+var st={op:'a',val:'grande',lar:'390'};
+function m(v){return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function atrTxt(d){return d.n?d.n+' · '+m(d.atr):'0'}
+function resumo(){
+  var d=VAL[st.val];
+  if(st.lar==='desk'||st.op==='hoje'){
+    return '<div class="h3"><div><span class="lab">A pagar</span><span class="val" data-v>'+m(d.pagar)+'</span></div><div><span class="lab">A receber</span><span class="val" data-v>'+m(d.receber)+'</span></div><div><span class="lab">Atrasados</span><span class="val bad" data-v>'+atrTxt(d)+'</span></div></div>';
+  }
+  if(st.op==='a'){
+    return '<div class="a2"><div><span class="lab">A pagar</span><span class="val" data-v>'+m(d.pagar)+'</span></div><div><span class="lab">A receber</span><span class="val" data-v>'+m(d.receber)+'</span></div></div>'+
+      (d.n?'<div class="faixa bad"><span class="lab">Atrasados</span><span class="val bad" data-v>'+atrTxt(d)+'</span></div>':'');
+  }
+  return '<div class="cb"><div class="l"><span class="lab">A pagar</span><span class="val" data-v>'+m(d.pagar)+'</span></div><div class="l"><span class="lab">A receber</span><span class="val" data-v>'+m(d.receber)+'</span></div><div class="l"><span class="lab">Atrasados</span><span class="val bad" data-v>'+atrTxt(d)+'</span></div></div>';
+}
+function contexto(){
+  return '<div class="opt"><span class="sw" aria-hidden="true"></span><span>Mostrar ocultos (ficam fora dos totais)</span></div>'+
+    '<div class="gt">Atrasados</div><div class="card"><div class="ev"><span class="l"><span class="d">Pedágio</span><span class="m">08/10/2026 · PREVISTO · Inter</span></span><span class="r"><span class="v">-R$ 220,83</span><span class="p">atrasado 1 dia</span></span></div>'+
+    '<div class="ev"><span class="l"><span class="d">Plano de saúde</span><span class="m">09/10/2026 · CREDITANDO · Inter</span></span><span class="r"><span class="v">-R$ 602,30</span><span class="p" style="color:var(--muted);font-weight:400">hoje</span></span></div></div>';
+}
+function medir(){
+  var els=document.querySelectorAll('#tela [data-v]'),prob=[];
+  els.forEach(function(e){
+    var lh=parseFloat(getComputedStyle(e).lineHeight)||e.offsetHeight;
+    var quebrou=e.getBoundingClientRect().height>lh*1.5;
+    var passou=e.scrollWidth>e.clientWidth+1 || (e.parentElement&&e.getBoundingClientRect().right>e.parentElement.getBoundingClientRect().right+1);
+    if(quebrou)prob.push('"'+e.textContent+'" quebra em duas linhas');
+    else if(passou)prob.push('"'+e.textContent+'" passa da borda');
+  });
+  var r=document.getElementById('res');
+  var alt=0,kids=document.getElementById('tela').children;
+  for(var i=0;i<kids.length;i++){if(kids[i].classList.contains('opt'))break;alt+=kids[i].getBoundingClientRect().height+(i?8:0)}
+  if(prob.length){r.className='res ruim';r.innerHTML='<b>Problema:</b> '+prob.join('; ')+'.'}
+  else{r.className='res bom';r.innerHTML='<b>Todos os valores cabem em uma linha.</b> Altura do resumo: '+Math.round(alt)+' px.'}
+}
+function desenha(){
+  var t=document.getElementById('tela');
+  document.body.classList.toggle('wide',st.lar==='desk');
+  t.style.width=st.lar==='desk'?'100%':st.lar+'px';
+  t.innerHTML=resumo()+contexto();
+  medir();
+}
+function liga(id,chave){
+  document.querySelectorAll('#'+id+' button').forEach(function(b){
+    b.onclick=function(){
+      st[chave]=b.dataset.v;
+      document.querySelectorAll('#'+id+' button').forEach(function(x){x.setAttribute('aria-pressed',String(x===b))});
+      desenha();
+    };
+    b.setAttribute('aria-pressed',String(b.dataset.v===st[chave]));
+  });
+}
+liga('sOp','op');liga('sVal','val');liga('sLar','lar');
+desenha();
+</script>
+</body>
+</html>
