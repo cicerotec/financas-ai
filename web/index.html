@@ -178,7 +178,7 @@ div.tc-li{cursor:default;}
 @media (prefers-reduced-motion:reduce){.tc-sw i{transition:none;}}
 /* Futuros: padrao de telas (docs/design/padrao-de-telas.md). Celular: uma linha por evento e as acoes numa janela de baixo.
    Janela larga (>= 1160px): tabela de largura total com as acoes na propria linha. */
-body[data-aba="futuros"] main{max-width:1200px;}
+body[data-aba="futuros"] main{max-width:1600px;}
 /* Resumo: no celular, "A pagar" e "A receber" lado a lado e "Atrasados" numa faixa embaixo, so quando ha atraso.
    O valor nunca quebra (nowrap): se faltar espaco, a linha cresce. Janela larga: tres blocos (ver mais abaixo). */
 .fut-metricas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 10px;}
@@ -202,13 +202,17 @@ body[data-aba="futuros"] main{max-width:1200px;}
 .fut-row{border-top:1px solid var(--border);}
 .fut-row:first-child{border-top:0;}
 .fut-row.oculto{opacity:.5;}
-.fut-m{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;color:var(--text);font:inherit;padding:11px 14px;min-height:62px;cursor:pointer;}
-.fut-m .l{flex:1;min-width:0;}
-.fut-m .d{font-weight:600;display:block;overflow-wrap:anywhere;}
-.fut-m .mt{display:block;color:var(--muted);font-size:12.5px;margin-top:1px;}
-.fut-m .r{text-align:right;flex:none;}
-.fut-m .valor{display:block;font-weight:600;font-variant-numeric:tabular-nums;}
-.fut-prazo{display:inline-block;margin-top:2px;font-size:12px;color:var(--muted);}
+.fut-m{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;row-gap:2px;width:100%;box-sizing:border-box;text-align:left;background:transparent;border:0;color:var(--text);font:inherit;padding:11px 8px 11px 14px;min-height:62px;cursor:pointer;transition:background .12s;}
+.fut-m:active,.fut-m:focus-visible{background:color-mix(in srgb,var(--cor) 16%,var(--card));}
+.fut-m .l{flex:1 1 120px;min-width:0;}
+/* descricao em ate 2 linhas; o texto inteiro fica na janela de acoes e em Editar */
+.fut-m .d,.fut-dk .dl .d{font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;min-width:0;}
+.fut-m .mt{display:block;color:var(--muted);font-size:12.5px;margin-top:1px;overflow-wrap:anywhere;}
+.fut-m .r{text-align:right;flex:0 0 auto;margin-left:auto;}
+.fut-m .valor{display:block;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.fut-mais{flex:none;width:28px;height:36px;display:grid;place-items:center;color:var(--muted);}
+.fut-mais svg{display:block;}
+.fut-prazo{display:block;font-size:12px;color:var(--muted);}
 .fut-prazo.atras{color:var(--danger);font-weight:600;}
 .fut-dk,.fut-cab{display:none;}
 .fut-tabela{overflow-x:auto;}
@@ -218,17 +222,22 @@ body[data-aba="futuros"] main{max-width:1200px;}
 .fut-sheet .mm{margin:0 8px 8px;color:var(--muted);font-size:13px;}
 .fut-ac{display:flex;align-items:center;width:100%;background:transparent;border:0;border-top:1px solid var(--border);border-radius:0;color:var(--text);font:inherit;padding:0 10px;min-height:52px;text-align:left;cursor:pointer;}
 .fut-ac.perigo{color:var(--danger);}
+@media (hover:hover){.fut-m:hover{background:color-mix(in srgb,var(--cor) 16%,var(--card));}}
 @media (min-width:1160px){
   .fut-tabela-in{min-width:1120px;}
   .fut-m{display:none;}
-  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 112px 128px 316px;align-items:center;gap:12px;padding:10px 14px;}
+  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 316px;align-items:center;gap:12px;padding:10px 14px;}
   .fut-cab{font-size:12px;color:var(--faint);padding-block:4px;}
   .fut-dk>span,.fut-cab>span{min-width:0;}
   .fut-dk .bk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .fut-dk .st,.fut-dk .fut-prazo{white-space:nowrap;}
   .fut-dk .v{text-align:right;}
   .fut-dk .valor{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
-  .fut-dk .d{font-weight:600;overflow-wrap:anywhere;}
+  .fut-dk{transition:background .12s;}
+  .fut-dk:hover,.fut-dk:focus-within{background:color-mix(in srgb,var(--cor) 16%,var(--card));}
+  .fut-dk .dl{display:flex;align-items:flex-start;gap:6px;}
+  .fut-dk .dl .chip{flex:none;}
+  .fut-dk .sub{display:block;font-size:12.5px;color:var(--muted);}
   .fut-acoes{display:flex;gap:4px;justify-content:flex-end;opacity:.25;transition:opacity .12s;}
   .fut-dk:hover .fut-acoes,.fut-dk:focus-within .fut-acoes{opacity:1;}
   .fut-acoes button{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:5px 8px;font-size:12.5px;white-space:nowrap;cursor:pointer;}
@@ -237,7 +246,7 @@ body[data-aba="futuros"] main{max-width:1200px;}
   #futMetricaAtras{grid-column:auto;display:block;}
   .fut-num{font-size:16px;}
 }
-@media (prefers-reduced-motion:reduce){.fut-sw input,.fut-sw input::after,.fut-acoes{transition:none;}}
+@media (prefers-reduced-motion:reduce){.fut-sw input,.fut-sw input::after,.fut-acoes,.fut-m,.fut-dk{transition:none;}}
 .item.futuro{border-style:dashed !important;}
 .item.atrasado{border-color:var(--danger) !important;}
 .chip{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;}
@@ -2059,7 +2068,7 @@ function renderFuturos(){
     return;
   }
   el.innerHTML = '<div class="fut-tabela"><div class="fut-tabela-in">'+
-    '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span>Prazo</span><span style="text-align:right">Valor</span><span></span></div>'+
+    '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>'+
     gruposFuturos(todos, hoje).map(g=>
       `<div class="fut-titulo ${g.atrasado?'atras':''}">${esc(g.titulo)}</div><div class="fut-grupo">${g.itens.map(htmlEventoFuturo).join('')}</div>`).join('')+
     '</div></div>';
@@ -2084,23 +2093,26 @@ function acoesDoEvento(l){
   if(ehOwner()) a.push({k:'excluir', t:'Excluir', c:'Excluir', perigo:true});
   return a;
 }
+const PONTOS_FUT = '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.7" fill="currentColor"/><circle cx="10" cy="10" r="1.7" fill="currentColor"/><circle cx="16" cy="10" r="1.7" fill="currentColor"/></svg>';
 function htmlEventoFuturo(l){
   const p = prazoFuturo(l), id = esc(l.id);
-  const serie = l.serie && l.serie.indice ? ` · série ${l.serie.indice}` : '';
+  const serie = l.serie && l.serie.indice ? `série ${l.serie.indice}` : '';
   const prazo = `<span class="fut-prazo ${p.atras?'atras':''}">${p.t}</span>`;
   const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
-  return `<div class="fut-row ${l.oculto?'oculto':''}">
+  const cor = estiloCor==='nenhum' ? 'var(--faint)' : corStatus(l.status);
+  const sub = [serie, l.oculto?'oculto':''].filter(Boolean).join(' · ');
+  return `<div class="fut-row ${l.oculto?'oculto':''}" style="--cor:${cor}">
     <button type="button" class="fut-m" data-fut-abrir="${id}" aria-haspopup="dialog">
-      <span class="l"><span class="d">${esc(l.descricao)}${chipAviso(l)}</span><span class="mt">${dataBR(l)} · ${esc(l.status)} · ${esc(l.banco||'-')}${serie}${l.oculto?' · oculto':''}</span></span>
+      <span class="l"><span class="d">${esc(l.descricao)}</span><span class="mt">${chipAviso(l).trim()} ${dataBR(l)} · ${esc(l.status)} · ${esc(l.banco||'-')}${serie?' · '+serie:''}${l.oculto?' · oculto':''}</span></span>
       <span class="r">${htmlValorLinha(l)}${prazo}</span>
+      <span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>
     </button>
     <div class="fut-dk" tabindex="0">
       <span>${dataBR(l)}</span>
-      <span class="d">${esc(l.descricao)}${chipAviso(l)}<span class="muted">${serie}${l.oculto?' · oculto':''}</span></span>
+      <span class="dd"><span class="dl"><span class="d" title="${esc(l.descricao)}">${esc(l.descricao)}</span>${chipAviso(l)}</span>${sub?`<span class="sub">${esc(sub)}</span>`:''}</span>
       <span class="bk" title="${esc(l.banco||'-')}">${esc(l.banco||'-')}</span>
       <span class="st">${seloStatus(l.status)}</span>
-      ${prazo}
-      <span class="v">${htmlValorLinha(l)}</span>
+      <span class="v">${htmlValorLinha(l)}${prazo}</span>
       <span class="fut-acoes">${botoes}</span>
     </div>
   </div>`;
