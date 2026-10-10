@@ -1,6 +1,6 @@
 # Backlog e roadmap
 
-Atualizado em 2026-10-05. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
+Atualizado em 2026-10-10. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
 ordem de prioridade e levam a etiqueta **[Agora]**, **[Próximo]** ou **[Depois]**. A numeração é fixa (não renumerar:
 outros trechos referenciam os números). Os detalhes ficam nas seções depois do roadmap. Marque `[x]` ao concluir.
 
@@ -37,8 +37,34 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
     template seria desfeito no próximo deploy. Hoje só existe o botão Exportar (`.json`) como cópia manual.
 
 ### Backend (Go, DynamoDB, Cognito, API)
+Os itens 31 a 34 vêm das decisões de 2026-10-10 (erro grave: uma edição sobrescreveu um registro e o dado se perdeu).
+O documento de referência é [`docs/arquitetura.md`](docs/arquitetura.md); leia antes de mexer. **Nenhuma chave nova no
+DynamoDB sem discutir com o dono.**
+- 31. [ ] **[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
+  criação, edição, ocultação e exclusão gera uma versão (quem, quando, o registro completo), gravada na mesma transação
+  do registro atual e com checagem de versão contra edição concorrente. Excluir passa a ser lógico; restaurar cria
+  versão nova; o histórico nunca é editado nem apagado (sem método no repositório e `Deny` por IAM). Lançamentos
+  primeiro, depois configurações e fechamentos; o estado atual vira a versão 1. **A decidir antes de gravar qualquer
+  chave:** o formato dos itens, ligar o PITR do DynamoDB já como proteção (item 11 está adiado) e confirmar a
+  exclusão lógica.
+- 32. [ ] **[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
+  que o front recebe e recebe tudo por construtor; `domain` com tipos e regras puras que todos usam; adaptadores
+  (DynamoDB, Telegram, auth, relógio) atrás de interfaces declaradas pelo service; sem variáveis globais (`db`,
+  `ssmCli`, `table`, `agora()`). Entra por fatias verticais, uma regra por vez, com o app no ar. Pré-requisito do 31.
+- 33. [ ] **[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
+  API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
+  conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
+  aplicados pelo servidor com as caixas que já existem em Listas (o `excluirDoTotal`, hoje gravado pelo front a partir
+  do nome `CONTAS`/`TRANSFERINDO`, é outra decisão por etiqueta: a regra passa a ser do servidor, e o que fazer com o
+  campo gravado é discussão). Saem do front `ehCredito*`, `ajustePadrao`,
+  `faturaBase`, `ehFuturo`, `afetaSaldo`. Os status `CREDITO IN`/`EX` deixam de ser necessários; migração dos
+  lançamentos antigos sem `faturaAjuste` fica a discutir. Absorve o item 14.
+- 34. [ ] **[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
+  despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
+  canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
+  4096 caracteres do item 28.
 - 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
-  ao fechamento mensal; faltam as faturas do cartão e as tendências).
+  ao fechamento mensal; faltam as faturas do cartão e as tendências). Absorvido pelo item 33.
 - 12. [ ] **[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho (o contador
   `seq` e a checagem barata já existem; falta o log do que mudou, para atualizar só os registros afetados); quem
   criou/alterou/ocultou; "novo desde a última visita"; atividade recente; idempotência e edição concorrente
@@ -87,6 +113,16 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   um mês conferido deixa de bater com o que foi guardado; "reabrir tudo" de uma vez (hoje reabre do mais novo para o
   mais antigo, um por vez); conferir meses anteriores ao último conferido sem reabrir os mais novos.
 - 17. [ ] **[Depois] Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
+  Evoluído no item 35.
+- 35. [ ] **[Depois] Pagar fatura: valor do boleto e vínculo com o pagamento.** A fatura tem três valores (calculado,
+  da operadora e do boleto), e o pagamento nasce **da fatura**, não da soma dos lançamentos: o sistema propõe o valor da
+  fatura, o dono confirma ou corrige para o do boleto, e o lançamento do pagamento no banco fica ligado à fatura, com a
+  diferença à vista (hoje isso vira um lançamento de valor zero como nota solta). O **banco pagador é escolhido**
+  (cartão do SANTANDER pode ser pago pelo NUBANK), o pagamento mexe no saldo dele e **não conta de novo como gasto**: o
+  gasto já contou nos registros de `CREDITO`, que são reais, não afetam o saldo e não se pode perder o controle deles.
+  Caso real: estorno no dia do corte, fatura de um valor e pagamento de outro. **Pagamento mínimo ou parcial** (a maioria dos usuários usa; o dono não)
+  fica aqui: a fatura passa a ter mais de um pagamento. Formato dos dados a discutir antes de criar chave. Detalhes em
+  `docs/arquitetura.md`.
 - 20. [ ] **[Depois] Ideias** (seção no fim).
 
 ### UX/UI (usabilidade do que já existe)
@@ -110,6 +146,9 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   `CI` por `pull_request` do PR criado pelo robô espera "Approve and run" (limite do `GITHUB_TOKEN`); não bloqueia.
 - 19. [x] **Script de release**: dispensado e substituído pela automação dos itens 25 e 26 (PR de release aberto pelo
   robô, tag e release criadas depois do deploy da produção). Funcionou na v0.7.0.
+- 36. [ ] **[Próximo] Remover `financas-app.html`** (versão original em arquivo único, de quando o app rodava no ambiente
+  do Claude, com 2188 linhas e cópia da mesma lógica que hoje está em `web/index.html`). Só o README o cita; nenhum
+  deploy, workflow, template ou script o usa. Apagar o arquivo e a linha do README.
 
 ### Operação (tarefas de uso e dados, não de código)
 - 6. [x] **Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
@@ -188,6 +227,11 @@ novas e para ajustes em telas que já existem.
   design; o conector ainda não está autorizado nesta conta.
 
 ### Recomendações para IA que programa neste repositório
+- **Arquitetura (2026-10-10, leia `docs/arquitetura.md`):** o front não decide; toda regra de negócio fica no backend
+  e chega pronta pela API, nunca por etiqueta (nome de status ou de banco). Camadas `controller` → `service` →
+  `domain`, adaptadores atrás de interfaces e dependências por construtor, sem globais. **Não crie, renomeie nem
+  remova chave ou campo no DynamoDB sem discutir com o dono**: cada campo (como `faturaAjuste`) carrega uma decisão
+  que não é óbvia no código. Nada se sobrescreve sem versão no histórico (item 31).
 - **Padrão de telas aprovado (celular primeiro, com versão para computador):** leia `docs/design/padrao-de-telas.md` e
   abra as demos de `docs/design/demos/` antes de desenhar ou alterar qualquer tela. Em resumo:
   - **Celular:** uma linha-resumo que abre tela cheia; lista que acumula com check redondo (ou escolha única);
@@ -256,6 +300,10 @@ novas e para ajustes em telas que já existem.
 - Ela lê **todos** os lançamentos e notas (saldos, cartão e tendências são calculados no navegador).
 - Hospedagem: **S3 + CloudFront** (GitHub Pages descartado; `localhost` não serve para ela: sem HTTPS o PKCE e o
   Cognito não funcionam).
+- **Arquitetura (2026-10-10):** o front só exibe e consome API; as regras de negócio são do backend; camadas
+  controller, service e domain com dependências injetadas; histórico imutável e versionado; avisos por despachante
+  e canais; fatura conferida travada pelo backend; nenhuma chave nova no DynamoDB sem discutir. Detalhes e o que ainda
+  está em aberto em [`docs/arquitetura.md`](docs/arquitetura.md).
 - Descartado: bloquear duplicidade por conteúdo (a mesma compra pode ter outro horário e outra descrição).
 - Atualização da tela por gatilho (foco da aba, troca de aba, antes de salvar, botão Atualizar, checagem lenta de 3 a
   5 min). **Sem temporizador curto** (15 s foi descartado).
