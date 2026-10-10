@@ -17,6 +17,13 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   achado ao testá-los. Correção provável: restaurar o texto só se ele não mudou durante a ação.
 
 ### Infra (AWS, SAM, ambientes, custo, backup)
+- 37. [ ] **[Próximo] MFA no login do app (Cognito):** hoje o login é só e-mail e senha; num app de finanças, uma senha
+  vazada basta para ver tudo (e quem é member lê todos os lançamentos). Ligar o segundo fator no pool, com TOTP por
+  aplicativo autenticador (sem o custo do SMS), no `template.yaml`, para os dois ambientes. O backend continua
+  validando o ID token como hoje. **A decidir:** obrigatório para todos ou só para o dono; como a pessoa cadastra o
+  aplicativo no primeiro acesso (confirmar no `dev` antes da produção); **recuperação** se o celular for perdido (reset
+  pelo dono, por script, para ninguém ficar trancada de fora); ajuste no convite de `scripts/seed.sh`. Ao concluir,
+  atualizar a seção de autenticação de `.ai/security.md`. Detalhes de contexto em `.ai/security.md`.
 - 2. [x] **Decidir o `/api/*`: chamada direta à Function URL (opção B)**, front estático no CloudFront. Reavaliar
   rotear a API pelo CloudFront (OAC) quando entrar domínio próprio, WAF ou mais usuários. Detalhe em [`.ai/hospedagem.md`](.ai/hospedagem.md).
 - 3. [x] **Hospedar o front em S3 + CloudFront** (HTTPS, `*.cloudfront.net`). No ar (PR #5). Detalhes em [`.ai/hospedagem.md`](.ai/hospedagem.md).

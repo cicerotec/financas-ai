@@ -18,8 +18,8 @@ Dados financeiros de uma família (lançamentos, saldos, cartões, notas) e o ac
   `401`.
 - A Function URL é `AuthType: NONE` **de propósito**: a barreira é o JWT validado dentro da Lambda. Por isso a
   validação do token é código crítico (veja "Regras ao mexer").
-- **Não há MFA no login do app** (o template não configura `MfaConfiguration`). O MFA que existe é o da **sessão AWS do
-  dono** para operar a conta (`scripts/aws-mfa.ps1`).
+- **Não há MFA no login do app** (o template não configura `MfaConfiguration`); é o item 37 do backlog, de prioridade
+  alta. O MFA que existe hoje é o da **sessão AWS do dono** para operar a conta (`scripts/aws-mfa.ps1`).
 
 ## O que cada pessoa pode: autorização
 **Regra de ouro (`backend/authz.go`): o que não está liberado explicitamente é negado.** Papel ou ação desconhecidos
@@ -101,7 +101,7 @@ manual.
 | Sem CSP própria | Reduz a defesa em profundidade contra XSS | item 18 |
 | Sem WAF nem limite de taxa na Function URL | Enxurrada de requisições (custo e disponibilidade) | item 18 |
 | Member lê tudo | Dados de bancos e cartões que não são dela | item 27 |
-| Sem MFA no login do app | Senha vazada basta para entrar | sem item (a decidir) |
+| Sem MFA no login do app | Senha vazada basta para entrar | item 37 (prioridade alta) |
 | PITR desligado, sem histórico de versões | Uma edição errada perde o dado (aconteceu em 2026-10-10) | itens 11 e 31 |
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
 | Campos opcionais do lançamento gravados como vêm (ex. `faturaAjuste` sem validação) | Valor inesperado persiste | item 33 (regras no backend) |
