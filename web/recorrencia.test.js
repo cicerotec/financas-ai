@@ -128,3 +128,52 @@ test('ultimaDaSerie acha a de maior indice, so da serie pedida', () => {
   assert.equal(R.ultimaDaSerie(l, 'y').id, 'c');
   assert.equal(R.ultimaDaSerie(l, 'z'), null);
 });
+
+test('rotuloPrazo e fraseAviso', () => {
+  assert.equal(R.rotuloPrazo(0), 'No dia');
+  assert.equal(R.rotuloPrazo(1), '1 dia antes');
+  assert.equal(R.rotuloPrazo(7), '7 dias antes');
+  assert.equal(R.rotuloPrazo(14), '2 semanas antes');
+  assert.equal(R.rotuloPrazo(10), '10 dias antes');
+  assert.equal(R.fraseAviso({ on: false, dias: [1], insistir: true }), 'Desligado');
+  assert.equal(R.fraseAviso({ on: true, dias: [], insistir: false }), 'Escolha um prazo');
+  assert.equal(R.fraseAviso({ on: true, dias: [1, 0], insistir: true }), '1 dia antes e no dia, insiste depois');
+  assert.equal(R.fraseAviso({ on: true, dias: [0, 7, 1, 14], insistir: false }), '2 semanas antes, 7 dias antes, 1 dia antes e no dia');
+  assert.equal(R.fraseAviso({ on: true, dias: [], insistir: true }), 'Insiste depois');
+});
+
+test('validarPrazoNovo: dias, semanas e os tres limites', () => {
+  assert.deepEqual(R.validarPrazoNovo([1, 0], 5, false), { valor: 5, texto: '5 dias antes' });
+  assert.deepEqual(R.validarPrazoNovo([1, 0], 2, true), { valor: 14, texto: '2 semanas antes' });
+  assert.deepEqual(R.validarPrazoNovo([], 30, false), { valor: 30, texto: '30 dias antes' });
+  assert.match(R.validarPrazoNovo([], 5, true).erro, /máximo é 30 dias/);      // 35 dias
+  assert.match(R.validarPrazoNovo([], 31, false).erro, /máximo é 30 dias/);
+  assert.match(R.validarPrazoNovo([7, 1], 1, true).erro, /já está na lista/);   // 1 semana = 7 dias
+  assert.match(R.validarPrazoNovo([0, 1, 3, 7, 14, 21], 5, false).erro, /máximo é 6 prazos/);
+  assert.equal(R.MAX_PRAZOS, 6);
+});
+
+test('validarIntervaloNovo e rotulos com anos', () => {
+  assert.deepEqual(R.validarIntervaloNovo(4, false), { valor: 4, texto: 'A cada 4 meses' });
+  assert.deepEqual(R.validarIntervaloNovo(2, true), { valor: 24, texto: 'A cada 2 anos' });
+  assert.deepEqual(R.validarIntervaloNovo(1, true), { valor: 12, texto: 'Anual' });
+  assert.deepEqual(R.validarIntervaloNovo(10, true), { valor: 120, texto: 'A cada 10 anos' });
+  assert.match(R.validarIntervaloNovo(11, true).erro, /máximo é 10 anos/);
+  assert.match(R.validarIntervaloNovo(60, true).erro, /máximo é 10 anos/);
+  assert.equal(R.rotuloIntervalo(18), 'a cada 18 meses');
+  assert.equal(R.rotuloIntervalo(36), 'a cada 3 anos');
+  assert.equal(R.fraseRepeticao(1, 12), '1 vez além deste, anual');
+  assert.equal(R.fraseRepeticao(6, 24), '6 vezes além deste, a cada 2 anos');
+});
+
+test('avisoDoEstado e listaDePrazos', () => {
+  assert.equal(R.avisoDoEstado({ on: false, dias: [1], insistir: true }), null);
+  assert.equal(R.avisoDoEstado({ on: true, dias: [], insistir: false }), 'incompleto');
+  assert.deepEqual(R.avisoDoEstado({ on: true, dias: [0, 3, 1], insistir: false }), { dias: [3, 1, 0], insistir: false });
+  assert.deepEqual(R.avisoDoEstado({ on: true, dias: [], insistir: true }), { dias: [], insistir: true });
+  assert.deepEqual(R.listaDePrazos([1, 0]), [0, 1, 3, 7]);
+  assert.deepEqual(R.listaDePrazos([30, 5, 7]), [0, 1, 3, 5, 7, 30]);
+  const original = [5];
+  R.listaDePrazos(original);
+  assert.deepEqual(original, [5], 'nao altera a lista de entrada');
+});

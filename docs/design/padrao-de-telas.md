@@ -10,7 +10,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 
 | Demo | Arquivo | O que mostra |
 |---|---|---|
-| Repetir e avisar | [`demos/demo-repeticao-e-aviso.html`](demos/demo-repeticao-e-aviso.html) | linha-resumo que abre tela cheia, lista que acumula, escolha única, interruptor, janela com rodas, contador de limite |
+| Repetir e avisar | [`demos/demo-repeticao-e-aviso.html`](demos/demo-repeticao-e-aviso.html) | linha-resumo que abre tela cheia, lista que acumula, escolha única, interruptor, janela com rodas, contador de limite, status das cópias e o botão de criar (é a base do **Prever** e do **Estender**) |
 | Futuros | [`demos/demo-futuros.html`](demos/demo-futuros.html) | uma linha por evento, ações numa janela de baixo, resumo com faixa de atraso, e a **versão para computador** (tabela) |
 | Futuros por largura | [`demos/demo-futuros-largura.html`](demos/demo-futuros-largura.html) | **vale sobre a demo acima onde diferirem**: prazo embaixo do valor, descrição em até 2 linhas, "⋯" no celular, botões no computador e realce na cor do status |
 | Resumo da Futuros | [`demos/demo-resumo-futuros.html`](demos/demo-resumo-futuros.html) | a comparação que decidiu o resumo (opção A), com valores extremos e larguras de 320 a 390 px |
@@ -110,6 +110,21 @@ blocos iguais lado a lado só no computador (padrão abaixo).
 
 **11. Aviso rápido (toast).** Faixa escura na base da tela, 2 segundos, para confirmar ("Oculto: saiu dos totais.").
 
+**12. Fluxo de criação em tela cheia (Prever e Estender).** Uma tela cheia por cima do app (fixa, com a rolagem da página
+travada) que junta os padrões 1 a 7:
+- **Cabeçalho** com `←` (fecha) e o título; **linha de contexto** em `--muted` com descrição, valor, status e data do
+  evento de partida.
+- **Cartão de linhas-resumo:** Status das cópias, Repetir e Avisar no Telegram, cada uma abrindo a sua tela cheia (com `←`
+  para voltar). Parcelas (`2/10`) acrescentam um interruptor "Continuar a numeração das parcelas".
+- **Prévia:** "Cria N eventos: d1, d2, d3, d4 e mais k" e "Total R$ x" (datas com ano).
+- **Já existem:** aviso em `--danger` com as datas e uma escolha única "Pular os que já existem" (padrão) ou "Criar
+  mesmo assim". Se tudo já existe, o botão não cria nada e a tela explica.
+- **Botão fixo embaixo** "Criar N eventos", que durante a criação mostra "Criando 3/12…". Não use botão desabilitado: o
+  problema aparece como texto na tela.
+- **Falha no meio:** a tela fica aberta, diz "Parou depois de 2 de 3", recalcula a prévia (os criados passam a "já
+  existem") e a nova tentativa cria só o que falta.
+- **Esc** volta um nível: fecha a janela de rodas, depois a tela interna, depois o fluxo (nunca durante a criação).
+
 ## Padrão do computador (janela larga)
 Mesma tela, mesmos dados, desenho de tabela.
 - **Tabela de largura total** com cabeçalho cinza e uma linha por evento, em grade de colunas:
@@ -124,6 +139,8 @@ Mesma tela, mesmos dados, desenho de tabela.
 - **Ações na própria linha**, no fim, em botões de texto pequenos, **apagadas (opacidade 0,25) até o mouse passar ou o
   foco entrar** (`:hover` e `:focus-within`, linha com `tabindex="0"`). Sem "⋯", sem janela de baixo e sem toque extra. É
   a **única diferença** entre as duas larguras: a mesma linha, com "⋯" abaixo de 1160 px e botões a partir dela.
+- **Fluxos em tela cheia** (Prever e Estender) viram uma **coluna central de 560 px**, com o botão de criar da mesma
+  largura. A tabela é só para listas.
 - **Resumo:** três blocos lado a lado, até 600 px de largura (cada um com uns 195 px), valor em 16 px, e "Atrasados" sempre
   visível, inclusive com 0. O **interruptor de ocultos** fica no topo, como no celular; os totais continuam excluindo os
   ocultos.
@@ -194,6 +211,11 @@ ações), e tire uma captura para olhar.
   "como está hoje" tem de ser **igual ao app** (selo colorido do status, sem corte), senão a comparação engana.
 - Container com `max-width` baixo em monitor grande: a coluna da descrição não cresce. Meça também a 1920 px.
 - Data sem ano (`31/01`) é ambígua quando o intervalo passa de um ano.
+- A demo cobria as telas "Repetir" e "Avisar" mas não o fluxo inteiro do Prever (status das cópias, botão de criar, "já
+  existem", falha no meio). Uma IA nova teria de improvisar. **Defina na demo todos os estados do fluxo** (vazio, erro,
+  limite, progresso, conclusão) antes de implementar.
+- Depois de uma falha parcial, o que já foi criado só entra no cache da lista uns instantes depois: espere cerca de
+  400 ms antes de recalcular o "já existem", ou a nova tentativa repete o que já foi criado.
 - Corrigir só o código do app e esquecer a demo e o guia: a demo continua errada e a próxima tela copia o erro. Aconteceu
   duas vezes na tela Futuros (ações sobre o valor e pílula sobre o prazo). A regra está em "Manter o padrão em dia".
 - Três colunas iguais para números de largura variável: o valor quebra no meio ("R$ 182.012,2 / 7") quando passa de

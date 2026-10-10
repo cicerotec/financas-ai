@@ -32,7 +32,9 @@
 
   function rotuloIntervalo(meses) {
     const p = INTERVALOS.find((i) => i.meses === meses);
-    return p ? p.rotulo.toLowerCase() : 'a cada ' + meses + ' meses';
+    if (p) return p.rotulo.toLowerCase();
+    if (meses % 12 === 0) return 'a cada ' + (meses / 12) + ' anos';
+    return 'a cada ' + meses + ' meses';
   }
 
   // null se valido; senao a mensagem para a tela.
@@ -111,7 +113,56 @@
     return ultima;
   }
 
-  const api = { MAX_OCORRENCIAS, MAX_INTERVALO_MESES, INTERVALOS, somarMeses, gerarDatas, rotuloIntervalo, validar,
+  // ---- avisos (prazos em dias antes do vencimento) e frases das telas de Prever e Estender ----
+  const MAX_PRAZOS = 6;            // por lancamento: os quatro atalhos mais dois prazos proprios
+  const MAX_DIAS_AVISO = 30;
+  const PRAZOS_PADRAO = [0, 1, 3, 7];
+
+  function rotuloPrazo(d) {
+    if (d === 0) return 'No dia';
+    if (d > 7 && d % 7 === 0) return (d / 7) + ' semanas antes';
+    return d + (d === 1 ? ' dia antes' : ' dias antes');
+  }
+  function juntar(p) { return p.length < 2 ? p.join('') : p.slice(0, -1).join(', ') + ' e ' + p[p.length - 1]; }
+  // av = { on, dias, insistir } -> "1 dia antes e no dia, insiste depois"
+  function fraseAviso(av) {
+    if (!av.on) return 'Desligado';
+    const ds = [...av.dias].sort((a, b) => b - a);
+    if (!ds.length && !av.insistir) return 'Escolha um prazo';
+    const p = ds.map((d) => (d === 0 ? 'no dia' : rotuloPrazo(d).toLowerCase()));
+    let f = p.length ? juntar(p) : '';
+    if (av.insistir) f = (f ? f + ', ' : '') + 'insiste depois';
+    return f.charAt(0).toUpperCase() + f.slice(1);
+  }
+  // Prazo novo das rodas (n dias ou n semanas). Devolve { erro } ou { valor (em dias), texto }.
+  function validarPrazoNovo(dias, n, semanas) {
+    const d = n * (semanas ? 7 : 1);
+    if (d > MAX_DIAS_AVISO) return { erro: 'O máximo é ' + MAX_DIAS_AVISO + ' dias (4 semanas).' };
+    if (dias.includes(d)) return { erro: 'Esse prazo já está na lista.' };
+    if (dias.length >= MAX_PRAZOS) return { erro: 'O máximo é ' + MAX_PRAZOS + ' prazos por lançamento.' };
+    return { valor: d, texto: rotuloPrazo(d) };
+  }
+  // Intervalo novo das rodas (n meses ou n anos). Devolve { erro } ou { valor (em meses), texto }.
+  function validarIntervaloNovo(n, anos) {
+    const m = n * (anos ? 12 : 1);
+    if (m > MAX_INTERVALO_MESES) return { erro: 'O máximo é 10 anos (120 meses).' };
+    const t = rotuloIntervalo(m);
+    return { valor: m, texto: t.charAt(0).toUpperCase() + t.slice(1) };
+  }
+  function fraseRepeticao(qtd, meses) { return qtd + (qtd === 1 ? ' vez' : ' vezes') + ' além deste, ' + rotuloIntervalo(meses); }
+  // Estado da tela -> o que vai no lancamento: null (sem aviso), 'incompleto' (ligado sem nenhum prazo) ou { dias, insistir }.
+  function avisoDoEstado(av) {
+    if (!av.on) return null;
+    if (!av.dias.length && !av.insistir) return 'incompleto';
+    return { dias: [...av.dias].sort((a, b) => b - a), insistir: !!av.insistir };
+  }
+  // Linhas da lista que acumula: os atalhos e os prazos proprios marcados, em ordem crescente.
+  function listaDePrazos(dias) {
+    return [...PRAZOS_PADRAO, ...dias.filter((d) => !PRAZOS_PADRAO.includes(d))].sort((a, b) => a - b);
+  }
+
+  const api = { MAX_PRAZOS, MAX_DIAS_AVISO, PRAZOS_PADRAO, rotuloPrazo, fraseAviso, validarPrazoNovo, validarIntervaloNovo,
+    fraseRepeticao, avisoDoEstado, listaDePrazos, MAX_OCORRENCIAS, MAX_INTERVALO_MESES, INTERVALOS, somarMeses, gerarDatas, rotuloIntervalo, validar,
     lerParcela, copiasRestantesNaParcela, descricaoNumerada, chaveDuplicado, montarCopias, ultimaDaSerie, diaLocal };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.Recorrencia = api;
