@@ -106,7 +106,7 @@ Resources:
           TELEGRAM_TOKEN_PARAM: !If [EhDev, /financas/dev/telegram-token, /financas/prod/telegram-token]
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref Table }
-        # token do bot do Telegram (SecureString criado a mao; ver docs/avisos.md). Sem o parametro, os avisos nao saem.
+        # token do bot do Telegram (SecureString criado a mao; ver .ai/avisos.md). Sem o parametro, os avisos nao saem.
         - SSMParameterReadPolicy: { ParameterName: !If [EhDev, financas/dev/telegram-token, financas/prod/telegram-token] }
         - Statement:
             - Effect: Allow

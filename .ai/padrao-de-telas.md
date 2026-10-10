@@ -1,7 +1,7 @@
 # Padrão de telas (celular primeiro, com versão para computador)
 
 Aprovado pelo dono em 2026-10-08, em duas demos. **Toda tela nova ou alterada segue este padrão e vem com demo antes do
-código** (regra no `BACKLOG.md`, seção "Telas"). Este guia existe para que qualquer pessoa ou IA reproduza o mesmo
+código** (regra em `.ai/guardrails.md`, seção "Telas"). Este guia existe para que qualquer pessoa ou IA reproduza o mesmo
 resultado sem ter visto a conversa.
 
 ## Fonte da verdade
@@ -168,11 +168,11 @@ mesma entrega** (o mesmo PR, ou um PR de documentação aberto junto):
 1. **Corrija a demo** de referência em `demos/` para refletir o que ficou certo.
 2. **Atualize este guia**: as medidas e os padrões afetados, e uma linha em "Armadilhas já encontradas" dizendo o que
    aconteceu e como evitar.
-3. **Atualize o resumo** da seção "Recomendações para IA" do `BACKLOG.md` se o resumo mudou.
+3. **Atualize o resumo** da seção "Telas" do `.ai/guardrails.md` se o resumo mudou.
 4. **Diga ao dono**, na resposta e na descrição do PR, o que mudou no padrão e por quê.
 
 Não deixe a correção só no código do app: a próxima tela vai copiar a demo e repetir o erro. Antes de abrir o PR,
-confira se `git diff` mostra `web/` e `docs/design/` andando juntos quando o padrão mudou.
+confira se `git diff` mostra `web/` e `.ai/` andando juntos quando o padrão mudou.
 
 ### Antes de entregar uma tela, meça o pior caso
 Uma tela que funciona com os dados de teste bonitos ainda pode quebrar com os dados reais. Semeie e confira, no

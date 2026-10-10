@@ -2,6 +2,8 @@
 *.json
 # a colecao do Postman nao tem dado real (token vazio, URL de exemplo): pode ir para o git
 !docs/postman/*.json
+# exemplos do modelo de dados: SO dados ficticios (o repositorio e publico). Dado real fica em /local/
+!.ai/specs/**/*.json
 .aws-sam/
 samconfig.toml
 web/config.js
