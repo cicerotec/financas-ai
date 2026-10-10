@@ -12,6 +12,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 |---|---|---|
 | Repetir e avisar | [`demos/demo-repeticao-e-aviso.html`](demos/demo-repeticao-e-aviso.html) | linha-resumo que abre tela cheia, lista que acumula, escolha única, interruptor, janela com rodas, contador de limite |
 | Futuros | [`demos/demo-futuros.html`](demos/demo-futuros.html) | uma linha por evento, ações numa janela de baixo, resumo com faixa de atraso, e a **versão para computador** (tabela) |
+| Futuros por largura | [`demos/demo-futuros-largura.html`](demos/demo-futuros-largura.html) | **vale sobre a demo acima onde diferirem**: prazo embaixo do valor, descrição em até 2 linhas, "⋯" no celular, botões no computador e realce na cor do status |
 | Resumo da Futuros | [`demos/demo-resumo-futuros.html`](demos/demo-resumo-futuros.html) | a comparação que decidiu o resumo (opção A), com valores extremos e larguras de 320 a 390 px |
 
 ## Princípios
@@ -87,8 +88,15 @@ frase em `--danger` ("Limite de 6 prazos. Desmarque um para adicionar outro.") e
 
 **8. Lista de eventos.** Uma linha por evento: à esquerda descrição em negrito e, embaixo, "data · status · banco ·
 série"; à direita valor (saída em `--danger` com "-", entrada em `--ok` com "+") e, embaixo, o prazo ("hoje", "em 3
-dias", "atrasado 3 dias", este último em `--danger` e negrito). Ícone de sino quando há aviso. Grupos com título por mês
-e um grupo "Atrasados" no topo, em `--danger`. Evento oculto fica a 50% de opacidade.
+dias", "atrasado 3 dias", este último em `--danger` e negrito). **O prazo fica embaixo do valor em todas as larguras;
+nunca é coluna própria.** A **descrição ocupa até 2 linhas** (`-webkit-line-clamp:2`, com reticências; o texto inteiro
+está na janela de ações e em Editar). O sino de aviso fica na linha de baixo (celular) ou ao lado do texto (computador),
+fora do trecho cortado. Na ponta direita da linha vai um **"⋯"** (3 pontos, `--muted`) que mostra que a linha abre
+ações; a linha toda continua tocável. Se o valor e o "⋯" deixam menos de 120 px para a descrição (valor de 7 dígitos
+em 320 px), o valor desce para a segunda linha, à direita. **Realce:** ao passar o mouse (`@media (hover:hover)`),
+focar ou tocar (`:active`), a linha ganha fundo `color-mix(in srgb, <cor do status> 16%, var(--card))`, a cor que o
+usuário escolheu em Listas, Aparência. Grupos com título por mês e um grupo "Atrasados" no topo, em `--danger`.
+Evento oculto fica a 50% de opacidade.
 
 **9. Ações numa janela de baixo.** Tocar na linha do evento abre a janela com descrição, valor, data e banco no topo e as
 ações em lista (Editar, Copiar, Prever ou Estender série, Ocultar ou Mostrar, Excluir). "Excluir" em `--danger`. Nada de
@@ -105,16 +113,17 @@ blocos iguais lado a lado só no computador (padrão abaixo).
 ## Padrão do computador (janela larga)
 Mesma tela, mesmos dados, desenho de tabela.
 - **Tabela de largura total** com cabeçalho cinza e uma linha por evento, em grade de colunas:
-  `92px minmax(170px,1fr) 90px 140px 112px 128px 316px` = data, evento, banco, status, prazo, valor (alinhado à
-  direita), ações. A coluna do banco corta nomes compridos com reticências (o nome inteiro vai no `title`), e as
-  colunas de status e prazo não quebram linha. O espaçamento entre colunas é de 12 px. A tabela tem largura mínima de **1120 px** e rola na
+  `92px minmax(170px,1fr) 90px 140px 128px 316px` = data, evento, banco, status, valor (alinhado à direita, com o
+  prazo embaixo), ações. A coluna do banco corta nomes compridos com reticências (o nome inteiro vai no `title`), e a
+  coluna de status e o prazo não quebram linha. A descrição ocupa até 2 linhas e leva o nome inteiro no `title`. O espaçamento entre colunas é de 12 px. A tabela tem largura mínima de **1120 px** e rola na
   horizontal dentro do próprio quadro abaixo disso. A visão de tabela começa em **1160 px de janela** (1120 px de
   tabela mais as margens do container); abaixo disso vale a visão do celular. (A soma das colunas fixas mais o `minmax` tem de caber na largura
   mínima, senão a coluna do nome colapsa e as colunas se sobrepõem.)
-- **Container largo:** o conteúdo passa a até 1200 px. No app, o `main{max-width:640px}` é o que deixa a tela estreita
+- **Container largo:** o conteúdo passa a até 1600 px (era 1200; em monitor grande a descrição ficava presa em ~280 px). No app, o `main{max-width:640px}` é o que deixa a tela estreita
   no computador; a tela larga precisa de um modificador, e não de trocar o `main` para todas as telas.
 - **Ações na própria linha**, no fim, em botões de texto pequenos, **apagadas (opacidade 0,25) até o mouse passar ou o
-  foco entrar** (`:hover` e `:focus-within`, linha com `tabindex="0"`). Sem janela de baixo e sem toque extra.
+  foco entrar** (`:hover` e `:focus-within`, linha com `tabindex="0"`). Sem "⋯", sem janela de baixo e sem toque extra. É
+  a **única diferença** entre as duas larguras: a mesma linha, com "⋯" abaixo de 1160 px e botões a partir dela.
 - **Resumo:** três blocos lado a lado, até 600 px de largura (cada um com uns 195 px), valor em 16 px, e "Atrasados" sempre
   visível, inclusive com 0. O **interruptor de ocultos** fica no topo, como no celular; os totais continuam excluindo os
   ocultos.
@@ -125,7 +134,7 @@ Mesma tela, mesmos dados, desenho de tabela.
 ## Regras de conteúdo
 - **Datas sempre com o ano**, `dd/mm/aaaa`, em tela e em mensagem. Moeda em pt-BR (`R$ 1.234,56`).
 - Português com letra maiúscula só no começo da frase; verbos curtos nas ações ("Editar", "Estender série").
-- Prazo relativo ao lado da data real, nunca no lugar dela.
+- Prazo relativo junto da data real, nunca no lugar dela (na Futuros, embaixo do valor).
 - Todo limite (quantidade, dias, tamanho) aparece na tela antes de ser atingido e tem mensagem de erro própria.
 
 ## Acessibilidade e tema
@@ -179,6 +188,11 @@ ações), e tire uma captura para olhar.
   CREDITANDO invadia o prazo). **Meça todas as colunas com o pior caso**: status mais longo (TRANSFERINDO), banco de nome
   comprido, atraso de três dígitos, valor de cinco dígitos, descrição longa com série, sino e oculto. Confira em janela
   larga que nenhum conteúdo passa da própria coluna nem encosta no vizinho, e que a primeira ação não toca o valor.
+- Descrição livre vem com 100 caracteres ou mais (quem digita não sabe se vai conseguir ler a nota depois). Linha de
+  lista sem limite de linhas vira bloco de 4 linhas, e coluna de tabela só para o prazo desperdiça largura que a
+  descrição precisa. **Prazo embaixo do valor e descrição em até 2 linhas** resolvem nas duas larguras. Em demo,
+  "como está hoje" tem de ser **igual ao app** (selo colorido do status, sem corte), senão a comparação engana.
+- Container com `max-width` baixo em monitor grande: a coluna da descrição não cresce. Meça também a 1920 px.
 - Data sem ano (`31/01`) é ambígua quando o intervalo passa de um ano.
 - Corrigir só o código do app e esquecer a demo e o guia: a demo continua errada e a próxima tela copia o erro. Aconteceu
   duas vezes na tela Futuros (ações sobre o valor e pílula sobre o prazo). A regra está em "Manter o padrão em dia".
