@@ -160,3 +160,35 @@ O `opId` garante **idempotência**: um reenvio do cliente não é aplicado duas 
 - **A (polling + head.json)**: zero serviços novos, atraso de ~2–3s, presença via banco.
 - **B (AppSync Events)**: tempo real de verdade (dezenas a centenas de ms), presença leve sem banco, custo de centavos.
 - O modelo de ops, `seq` e auto-save é o mesmo nas duas, então dá para começar com A e migrar para B sem refazer o backend.
+
+---
+
+## Plano acordado por fases (vindo do backlog)
+
+A proposta acima foi gerada no chat do Claude. O problema de origem: a tela de uma pessoa não percebe o que a outra gravou, alterou ou ocultou (cópia em memória só renovada por
+gravação própria ou a cada 2 min).
+
+**Fase 1: log de operações + sincronização incremental**
+- Log no servidor: cada criação, edição, ocultar/mostrar, exclusão e mudança de configuração vira uma operação com
+  número de sequência (`seq`) por espaço, gravada na mesma transação (`TransactWriteItems`: contador no item `META`,
+  item `OP#<seq>` e o registro). Validade de ~180 dias (TTL).
+- `GET /spaces/{sid}/ops?after=N`: devolve só o que mudou desde N (inclui exclusões e ocultações) e o `seq` atual. Sem
+  `after`, devolve só o `seq`. Leitura liberada para owner e member (entra na matriz de permissões).
+- A tela aplica as operações recebidas em vez de recarregar os 1000 lançamentos.
+- Em cada lançamento: quem criou/alterou/ocultou e quando (`atualizadoPor/Em`, `ocultoPor/Em`); lista de membros do
+  espaço (item espelho `SPACE#id / MEMBER#sub`) para converter `sub` em nome.
+- "Novo desde a sua última visita" (etiquetas automáticas novo/alterado/oculto + contagem) e "Atividade recente",
+  ambos a partir do log, sem nada para o usuário marcar ou revisar.
+- Idempotência e edição concorrente: id do lançamento gerado na tela (criar duas vezes devolve o mesmo registro),
+  travar o botão Salvar, e 409 "alterado por outra pessoa" se o registro mudou desde que foi aberto.
+- Cuidados: a importação em lote não deve gerar uma operação por item (emitir uma operação-resumo); a transação
+  consome ~2× de escrita (capacidade atual 5 por segundo); registros antigos não têm `atualizadoEm`.
+
+**Fase 2: presença** ("esposa está criando um registro"; no registro aberto, "fulano está aqui"; rascunho com
+auto-save visível no Histórico). Presença é efêmera, separada dos dados e expira sozinha (~60 a 90 s sem sinal).
+- Caminho A (sem serviço novo): polling de um `head.json` no CloudFront com cache de 1 s (atraso de 2 a 3 s).
+  Caminho B (depois): AWS AppSync Events (WebSocket gerenciado, centenas de ms, centavos por mês). O modelo de
+  operações é o mesmo, então dá para começar em A e migrar.
+- Cuidados: o `head.json` público deve ter só o `seq` (presença e nomes vêm da API autenticada); a presença não pode
+  incrementar o `seq` dos dados; no AppSync os canais precisam de autorização por espaço, o exemplo usa `aws-amplify`
+  (exige bundler; o front não tem build) e é preciso confirmar a disponibilidade em `sa-east-1`.

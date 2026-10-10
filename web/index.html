@@ -129,7 +129,7 @@ body.papel-member nav button[data-tab="importar"]{display:none;}
 body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
 .aviso-fut{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:color-mix(in srgb,#BA7517 14%,transparent);border:1px solid #BA7517;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:13px;}
 .aviso-fut a{color:var(--text);text-decoration:underline;white-space:nowrap;}
-/* Telas cheias e rodas (docs/design/padrao-de-telas.md): Prever e Estender. Demo: docs/design/demos/demo-repeticao-e-aviso.html */
+/* Telas cheias e rodas (.ai/padrao-de-telas.md): Prever e Estender. Demo: .ai/demos/demo-repeticao-e-aviso.html */
 .tc{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;}
 .tc-scr{flex:1;overflow-y:auto;padding:14px 14px 24px;padding-top:calc(14px + env(safe-area-inset-top,0px));-webkit-overflow-scrolling:touch;}
 .tc-col{max-width:560px;margin:0 auto;}
@@ -176,7 +176,7 @@ div.tc-li{cursor:default;}
 .tc-btns .no{background:var(--ck);color:var(--text);}
 .tc-btns .ok{background:var(--accent);color:var(--accent-ink);}
 @media (prefers-reduced-motion:reduce){.tc-sw i{transition:none;}}
-/* Futuros: padrao de telas (docs/design/padrao-de-telas.md). Celular: uma linha por evento e as acoes numa janela de baixo.
+/* Futuros: padrao de telas (.ai/padrao-de-telas.md). Celular: uma linha por evento e as acoes numa janela de baixo.
    Janela larga (>= 1160px): tabela de largura total com as acoes na propria linha. */
 body[data-aba="futuros"] main{max-width:1600px;}
 /* Resumo: no celular, "A pagar" e "A receber" lado a lado e "Atrasados" numa faixa embaixo, so quando ha atraso.
@@ -780,10 +780,10 @@ async function criarEventos(docs, aoProgredir){
   return criados;
 }
 
-// ---------- Prever e Estender no padrao de telas (docs/design/padrao-de-telas.md) ----------
+// ---------- Prever e Estender no padrao de telas (.ai/padrao-de-telas.md) ----------
 // Tela cheia com tres linhas-resumo (Status das copias, Repetir, Avisar no Telegram), a previa das datas e o botao de
 // criar. Cada linha abre uma tela cheia propria; "Outro..." abre rodas numa janela de baixo. As datas, os prazos e as
-// frases vem de recorrencia.js (testado em node). Demo: docs/design/demos/demo-repeticao-e-aviso.html.
+// frases vem de recorrencia.js (testado em node). Demo: .ai/demos/demo-repeticao-e-aviso.html.
 let pv = null;
 
 function tcCk(on){ return `<span class="tc-ck${on?' on':''}" aria-hidden="true">${on?'✓':''}</span>`; }

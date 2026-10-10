@@ -20,15 +20,15 @@ Nada aqui foi implementado ainda. Cada decisão tem o estado **fechada** (o dono
 ## Camadas
 
 ```
-main         só cria os clients e liga as peças (não faz mais nada)
+main         só cria os clients, monta o repository e liga as peças (não faz mais nada)
   │
-controller   recebe o request (rota, token, JSON) e chama o service com os clients já prontos
+controller   recebe o request (rota, token, JSON) e chama o service. Recebe SÓ o service (e o client de auth)
   │
-service      regra de uso: orquestra, decide o que o front recebe. Recebe tudo por construtor, não chama ninguém
-  │
+service      regra de uso: orquestra, decide o que o front recebe. Recebe o repository e os outros adaptadores por
+  │          construtor, não chama ninguém
 domain       tipos e regras puras (Lancamento, Status, Fatura, Saldo, Aviso). Não importa nada; todos o usam
 
-adapters     dynamodb, telegram, e-mail, whatsapp, auth, relógio: implementam as interfaces do service
+adapters     repository (dynamodb), telegram, e-mail, whatsapp, auth, relógio: implementam as interfaces do service
 ```
 
 **Dependência só para dentro (fechada).**
@@ -38,6 +38,30 @@ adapters     dynamodb, telegram, e-mail, whatsapp, auth, relógio: implementam a
 - Dependências entram pelo **construtor**; os métodos recebem só os dados da requisição.
 - O miolo das regras (fatura base, ajuste, saldo) são **funções puras**, sem I/O; o service lê pelo repositório, chama a
   função pura e devolve a visão pronta.
+
+## Persistência: o repository (fechada)
+
+O service **não recebe o client do DynamoDB**: recebe um **repository**, que esconde o banco. Quem conhece o DynamoDB é
+só o adaptador.
+
+```
+main:  config → client DynamoDB → repository (usa o client) → service (recebe o repository) → controller (recebe o service)
+```
+
+- **O controller recebe só o service.** Se o controller tivesse o repository, poderia gravar sem passar pelo service e o
+  caminho único de escrita do histórico (item 31) deixaria de ser garantido.
+- **A interface do repository é declarada pelo service** (o que ele precisa), e o adaptador DynamoDB a implementa. O
+  service nunca importa o SDK da AWS.
+- **O repository fala a linguagem do domínio**, não "put/get" genérico: `SalvarLancamento(mudança)`, não `PutItem`. Assim
+  as chaves (`PK`, `SK`, `TX#...`, `CFG#...`), o mapeamento entre `map[string]any` e os tipos do domínio e as expressões
+  do DynamoDB **moram só nele**. É o único lugar onde uma chave pode aparecer, o que sustenta a regra de não criar chave
+  sem discutir.
+- **A transação é dele.** Gravar o registro e a versão do histórico juntos (`TransactWriteItems`) é detalhe de
+  persistência: o service pede "salvar esta mudança com a sua versão" numa única operação. Se o service montasse duas
+  chamadas, a atomicidade deixaria de existir.
+- **Um repository por assunto** (lançamentos, configuração, fechamentos, histórico), em vez de um grande.
+- Os exemplos das chaves existentes, com dados fictícios, estão em
+  [`specs/modelo-de-dados/`](specs/modelo-de-dados/README.md).
 
 ## Avisos: um despachante, vários canais (fechada)
 

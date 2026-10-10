@@ -10,7 +10,7 @@ Duas pessoas usam o mesmo espaço (dono e membro), pelo navegador do computador 
 - **Região:** `sa-east-1`. Infra descrita em `template.yaml` (AWS SAM).
 
 Roadmap, decisões e o fluxo de versões estão em [`BACKLOG.md`](BACKLOG.md). A proposta de colaboração em tempo real está
-em [`docs/colaboracao-tempo-real.md`](docs/colaboracao-tempo-real.md).
+em [`.ai/colaboracao-tempo-real.md`](.ai/colaboracao-tempo-real.md).
 
 ## Como as peças se encaixam
 ```
@@ -30,7 +30,8 @@ traduz para as rotas da Lambda.
 | `backend/` | Lambda em Go: `main.go` (rotas), `authz.go` (permissões por papel), `store.go` (DynamoDB), `auth.go` (token), `tags.go`, `perfil.go` (apelido e chat id do Telegram), `avisos.go` e `telegram.go` (avisos diários de lançamentos futuros), `fechamento.go` (fechamento mensal dos saldos), `seq.go` (contador de alterações) e os testes `*_test.go` |
 | `template.yaml` | Infra (SAM): tabela, Cognito, Lambda, bucket e distribuição do CloudFront |
 | `scripts/` | Deploy, sessão com MFA, publicação do front, convite de usuários e manutenção (ver abaixo) |
-| `docs/` | Documentos de projeto |
+| `.ai/` | Documentos de projeto e contexto para quem constrói com IA: regras (`guardrails.md`), arquitetura, padrão de telas e demos, deploy, avisos |
+| `docs/` | Só a coleção do Postman (`docs/postman/`) |
 | `financas-app.html` | Versão original em arquivo único, de quando o app rodava no ambiente do Claude. Mantida como referência; o app atual é o de `web/` |
 | `BACKLOG.md` | Roadmap por área, decisões, detalhes e fluxo de branches e versões |
 
@@ -57,7 +58,7 @@ Outros scripts: `seed.sh` (cria usuários no Cognito e o espaço), `definir-nome
 ## Branches e versões
 Trabalho em branches a partir da `develop` (`feature/...`, `docs/...`) com PR para a `develop`. Uma versão sai com PR
 `develop → main`, tag anotada `vX.Y.Z` e release no GitHub. Publicar na AWS é um passo separado, feito a partir da `main`.
-Detalhes e comandos em "Fluxo de branches e versões" no [`BACKLOG.md`](BACKLOG.md).
+Detalhes e comandos em [`.ai/fluxo-de-versoes.md`](.ai/fluxo-de-versoes.md).
 
 ## Papéis e permissões
 | Ação | owner | member |
@@ -107,7 +108,7 @@ A regra está em `backend/authz.go` e tem testes; o que não está liberado expl
 | `faturaAjuste` | -1, 0 ou 1 | só em crédito: 1 = fatura seguinte à da data; -1 = anterior; ausente = pela data |
 | `valorEstimado` | booleano | só em crédito: valor ainda estimado (ex.: compra em dólar) |
 | `serie` | objeto | opcional: `{ id, indice, intervalo }` liga as cópias criadas por Prever ou Repetir ao lançar (`indice` = posição na série, `intervalo` = meses entre ocorrências) |
-| `aviso` | objeto | opcional, em evento futuro: `{ dias: [3,1,0], insistir: true }` avisa no Telegram nos dias combinados antes do vencimento e, com `insistir`, todo dia depois dele (ver [`docs/avisos.md`](docs/avisos.md)) |
+| `aviso` | objeto | opcional, em evento futuro: `{ dias: [3,1,0], insistir: true }` avisa no Telegram nos dias combinados antes do vencimento e, com `insistir`, todo dia depois dele (ver [`.ai/avisos.md`](.ai/avisos.md)) |
 
 ### Configurações
 - `listas`: `status` e `banco` (listas de textos); `statusReal` (status → conta como real; só `false` exclui);
@@ -192,4 +193,4 @@ importar) soma 1 no item `SEQ` do espaço e devolve o valor novo em `_seq`.
   Histórico. O saldo de cada banco parte do último fechamento mensal e lê só os meses seguintes; as faturas do cartão
   e as tendências ainda são calculadas no navegador, lendo o histórico (mover isso para a Lambda está no backlog).
 - A tela só vê o que outra pessoa gravou na checagem periódica (a cada 3 minutos, com a aba visível, e ao voltar para a
-  aba); colaboração em tempo real é uma proposta em `docs/`.
+  aba); colaboração em tempo real é uma proposta em `.ai/`.
