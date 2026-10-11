@@ -196,8 +196,11 @@ body[data-aba="futuros"] main{max-width:1600px;}
 .fut-sw input:checked{background:var(--accent);}
 .fut-sw input:checked::after{left:21px;}
 .fut-sw input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
-.fut-titulo{font-size:13px;font-weight:600;color:var(--muted);margin:12px 4px 6px;}
+.fut-titulo{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;color:var(--muted);margin:12px 4px 6px;}
 .fut-titulo.atras{color:var(--danger);}
+.fut-saldo{flex:none;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);}
+.fut-saldo.pos{color:var(--income);}
+.fut-saldo.neg{color:var(--danger);}
 .fut-grupo{background:var(--card);border-radius:16px;overflow:hidden;margin:0 0 6px;}
 .fut-row{border-top:1px solid var(--border);}
 .fut-row:first-child{border-top:0;}
@@ -1994,19 +1997,28 @@ function resumoFuturos(lista, hojeKey){
   return {n, pagar:r2(pagar), receber:r2(receber), atrasados, somaAtrasados:r2(somaAtrasados)};
 }
 // Atrasados primeiro (só os não ocultos), depois um grupo por mês, tudo em ordem de data.
+// Cada mês traz o saldo (a receber - a pagar, sem os ocultos); Atrasados não tem saldo (o cartão do topo já mostra).
 function gruposFuturos(lista, hojeKey){
-  const atras = {titulo:'Atrasados', atrasado:true, itens:[]};
+  const atras = {titulo:'Atrasados', atrasado:true, saldo:null, itens:[]};
   const porMes = new Map();
   lista.forEach(l=>{
     const k = diaLocal(l);
     if(k < hojeKey && !l.oculto){ atras.itens.push(l); return; }
     const ym = k.slice(0,7);
-    if(!porMes.has(ym)) porMes.set(ym, {titulo:rotuloMes(ym), atrasado:false, itens:[]});
-    porMes.get(ym).itens.push(l);
+    if(!porMes.has(ym)) porMes.set(ym, {titulo:rotuloMes(ym), atrasado:false, saldo:0, itens:[]});
+    const g = porMes.get(ym);
+    g.itens.push(l);
+    if(!l.oculto) g.saldo = Math.round((g.saldo + valorAssinado(l))*100)/100;
   });
   const grupos = atras.itens.length ? [atras] : [];
   [...porMes.keys()].sort().forEach(ym=>grupos.push(porMes.get(ym)));
   return grupos;
+}
+function htmlSaldoMes(saldo){
+  if(saldo === null || saldo === undefined) return '';
+  const cls = saldo > 0 ? 'pos' : saldo < 0 ? 'neg' : '';
+  const sinal = saldo > 0 ? '+' : saldo < 0 ? '-' : '';
+  return `<span class="fut-saldo ${cls}" title="Saldo do mês (a receber menos a pagar, sem os ocultos)">${sinal}${fmtMoeda(Math.abs(saldo))}</span>`;
 }
 
 function chipAviso(l){
@@ -2074,7 +2086,7 @@ function renderFuturos(){
   el.innerHTML = '<div class="fut-tabela"><div class="fut-tabela-in">'+
     '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>'+
     gruposFuturos(todos, hoje).map(g=>
-      `<div class="fut-titulo ${g.atrasado?'atras':''}">${esc(g.titulo)}</div><div class="fut-grupo">${g.itens.map(htmlEventoFuturo).join('')}</div>`).join('')+
+      `<div class="fut-titulo ${g.atrasado?'atras':''}"><span>${esc(g.titulo)}</span>${htmlSaldoMes(g.saldo)}</div><div class="fut-grupo">${g.itens.map(htmlEventoFuturo).join('')}</div>`).join('')+
     '</div></div>';
 }
 
