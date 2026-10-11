@@ -14,6 +14,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Futuros | [`demos/demo-futuros.html`](demos/demo-futuros.html) | uma linha por evento, ações numa janela de baixo, resumo com faixa de atraso, e a **versão para computador** (tabela) |
 | Futuros por largura | [`demos/demo-futuros-largura.html`](demos/demo-futuros-largura.html) | **vale sobre a demo acima onde diferirem**: prazo embaixo do valor, descrição em até 2 linhas, "⋯" no celular, botões no computador e realce na cor do status |
 | Resumo da Futuros | [`demos/demo-resumo-futuros.html`](demos/demo-resumo-futuros.html) | a comparação que decidiu o resumo (opção A), com valores extremos e larguras de 320 a 390 px |
+| Total do Histórico | [`demos/demo-historico-total.html`](demos/demo-historico-total.html) | a soma da lista (renda menos gasto) à direita da linha do contador, na busca por texto e no mês aberto |
 
 ## Princípios
 1. **Celular primeiro.** O dono usa o app no Android. Desenhe a largura de 360 a 400 px e só depois amplie.
@@ -109,6 +110,14 @@ fileira de botões dentro da linha.
 **só aparece quando há atraso** (sem atraso o resumo volta a ter cerca de 60 px). Substitui o texto explicativo longo.
 **O valor monetário nunca quebra** (`white-space:nowrap`): se faltar espaço, a linha cresce, e não o número. Três
 blocos iguais lado a lado só no computador (padrão abaixo).
+
+**10b. Total da lista no Histórico** (aprovado em 2026-10-11). Na linha do contador, à direita, só o valor (13 px,
+negrito, `nowrap`) com sinal e cor (`+` em `--income`, `-` em `--danger`, zero em `--muted`): a **soma de renda menos
+gasto** dos lançamentos exibidos, com o mesmo sinal de cada linha (500,00 de renda e 550,00 de gasto dão `-R$ 50,00`).
+Vale na **busca por texto** e no **mês aberto**, e acompanha Status, Banco, Tags, "mostrar ocultos" e "incluir eventos
+futuros". Some com a lista vazia e durante "Buscando...". É a soma do que está na tela, não o saldo do banco. O texto
+do contador à esquerda quebra em duas linhas em 320 px; o valor nunca. A classe `.soma-valor` é a mesma do saldo do mês
+em Futuros.
 
 **11. Aviso rápido (toast).** Faixa escura na base da tela, 2 segundos, para confirmar ("Oculto: saiu dos totais.").
 
