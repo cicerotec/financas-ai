@@ -2,7 +2,8 @@
 
 Atualizado em 2026-10-10. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
 ordem de prioridade e levam a etiqueta **[Agora]**, **[Próximo]** ou **[Depois]**. A numeração é fixa (não renumerar:
-outros trechos referenciam os números). Os detalhes de cada assunto ficam em `.ai/`. Marque `[x]` ao concluir.
+outros trechos referenciam os números). Os detalhes de cada assunto ficam em `.ai/`. Marque `[x]` ao concluir e
+retire o item do índice "Seções".
 
 ## Roadmap
 
@@ -16,8 +17,34 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   `finally`, desfazendo o "Salvar lançamento" que o `cancelarEdicao` acabou de pôr. Já existia antes dos avisos; foi
   achado ao testá-los. Correção provável: restaurar o texto só se ele não mudou durante a ação.
 
+### Seções (índice dos itens pendentes)
+Só o que ainda não foi feito, na ordem de prioridade (**[Agora]**, depois **[Próximo]**, depois **[Depois]**), cada um
+com o salto para o registro real. **Ao concluir um item, marque `[x]` no registro e tire a linha daqui.** Bugs
+pendentes: nenhum.
+
+- [\[Backend\] - **\[Agora\] Histórico imutável e versionado:**](#item-31)
+- [\[Backend\] - **\[Agora\] Arquitetura em camadas:**](#item-32)
+- [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
+- [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe:**](#item-33)
+- [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
+- [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
+- [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
+- [\[Processo\] - **\[Próximo\] Remover `financas-app.html`:**](#item-36)
+- [\[Infra\] - **\[Depois\] AWS Budget de US$ 1 e backup periódico:**](#item-11)
+- [\[Backend\] - **\[Depois\] Saldos e faturas do cartão calculados na Lambda:**](#item-14)
+- [\[Backend\] - **\[Depois\] Colaboração, Fase 1:**](#item-12)
+- [\[Backend\] - **\[Depois\] Colaboração, Fase 2:**](#item-13)
+- [\[Backend\] - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
+- [\[Backend\] - **\[Depois\] Segurança e escala:**](#item-18)
+- [\[Backend\] - **\[Depois\] Tela de permissões por usuário:**](#item-27)
+- [\[Front\] - **\[Depois\] Pagar fatura: valor do boleto e vínculo com o pagamento:**](#item-35)
+- [\[Front\] - **\[Depois\] Cartão: valor pago e observação:**](#item-17)
+- [\[Front\] - **\[Depois\] Fechamento mensal, melhorias:**](#item-23)
+- [\[Front\] - **\[Depois\] Ideias:**](#item-20)
+- [\[Processo\] - **\[Depois\] Testes automatizados:**](#item-16)
+
 ### Infra (AWS, SAM, ambientes, custo, backup)
-- 37. [ ] **[Próximo] MFA no login do app (Cognito):** hoje o login é só e-mail e senha; num app de finanças, uma senha
+- 37. [ ] <a id="item-37"></a>**[Próximo] MFA no login do app (Cognito):** hoje o login é só e-mail e senha; num app de finanças, uma senha
   vazada basta para ver tudo (e quem é member lê todos os lançamentos). Ligar o segundo fator no pool, com TOTP por
   aplicativo autenticador (sem o custo do SMS), no `template.yaml`, para os dois ambientes. O backend continua
   validando o ID token como hoje. **A decidir:** obrigatório para todos ou só para o dono; como a pessoa cadastra o
@@ -34,7 +61,7 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   PR só valida; roles IAM por OIDC separadas por ambiente, sem chave nos secrets; o deploy falha se o changeset remover
   ou substituir a tabela ou o login. No ar (PRs #38, #39 e #40, release v0.6.0). Guia em
   `.ai/deploy-github-actions.md`.
-- 11. [ ] **[Depois] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
+- 11. [ ] <a id="item-11"></a>**[Depois] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
   (exportar JSON e/ou point-in-time recovery do DynamoDB). Adiado por decisão: não será feito agora.
   - O **AWS Budget** controla o **custo da própria conta AWS**, não é um orçamento do app de finanças. Define-se um
     limite mensal em dólar (aqui, US$ 1, já que o projeto fica no free tier) e a AWS manda e-mail ao chegar em 80%
@@ -48,18 +75,18 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
 Os itens 31 a 34 vêm das decisões de 2026-10-10 (erro grave: uma edição sobrescreveu um registro e o dado se perdeu).
 O documento de referência é [`.ai/arquitetura.md`](.ai/arquitetura.md); leia antes de mexer. **Nenhuma chave nova no
 DynamoDB sem discutir com o dono.**
-- 31. [ ] **[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
+- 31. [ ] <a id="item-31"></a>**[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
   criação, edição, ocultação e exclusão gera uma versão (quem, quando, o registro completo), gravada na mesma transação
   do registro atual e com checagem de versão contra edição concorrente. Excluir passa a ser lógico; restaurar cria
   versão nova; o histórico nunca é editado nem apagado (sem método no repositório e `Deny` por IAM). Lançamentos
   primeiro, depois configurações e fechamentos; o estado atual vira a versão 1. **A decidir antes de gravar qualquer
   chave:** o formato dos itens, ligar o PITR do DynamoDB já como proteção (item 11 está adiado) e confirmar a
   exclusão lógica.
-- 32. [ ] **[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
+- 32. [ ] <a id="item-32"></a>**[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
   que o front recebe e recebe tudo por construtor; `domain` com tipos e regras puras que todos usam; adaptadores
   (DynamoDB, Telegram, auth, relógio) atrás de interfaces declaradas pelo service; sem variáveis globais (`db`,
   `ssmCli`, `table`, `agora()`). Entra por fatias verticais, uma regra por vez, com o app no ar. Pré-requisito do 31.
-- 33. [ ] **[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
+- 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
   aplicados pelo servidor com as caixas que já existem em Listas (o `excluirDoTotal`, hoje gravado pelo front a partir
@@ -67,19 +94,19 @@ DynamoDB sem discutir com o dono.**
   campo gravado é discussão). Saem do front `ehCredito*`, `ajustePadrao`,
   `faturaBase`, `ehFuturo`, `afetaSaldo`. Os status `CREDITO IN`/`EX` deixam de ser necessários; migração dos
   lançamentos antigos sem `faturaAjuste` fica a discutir. Absorve o item 14.
-- 34. [ ] **[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
+- 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
   4096 caracteres do item 28.
-- 14. [ ] **[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
+- 14. [ ] <a id="item-14"></a>**[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
   ao fechamento mensal; faltam as faturas do cartão e as tendências). Absorvido pelo item 33.
-- 12. [ ] **[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho (o contador
+- 12. [ ] <a id="item-12"></a>**[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho (o contador
   `seq` e a checagem barata já existem; falta o log do que mudou, para atualizar só os registros afetados); quem
   criou/alterou/ocultou; "novo desde a última visita"; atividade recente; idempotência e edição concorrente
   (exige trabalho no front também).
-- 13. [ ] **[Depois] Colaboração, Fase 2:** presença em tempo real ("fulano está mexendo neste registro agora").
-- 15. [ ] **[Depois] IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
-- 18. [ ] **[Depois] Segurança e escala:** revisar o `localStorage` do token (front), limite de taxa na Function URL
+- 13. [ ] <a id="item-13"></a>**[Depois] Colaboração, Fase 2:** presença em tempo real ("fulano está mexendo neste registro agora").
+- 15. [ ] <a id="item-15"></a>**[Depois] IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
+- 18. [ ] <a id="item-18"></a>**[Depois] Segurança e escala:** revisar o `localStorage` do token (front), limite de taxa na Function URL
   (infra), mesclar conflito de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
 - 28. [x] **Avisos de lançamentos futuros no Telegram**: campo `aviso` no lançamento (dias antes do vencimento e
   "insistir todo dia depois"), desligado por padrão e independente do status (o PREVISTO continua sendo só a previsão
@@ -91,7 +118,7 @@ DynamoDB sem discutir com o dono.**
   Limite conhecido, decidido não tratar agora: o resumo do dia vai numa única mensagem e o Telegram recusa acima de
   4096 caracteres (uns 40 avisos no mesmo dia para a mesma pessoa); nesse caso nenhum aviso chega naquele dia. A
   correção seria dividir o resumo em mensagens menores (detalhe em `.ai/avisos.md`).
-- 27. [ ] **[Depois] Tela de permissões por usuário** (hoje só há dois papéis fixos, `owner` e `member`, na matriz de
+- 27. [ ] <a id="item-27"></a>**[Depois] Tela de permissões por usuário** (hoje só há dois papéis fixos, `owner` e `member`, na matriz de
   `authz.go`): centralizar numa tela do dono o que cada pessoa pode ver e fazer. Motivos vindos do uso real: a esposa
   clica em "valor estimado" ao lançar (campo que hoje não precisa) e vê cartões e saldos de bancos que não são dela.
   Decidido:
@@ -117,12 +144,12 @@ DynamoDB sem discutir com o dono.**
   cargas virão: meses anteriores à data de início do banco são histórico e não são travados pelo fechamento mensal.
   Antes de importar, conferir na planilha as datas fora do mês da aba (no app o mês é o da data, não o da aba).
 - 9. [x] **Importação do `.xlsx` usando o endpoint de lote** (25 por chamada, com contador de progresso e erro tratado).
-- 23. [ ] **[Depois] Fechamento mensal, melhorias:** "ver mais" na lista (hoje mostra os últimos 12 meses); aviso quando
+- 23. [ ] <a id="item-23"></a>**[Depois] Fechamento mensal, melhorias:** "ver mais" na lista (hoje mostra os últimos 12 meses); aviso quando
   um mês conferido deixa de bater com o que foi guardado; "reabrir tudo" de uma vez (hoje reabre do mais novo para o
   mais antigo, um por vez); conferir meses anteriores ao último conferido sem reabrir os mais novos.
-- 17. [ ] **[Depois] Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
+- 17. [ ] <a id="item-17"></a>**[Depois] Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
   Evoluído no item 35.
-- 35. [ ] **[Depois] Pagar fatura: valor do boleto e vínculo com o pagamento.** A fatura tem três valores (calculado,
+- 35. [ ] <a id="item-35"></a>**[Depois] Pagar fatura: valor do boleto e vínculo com o pagamento.** A fatura tem três valores (calculado,
   da operadora e do boleto), e o pagamento nasce **da fatura**, não da soma dos lançamentos: o sistema propõe o valor da
   fatura, o dono confirma ou corrige para o do boleto, e o lançamento do pagamento no banco fica ligado à fatura, com a
   diferença à vista (hoje isso vira um lançamento de valor zero como nota solta). O **banco pagador é escolhido**
@@ -131,20 +158,20 @@ DynamoDB sem discutir com o dono.**
   Caso real: estorno no dia do corte, fatura de um valor e pagamento de outro. **Pagamento mínimo ou parcial** (a maioria dos usuários usa; o dono não)
   fica aqui: a fatura passa a ter mais de um pagamento. Formato dos dados a discutir antes de criar chave. Detalhes em
   `.ai/arquitetura.md`.
-- 20. [ ] **[Depois] Ideias** (seção no fim deste arquivo).
+- 20. [ ] <a id="item-20"></a>**[Depois] Ideias** (seção no fim deste arquivo).
 
 ### UX/UI (usabilidade do que já existe)
-- 30. [ ] **[Próximo] Formulário de Lançar no padrão de telas**: hoje o Lançar ainda mostra à vista os controles antigos de
+- 30. [ ] <a id="item-30"></a>**[Próximo] Formulário de Lançar no padrão de telas**: hoje o Lançar ainda mostra à vista os controles antigos de
   aviso e de repetição (17 controles, pouco usáveis no celular). Passar "Repetir" e "Avisar" para linhas-resumo que
   abrem as telas cheias do Prever (a lógica e os componentes já existem em `web/index.html`, bloco "Prever e Estender").
   Pelo padrão, começa com uma demo do formulário completo para aprovação.
-- 21. [ ] **[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em [`.ai/ux.md`](.ai/ux.md)): barra de navegação
+- 21. [ ] <a id="item-21"></a>**[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em [`.ai/ux.md`](.ai/ux.md)): barra de navegação
   inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
   acessibilidade das abas, unificar o seletor de tags.
 
 ### Processo e qualidade (testes, releases, docs)
 - 10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
-- 16. [ ] **[Depois] Testes automatizados** do front (a lógica de faturas e de eventos futuros).
+- 16. [ ] <a id="item-16"></a>**[Depois] Testes automatizados** do front (a lógica de faturas e de eventos futuros).
 - 26. [x] **Tag e release automáticas após o deploy da produção**: o job `lancar-versao` (em `deploy-prod.yml`) cria a
   tag anotada e a release depois do deploy da `main`. Versão pelos commits (`feat:` sobe o número do meio, o resto
   sobe o último) com os rótulos `release:minor|patch` no PR de release por cima; o PR de release recebe um comentário
@@ -154,7 +181,7 @@ DynamoDB sem discutir com o dono.**
   `CI` por `pull_request` do PR criado pelo robô espera "Approve and run" (limite do `GITHUB_TOKEN`); não bloqueia.
 - 19. [x] **Script de release**: dispensado e substituído pela automação dos itens 25 e 26 (PR de release aberto pelo
   robô, tag e release criadas depois do deploy da produção). Funcionou na v0.7.0.
-- 36. [ ] **[Próximo] Remover `financas-app.html`** (versão original em arquivo único, de quando o app rodava no ambiente
+- 36. [ ] <a id="item-36"></a>**[Próximo] Remover `financas-app.html`** (versão original em arquivo único, de quando o app rodava no ambiente
   do Claude, com 2188 linhas e cópia da mesma lógica que hoje está em `web/index.html`). Só o README o cita; nenhum
   deploy, workflow, template ou script o usa. Apagar o arquivo e a linha do README.
 
