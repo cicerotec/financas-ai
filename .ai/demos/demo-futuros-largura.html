@@ -48,8 +48,11 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
 .opt{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;color:var(--muted);font-size:13px}
 .sw{width:44px;height:26px;border-radius:13px;background:var(--ck);position:relative;flex:none}
 .sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff}
-.gt{font-size:13px;font-weight:600;color:var(--muted);margin:10px 4px 6px}
+.gt{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;color:var(--muted);margin:10px 4px 6px}
 .gt.bad{color:var(--danger)}
+.gt .sd{flex:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+.gt .sd.in{color:var(--ok)}
+.gt .sd.out{color:var(--danger)}
 .card{background:var(--card);border-radius:16px;overflow:hidden;margin:0 0 6px}
 /* lista: linha toda abre a janela de acoes; "..." mostra que ha acoes */
 .ev{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;row-gap:2px;width:100%;box-sizing:border-box;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);color:var(--fg);font:inherit;padding:11px 8px 11px 14px;min-height:62px;cursor:pointer}
@@ -129,6 +132,7 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
 <li><b>A descrição ocupa até 2 linhas</b> em todas as telas, com reticências se passar. O texto inteiro aparece na janela de ações e em Editar.</li>
 <li><b>A única diferença entre as telas:</b> nas estreitas (até 1159 px) a linha mostra "⋯" e abre a janela de ações; nas largas (1160 px ou mais) o "⋯" sai e os cinco botões aparecem na própria linha. O ponto de troca continua o de hoje.</li>
 <li><b>Realce ao passar o mouse:</b> a linha ganha um fundo com a cor do status (a que você escolhe em Listas), no mesmo gatilho dos botões (mouse ou Tab). No celular, a linha se realça ao ser tocada, antes de abrir a janela de ações. Troque a cor do PREVISTO acima para ver o realce acompanhar.</li>
+<li><b>Saldo do mês</b> (a receber menos a pagar) fica à direita do título de cada mês, só o valor, com sinal e cor (verde positivo, vermelho negativo). Ocultos não entram. "Atrasados" não tem saldo. Aprovado em 11/10/2026.</li>
 <li>O sino do aviso e a série ("7 de 12") ficam fora do trecho cortado, para nunca sumirem.</li>
 <li>Em tela estreita, se o valor e o "⋯" não deixam ao menos 120 px para a descrição, o valor desce para a segunda linha, à direita (veja a parcela do financiamento em 320 px).</li>
 </ul></div>
@@ -179,9 +183,15 @@ function linha(it){
    '<span class="r"><span class="v '+(it.tipo==='saida'?'out':'in')+'">'+(it.tipo==='saida'?'-':'+')+moeda(it.v)+'</span><span class="p'+(p.bad?' bad':'')+'">'+p.t+'</span></span>'+
    (ui.hoje?'':'<span class="mais">'+PONTOS+'</span>')+'</button>';
 }
+// Saldo do mês (a receber - a pagar) ao lado do título do mês; Atrasados não tem (o resumo do topo já mostra).
+function saldoMes(g){
+  if(g.bad)return '';
+  var s=Math.round(g.l.reduce(function(a,i){return a+(i.tipo==='saida'?-i.v:i.v)},0)*100)/100;
+  return '<span class="sd '+(s>0?'in':s<0?'out':'')+'" title="Saldo do mês (a receber menos a pagar, sem os ocultos)">'+(s>0?'+':s<0?'-':'')+moeda(Math.abs(s))+'</span>';
+}
 function lista(){
   var h='<div class="col lista">'+resumo(false);
-  grupos().forEach(function(g){h+='<div class="gt'+(g.bad?' bad':'')+'">'+g.k+'</div><div class="card">'+g.l.map(linha).join('')+'</div>'});
+  grupos().forEach(function(g){h+='<div class="gt'+(g.bad?' bad':'')+'"><span>'+g.k+'</span>'+saldoMes(g)+'</div><div class="card">'+g.l.map(linha).join('')+'</div>'});
   return h+'</div>';
 }
 function linhaTab(it){
@@ -198,7 +208,7 @@ function linhaTab(it){
 function tabela(){
   var cab='<div class="dt h"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span>'+(ui.hoje?'<span>Prazo</span>':'')+'<span style="text-align:right">Valor</span><span></span></div>';
   var h=resumo(true)+'<div class="tb'+(ui.hoje?' hj':'')+'">'+cab;
-  grupos().forEach(function(g){h+='<div class="gt'+(g.bad?' bad':'')+'">'+g.k+'</div><div class="gtw">'+g.l.map(linhaTab).join('')+'</div>'});
+  grupos().forEach(function(g){h+='<div class="gt'+(g.bad?' bad':'')+'"><span>'+g.k+'</span>'+saldoMes(g)+'</div><div class="gtw">'+g.l.map(linhaTab).join('')+'</div>'});
   return h+'</div>';
 }
 function sheet(){

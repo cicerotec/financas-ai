@@ -96,7 +96,9 @@ ações; a linha toda continua tocável. Se o valor e o "⋯" deixam menos de 12
 em 320 px), o valor desce para a segunda linha, à direita. **Realce:** ao passar o mouse (`@media (hover:hover)`),
 focar ou tocar (`:active`), a linha ganha fundo `color-mix(in srgb, <cor do status> 16%, var(--card))`, a cor que o
 usuário escolheu em Listas, Aparência. Grupos com título por mês e um grupo "Atrasados" no topo, em `--danger`.
-Evento oculto fica a 50% de opacidade.
+**Saldo do mês** (aprovado em 2026-10-11): à direita do título de cada mês, só o valor (13 px, negrito, `nowrap`),
+com sinal e cor (`+` em `--income`, `-` em `--danger`, zero em `--muted`) e o cálculo a receber menos a pagar, sem os
+ocultos. "Atrasados" não tem saldo (o resumo do topo já mostra). Evento oculto fica a 50% de opacidade.
 
 **9. Ações numa janela de baixo.** Tocar na linha do evento abre a janela com descrição, valor, data e banco no topo e as
 ações em lista (Editar, Copiar, Prever ou Estender série, Ocultar ou Mostrar, Excluir). "Excluir" em `--danger`. Nada de
