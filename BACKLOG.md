@@ -40,8 +40,9 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
     limite mensal em dólar (aqui, US$ 1, já que o projeto fica no free tier) e a AWS manda e-mail ao chegar em 80%
     do gasto real e quando a previsão passar de 100%. Protege contra cobrança inesperada (enxurrada de requisições na
     Function URL, recurso esquecido). Console: Billing > Budgets > Create budget > Cost budget; os 2 primeiros são grátis.
-  - **Backup:** o `template.yaml` declara `PointInTimeRecoveryEnabled: false`; ligar o PITR no console sem mudar o
-    template seria desfeito no próximo deploy. Hoje só existe o botão Exportar (`.json`) como cópia manual.
+  - **Backup:** o PITR do DynamoDB está ligado **só em prod** pelo `template.yaml` (`!If [EhDev, false, true]`; ligar
+    no console sem mudar o template seria desfeito no próximo deploy). Falta o backup periódico; enquanto isso, o
+    botão Exportar (`.json`) é a cópia manual.
 
 ### Backend (Go, DynamoDB, Cognito, API)
 Os itens 31 a 34 vêm das decisões de 2026-10-10 (erro grave: uma edição sobrescreveu um registro e o dado se perdeu).
