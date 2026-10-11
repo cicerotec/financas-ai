@@ -1117,7 +1117,11 @@ async function comBotaoOcupado(btn, rotulo, fn){
   const antes = btn.textContent;
   btn.disabled = true; btn.textContent = rotulo;
   try{ return await fn(); }
-  finally{ btn.disabled = false; btn.textContent = antes; }
+  finally{
+    btn.disabled = false;
+    // só restaura se a ação não trocou o texto (ex.: cancelarEdicao põe "Salvar lançamento")
+    if(btn.textContent === rotulo) btn.textContent = antes;
+  }
 }
 
 async function avisar(msg){
