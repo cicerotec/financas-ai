@@ -10,7 +10,7 @@ outros trechos referenciam os números). Os detalhes de cada assunto ficam em `.
 Cada item começa com a área correspondente entre colchetes. A numeração segue a mesma sequência do roadmap.
 - 25. [x] **[UX/UI] Combo de bancos volta sozinho ao primeiro item ao lançar após copiar pelo Histórico**, o que pode
   gerar erro no cadastro. Detalhe em [`.ai/ux.md`](.ai/ux.md).
-- 29. [ ] **[UX/UI] O botão do formulário de Lançar volta a dizer "Salvar edição" depois de salvar uma edição**, já
+- 29. [x] **[UX/UI] O botão do formulário de Lançar volta a dizer "Salvar edição" depois de salvar uma edição**, já
   num formulário vazio para um lançamento novo (o `editandoId` fica `null`, então salvar cria um lançamento novo, mas o
   rótulo engana). Causa: `comBotaoOcupado` (`web/index.html`) guarda o texto do botão antes da ação e o restaura no
   `finally`, desfazendo o "Salvar lançamento" que o `cancelarEdicao` acabou de pôr. Já existia antes dos avisos; foi
