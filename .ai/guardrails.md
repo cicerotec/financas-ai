@@ -25,7 +25,8 @@ e para ajustes em telas que já existem.
   - **Celular:** uma linha-resumo que abre tela cheia; lista que acumula com check redondo (ou escolha única);
     interruptor no topo; "Outro..." com rodas de número e unidade numa janela de baixo, com resumo ao vivo e erro na
     própria janela; contador de limite visível; um evento por linha, com as ações numa janela de baixo; resumo com dois
-    blocos e uma faixa de atraso (só quando há atraso), valores que nunca quebram; linhas de pelo menos 56 px.
+    blocos e uma faixa de atraso (só quando há atraso), valores que nunca quebram; saldo do mês à direita do título
+    de cada mês (só o valor, com sinal e cor); linhas de pelo menos 56 px.
   - **Computador:** a mesma tela vira uma tabela de largura total (colunas alinhadas, mínimo de 1120 px a partir de
     1160 px de janela, container de até 1200 px) com as ações na própria linha, apagadas até o mouse passar ou o foco
     entrar. Mesmos dados e mesmas regras; só o desenho muda com a largura da janela.

@@ -89,7 +89,8 @@ DynamoDB sem discutir com o dono.**
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
-  aplicados pelo servidor com as caixas que já existem em Listas (o `excluirDoTotal`, hoje gravado pelo front a partir
+  aplicados pelo servidor com as caixas que já existem em Listas (o saldo do mês da aba Futuros, hoje somado no front em
+`gruposFuturos`, também passa a vir pronto; o `excluirDoTotal`, hoje gravado pelo front a partir
   do nome `CONTAS`/`TRANSFERINDO`, é outra decisão por etiqueta: a regra passa a ser do servidor, e o que fazer com o
   campo gravado é discussão). Saem do front `ehCredito*`, `ajustePadrao`,
   `faturaBase`, `ehFuturo`, `afetaSaldo`. Os status `CREDITO IN`/`EX` deixam de ser necessários; migração dos
