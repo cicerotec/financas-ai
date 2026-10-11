@@ -46,7 +46,8 @@ Resources:
       KeySchema:
         - { AttributeName: PK, KeyType: HASH }
         - { AttributeName: SK, KeyType: RANGE }
-      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: false }
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [EhDev, false, true]   # só prod (US$ 0,20/GB-mês, retenção de 35 dias)
 
   UserPool:
     Type: AWS::Cognito::UserPool

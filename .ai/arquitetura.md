@@ -102,8 +102,8 @@ Esboço do mecanismo, **a discutir antes de qualquer chave** (princípio 3):
 O service tem **um único caminho de escrita**, que sempre grava registro e versão juntos. Como o controller só chega ao
 dado pelo service, não existe atalho que pule o histórico.
 
-Em aberto: ligar o **PITR** do DynamoDB já, como proteção até o histórico entrar (hoje `PointInTimeRecoveryEnabled:
-false` e o item 11 do backlog está adiado); confirmar a exclusão lógica.
+**PITR** do DynamoDB ligado só em prod, como proteção até o histórico entrar (`template.yaml`, 35 dias de retenção).
+Em aberto: confirmar a exclusão lógica.
 
 ## Domínio: o que o dono explicou
 
