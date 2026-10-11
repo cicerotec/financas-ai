@@ -90,7 +90,8 @@ DynamoDB sem discutir com o dono.**
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
   aplicados pelo servidor com as caixas que já existem em Listas (o saldo do mês da aba Futuros, hoje somado no front em
-`gruposFuturos`, também passa a vir pronto; o `excluirDoTotal`, hoje gravado pelo front a partir
+`gruposFuturos`, e o total da lista do Histórico, somado em `renderHistorico`, também passam a vir prontos; o
+`excluirDoTotal`, hoje gravado pelo front a partir
   do nome `CONTAS`/`TRANSFERINDO`, é outra decisão por etiqueta: a regra passa a ser do servidor, e o que fazer com o
   campo gravado é discussão). Saem do front `ehCredito*`, `ajustePadrao`,
   `faturaBase`, `ehFuturo`, `afetaSaldo`. Os status `CREDITO IN`/`EX` deixam de ser necessários; migração dos
