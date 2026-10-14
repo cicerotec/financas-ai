@@ -19,6 +19,7 @@ feito e ideias).
 | [`deploy-github-actions.md`](deploy-github-actions.md) | Deploy, release e as roles OIDC |
 | [`fluxo-de-versoes.md`](fluxo-de-versoes.md) | Branches, tags e releases |
 | [`specs/modelo-de-dados/`](specs/modelo-de-dados/README.md) | As chaves do DynamoDB, com exemplos fictícios em JSON |
-| `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature (**a criar**) |
+| [`specs/historico/intent.md`](specs/historico/intent.md) | Intent do histórico de versões e recuperação (rascunho; `plan` e `spec` a criar) |
+| `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
