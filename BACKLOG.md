@@ -235,3 +235,8 @@ arquitetura, segurança e permissões, fluxo de versões, hospedagem, ambiente d
 - Fatura: aviso quando uma compra `CREDITO EX`/`CREDITO IN` cair fora do esperado (a planilha as ignora).
 - Aviso "já existe um igual" ao salvar manualmente usa só os 1000 mais recentes carregados (hoje só a importação
   confere o histórico inteiro).
+- **Congelamento por data de corte** para aposentar status e termos sem migrar o passado: o servidor compara a data do
+  lançamento com o corte e manda o front o que vale (vocabulário e regra antigos antes do corte, os novos depois). Uma
+  data no lugar de um marcador "legado" por status. Candidato para o item 33 (`CREDITO IN`/`EX`, `TRANSFERINDO`,
+  `PREVISTO`) e para o rótulo de `PAGO` (Pago/Recebido). A decidir: qual data compara (`dataEvento` ou `criadoEm`), corte
+  em início de mês (alinhado ao fechamento), um corte global ou um por regra, e onde guardar o campo.

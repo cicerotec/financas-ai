@@ -1,0 +1,14 @@
+{
+  "name": "Finanças pessoais (DEV)",
+  "short_name": "Finanças DEV",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f7f5",
+  "theme_color": "#e8710a",
+  "icons": [
+    { "src": "icons/dev/icon-192-v1.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/dev/icon-512-v1.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/dev/maskable-512-v1.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
