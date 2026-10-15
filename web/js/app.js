@@ -738,6 +738,8 @@ let abaOrigemEdicao = null;
 function abaAtual(){ const b = document.querySelector('nav button.active'); return b ? b.dataset.tab : 'lancar'; }
 function irParaAba(t){
   document.body.dataset.aba = t;
+  const nomeAba = document.querySelector(`nav button[data-tab="${t}"]`);
+  if(nomeAba) document.getElementById('mnTela').textContent = nomeAba.textContent;
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active', x.dataset.tab===t));
   document.querySelectorAll('main section').forEach(sec=>sec.classList.add('hidden'));
   document.getElementById('tab-'+t).classList.remove('hidden');
@@ -749,6 +751,45 @@ function setupTabs(){
   document.querySelectorAll('nav button').forEach(b=>{
     b.addEventListener('click', ()=>irParaAba(b.dataset.tab));
   });
+  setupMenuApp();
+}
+
+// ---------- menu do app no celular (⋮): a lista vem das abas em botoes, que continuam sendo a fonte das telas ----------
+const MENU_APP = [
+  ['Dia a dia', [['lancar','✏️'],['historico','🕘'],['futuros','📅']]],
+  ['Acompanhar', [['cartao','💳'],['saldos','🏦'],['tendencias','📈']]],
+  ['Configurar', [['listas','🏷️'],['importar','📥']]]
+];
+function fecharMenuApp(voltarFoco){
+  const btn = document.getElementById('mnBtn');
+  document.getElementById('mnDrop').hidden = true;
+  document.getElementById('mnShade').hidden = true;
+  btn.setAttribute('aria-expanded', 'false');
+  if(voltarFoco) btn.focus();
+}
+function abrirMenuApp(){
+  const atual = abaAtual();
+  const nomeDe = t=>{ const b = document.querySelector(`nav button[data-tab="${t}"]`); return b ? b.textContent : t; };
+  document.getElementById('mnDrop').innerHTML = MENU_APP.map(([grupo, itens], i)=>
+    (i ? '<hr class="mn-sep">' : '') + `<div class="mn-grp">${grupo}</div>` +
+    itens.map(([t, ic])=>`<button type="button" class="mn-it${t===atual?' on':''}" role="menuitem" data-tab="${t}"><span class="mn-ic">${ic}</span>${esc(nomeDe(t))}${t===atual?'<span class="mn-ck">✓</span>':''}</button>`).join('')
+  ).join('');
+  document.getElementById('mnDrop').hidden = false;
+  document.getElementById('mnShade').hidden = false;
+  document.getElementById('mnBtn').setAttribute('aria-expanded', 'true');
+  const foco = document.querySelector('#mnDrop .mn-it.on') || document.querySelector('#mnDrop .mn-it');
+  if(foco) foco.focus();
+}
+function setupMenuApp(){
+  const btn = document.getElementById('mnBtn'), drop = document.getElementById('mnDrop');
+  btn.addEventListener('click', ()=>{ if(drop.hidden) abrirMenuApp(); else fecharMenuApp(false); });
+  document.getElementById('mnShade').addEventListener('click', ()=>fecharMenuApp(false));
+  drop.addEventListener('click', e=>{
+    const it = e.target.closest('.mn-it'); if(!it) return;
+    fecharMenuApp(false);
+    irParaAba(it.dataset.tab);
+  });
+  document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !drop.hidden) fecharMenuApp(true); });
 }
 
 function renderListas(){

@@ -13,6 +13,13 @@
 <body>
 <header>
   <h1>💰 Finanças da Família</h1>
+  <!-- celular e janela < 1160 px: menu ⋮ (as abas em botoes e o h1 so aparecem na janela larga) -->
+  <div class="mn-bar">
+    <div class="mn-nome"><span class="mn-app">💰 Finanças da Família</span><span class="mn-tela" id="mnTela">Lançar</span></div>
+    <button type="button" class="mn-ib" id="mnBtn" aria-label="Menu" aria-haspopup="menu" aria-expanded="false" aria-controls="mnDrop"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+  </div>
+  <div class="mn-shade" id="mnShade" hidden></div>
+  <div class="mn-drop" id="mnDrop" role="menu" aria-label="Telas do app" hidden></div>
   <nav>
     <button data-tab="lancar" class="active">Lançar</button>
     <button data-tab="historico">Histórico</button>
