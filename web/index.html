@@ -76,6 +76,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--accent);color:var(--accent-ink);padding:12px 20px;border-radius:10px;font-size:15px;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.3);z-index:60;transition:opacity .2s,transform .2s;max-width:90vw;text-align:center;}
 #toast.on{opacity:1;transform:translate(-50%,0);}
 #toast.erro{background:var(--danger);color:#fff;}
+#avisoAcao{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);width:min(420px,calc(100vw - 28px));opacity:0;pointer-events:none;background:var(--text);color:var(--bg);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.3);z-index:61;overflow:hidden;transition:opacity .2s,transform .2s;}
+#avisoAcao.on{opacity:1;transform:translate(-50%,0);pointer-events:auto;}
+#avisoAcao.erro{background:var(--danger);color:#fff;}
+#avisoAcao .aa-linha{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 14px;min-height:52px;}
+#avisoAcao .aa-tx{flex:1;min-width:0;font-size:13px;overflow-wrap:anywhere;}
+#avisoAcao .aa-tx small{display:block;opacity:.75;font-size:12px;}
+#avisoAcao button{background:transparent;border:0;color:inherit;font:inherit;font-size:14px;font-weight:700;text-decoration:underline;cursor:pointer;min-height:48px;min-width:48px;padding:0 12px;border-radius:10px;width:auto;margin:0;}
+#avisoAcao .aa-barra{height:3px;background:var(--accent);transform-origin:left;animation:aaBarra linear forwards;}
+#avisoAcao.erro .aa-barra{background:#fff;}
+@keyframes aaBarra{from{transform:scaleX(1);}to{transform:scaleX(0);}}
+@media (prefers-reduced-motion:reduce){#avisoAcao{transition:none;}#avisoAcao .aa-barra{animation:none;}}
 @media (min-width:900px){
   main:has(#tab-lancar:not(.hidden)){max-width:1040px;}
   #tab-lancar{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:0 16px;align-items:start;}
@@ -1131,6 +1142,36 @@ function toast(msg, erro){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>el.classList.remove('on'), erro ? 6000 : 3500);
 }
+// Aviso com ação ("Desfazer"), com barra de tempo. Um por vez: abrir outro encerra o anterior na hora (onFim),
+// que é quando a exclusão adiada de fato vai ao servidor. Padrão da demo .ai/demos/demo-desfazer.html.
+const AVISO_ACAO_MS = 6000;
+let avisoAcaoAtual = null, avisoAcaoTimer;
+function fecharAvisoAcao(porAcao){
+  const a = avisoAcaoAtual;
+  if(!a) return;
+  avisoAcaoAtual = null;
+  clearTimeout(avisoAcaoTimer);
+  document.getElementById('avisoAcao').classList.remove('on');
+  if(!porAcao && a.onFim) a.onFim();
+}
+function mostrarAvisoAcao({txt, sub, rotulo, onAcao, onFim, erro, ms}){
+  fecharAvisoAcao(false);
+  const el = document.getElementById('avisoAcao');
+  const dur = ms || AVISO_ACAO_MS;
+  el.classList.toggle('erro', !!erro);
+  el.innerHTML = '<div class="aa-linha"><span class="aa-tx">' + esc(txt) + (sub ? '<small>' + esc(sub) + '</small>' : '') +
+    '</span><button type="button" id="avisoAcaoBtn">' + esc(rotulo) + '</button></div>' +
+    '<div class="aa-barra" style="animation-duration:' + dur + 'ms"></div>';
+  const a = {onAcao, onFim};
+  avisoAcaoAtual = a;
+  document.getElementById('avisoAcaoBtn').onclick = ()=>{ if(avisoAcaoAtual !== a) return; fecharAvisoAcao(true); if(onAcao) onAcao(); };
+  el.classList.add('on');
+  avisoAcaoTimer = setTimeout(()=>fecharAvisoAcao(false), dur);
+}
+// Sair da aba ou do app encerra o aviso na hora: a exclusão adiada vale em vez de se perder.
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden') fecharAvisoAcao(false); });
+window.addEventListener('pagehide', ()=>fecharAvisoAcao(false));
+
 // Desabilita o botão e mostra "Salvando…" enquanto roda; impede clique duplo.
 async function comBotaoOcupado(btn, rotulo, fn){
   if(btn.disabled) return;
@@ -1278,7 +1319,7 @@ async function init(){
     await carregarSaldosConfig();
 
     db.collection("lancamentos").orderBy("dataEvento","desc").limit(1000).onSnapshot(snap=>{
-      lancamentosCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      lancamentosCache = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(l=>!exclusaoPendente.has(l.id));
       try{ renderTagPicker(); }catch(e){}
       cartaoUltimaCalc = 0;
       renderHistorico();
@@ -1925,11 +1966,17 @@ async function salvarLancamentoInterno(){
   const jaExiste = lancamentosCache.some(l=>l.id!==editandoId && chaveLancamento(l)===chaveLancamento(doc));
   if(jaExiste && !(await confirmarModal("Já existe um lançamento igual (mesmo status, descrição, valor, banco e data). Salvar mesmo assim?"))) return;
   if(editandoId){
-    await db.collection("lancamentos").doc(editandoId).update(doc);
-    aplicarLocal(editandoId, doc);
+    const idEditado = editandoId;
+    const antes = JSON.parse(JSON.stringify(acharLancamento(idEditado) || {})); // copia: aplicarLocal altera o objeto da lista
+    if(!(await confirmarModal(`Salvar a alteração? ${resumoEdicao(antes, doc)}. Depois de salvar, dá para desfazer por 6 segundos.`))) return;
+    await db.collection("lancamentos").doc(idEditado).update(doc);
+    aplicarLocal(idEditado, doc);
     document.getElementById('iaStatus').textContent = "Edição salva ✓";
-    toast('✓ Edição salva');
     cancelarEdicao();
+    mostrarAvisoAcao({
+      txt: 'Edição salva', sub: cortar(doc.descricao, 40) + ' · ' + fmtMoeda(doc.valor), rotulo: 'Desfazer',
+      onAcao: ()=>desfazerEdicao(idEditado, antes, doc)
+    });
   }else{
     await db.collection("lancamentos").add({...doc, criadoEm: new Date().toISOString()});
     let extra = '';
@@ -2304,11 +2351,91 @@ async function ocultarLancamento(id){
   aplicarLocal(id, {oculto: novo});
 }
 
+// Exclusão com Desfazer: depois do Confirmar o lançamento some de todas as telas, mas o DELETE só vai ao servidor
+// quando o aviso termina (6 s, ou antes se outro aviso abrir ou a aba sair de vista). Desfazer cancela a chamada.
+const exclusaoPendente = new Map(); // id -> {c, m, b}: o item guardado de cada lista enquanto está escondido
+function atualizarVistas(){
+  try{ renderTagPicker(); }catch(e){}
+  cartaoUltimaCalc = 0;
+  renderHistorico();
+  try{ desenharGrafico(); }catch(e){}
+  renderCartao();
+}
+function esconderLocal(id){
+  exclusaoPendente.set(id, {
+    c: lancamentosCache.find(x=>x.id===id),
+    m: lancamentosMes.find(x=>x.id===id),
+    b: lancamentosBusca.find(x=>x.id===id)
+  });
+  lancamentosCache = lancamentosCache.filter(x=>x.id!==id);
+  lancamentosMes = lancamentosMes.filter(x=>x.id!==id);
+  lancamentosBusca = lancamentosBusca.filter(x=>x.id!==id);
+  atualizarVistas();
+}
+function devolverLocal(id){
+  const g = exclusaoPendente.get(id);
+  if(!g) return;
+  exclusaoPendente.delete(id);
+  const porData = (a, b)=> a.dataEvento < b.dataEvento ? 1 : (a.dataEvento > b.dataEvento ? -1 : 0);
+  if(g.c) lancamentosCache = lancamentosCache.concat([g.c]).sort(porData);
+  if(g.m) lancamentosMes = lancamentosMes.concat([g.m]).sort(porData);
+  if(g.b) lancamentosBusca = lancamentosBusca.concat([g.b]).sort(porData);
+  atualizarVistas();
+}
+function cortar(t, n){ t = String(t || ''); return t.length > n ? t.slice(0, n) + '…' : t; }
+function iniciarExclusao(id, desc){
+  esconderLocal(id);
+  mostrarAvisoAcao({
+    txt: 'Excluído: ' + cortar(desc, 40), sub: 'Some de vez depois de 6 segundos.', rotulo: 'Desfazer',
+    onAcao: ()=>devolverLocal(id),
+    onFim: ()=>efetivarExclusao(id, desc)
+  });
+}
+async function efetivarExclusao(id, desc){
+  try{
+    await db.collection("lancamentos").doc(id).delete();
+    exclusaoPendente.delete(id);
+  }catch(err){
+    console.error(err);
+    devolverLocal(id);
+    mostrarAvisoAcao({
+      txt: 'Não foi possível excluir "' + cortar(desc, 40) + '".',
+      sub: msgErro(err, 'Confira a conexão. O lançamento voltou para a lista.'),
+      rotulo: 'Tentar de novo', erro: true, ms: 8000,
+      onAcao: ()=>iniciarExclusao(id, desc)
+    });
+  }
+}
 async function excluirLancamento(id){
   if(!db) return;
-  if(!(await confirmarModal("Excluir este lançamento? Não dá pra desfazer."))) return;
-  await db.collection("lancamentos").doc(id).delete();
-  removerLocal(id);
+  const l = acharLancamento(id);
+  if(!l) return;
+  const resumo = cortar(l.descricao, 40) + ' · ' + fmtMoeda(l.valor);
+  if(!(await confirmarModal(`Excluir este lançamento (${resumo})? Depois de excluir, dá para desfazer por 6 segundos.`))) return;
+  iniciarExclusao(id, l.descricao);
+}
+
+// Desfazer de uma edição: reenvia, como edição normal, os valores que a edição trocou (o PUT mescla campo a campo).
+// Campo que não existia antes volta como null.
+async function desfazerEdicao(id, antes, doc){
+  const patch = {};
+  Object.keys(doc).forEach(k=>{ patch[k] = antes[k] !== undefined ? antes[k] : null; });
+  try{
+    await db.collection("lancamentos").doc(id).update(patch);
+    aplicarLocal(id, patch);
+    toast('Edição desfeita');
+  }catch(err){
+    console.error(err);
+    toast(msgErro(err, 'Não foi possível desfazer. Edite o lançamento de novo.'), true);
+  }
+}
+function resumoEdicao(antes, doc){
+  const campos = [['valor','Valor',fmtMoeda],['descricao','Descrição',v=>cortar(v,30)],['banco','Banco',v=>v],['status','Status',v=>v],
+    ['tipo','Tipo',v=>v],['dataEvento','Data',v=>fmtDataCompleta(diaLocal({dataEvento:v}))]];
+  const igual = (k)=> k === 'dataEvento' ? new Date(antes[k]).getTime() === new Date(doc[k]).getTime() : String(antes[k]) === String(doc[k]);
+  const m = campos.filter(([k])=>antes[k] !== undefined && !igual(k))
+    .map(([k,rot,f])=>`${rot}: ${f(antes[k])} → ${f(doc[k])}`);
+  return m.length ? m.join('; ') : 'Nenhum campo principal mudou.';
 }
 
 function executarAcaoRegistro(acao, id){
@@ -2356,7 +2483,7 @@ async function irParaMes(ym){
       .where("dataEvento", "<", fim)
       .orderBy("dataEvento", "desc").limit(1000).get();
     if(meu !== tokenMes) return; // o usuário já foi para outro mês
-    lancamentosMes = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    lancamentosMes = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(l=>!exclusaoPendente.has(l.id));
     modoMesEspecifico = true;
     renderHistorico();
   }catch(err){
@@ -2417,7 +2544,7 @@ async function buscarTextoHistorico(){
       cursor = snap.docs[snap.docs.length-1].data().dataEvento;
       if(snap.docs.length<1000) break;
     }
-    lancamentosBusca = encontrados;
+    lancamentosBusca = encontrados.filter(l=>!exclusaoPendente.has(l.id));
     modoBuscaTexto = true;
     document.getElementById('btnLimparBusca').classList.remove('hidden');
     renderHistorico();
@@ -4046,5 +4173,6 @@ window.addEventListener('unhandledrejection', ev=>{
 init();
 </script>
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="avisoAcao" role="status" aria-live="polite"></div>
 </body>
 </html>

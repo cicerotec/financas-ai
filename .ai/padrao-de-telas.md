@@ -15,6 +15,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Futuros por largura | [`demos/demo-futuros-largura.html`](demos/demo-futuros-largura.html) | **vale sobre a demo acima onde diferirem**: prazo embaixo do valor, descrição em até 2 linhas, "⋯" no celular, botões no computador e realce na cor do status |
 | Resumo da Futuros | [`demos/demo-resumo-futuros.html`](demos/demo-resumo-futuros.html) | a comparação que decidiu o resumo (opção A), com valores extremos e larguras de 320 a 390 px |
 | Total do Histórico | [`demos/demo-historico-total.html`](demos/demo-historico-total.html) | a soma da lista (renda menos gasto) à direita da linha do contador, na busca por texto e no mês aberto |
+| Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
 
 ## Princípios
 1. **Celular primeiro.** O dono usa o app no Android. Desenhe a largura de 360 a 400 px e só depois amplie.
@@ -121,6 +122,26 @@ em Futuros.
 
 **11. Aviso rápido (toast).** Faixa escura na base da tela, 2 segundos, para confirmar ("Oculto: saiu dos totais.").
 
+**11b. Desfazer depois de excluir ou editar** (aprovado em 2026-10-14, provisório até o histórico de versões estar
+no ar; veja `specs/historico/intent.md`). Duas camadas, de propósito: a **janela de confirmação** pega o engano de
+toque e o **aviso com Desfazer** pega o arrependimento.
+- **Excluir:** janela "Excluir este lançamento (descrição · valor)? Depois de excluir, dá para desfazer por 6
+  segundos." com Cancelar e Confirmar. Confirmado, o lançamento some de **todas** as telas na hora, mas o `DELETE` só vai
+  ao servidor quando o aviso termina. Desfazer cancela a chamada: o servidor nunca soube.
+- **Editar:** o botão Salvar da edição abre "Salvar a alteração?" com o que mudou (`Valor: R$ 50,00 → R$ 75,50`).
+  Confirmado, a edição é gravada e o aviso mostra "Edição salva" com Desfazer, que reenvia os valores anteriores como
+  uma edição normal (campo que não existia volta `null`). Nada muda de contrato: é o `PUT` de hoje.
+- **Aviso:** faixa escura na base, 6 s, texto + linha de apoio + botão **Desfazer** (alvo de 48 px) e uma barra fina
+  que mostra o tempo. **Um por vez:** abrir outro efetiva o anterior na hora. Erro ao efetivar: o item volta à lista e
+  o aviso fica vermelho, com "Tentar de novo". `role="status"`; a barra não anima com `prefers-reduced-motion`.
+- **Custos que a demo diz:** um toque a mais por exclusão e edição; **trocar de aba ou de app efetiva a exclusão na
+  hora** (o Desfazer some); o Desfazer vale só na sessão e só por 6 s (recuperar depois é o histórico); ele não passa
+  por cima da regra do backend (a trava do fechamento responde igual) nem da lacuna da fatura do cartão (item 33).
+- **Ocultar** continua sem confirmação e sem Desfazer (fica para uma decisão própria).
+- Implementação: `mostrarAvisoAcao` e `fecharAvisoAcao` (aviso), `iniciarExclusao`, `esconderLocal` e `devolverLocal`
+  (exclusão adiada) e `desfazerEdicao` (edição), em `web/index.html`. Os `onSnapshot` e as buscas filtram
+  `exclusaoPendente`, para um item escondido não reaparecer antes da hora.
+
 **12. Fluxo de criação em tela cheia (Prever e Estender).** Uma tela cheia por cima do app (fixa, com a rolagem da página
 travada) que junta os padrões 1 a 7:
 - **Cabeçalho** com `←` (fecha) e o título; **linha de contexto** em `--muted` com descrição, valor, status e data do
@@ -208,6 +229,11 @@ ações), e tire uma captura para olhar.
 7. Devolva ao padrão o que descobriu (seção "Manter o padrão em dia"): demo, guia e recomendações, na mesma entrega.
 
 ## Armadilhas já encontradas
+- Esconder um lançamento só da lista do Histórico deixa o item vivo em Futuros, saldos, gráfico e cartão, que leem
+  `lancamentosCache`. A exclusão adiada tira o item das três listas (`lancamentosCache`, `lancamentosMes`,
+  `lancamentosBusca`) e roda as mesmas atualizações do `onSnapshot`; e os `onSnapshot` e a busca filtram
+  `exclusaoPendente`, senão uma atualização que chega nos 6 s traz o item de volta.
+- `aplicarLocal` altera o objeto que está na lista: para o Desfazer de uma edição, copie o registro **antes** de gravar.
 - O navegador de teste do painel não gera o evento `scroll` quando a página não está sendo desenhada: para testar as
   rodas por script, ajuste `scrollTop` **e** dispare `dispatchEvent(new Event('scroll'))`. No celular real o evento
   dispara sozinho (a roda usa `scroll-snap` e lê a posição 90 ms depois de parar).
