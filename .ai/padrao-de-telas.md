@@ -65,6 +65,18 @@ literal num componente.
 | Roda | item de 44 px; área de 132 px (3 itens); faixa de destaque no item do meio |
 | Botões de janela | dois botões lado a lado, raio 14 px; Cancelar em `--ck`, OK em `--accent` |
 
+## Menu do app (navegação entre telas)
+Aprovado pelo dono em 2026-10-14. Presente no topo de todas as demos de `demos/` (bloco `menu-app:inicio` a `menu-app:fim`).
+- **Celular e janela abaixo de 1160 px:** cabeçalho de uma linha, com o nome do app pequeno, o **nome da tela atual** em
+  destaque e o botão **⋮** (alvo de 48 px). O ⋮ abre um menu suspenso com as telas agrupadas em **Dia a dia** (Lançar,
+  Histórico, Futuros), **Acompanhar** (Cartão, Saldos, Tendências) e **Configurar** (Listas, Importar). A tela atual leva
+  destaque e "✓". Toque fora do menu ou Esc fecha, e o foco volta ao ⋮.
+- **Janela larga (1160 px ou mais):** não muda nada: título e abas em botões, como sempre. O limite é o mesmo da tabela de
+  Futuros.
+- **No app**, as abas em botões (`nav`) continuam sendo a fonte das telas e dos nomes; o menu é montado a partir delas
+  (`MENU_APP` em `web/js/app.js` só define a ordem, os grupos e os ícones). Membro não vê Importar, nem no menu.
+- **Custo:** trocar de tela passa a pedir dois toques (⋮ e a tela) em vez de um. Em troca, o cabeçalho cai de 2 linhas para 1.
+
 ## Padrões do celular
 **1. Linha-resumo que abre tela cheia.** Cartão com título em negrito e, embaixo, o valor atual em `--muted`
 (ex.: "Repetir / 3 vezes além deste, mensal"), seta `›` à direita. Tocar abre a tela cheia daquela escolha.

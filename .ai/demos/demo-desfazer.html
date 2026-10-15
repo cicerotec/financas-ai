@@ -65,6 +65,79 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
 </style>
 </head>
 <body>
+<!-- menu-app:inicio (padrao do menu do app; igual em todas as demos. Celular e janela < 1160 px: menu ⋮. Janela larga ou "Computador": abas em botoes, como hoje) -->
+<style>
+.mn{position:sticky;top:0;z-index:60;margin-inline:-16px;padding:0 16px 8px;background:var(--bg);border-bottom:1px solid var(--line,var(--border));margin-bottom:12px}
+.mn *{box-sizing:border-box}
+.mn .mn-pills{display:none}
+.mn .mn-t{font-size:18px;font-weight:700;margin:10px 0 8px}
+.mn .mn-pills{gap:6px;overflow-x:auto;padding-bottom:2px}
+.mn .mn-pills button{border:1px solid var(--line,var(--border));background:var(--card);color:var(--fg,var(--text));padding:7px 12px;border-radius:20px;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
+.mn .mn-pills button.on{background:var(--accent);color:var(--onaccent,#fff);border-color:var(--accent)}
+.mn .mn-bar{display:flex;align-items:center;gap:8px;min-height:52px}
+.mn .mn-nome{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.mn .mn-app{font-size:11px;color:var(--muted)}
+.mn .mn-tela{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mn .mn-ib{width:48px;height:48px;border:0;background:transparent;color:var(--fg,var(--text));border-radius:50%;cursor:pointer;display:grid;place-items:center;flex:none;padding:0}
+.mn .mn-ib[aria-expanded="true"]{background:var(--accent-bg,rgba(95,185,138,.2))}
+.mn .mn-ib svg{width:24px;height:24px}
+.mn .mn-shade{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:61}
+.mn .mn-drop{position:absolute;top:52px;right:10px;width:240px;max-width:calc(100vw - 20px);background:var(--card);color:var(--fg,var(--text));border:1px solid var(--line,var(--border));border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:6px;z-index:62}
+.mn .mn-grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px}
+.mn .mn-grp:first-child{padding-top:6px}
+.mn .mn-it{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;border:0;background:transparent;color:inherit;font:inherit;font-size:15px;text-align:left;padding:0 10px;border-radius:10px;cursor:pointer}
+.mn .mn-it:hover,.mn .mn-it.on{background:var(--accent-bg,rgba(95,185,138,.2))}
+.mn .mn-it.on{font-weight:600}
+.mn .mn-ic{width:22px;text-align:center;font-size:17px;flex:none}
+.mn .mn-ck{margin-left:auto;color:var(--accent);font-weight:700}
+.mn hr{border:0;border-top:1px solid var(--line,var(--border));margin:4px 6px}
+.mn .mn-nota{font-size:11px;color:var(--muted);padding:6px 10px 4px;line-height:1.35}
+.mn[hidden],.mn [hidden]{display:none!important}
+/* largura da janela de computador: abas em botoes, sem o menu */
+@media (min-width:1160px){.mn.mn-auto .mn-bar{display:none}.mn.mn-auto .mn-pills{display:flex}}
+.mn.mn-largo .mn-bar{display:none}.mn.mn-largo .mn-pills{display:flex}
+</style>
+<header class="mn mn-auto" id="mn" data-tela="historico"></header>
+<script>
+(function(){
+  var el=document.getElementById('mn'); if(!el) return;
+  var T=[['lancar','Lançar','✏️','Dia a dia'],['historico','Histórico','🕘','Dia a dia'],['futuros','Futuros','📅','Dia a dia'],
+         ['cartao','Cartão','💳','Acompanhar'],['saldos','Saldos','🏦','Acompanhar'],['tendencias','Tendências','📈','Acompanhar'],
+         ['listas','Listas','🏷️','Configurar'],['importar','Importar','📥','Configurar']];
+  var atual=el.getAttribute('data-tela')||'lancar';
+  var MAIS='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+  function nome(){for(var i=0;i<T.length;i++)if(T[i][0]===atual)return T[i][1];return '';}
+  function fechar(){var d=el.querySelector('.mn-drop'),s=el.querySelector('.mn-shade'),b=el.querySelector('.mn-ib');
+    if(d)d.hidden=true;if(s)s.hidden=true;if(b)b.setAttribute('aria-expanded','false');}
+  function montar(){
+    var g='',m='';
+    T.forEach(function(t){
+      if(t[3]!==g){if(g)m+='<hr>';m+='<div class="mn-grp">'+t[3]+'</div>';g=t[3];}
+      var on=t[0]===atual;
+      m+='<button type="button" class="mn-it'+(on?' on':'')+'" role="menuitem" data-id="'+t[0]+'"><span class="mn-ic">'+t[2]+'</span>'+t[1]+(on?'<span class="mn-ck">✓</span>':'')+'</button>';
+    });
+    el.innerHTML=
+      '<div class="mn-t">💰 Finanças da Família</div>'+
+      '<div class="mn-pills">'+T.map(function(t){return '<button type="button" data-id="'+t[0]+'" class="'+(t[0]===atual?'on':'')+'">'+t[1]+'</button>';}).join('')+'</div>'+
+      '<div class="mn-bar"><div class="mn-nome"><span class="mn-app">💰 Finanças da Família</span><span class="mn-tela">'+nome()+'</span></div>'+
+      '<button type="button" class="mn-ib" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">'+MAIS+'</button></div>'+
+      '<div class="mn-shade" hidden></div>'+
+      '<div class="mn-drop" role="menu" aria-label="Telas do app" hidden>'+m+'<div class="mn-nota">Na demo, trocar de tela só muda o destaque do menu.</div></div>';
+    el.querySelector('.mn-t').style.display='';
+    var ib=el.querySelector('.mn-ib'),d=el.querySelector('.mn-drop'),s=el.querySelector('.mn-shade');
+    ib.onclick=function(){var abrir=d.hidden;fechar();if(abrir){d.hidden=false;s.hidden=false;ib.setAttribute('aria-expanded','true');}};
+    s.onclick=fechar;
+    el.querySelectorAll('[data-id]').forEach(function(b){b.onclick=function(){atual=b.getAttribute('data-id');montar();};});
+  }
+  // o "Computador" das demos liga body.wide: nessa visao valem as abas em botoes mesmo numa janela estreita
+  function largo(){el.classList.toggle('mn-largo',document.body.classList.contains('wide'));}
+  new MutationObserver(largo).observe(document.body,{attributes:true,attributeFilter:['class']});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')fechar();});
+  montar();largo();
+})();
+</script>
+<style>.mn .mn-t{display:none}@media (min-width:1160px){.mn.mn-auto .mn-t{display:block}}.mn.mn-largo .mn-t{display:block}</style>
+<!-- menu-app:fim -->
 <h1>Desfazer depois de excluir ou editar</h1>
 <p class="sub">Demonstração: toque numa linha, escolha Excluir ou Alterar valor e use o aviso. Nada é salvo no app.</p>
 <div class="phone" id="phone"></div>
