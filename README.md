@@ -3,7 +3,7 @@
 App de finanças pessoais e da família: lançamentos, saldos por banco, faturas de cartão, eventos futuros e tendências.
 Duas pessoas usam o mesmo espaço (dono e membro), pelo navegador do computador ou do celular (instalado na tela inicial).
 
-- **Front:** uma página HTML com CSS e JavaScript dentro (`web/index.html`), sem framework e sem etapa de build. Única
+- **Front:** uma página HTML (`web/index.html`) com o CSS em `web/css/app.css` e o JavaScript em `web/js/`, sem framework e sem etapa de build. Única
   biblioteca externa: SheetJS (xlsx), via CDN, só para importar planilhas.
 - **Backend:** AWS Lambda em Go com Function URL, DynamoDB e login com Cognito (Hosted UI + PKCE).
 - **Hospedagem do front:** S3 privado + CloudFront (HTTPS).
@@ -26,7 +26,7 @@ traduz para as rotas da Lambda.
 ## Estrutura do repositório
 | Pasta ou arquivo | O que tem |
 |---|---|
-| `web/` | O app. `index.html` (telas e lógica), `api.js` (cliente da API e do login), `config.example.js` (modelo; `config.js` fica fora do git) |
+| `web/` | O app. `index.html` (telas), `css/app.css` (estilos), `js/app.js` (lógica), `js/ambiente.js` (faixa do ambiente de teste), `api.js` (cliente da API e do login), `config.example.js` (modelo; `config.js` fica fora do git) |
 | `backend/` | Lambda em Go: `main.go` (rotas), `authz.go` (permissões por papel), `store.go` (DynamoDB), `auth.go` (token), `tags.go`, `perfil.go` (apelido e chat id do Telegram), `avisos.go` e `telegram.go` (avisos diários de lançamentos futuros), `fechamento.go` (fechamento mensal dos saldos), `seq.go` (contador de alterações) e os testes `*_test.go` |
 | `template.yaml` | Infra (SAM): tabela, Cognito, Lambda, bucket e distribuição do CloudFront |
 | `scripts/` | Deploy, sessão com MFA, publicação do front, convite de usuários e manutenção (ver abaixo) |

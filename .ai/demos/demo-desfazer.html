@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Demo aprovada em 2026-10-14: confirmacao e aviso com Desfazer apos excluir ou editar. Referencia do padrao 11b de ../padrao-de-telas.md. Implementado em web/index.html (mostrarAvisoAcao) -->
+<!-- No app a confirmacao de editar vem logo depois do botao Salvar do formulario; "Alterar valor" aqui faz esse papel. -->
+<!-- Medidas aprovadas: 6 s, alvo do Desfazer 48 px, um aviso por vez. -->
+<!-- Trocar de app ou aba (visibilitychange) efetiva a exclusao na hora; Desfazer so vale com a tela a vista. -->
+<title>Demo de desfazer</title>
+<style>
+/* Desfazer exclusao e edicao: a acao some da tela na hora e so vale no servidor depois da janela do aviso. */
+:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--faint:#8c938d;--line:#e4e2dc;--ck:#d3d6d2;--accent:#0f6b4f;--onaccent:#ffffff;--accent-bg:#dcefe5;--danger:#a3321f;--ok:#1d6b45}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--ok:#6fd6a4;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--ok:#6fd6a4;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.4;padding-inline:16px;padding-block:18px;max-width:440px;margin-inline:auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.phone{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:22px;height:620px;overflow:hidden}
+.scr{position:absolute;inset:0;overflow-y:auto;padding:14px 14px 90px}
+.cnt{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin:0 4px 8px}
+.cnt b{font-weight:600;white-space:nowrap}
+.card{background:var(--card);border-radius:16px;margin:0 0 10px;overflow:hidden}
+.li{display:flex;align-items:center;gap:12px;padding:8px 16px;min-height:58px;width:100%;background:transparent;border:0;border-top:1px solid var(--line);color:var(--fg);font:inherit;text-align:left}
+.li:first-child{border-top:0}
+.li .t{flex:1;min-width:0}
+.li .t b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.li .s{display:block;color:var(--muted);font-size:13px}
+.li .v{white-space:nowrap;font-weight:600;font-size:15px}
+.li .v.out{color:var(--danger)}.li .v.in{color:var(--ok)}
+.li .go{color:var(--muted);font-size:20px}
+.vazio{padding:28px 16px;text-align:center;color:var(--muted);font-size:13px}
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end}
+.sheet{background:var(--card);width:100%;border-radius:22px 22px 0 0;padding:16px 0 10px}
+.sheet h3{margin:0;padding:0 16px;font-size:17px;font-weight:600}
+.sheet .m{padding:0 16px 8px;color:var(--muted);font-size:13px}
+.sheet .li{border-top:1px solid var(--line)}
+.sheet .li.dg{color:var(--danger)}
+.mov{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--card);border-radius:16px;padding:18px 16px 14px;width:100%}
+.modal p{margin:0 0 6px;font-weight:600}
+.modal .m{margin:0 0 14px;font-weight:400;color:var(--muted);font-size:13px}
+.modal .btns{display:flex;gap:10px}
+.modal .btns button{flex:1;padding:13px;border-radius:14px;border:0;font:inherit;font-weight:600}
+.modal .no{background:var(--ck);color:var(--fg)}
+.modal .ok{background:var(--accent);color:var(--onaccent)}
+.toast{position:absolute;left:14px;right:14px;bottom:14px;background:var(--fg);color:var(--bg);border-radius:12px;overflow:hidden}
+.toast .row{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 14px;min-height:52px}
+.toast .tx{flex:1;font-size:13px;min-width:0}
+.toast .tx s{display:block;opacity:.7;text-decoration:none;font-size:12px}
+.toast button{background:transparent;border:0;color:var(--bg);font:inherit;font-weight:700;font-size:14px;text-decoration:underline;min-height:48px;min-width:48px;padding:0 12px;border-radius:10px}
+.toast .bar{height:3px;background:var(--accent);transform-origin:left;animation:esv linear forwards}
+.toast.err{background:var(--danger);color:var(--card)}
+.toast.err button{color:var(--card)}
+@keyframes esv{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.ctl{margin-top:12px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.ctl label{display:flex;gap:8px;align-items:center}
+.ctl button{align-self:flex-start;border:0;border-radius:10px;background:var(--ck);color:var(--fg);font:inherit;padding:8px 12px}
+.log{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:12px;color:var(--muted);min-height:48px}
+.log b{color:var(--fg);font-weight:600}
+.dec{margin-top:16px;border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--muted)}
+.dec b{color:var(--fg);font-weight:600}
+.dec ul{margin:6px 0 0;padding-left:18px}
+@media (prefers-reduced-motion:reduce){.toast .bar{animation:none}}
+</style>
+</head>
+<body>
+<h1>Desfazer depois de excluir ou editar</h1>
+<p class="sub">Demonstração: toque numa linha, escolha Excluir ou Alterar valor e use o aviso. Nada é salvo no app.</p>
+<div class="phone" id="phone"></div>
+<div class="ctl">
+  <label><input type="checkbox" id="falha"> Simular erro do servidor ao efetivar</label>
+  <button type="button" id="reset">Restaurar a lista da demonstração</button>
+</div>
+<div class="log" id="log" aria-live="polite">O que o servidor recebeu aparece aqui.</div>
+<div class="dec"><b>Como funciona, para você confirmar</b>
+<ul>
+<li><b>Duas camadas, como você pediu:</b> a janela de confirmação continua antes de excluir e passa a existir antes de salvar uma edição; depois da confirmação vem o aviso com "Desfazer". A janela pega o engano de toque; o Desfazer pega o arrependimento.</li>
+<li><b>Excluir:</b> depois de Confirmar, a linha some da tela e o aviso fica <b>6 segundos</b> com "Desfazer". Só depois disso a chamada de exclusão vai ao servidor. Desfazer cancela a chamada: o servidor nunca soube.</li>
+<li><b>Editar:</b> depois de Salvar e Confirmar, a tela já mostra o valor novo e o servidor já recebeu a edição. "Desfazer" reenvia o registro anterior como uma edição normal (no futuro, uma restauração do histórico). No app a confirmação vem logo depois do botão Salvar do formulário; aqui o "Alterar valor" faz esse papel.</li>
+<li><b>Um aviso por vez:</b> uma nova exclusão efetiva a anterior na hora e troca o aviso. Não há fila de Desfazer.</li>
+<li><b>Erro ao efetivar:</b> o item volta para a lista e o aviso em vermelho diz "Não foi possível excluir" com "Tentar de novo".</li>
+<li>O aviso é um <code>role="status"</code>; "Desfazer" tem alvo de 48 px. A barra fina mostra o tempo que falta e para de animar com <code>prefers-reduced-motion</code>.</li>
+</ul>
+<b>O que esta proposta faz perder</b>
+<ul>
+<li><b>Um toque a mais</b> em toda exclusão e edição (a confirmação), mesmo com Desfazer. É a escolha para o período sem histórico; dá para reavaliar quando ele estiver no ar.</li>
+<li><b>Trocar de aba ou de app efetiva a exclusão na hora</b> (o Desfazer some). Foi o jeito de a exclusão não se perder; se a aba for fechada à força ou a rede cair dentro dos 6 segundos, a exclusão pode não chegar ao servidor e o item reaparece ao reabrir.</li>
+<li>O Desfazer vale só nesta sessão e só por 6 segundos. Recuperar depois é o <b>histórico de versões</b> (intent em <code>.ai/specs/historico/</code>).</li>
+<li>Desfazer não passa por cima de regra do backend: se a trava do fechamento bloquear a edição, o Desfazer mostra o mesmo erro.</li>
+<li>Para cartão em fatura conferida, o backend ainda não trava (item 33); o Desfazer também não.</li>
+</ul></div>
+<script>
+var DUR=6000;
+var BASE=[
+  {id:'a',d:'Mercado do bairro',v:-182.4,data:'2026-10-12',banco:'NUBANK'},
+  {id:'b',d:'Salário outubro',v:5200,data:'2026-10-05',banco:'ITAU'},
+  {id:'c',d:'Seguro auto parcela 3/10 com descrição bem longa para testar duas linhas no celular',v:-230.5,data:'2026-10-03',banco:'ITAU'}
+];
+var lista,aberta=null,aviso=null,timer=null,modal=null;
+var phone=document.getElementById('phone'),logEl=document.getElementById('log');
+function brl(n){return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function fdy(s){var p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0]}
+function log(t){logEl.innerHTML=t}
+function soma(){return lista.filter(function(x){return !x.sumiu}).reduce(function(s,x){return s+x.v},0)}
+function reset(){lista=BASE.map(function(x){return Object.assign({},x)});aberta=null;limpaAviso();log('O que o servidor recebeu aparece aqui.');render()}
+function limpaAviso(){clearTimeout(timer);timer=null;aviso=null}
+function efetiva(){
+  if(!aviso||aviso.tipo!=='excluir')return;
+  var a=aviso,it=lista.filter(function(x){return x.id===a.id})[0];
+  if(document.getElementById('falha').checked){
+    it.sumiu=false;aviso={tipo:'erro',id:a.id,txt:'Não foi possível excluir "'+it.d.slice(0,28)+'".',nome:it.d};
+    log('<b>DELETE /tx/'+a.id+'</b> falhou (simulado). O item voltou para a lista.');
+    render();return;
+  }
+  lista=lista.filter(function(x){return x.id!==a.id});
+  log('<b>DELETE /tx/'+a.id+'</b> enviado depois de 6 s sem Desfazer.');
+  aviso=null;render();
+}
+function agenda(){clearTimeout(timer);timer=setTimeout(function(){if(aviso&&aviso.tipo==='excluir')efetiva();else{aviso=null;render()}},DUR)}
+function excluir(id){
+  if(aviso&&aviso.tipo==='excluir'){var antigo=aviso;clearTimeout(timer);efetiva()}
+  var it=lista.filter(function(x){return x.id===id})[0];
+  it.sumiu=true;aberta=null;
+  aviso={tipo:'excluir',id:id,txt:'Excluído: '+it.d.slice(0,28)+(it.d.length>28?'…':''),sub:'Some do histórico depois de 6 segundos.'};
+  log('Nenhuma chamada ainda. <b>DELETE /tx/'+id+'</b> está agendado para daqui a 6 s.');
+  agenda();render();
+}
+function alterar(id){
+  var it=lista.filter(function(x){return x.id===id})[0];
+  var antes=it.v;it.v=Math.round((it.v-10)*100)/100;aberta=null;
+  aviso={tipo:'editar',id:id,antes:antes,txt:'Valor alterado para '+brl(it.v),sub:'Era '+brl(antes)+'.'};
+  log('<b>PUT /tx/'+id+'</b> enviado com o valor '+brl(it.v)+'.');
+  agenda();render();
+}
+function desfazer(){
+  if(!aviso)return;
+  var it=lista.filter(function(x){return x.id===aviso.id})[0];
+  if(aviso.tipo==='excluir'){it.sumiu=false;log('Desfeito antes de 6 s: <b>nenhuma chamada</b> foi ao servidor.')}
+  if(aviso.tipo==='editar'){it.v=aviso.antes;log('<b>PUT /tx/'+it.id+'</b> reenviado com o valor anterior '+brl(it.v)+'.')}
+  limpaAviso();render();
+}
+function tentar(){
+  var id=aviso.id;limpaAviso();
+  document.getElementById('falha').checked=false;
+  var it=lista.filter(function(x){return x.id===id})[0];it.sumiu=false;excluir(id);
+}
+function linhas(){
+  var vis=lista.filter(function(x){return !x.sumiu});
+  if(!vis.length)return '<div class="card"><div class="vazio">Nenhum lançamento neste mês.</div></div>';
+  return '<div class="card">'+vis.map(function(x){
+    return '<button class="li" type="button" data-a="abrir" data-id="'+x.id+'"><span class="t"><b>'+x.d+'</b><span class="s">'+fdy(x.data)+' · '+x.banco+'</span></span><span class="v '+(x.v<0?'out':'in')+'">'+(x.v<0?'-':'+')+brl(Math.abs(x.v))+'</span><span class="go" aria-hidden="true">&#8943;</span></button>';
+  }).join('')+'</div>';
+}
+function modalHtml(){
+  if(!modal)return '';
+  var x=lista.filter(function(i){return i.id===modal.id})[0];
+  var t,m;
+  if(modal.tipo==='excluir'){t='Excluir este lançamento?';m=x.d.slice(0,40)+(x.d.length>40?'…':'')+' · '+brl(x.v)+'. Depois de excluir, dá para desfazer por 6 segundos.'}
+  else{t='Salvar a alteração?';m=x.d.slice(0,40)+(x.d.length>40?'…':'')+': valor de '+brl(x.v)+' para '+brl(Math.round((x.v-10)*100)/100)+'. Depois de salvar, dá para desfazer por 6 segundos.'}
+  return '<div class="mov"><div class="modal" role="alertdialog" aria-label="'+t+'"><p>'+t+'</p><p class="m">'+m+'</p><div class="btns"><button class="no" type="button" data-a="mno">Cancelar</button><button class="ok" type="button" data-a="mok">Confirmar</button></div></div></div>';
+}
+function sheet(){
+  if(!aberta)return '';
+  var x=lista.filter(function(i){return i.id===aberta})[0];
+  return '<div class="ov" data-a="fechar"><div class="sheet" role="dialog" aria-label="Ações"><h3>'+x.d.slice(0,40)+(x.d.length>40?'…':'')+'</h3><div class="m">'+brl(x.v)+' · '+fdy(x.data)+' · '+x.banco+'</div>'+
+    '<button class="li" type="button" data-a="alterar" data-id="'+x.id+'"><span class="t">Alterar valor (-R$ 10,00 na demonstração)</span></button>'+
+    '<button class="li dg" type="button" data-a="excluir" data-id="'+x.id+'"><span class="t">Excluir</span></button></div></div>';
+}
+function toast(){
+  if(!aviso)return '';
+  if(aviso.tipo==='erro')return '<div class="toast err" role="status"><div class="row"><span class="tx">'+aviso.txt+'</span><button type="button" data-a="tentar">Tentar de novo</button></div></div>';
+  return '<div class="toast" role="status"><div class="row"><span class="tx">'+aviso.txt+'<s>'+aviso.sub+'</s></span><button type="button" data-a="desfazer">Desfazer</button></div><div class="bar" style="animation-duration:'+DUR+'ms"></div></div>';
+}
+function render(){
+  var s=soma();
+  phone.innerHTML='<div class="scr"><div class="cnt"><span>'+lista.filter(function(x){return !x.sumiu}).length+' lançamentos · outubro/2026</span><b>'+(s<0?'-':'+')+brl(Math.abs(s))+'</b></div>'+linhas()+'</div>'+sheet()+modalHtml()+toast();
+}
+phone.addEventListener('click',function(e){
+  var b=e.target.closest('[data-a]');if(!b)return;
+  var a=b.dataset.a;
+  if(a==='abrir'){aberta=b.dataset.id;render();return}
+  if(a==='fechar'){if(e.target===b){aberta=null;render()}return}
+  if(a==='excluir'){modal={tipo:'excluir',id:b.dataset.id};aberta=null;render();return}
+  if(a==='alterar'){modal={tipo:'alterar',id:b.dataset.id};aberta=null;render();return}
+  if(a==='mno'){modal=null;render();return}
+  if(a==='mok'){var m=modal;modal=null;if(m.tipo==='excluir')excluir(m.id);else alterar(m.id);return}
+  if(a==='desfazer'){desfazer();return}
+  if(a==='tentar'){tentar();return}
+});
+document.getElementById('reset').addEventListener('click',reset);
+reset();
+</script>
+</body>
+</html>
