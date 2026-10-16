@@ -25,6 +25,7 @@ pendentes: nenhum.
 - [\[Backend\] - **\[Agora\] Histórico imutável e versionado:**](#item-31)
 - [\[Backend\] - **\[Agora\] Arquitetura em camadas:**](#item-32)
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
+- [\[Backend\] - **\[Próximo\] Mês anterior exige confirmação explícita:**](#item-38)
 - [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe:**](#item-33)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
@@ -85,8 +86,9 @@ DynamoDB sem discutir com o dono.**
   mantêm o contrato e passam sempre pelo service (só as rotas de histórico são novas); a tela "Histórico de versões"
   busca por **mês de alteração**; o GSI por data entra depois, quando a leitura pesar; a capacidade da tabela (5 WCU)
   fica para depois da refatoração. Fases: 0 (um caminho de escrita), 1 (versões e exclusão lógica), 2 (busca, diff e
-  restauração na API), 3 (tela, com demo antes). **Fases 0 e 1 implementadas** (a 1 grava as versões e exclui
-  logicamente; falta verificar o `Deny` de IAM em dev). Detalhes em
+  restauração na API), 3 (tela, com demo antes). **Fases 0 e 1 implementadas e verificadas em dev** (a 1 grava as
+  versões e exclui logicamente, com o `Deny` de IAM conferido). A Fase 2 espera a decisão do item 38 sobre restaurar em mês
+  anterior. Detalhes em
   [`.ai/specs/historico/`](.ai/specs/historico/) (`intent.md`, `plan.md` e `spec.md`).
 - 32. [ ] <a id="item-32"></a>**[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
   que o front recebe e recebe tudo por construtor; `domain` com tipos e regras puras que todos usam; adaptadores
@@ -97,6 +99,20 @@ DynamoDB sem discutir com o dono.**
   **Feito (PR #100):** cada camada virou uma pasta em `backend/` (`domain/`, `auth/`, `repository/`, `service/`,
   `controller/`), com a regra de dependência testada em `arquitetura_test.go`; lançamentos e `auth` já migraram. Falta
   o resto da raiz (`store`, `fechamento`, `tags`, `perfil`, `seq`, `cfg`) e a pasta `dispatcher/`, que nasce com o item 34.
+- 38. [ ] <a id="item-38"></a>**[Próximo] Mês anterior exige confirmação explícita (trava em dois níveis):** hoje só o mês
+  **conferido** com o extrato trava (absoluto até reabrir). Proposta do dono (2026-10-16): como o saldo é conferido
+  visualmente, e não pelo app, **alterar um evento de um mês anterior ao atual deve ser bloqueado mesmo sem conferência, e
+  a pessoa precisa ser explícita** (confirmar que quer mexer no passado). Dois níveis: **mês conferido = trava
+  absoluta** (reabrir o mês, como hoje); **mês anterior não conferido = confirmação explícita** (o backend recusa com
+  `409` e um código próprio, a tela mostra a janela de confirmação e reenvia com a confirmação; o front só exibe, não
+  decide). Vale para criar, editar, excluir, importar e, na Fase 2 do histórico, restaurar. Segue a regra de hoje de só
+  travar o que muda o saldo (valor, tipo, status, banco, data, oculto), e o que é anterior ao início do controle
+  continua livre. **A decidir antes de implementar, e antes do spec de restaurar da Fase 2 do item 31:** (a) quais
+  meses entram (todos os anteriores ao atual, ou uma folga, como o mês passado até certo dia, para lançar atrasado no
+  virar do mês); (b) como a confirmação viaja (campo no corpo ou parâmetro) e se fica gravada na versão do histórico
+  (campo novo: só com aprovação); (c) o encaixe com o Desfazer de 6 s da exclusão, que só chama o servidor depois do
+  aviso (a recusa chegaria tarde); (d) importação e restauração. **Custo:** um toque a mais ao editar o passado. Demo
+  antes de qualquer tela.
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
