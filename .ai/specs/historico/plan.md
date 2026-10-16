@@ -40,7 +40,7 @@ Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave n
 4. **Corte da refatoração (fechada pelo dono em 2026-10-15).** Um **repository de lançamentos** com a interface do `intent` e o service de
    lançamento, injetados; o resto do backend (`fechamento`, `tags`, `avisos`, `cfg`) segue como está e é migrado nos
    itens seguintes do 32. Não se cria "camada pela metade": o que entra é completo para lançamentos.
-5. **Importação em lote.** Proposta: o lote vira uma sequência de `TransactWriteItems` de até 25 lançamentos + 25
+5. **Importação em lote (fechada pelo dono em 2026-10-15).** O lote vira uma sequência de `TransactWriteItems` de até 25 lançamentos + 25
    versões (50 itens, abaixo do limite de 100). `id` que já existe é uma **edição** (`acao = update`); `id` novo é
    `insert`. A resposta mantém `gravados`, `rejeitados` e `pendentes`.
 6. **Como o v1 nasce.** O intent manda migrar o estado atual como versão 1 antes da escrita nova. Proposta de

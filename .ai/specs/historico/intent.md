@@ -63,7 +63,7 @@ foi, quem o mudou nem voltar atrás.
   tela para as novas; descartado.)
 - Cada rota nova exige **ação nova em `authz.go`, com teste** (o que não está liberado é negado).
 - **Sem buraco no histórico:** toda rota de escrita passa pelo mesmo caminho de escrita do
-  service e gravam a versão. O `DELETE` antigo passa a fazer exclusão lógica por dentro, mantendo a resposta que o front
+  service e grava a versão. O `DELETE` passa a fazer exclusão lógica por dentro, mantendo a resposta que o front
   já espera.
 
 ### Restauração e a regra de negócio
