@@ -1,0 +1,19 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "TX#2025-01-01T20:28:00.000Z#ciu6jio9rsda4yz3wy07",
+ "banco": "Bradesco",
+ "criadoEm": "2025-01-01T19:01:00.000Z",
+ "criadoPor": "dados-ficticios",
+ "dataEvento": "2025-01-01T20:28:00.000Z",
+ "descricao": "Eletronico",
+ "excluirDoTotal": false,
+ "id": "ciu6jio9rsda4yz3wy07",
+ "nota": "",
+ "status": "PAGO",
+ "tags": [
+  "compras-casa",
+  "compras-pet"
+ ],
+ "tipo": "saida",
+ "valor": 311.22
+}

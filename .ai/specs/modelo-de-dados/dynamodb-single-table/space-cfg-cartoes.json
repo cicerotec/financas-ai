@@ -1,0 +1,12 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "CFG#CARTOES",
+ "porBanco": {
+  "Bradesco": {
+   "diaPadrao": 25,
+   "faturas": {},
+   "inicio": "2026-01"
+  }
+ },
+ "version": 2
+}
