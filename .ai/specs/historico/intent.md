@@ -43,26 +43,29 @@ foi, quem o mudou nem voltar atrás.
 - **Número da versão** = maior existente + 1, gravado com `attribute_not_exists(SK)`: duas edições concorrentes disputam
   a mesma versão e a segunda falha. É a checagem de concorrência, **sem campo novo no item vivo**.
 - **Sem** índice (GSI), sem campo de versão no item vivo e sem TTL.
-- **Consulta:** as versões de um lançamento (`Query` por `PK` com `begins_with(SK, "TX#<id>#")`). Fica **de fora** a
-  visão cronológica do espaço inteiro ("o que mudou hoje").
+- **Consulta:** as versões de um lançamento (`Query` por `PK` com `begins_with(SK, "TX#<id>#")`) e, na tela, a
+  **busca por mês de alteração** (decisão do dono, 2026-10-15): `GET .../historico?mes=AAAA-MM&q=`, que lê a partição
+  `HIST#` e filtra por `em` em Go, com teto de 5.000 versões. O **GSI por data** entra depois, sem mudar a rota.
 - **Retenção:** versão guarda o **registro inteiro**. Analisar mais tarde a saída do histórico antigo para um S3.
 
 ### Exclusão
 - **Exclusão lógica**, como em `arquitetura.md` e no item 31 do backlog. Excluir não apaga o item vivo: marca-o como
   inativo e grava a versão `delete`. O excluído some das telas e continua na tabela e no histórico.
-- Isso exige um **indicador novo no item vivo** (nome provisório `ativo`; o dono é indiferente ao nome). É campo novo no
-  DynamoDB: **só com aprovação** (princípio 3) e entra no modelo de dados na mesma entrega.
+- Isso exige um **indicador novo no item vivo**: **`excluidoEm`** (data e hora ISO), gravado **só nos excluídos**; sem
+  o campo, o lançamento está vivo e não há migração. Nome fechado pelo dono em 2026-10-15 (substitui o `ativo`
+  provisório, que exigiria valor nos vivos). É campo novo no DynamoDB e entra no modelo de dados na mesma entrega.
 - As consultas das **rotas novas** devolvem só os ativos. As rotas atuais não mudam de contrato (veja "Rotas").
 - Continua só do owner, como hoje.
 
 ### Rotas
-- **Rotas novas, sem alterar o contrato das atuais.** `/tx`, `PUT` e `DELETE` seguem como estão; o front migra tela por
-  tela para as novas, que carregam versão, `acao` e a regra de "ativo".
+- **Decisão do dono (2026-10-15): sem rotas paralelas de CRUD.** `/tx`, `PUT` e `DELETE` seguem como estão, com o
+  mesmo contrato, e **sempre passam pelo service**. Só as rotas de histórico são novas (versões, restaurar, lista de
+  excluídos), e o `GET /tx` esconde os excluídos. (Texto anterior: o front migra tela por
+  tela para as novas; descartado.)
 - Cada rota nova exige **ação nova em `authz.go`, com teste** (o que não está liberado é negado).
-- **Sem buraco no histórico:** enquanto as rotas antigas existirem, elas também passam pelo mesmo caminho de escrita do
-  service e gravam a versão. O `DELETE` antigo passa a fazer exclusão lógica por dentro, mantendo a resposta que o front
-  já espera. **A confirmar no plan.**
-- Quando nenhuma tela usar mais a rota antiga, ela é removida em item próprio.
+- **Sem buraco no histórico:** toda rota de escrita passa pelo mesmo caminho de escrita do
+  service e grava a versão. O `DELETE` passa a fazer exclusão lógica por dentro, mantendo a resposta que o front
+  já espera.
 
 ### Restauração e a regra de negócio
 - **O histórico nunca briga com a regra de negócio.** Se a trava do fechamento não permite a escrita, a restauração
@@ -127,15 +130,18 @@ Dependência: item 33.
 - **O front não decide:** a lista de versões, o diff e se uma versão pode ser restaurada chegam prontos pela API.
 - **Dado real nunca no git:** exemplos e fixtures só fictícios.
 
-## Migração
+## Sem migração
 
-O estado atual de cada lançamento vira a **versão 1** (`acao = insert`, autor desconhecido), uma vez, antes de a escrita
-nova entrar. Mexe em dado: só com o dono acompanhando.
+**Decisão do dono (2026-10-15): não há migração.** Os lançamentos já gravados são do passado e continuam como estão. O
+histórico começa quando a escrita nova entra no ar. Na **primeira edição ou exclusão** de um lançamento sem versões, o
+service grava, na mesma transação, a **versão 1** com o estado de antes (`acao = insert`, autor desconhecido) e a
+versão 2 com o estado de depois. Nenhuma gravação em massa.
 
 ## Pronto quando
 
 - Toda escrita de lançamento passa por um único caminho que grava registro e versão juntos, com teste que falha se a
   versão não for gravada.
+- Editar ou excluir um lançamento sem versões grava a versão 1 (estado de antes) e a versão 2 na mesma transação.
 - Nenhum código nem policy permite editar ou apagar uma versão (teste no repository e `Deny` no `template.yaml`).
 - A tela lista as versões, mostra o que mudou e restaura criando versão nova, em celular e computador, nos dois temas;
   uma versão bloqueada pela trava aparece desabilitada, com o motivo.
