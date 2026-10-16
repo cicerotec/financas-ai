@@ -57,13 +57,14 @@ foi, quem o mudou nem voltar atrás.
 - Continua só do owner, como hoje.
 
 ### Rotas
-- **Rotas novas, sem alterar o contrato das atuais.** `/tx`, `PUT` e `DELETE` seguem como estão; o front migra tela por
-  tela para as novas, que carregam versão, `acao` e a regra de "ativo".
+- **Decisão do dono (2026-10-15): sem rotas paralelas de CRUD.** `/tx`, `PUT` e `DELETE` seguem como estão, com o
+  mesmo contrato, e **sempre passam pelo service**. Só as rotas de histórico são novas (versões, restaurar, lista de
+  excluídos), e o `GET /tx` esconde os excluídos. (Texto anterior: o front migra tela por
+  tela para as novas; descartado.)
 - Cada rota nova exige **ação nova em `authz.go`, com teste** (o que não está liberado é negado).
-- **Sem buraco no histórico:** enquanto as rotas antigas existirem, elas também passam pelo mesmo caminho de escrita do
+- **Sem buraco no histórico:** toda rota de escrita passa pelo mesmo caminho de escrita do
   service e gravam a versão. O `DELETE` antigo passa a fazer exclusão lógica por dentro, mantendo a resposta que o front
-  já espera. **A confirmar no plan.**
-- Quando nenhuma tela usar mais a rota antiga, ela é removida em item próprio.
+  já espera.
 
 ### Restauração e a regra de negócio
 - **O histórico nunca briga com a regra de negócio.** Se a trava do fechamento não permite a escrita, a restauração

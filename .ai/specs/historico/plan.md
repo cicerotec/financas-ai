@@ -31,12 +31,13 @@ Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave n
 2. **A rota antiga `GET /tx` também esconde os excluídos (fechada pelo dono em 2026-10-15).** O intent diz que só as rotas novas devolvem "só os
    ativos", mas o `DELETE` antigo passa a ser lógico: se o `GET` antigo não filtrar, o excluído **reaparece** nas
    telas atuais. Filtrar não muda o formato da resposta; devolve o mesmo que o `DELETE` sempre prometeu.
-3. **Capacidade de escrita.** Uma escrita de 1 KB passa de 1 WCU para **4 WCU** (put + versão, ambos transacionais, a
+3. **Capacidade de escrita (adiada pelo dono em 2026-10-15).** A tabela segue em 5 WCU; importação quase não é usada
+   e a capacidade é reavaliada depois da refatoração. A análise abaixo fica como registro. Uma escrita de 1 KB passa de 1 WCU para **4 WCU** (put + versão, ambos transacionais, a
    2 WCU cada). Uma importação de 25 itens passa de 25 para cerca de **100 WCU** contra 5 provisionados: o
    `gravarLote` repetiria com espera, e a tela de importação ficaria lenta. Opções: (a) subir a tabela para 25 WCU,
    que ainda cabe no always-free; (b) tornar a tabela `PAY_PER_REQUEST`; (c) manter 5 e aceitar a lentidão. **Proposta:
    (a)**, medindo em dev antes.
-4. **Corte da refatoração.** Proposta: um **repository de lançamentos** com a interface do `intent` e o service de
+4. **Corte da refatoração (fechada pelo dono em 2026-10-15).** Um **repository de lançamentos** com a interface do `intent` e o service de
    lançamento, injetados; o resto do backend (`fechamento`, `tags`, `avisos`, `cfg`) segue como está e é migrado nos
    itens seguintes do 32. Não se cria "camada pela metade": o que entra é completo para lançamentos.
 5. **Importação em lote.** Proposta: o lote vira uma sequência de `TransactWriteItems` de até 25 lançamentos + 25
@@ -94,7 +95,14 @@ corpo**. Um teste garante que nenhuma rota monta `HIST#` com valor do cliente.
 Falha em qualquer item cancela a edição inteira. O caso de **disputa** (`TransactionCanceledException` com
 `ConditionalCheckFailed` na versão) vira `409 conflito`, com a mesma mensagem que o `conflitoVersao` do fechamento usa.
 
-### Rotas novas (cada uma com ação em `authz.go` e teste)
+### Rotas (fechada pelo dono em 2026-10-15: só as de histórico são novas)
+
+`POST /tx`, `PUT /tx/{id}`, `DELETE /tx/{id}`, `POST /tx/batch` e `GET /tx` **continuam, com o mesmo contrato**, e
+**sempre passam pelo service**: não há rota de CRUD paralela nem outro caminho até o banco. A regra é verificável: um
+teste de arquitetura falha se algum controller importar o SDK da AWS ou chamar `db` direto, e um teste por rota de
+escrita confere que a versão foi gravada.
+
+Rotas novas (cada uma com ação em `authz.go` e teste):
 
 | Método e caminho | Ação | Quem |
 |---|---|---|
@@ -160,9 +168,6 @@ surpresa:
 - Depois da demo aprovada: implementar e testar em celular e janela larga, nos dois temas, com o pior caso (muitas
   versões, valor de sete dígitos, descrição longa).
 - **Pronto quando:** o critério de tela do intent, e `padrao-de-telas.md` e a demo em dia na mesma entrega.
-
-### Fase 5: aposentar as rotas antigas
-- Item próprio, depois de nenhuma tela usar `PUT` e `DELETE` de `/tx`. Fora deste plan.
 
 ## Riscos e como o plan responde
 
