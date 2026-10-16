@@ -77,15 +77,22 @@ O documento de referência é [`.ai/arquitetura.md`](.ai/arquitetura.md); leia a
 DynamoDB sem discutir com o dono.**
 - 31. [ ] <a id="item-31"></a>**[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
   criação, edição, ocultação e exclusão gera uma versão (quem, quando, o registro completo), gravada na mesma transação
-  do registro atual e com checagem de versão contra edição concorrente. Excluir passa a ser lógico; restaurar cria
-  versão nova; o histórico nunca é editado nem apagado (sem método no repositório e `Deny` por IAM). Lançamentos
-  primeiro, depois configurações e fechamentos; o estado atual vira a versão 1. **A decidir antes de gravar qualquer
-  chave:** o formato dos itens, ligar o PITR do DynamoDB já como proteção (item 11 está adiado) e confirmar a
-  exclusão lógica.
+  do registro atual (`TransactWriteItems`) e com checagem de versão contra edição concorrente. Excluir passa a ser
+  lógico, com o campo `excluidoEm` só nos excluídos; restaurar cria versão nova; o histórico nunca é editado nem
+  apagado (sem método no repositório e `Deny` por IAM em `HIST#*`). **Só lançamentos** nesta entrega; configurações e
+  fechamentos ficam para depois. **Sem migração:** a versão 1 nasce na primeira edição ou exclusão do lançamento.
+  Decisões fechadas com o dono em 2026-10-15; PITR já está ligado em prod. Pontos que valem: as rotas atuais de `/tx`
+  mantêm o contrato e passam sempre pelo service (só as rotas de histórico são novas); a tela "Histórico de versões"
+  busca por **mês de alteração**; o GSI por data entra depois, quando a leitura pesar; a capacidade da tabela (5 WCU)
+  fica para depois da refatoração. Fases: 0 (um caminho de escrita), 1 (versões e exclusão lógica), 2 (busca, diff e
+  restauração na API), 3 (tela, com demo antes). Detalhes em
+  [`.ai/specs/historico/`](.ai/specs/historico/) (`intent.md`, `plan.md` e `spec.md`).
 - 32. [ ] <a id="item-32"></a>**[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
   que o front recebe e recebe tudo por construtor; `domain` com tipos e regras puras que todos usam; adaptadores
   (DynamoDB, Telegram, auth, relógio) atrás de interfaces declaradas pelo service; sem variáveis globais (`db`,
-  `ssmCli`, `table`, `agora()`). Entra por fatias verticais, uma regra por vez, com o app no ar. Pré-requisito do 31.
+  `ssmCli`, `table`, `agora()`). Entra por fatias verticais, uma regra por vez, com o app no ar. **Só a fatia dos
+  lançamentos** (repository e service de lançamentos, injetados) entra com o 31, na Fase 0 dele (decisão de
+  2026-10-15); `fechamento`, `tags`, `avisos`, `cfg` e `perfil` seguem como estão e migram nas fatias seguintes.
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
