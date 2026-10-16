@@ -43,8 +43,9 @@ foi, quem o mudou nem voltar atrás.
 - **Número da versão** = maior existente + 1, gravado com `attribute_not_exists(SK)`: duas edições concorrentes disputam
   a mesma versão e a segunda falha. É a checagem de concorrência, **sem campo novo no item vivo**.
 - **Sem** índice (GSI), sem campo de versão no item vivo e sem TTL.
-- **Consulta:** as versões de um lançamento (`Query` por `PK` com `begins_with(SK, "TX#<id>#")`). Fica **de fora** a
-  visão cronológica do espaço inteiro ("o que mudou hoje").
+- **Consulta:** as versões de um lançamento (`Query` por `PK` com `begins_with(SK, "TX#<id>#")`) e, na tela, a
+  **busca por mês de alteração** (decisão do dono, 2026-10-15): `GET .../historico?mes=AAAA-MM&q=`, que lê a partição
+  `HIST#` e filtra por `em` em Go, com teto de 5.000 versões. O **GSI por data** entra depois, sem mudar a rota.
 - **Retenção:** versão guarda o **registro inteiro**. Analisar mais tarde a saída do histórico antigo para um S3.
 
 ### Exclusão

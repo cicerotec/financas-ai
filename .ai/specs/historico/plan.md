@@ -51,10 +51,22 @@ Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave n
    Nenhuma gravação em massa em prod. Para quem nunca foi editado, a API devolve "sem alterações desde o início do
    histórico" e o estado atual (a decisão é da API, não do front). Alteração feita fora do service (console do
    DynamoDB) não gera versão, com ou sem migração.
-7. **Lista de excluídos (lacuna do intent).** O intent restringe a consulta às versões de **um** lançamento, mas
-   um lançamento excluído **some das telas** e a pessoa não tem como achar o `id`. Proposta: `GET /tx?excluidos=1&de=&ate=`,
-   lendo a partição viva e filtrando em Go, como `listarTx` já faz. **Sem chave nova** e sem a visão cronológica do
-   espaço inteiro, que continua fora.
+7. **Busca por mês de alteração (fechada pelo dono em 2026-10-15).** O intent restringia a consulta às versões de
+   **um** lançamento, mas um lançamento excluído **some das telas** e a pessoa não tem como achar o `id`. A tela
+   **Histórico de versões** (em Configurações, independente: **sem atalho "Ver versões" dentro do lançamento**) passa a
+   ter uma busca própria, com **excluídos e alterados juntos**:
+   - **Rota única** `GET /spaces/{sid}/historico?mes=AAAA-MM&q=`. O **mês é obrigatório** (padrão: o mês atual) e é o
+     **mês da alteração** (`em` da versão), não o da data do lançamento. Meses antigos ficam sempre acessíveis,
+     escolhendo o mês. A busca de texto olha todas as versões do lançamento dentro do mês (um item renomeado é achado
+     pelo nome antigo).
+   - **Uma linha por lançamento**, com a última alteração dele no mês: descrição, valor, `acao` (inclui "excluído"),
+     `em` e quem fez. Tocar na linha abre as versões dentro da própria tela.
+   - **O mês limita o que volta, não o que se lê.** A chave `TX#<id>#<versão>` não leva o mês: a API lê a partição
+     `HIST#` e filtra por `em` em Go. Quem limita a leitura de verdade é um **GSI por data**, que entra depois **sem
+     mudar a rota nem a tela** (princípio 3: nenhuma chave nova agora).
+   - **Teto de 5.000 versões lidas**; acima disso a resposta traz `truncado: true` e a tela diz "refine a busca".
+   - **Quem vê:** owner todas; member só dos lançamentos que criou.
+   - **Custo (vai na demo):** só aparece o que foi alterado no mês escolhido; para ver outro mês, escolhe-se o mês.
 
 ## Desenho
 
@@ -112,7 +124,7 @@ Rotas novas (cada uma com ação em `authz.go` e teste):
 |---|---|---|
 | `GET /spaces/{sid}/tx/{id}/versoes` | `historico.ler` | owner: todas; member: só dos que criou |
 | `POST /spaces/{sid}/tx/{id}/versoes/{n}/restaurar` | `historico.restaurar` | owner: qualquer; member: só dos que criou e que ainda existem |
-| `GET /spaces/{sid}/tx?excluidos=1` (decisão 7) | `tx.ler` com filtro | owner; member vê só os que criou |
+| `GET /spaces/{sid}/historico?mes=AAAA-MM&q=` (decisão 7) | `historico.ler` | owner: todos; member: só dos que criou |
 
 - A resposta de `versoes` já traz, por versão: `versao`, `acao`, `porSub` (e o apelido), `em`, o **diff** em relação à
   anterior (campos que mudaram, valor antes e depois) e `restauravel` + `motivo`. O front só desenha.
@@ -154,15 +166,16 @@ surpresa:
   (`HIST#`, exemplo fictício e `excluidoEm`) atualizados; deploy em `financas-dev` e uma tentativa real de
   `DeleteItem` em `HIST#` negada.
 
-### Fase 2: leitura, diff e restauração (API)  **[dono: decisão 7]**
+### Fase 2: busca por mês, diff e restauração (API)
 - Rotas novas, `authz.go` com teste (o que não está liberado é negado), diff e `restauravel` calculados no backend.
 - **Pronto quando:** testes de permissão (owner, member dono, member de outro, restaurar excluído), trava do
   fechamento bloqueando com motivo, `409` ao restaurar o que já está ativo, `criadoPor` e `criadoEm` vindos da versão.
 
 ### Fase 3: tela
 - **Demo antes do código** (guardrails, "Telas"), em artefato privado que abra no celular: Configurações →
-  Histórico de versões, lista de excluídos, versões de um lançamento, diff, botão Restaurar desabilitado com o
-  motivo, e a visão de computador. Espera o ok do dono.
+  Histórico de versões com **seletor de mês** e busca de texto, lista de excluídos e alterados juntos, versões de um
+  lançamento dentro da tela, diff, botão Restaurar desabilitado com o motivo, aviso de "refine a busca" (`truncado`) e a
+  visão de computador. Diz o custo (só o mês escolhido). Espera o ok do dono.
 - Depois da demo aprovada: implementar e testar em celular e janela larga, nos dois temas, com o pior caso (muitas
   versões, valor de sete dígitos, descrição longa).
 - **Pronto quando:** o critério de tela do intent, e `padrao-de-telas.md` e a demo em dia na mesma entrega.
@@ -181,7 +194,7 @@ surpresa:
 
 ## Fora de escopo
 
-Configurações (`CFG#*`), fechamentos (`SALDO#*`), perfil, aparência e avisos; visão cronológica do espaço; S3 para
+Configurações (`CFG#*`), fechamentos (`SALDO#*`), perfil, aparência e avisos; GSI por data (entra quando a leitura pesar, sem mudar a rota); S3 para
 histórico antigo; trava de fatura (item 33); refatoração do restante do backend em camadas (item 32).
 
 ## Entregas de documentação (em cada fase, não no fim)
