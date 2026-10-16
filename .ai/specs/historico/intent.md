@@ -129,15 +129,18 @@ Dependência: item 33.
 - **O front não decide:** a lista de versões, o diff e se uma versão pode ser restaurada chegam prontos pela API.
 - **Dado real nunca no git:** exemplos e fixtures só fictícios.
 
-## Migração
+## Sem migração
 
-O estado atual de cada lançamento vira a **versão 1** (`acao = insert`, autor desconhecido), uma vez, antes de a escrita
-nova entrar. Mexe em dado: só com o dono acompanhando.
+**Decisão do dono (2026-10-15): não há migração.** Os lançamentos já gravados são do passado e continuam como estão. O
+histórico começa quando a escrita nova entra no ar. Na **primeira edição ou exclusão** de um lançamento sem versões, o
+service grava, na mesma transação, a **versão 1** com o estado de antes (`acao = insert`, autor desconhecido) e a
+versão 2 com o estado de depois. Nenhuma gravação em massa.
 
 ## Pronto quando
 
 - Toda escrita de lançamento passa por um único caminho que grava registro e versão juntos, com teste que falha se a
   versão não for gravada.
+- Editar ou excluir um lançamento sem versões grava a versão 1 (estado de antes) e a versão 2 na mesma transação.
 - Nenhum código nem policy permite editar ou apagar uma versão (teste no repository e `Deny` no `template.yaml`).
 - A tela lista as versões, mostra o que mudou e restaura criando versão nova, em celular e computador, nos dois temas;
   uma versão bloqueada pela trava aparece desabilitada, com o motivo.

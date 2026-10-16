@@ -43,10 +43,14 @@ Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave n
 5. **Importação em lote (fechada pelo dono em 2026-10-15).** O lote vira uma sequência de `TransactWriteItems` de até 25 lançamentos + 25
    versões (50 itens, abaixo do limite de 100). `id` que já existe é uma **edição** (`acao = update`); `id` novo é
    `insert`. A resposta mantém `gravados`, `rejeitados` e `pendentes`.
-6. **Como o v1 nasce.** O intent manda migrar o estado atual como versão 1 antes da escrita nova. Proposta de
-   reforço: o caminho de escrita **também cria a versão 1 sozinho** (com `acao = insert`, `porSub` vazio) quando o
-   lançamento ainda não tem nenhuma versão, na **mesma transação** da edição. Assim a ordem entre deploy e migração
-   deixa de ser frágil, e um lançamento que escapar da migração se corrige na primeira edição.
+6. **Como o v1 nasce: sem migração (fechada pelo dono em 2026-10-15).** O intent previa migrar o estado atual de cada
+   lançamento como versão 1. **Descartado:** um lançamento nunca editado é igual ao seu v1, então a cópia não protege
+   nada, e os lançamentos importados são do passado (o histórico começa quando a escrita nova entra no ar). Em vez
+   disso, o caminho de escrita **cria o v1 sozinho** (`acao = insert`, `porSub` vazio) na **primeira edição ou
+   exclusão** de um lançamento que ainda não tem versão, na **mesma transação**: v1 = estado antes, v2 = estado depois.
+   Nenhuma gravação em massa em prod. Para quem nunca foi editado, a API devolve "sem alterações desde o início do
+   histórico" e o estado atual (a decisão é da API, não do front). Alteração feita fora do service (console do
+   DynamoDB) não gera versão, com ou sem migração.
 7. **Lista de excluídos (lacuna do intent).** O intent restringe a consulta às versões de **um** lançamento, mas
    um lançamento excluído **some das telas** e a pessoa não tem como achar o `id`. Proposta: `GET /tx?excluidos=1&de=&ate=`,
    lendo a partição viva e filtrando em Go, como `listarTx` já faz. **Sem chave nova** e sem a visão cronológica do
@@ -140,28 +144,22 @@ surpresa:
 - **Pronto quando:** todos os testes atuais passam sem edição de expectativa, e um teste novo prova que o controller
   não alcança o `db` sem passar pelo service.
 
-### Fase 1: gravar versões e excluir logicamente  **[dono: decisões 1, 2, 3, 5, 6]**
-- Chave `HIST#`, fluxo de escrita completo, `excluidoEm`, filtro em `listarTx` e no `GET /tx` antigo, `v1` preguiçoso.
-- `template.yaml`: `Statement` de `Deny` e, se aprovado, a capacidade.
+### Fase 1: gravar versões e excluir logicamente
+- Chave `HIST#`, fluxo de escrita completo, `excluidoEm`, filtro em `listarTx` e no `GET /tx` antigo, v1 criado na
+  primeira edição ou exclusão.
+- `template.yaml`: `Statement` de `Deny` (a capacidade da tabela fica como está, decisão 3).
 - `publico()` passa a remover `excluidoEm`. Aviso: `removerAviso` continua na exclusão e `sincronizarAviso` na restauração.
 - **Pronto quando:** teste que falha se a versão não for gravada; teste de edição concorrente (segunda recebe `409`);
   teste de falha da versão abortando a edição; teste de importação que vira `update`; `security.md` e o modelo de dados
   (`HIST#`, exemplo fictício e `excluidoEm`) atualizados; deploy em `financas-dev` e uma tentativa real de
   `DeleteItem` em `HIST#` negada.
 
-### Fase 2: migração do v1
-- Script de uma vez (`scripts/`), com **modo simulação** que só conta e lista, e modo de gravação em lote com
-  `attribute_not_exists(SK)` (reexecutável sem duplicar). Autor desconhecido: `porSub` vazio.
-- Roda **primeiro em dev**, depois em prod, **com o dono acompanhando** (mexe em dado). Como o v1 também nasce
-  preguiçoso (decisão 6), a ordem entre migração e deploy deixa de ser crítica.
-- **Pronto quando:** contagem de `HIST#` bate com a de `TX#` no espaço, e uma segunda execução grava zero.
-
-### Fase 3: leitura, diff e restauração (API)  **[dono: decisão 7]**
+### Fase 2: leitura, diff e restauração (API)  **[dono: decisão 7]**
 - Rotas novas, `authz.go` com teste (o que não está liberado é negado), diff e `restauravel` calculados no backend.
 - **Pronto quando:** testes de permissão (owner, member dono, member de outro, restaurar excluído), trava do
   fechamento bloqueando com motivo, `409` ao restaurar o que já está ativo, `criadoPor` e `criadoEm` vindos da versão.
 
-### Fase 4: tela
+### Fase 3: tela
 - **Demo antes do código** (guardrails, "Telas"), em artefato privado que abra no celular: Configurações →
   Histórico de versões, lista de excluídos, versões de um lançamento, diff, botão Restaurar desabilitado com o
   motivo, e a visão de computador. Espera o ok do dono.
@@ -177,7 +175,7 @@ surpresa:
 | Item vivo e versão divergem | Os dois na mesma transação; falha da versão aborta |
 | `SALDO#` fica velho se `invalidarSaldos` falhar | Já é dívida do fechamento (intent); não entra aqui |
 | Excluído reaparece em alguma tela | Decisão 2 + teste de `GET /tx` depois de `DELETE`; conferir os leitores de `TX#` além de `listarTx` (`avisos.go`) |
-| Importação lenta com 5 WCU | Decisão 3, medida em dev na fase 1 |
+| Importação lenta com 5 WCU | Decisão 3: adiada; reavaliar depois da refatoração |
 | Registro de 400 KB | Versão guarda o registro inteiro; hoje um lançamento tem poucos KB, e o limite do item aborta a edição com erro claro |
 | Restaurar bagunçar fatura do cartão | Lacuna do item 33, documentada no intent; a restauração herda a regra quando existir |
 
@@ -188,7 +186,7 @@ histórico antigo; trava de fatura (item 33); refatoração do restante do backe
 
 ## Entregas de documentação (em cada fase, não no fim)
 
-- `.ai/security.md`: ações `historico.ler` e `historico.restaurar`, e o `Deny` (fase 1 e 3).
+- `.ai/security.md`: ações `historico.ler` e `historico.restaurar`, e o `Deny` (fases 1 e 2).
 - `.ai/specs/modelo-de-dados/README.md` e o JSON de exemplo: `HIST#`, `excluidoEm` (fase 1).
 - `.ai/README.md`: linha do `plan.md`. `BACKLOG.md`: itens 31 e 32 com o estado de cada fase.
-- `.ai/padrao-de-telas.md` e a demo (fase 4).
+- `.ai/padrao-de-telas.md` e a demo (fase 3).
