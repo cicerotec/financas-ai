@@ -70,12 +70,14 @@ Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave n
 
 ## Desenho
 
-### Tipos e interfaces (package `main`, em arquivos novos)
+### Tipos e interfaces (em pastas por responsabilidade, ver `arquitetura.md`)
 
 ```
-lancamento.go      tipo Lancamento (campos conhecidos + extras), Mudanca, Versao, Acao
-repo_lancamento.go interface RepositorioLancamentos (declarada aqui, usada pelo service) + implementação DynamoDB
-servico_lancamento.go  Criar, Editar, Excluir, Importar, Restaurar, Versoes  (o único caminho de escrita)
+domain/lancamento.go      Lancamento, Mudanca (e, na Fase 1, Versao e Acao)
+service/lancamento.go     interface Repositorio (declarada aqui) e Efeitos; Criar, Editar, Excluir, Importar,
+                          Restaurar, Versoes  (o único caminho de escrita)
+repository/lancamento.go  implementação DynamoDB da interface do service
+controller/lancamento.go  rotas de lançamento; traduz os erros do service em HTTP
 ```
 
 - `Mudanca` = `{antes *Lancamento, depois *Lancamento, acao, por, em, deVersao}`. O repository recebe uma `Mudanca` e
@@ -149,12 +151,14 @@ surpresa:
 ## Fases (cada uma é um PR, cada uma deixa o app funcionando)
 
 ### Fase 0: um caminho de escrita, sem mudar comportamento
-- Criar `Lancamento`, `Mudanca`, o repository e o service; mover `postTx`, `putTx`, `delTx` e `postTxBatch` para
-  chamá-lo. **Nenhuma resposta, rota ou chave muda.** Ainda sem versão.
+- Criar `Lancamento`, `Mudanca`, o repository e o service, cada um na sua pasta (`domain/`, `repository/`, `service/`,
+  `controller/`, mais `auth/`; ver `arquitetura.md`); os controllers de lançamento só chamam o service.
+  **Nenhuma resposta, rota ou chave muda.** Ainda sem versão. O service declara os efeitos derivados (saldos, tags,
+  avisos, contador) como interface, e a raiz os liga em `efeitos.go`.
 - Tornar o `bancoFake` fiel: `TransactWriteItems` atômico (aplica tudo ou nada), honra `attribute_not_exists`, devolve
   `TransactionCanceledException`; `Query` com `ScanIndexForward` e `Limit`.
-- **Pronto quando:** todos os testes atuais passam sem edição de expectativa, e um teste novo prova que o controller
-  não alcança o `db` sem passar pelo service.
+- **Pronto quando:** todos os testes atuais passam sem edição de expectativa, e um teste prova a regra de dependência
+  das camadas (o controller não alcança o banco, o service não importa a AWS).
 
 ### Fase 1: gravar versões e excluir logicamente
 - Chave `HIST#`, fluxo de escrita completo, `excluidoEm`, filtro em `listarTx` e no `GET /tx` antigo, v1 criado na

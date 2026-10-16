@@ -27,7 +27,7 @@ traduz para as rotas da Lambda.
 | Pasta ou arquivo | O que tem |
 |---|---|
 | `web/` | O app. `index.html` (telas), `css/app.css` (estilos), `js/app.js` (lógica), `js/ambiente.js` (faixa do ambiente de teste), `api.js` (cliente da API e do login), `config.example.js` (modelo; `config.js` fica fora do git) |
-| `backend/` | Lambda em Go: `main.go` (rotas), `authz.go` (permissões por papel), `store.go` (DynamoDB), `auth.go` (token), `tags.go`, `perfil.go` (apelido e chat id do Telegram), `avisos.go` e `telegram.go` (avisos diários de lançamentos futuros), `fechamento.go` (fechamento mensal dos saldos), `seq.go` (contador de alterações) e os testes `*_test.go` |
+| `backend/` | Lambda em Go, em pacotes por responsabilidade: `domain/` (tipos e regras puras), `auth/` (token do Cognito e permissões por papel), `repository/` (DynamoDB), `service/` (regra de uso), `controller/` (HTTP). Na raiz ficam `main.go` (liga as peças e roteia) e o que ainda não migrou: `store.go`, `fechamento.go` (fechamento mensal dos saldos), `tags.go`, `perfil.go`, `avisos.go` e `telegram.go` (avisos diários), `seq.go` (contador de alterações) e `efeitos.go`. Os testes ficam ao lado do código (`*_test.go`). Detalhes em [`.ai/arquitetura.md`](.ai/arquitetura.md) |
 | `template.yaml` | Infra (SAM): tabela, Cognito, Lambda, bucket e distribuição do CloudFront |
 | `scripts/` | Deploy, sessão com MFA, publicação do front, convite de usuários e manutenção (ver abaixo) |
 | `.ai/` | Documentos de projeto e contexto para quem constrói com IA: regras (`guardrails.md`), arquitetura, padrão de telas e demos, deploy, avisos |
@@ -74,7 +74,7 @@ Detalhes e comandos em [`.ai/fluxo-de-versoes.md`](.ai/fluxo-de-versoes.md).
 | Cores, layout e o próprio nome | sim | sim, só os dela |
 | Importar, exportar e limpeza | sim | não |
 
-A regra está em `backend/authz.go` e tem testes; o que não está liberado explicitamente é negado.
+A regra está em `backend/auth/authz.go` e tem testes; o que não está liberado explicitamente é negado.
 
 ## Modelo de dados
 

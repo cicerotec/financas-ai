@@ -5,7 +5,7 @@ Motivos: o token do Cognito já protege os dados; rotear a API pelo CloudFront (
 corpo em `x-amz-content-sha256` nos `POST`/`PUT`, token em outro cabeçalho (o OAC sobrescreve o `Authorization`) e
 complica o desenvolvimento em `localhost`, e o ganho de segurança é pequeno (o CloudFront continua público, então um
 anônimo ainda chega à Lambda por ele; limitar abuso de verdade pede WAF, que custa). Reavaliar com domínio próprio,
-WAF ou mais usuários; a troca é localizada (URL base em `config.js`, cabeçalho em `api.js` e `auth.go`, template).
+WAF ou mais usuários; a troca é localizada (URL base em `config.js`, cabeçalho em `api.js` e `auth/token.go`, template).
 
 Pronto (PR #5, no ar):
 - `template.yaml`: bucket S3 privado, OAC, distribuição (HTTPS, cache gerenciado, cabeçalhos de segurança), política do

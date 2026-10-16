@@ -296,15 +296,16 @@ desabilitado. Outros `409` da restauração: `{"erro": "...", "codigo": "ja_ness
 
 ### Fase 0: um caminho de escrita, sem mudar comportamento
 
-Entrega: `Lancamento`, `Mudanca`, repository e service de lançamentos; os quatro controllers viram finos. Sem versão, sem
-rota nova, sem chave nova. `bancoFake` fiel.
+Entrega: `Lancamento`, `Mudanca`, repository e service de lançamentos, cada um na sua pasta (`domain/`, `repository/`,
+`service/`, `controller/`, mais `auth/`); os controllers de lançamento só chamam o service. Sem versão, sem rota nova,
+sem chave nova. `bancoFake` fiel. Estado: **implementada** (PR #100).
 
 | Id | Teste | Esperado |
 |---|---|---|
 | F0-T1 | Toda a suíte atual (`go test ./...`) | Passa **sem alterar nenhuma expectativa** |
 | F0-T2 | `bancoFake.TransactWriteItems` com um item que viola `attribute_not_exists` | Devolve `TransactionCanceledException` e **nenhum** item muda |
 | F0-T3 | `bancoFake.Query` com `ScanIndexForward=false` e `Limit=1` | Devolve o último por `SK` |
-| F0-T4 | Teste de arquitetura: `postTx`, `putTx`, `delTx`, `postTxBatch` | Nenhuma referência a `db` nem ao pacote `dynamodb` (análise de fonte com `go/parser`) |
+| F0-T4 | Teste de arquitetura (`arquitetura_test.go`, análise dos imports com `go/parser`) | `domain` não importa o projeto nem a AWS; `service` não importa `controller`, `repository`, AWS nem `net/http`; `controller` não importa `repository` nem o SDK da AWS; `repository` e `auth` não importam as camadas de cima |
 
 **Pronto quando:** F0-T1 a F0-T4 passam e o diff de `*_test.go` existentes só acrescenta testes.
 

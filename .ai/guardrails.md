@@ -9,7 +9,9 @@ Referência: [`arquitetura.md`](arquitetura.md) (decisões de 2026-10-10).
 - **O front não decide.** Toda regra de negócio fica no backend e chega pronta pela API, nunca por etiqueta (nome de
   status ou de banco).
 - Camadas `controller` → `service` → `domain`, adaptadores atrás de interfaces e dependências por construtor, sem
-  globais.
+  globais. Em `backend/` cada camada é uma pasta (`controller/`, `service/`, `repository/`, `auth/`, `domain/`) e o
+  teste `arquitetura_test.go` falha se um pacote importar o que não pode (por exemplo, `service` importando a AWS).
+  Código novo entra na pasta da sua responsabilidade; o que ainda está na raiz migra por fatia (item 32).
 - **Não crie, renomeie nem remova chave ou campo no DynamoDB sem discutir com o dono.** Cada campo (como
   `faturaAjuste`) carrega uma decisão que não é óbvia no código.
 - Nada se sobrescreve sem versão no histórico (item 31 do backlog).
@@ -70,7 +72,7 @@ e para ajustes em telas que já existem.
 - **Segredos:** nunca peça nem repita token, chave ou senha no chat, e nunca os passe na linha de comando; guarde no
   SSM e leia com `Read-Host -AsSecureString`. Se um segredo aparecer numa conversa, recomende revogar.
 - **Permissões e autenticação:** leia [`security.md`](security.md) antes de mexer em rota, papel, token, CORS ou IAM. Rota
-  nova exige ação nova em `authz.go` com teste; o que não está liberado é negado. O front não é fronteira de segurança.
+  nova exige ação nova em `auth/authz.go` com teste; o que não está liberado é negado. O front não é fronteira de segurança.
 - **Dado real nunca no git** (o repositório é público): exemplos e fixtures só com dados fictícios.
 
 ## Testes e deploy
