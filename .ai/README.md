@@ -20,7 +20,8 @@ feito e ideias).
 | [`fluxo-de-versoes.md`](fluxo-de-versoes.md) | Branches, tags e releases |
 | [`specs/modelo-de-dados/`](specs/modelo-de-dados/README.md) | As chaves do DynamoDB, com exemplos fictícios em JSON |
 | [`specs/historico/intent.md`](specs/historico/intent.md) | Intent do histórico de versões e recuperação |
-| [`specs/historico/plan.md`](specs/historico/plan.md) | Plan do histórico: fases, decisões a confirmar e riscos (rascunho; `spec` a criar) |
+| [`specs/historico/plan.md`](specs/historico/plan.md) | Plan do histórico: fases, decisões a confirmar e riscos (decisões fechadas em 2026-10-15) |
+| [`specs/historico/spec.md`](specs/historico/spec.md) | Spec do histórico: dados, regras, contratos de API e testes por fase (rascunho) |
 | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | Demo aprovada do Desfazer depois de excluir ou editar (padrão 11b de `padrao-de-telas.md`; provisório até o histórico) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
