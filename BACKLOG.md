@@ -88,8 +88,8 @@ DynamoDB sem discutir com o dono.**
   busca por **mês de alteração**; o GSI por data entra depois, quando a leitura pesar; a capacidade da tabela (5 WCU)
   fica para depois da refatoração. Fases: 0 (um caminho de escrita), 1 (versões e exclusão lógica), 2 (busca, diff e
   restauração na API), 3 (tela, com demo antes). **Fases 0 e 1 implementadas e verificadas em dev** (a 1 grava as
-  versões e exclui logicamente, com o `Deny` de IAM conferido). O backend do item 38 vem antes da Fase 2 (restaurar usa a mesma
-  regra do mês anterior). Detalhes em
+  versões e exclui logicamente, com o `Deny` de IAM conferido). O item 38 (fechamento automático do mês anterior) fica para
+  depois do histórico: a restauração da Fase 2 respeita a trava do mês conferido, como as outras escritas. Detalhes em
   [`.ai/specs/historico/`](.ai/specs/historico/) (`intent.md`, `plan.md` e `spec.md`).
 - 32. [ ] <a id="item-32"></a>**[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
   que o front recebe e recebe tudo por construtor; `domain` com tipos e regras puras que todos usam; adaptadores
@@ -113,8 +113,10 @@ DynamoDB sem discutir com o dono.**
   vivo; o nome exato entra no spec). **Excluir passa a ser imediato:** o `DELETE` vai na hora, a recusa aparece antes de
   o item sumir, e o **Desfazer vira uma restauração** (a resposta do `DELETE` diz qual versão restaurar); depois dos 6 s
   ainda dá para recuperar pela tela de histórico. Isso muda o padrão 11b de `padrao-de-telas.md` (demo antes do código).
-  **Ordem:** o backend deste item vem antes da Fase 2 do item 31 (restaurar usa a mesma regra); a mudança de tela vem na
-  Fase 3. **Custo:** um toque a mais ao editar o passado. Depende do item 31.
+  **Ordem (decidida em 2026-10-16):** vem **depois** do histórico (item 31, fases 2 e 3). A
+  restauração da Fase 2 passa pelo mesmo ponto de trava das outras escritas, então este item entra num lugar só e vale
+  para criar, editar, excluir, importar e restaurar. A mudança de tela (exclusão imediata, Desfazer por restauração) é
+  deste item, não da Fase 3 do histórico. **Custo:** um toque a mais ao editar o passado. Depende do item 31.
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
