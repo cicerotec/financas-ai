@@ -12,17 +12,18 @@ import (
 	"financas/domain"
 )
 
-// Repositorio e o que o service precisa do banco, na linguagem do dominio. Nao ha metodo para editar ou apagar
-// historico: quando o historico nascer, a interface so ganha o anexar.
+// Repositorio e o que o service precisa do banco, na linguagem do dominio. Nao ha metodo para editar nem apagar
+// versao do historico: toda escrita grava o lancamento e as suas versoes juntos, e so acrescenta.
 type Repositorio interface {
-	// Buscar devolve nil (sem erro) quando o lancamento nao existe.
+	// Buscar devolve o lancamento vivo, inclusive o excluido logicamente, ou nil (sem erro) se nao existe.
 	Buscar(ctx context.Context, sid, dataEvento, id string) (domain.Lancamento, error)
-	// Salvar grava o estado novo. Sem Antes, so cria (falha se ja existir). Se a data mudou, troca a chave
-	// antiga pela nova numa transacao.
+	// UltimaVersao devolve o maior numero de versao do lancamento; 0 se ele nao tem historico.
+	UltimaVersao(ctx context.Context, sid, id string) (int, error)
+	// Salvar grava o lancamento e as suas versoes numa transacao. Sem Antes, so cria. Se a data mudou, troca a chave
+	// antiga pela nova. Devolve domain.ErrConflitoVersao se outra escrita gravou a mesma versao antes.
 	Salvar(ctx context.Context, sid string, m domain.Mudanca) error
-	Excluir(ctx context.Context, sid, dataEvento, id string) error
-	// GravarLote grava os itens (ja validados) e devolve os que o banco nao aceitou a tempo.
-	GravarLote(ctx context.Context, sid string, itens []domain.Lancamento) []domain.Lancamento
+	// SalvarLote e o Salvar de varias mudancas, tudo ou nada (importacao).
+	SalvarLote(ctx context.Context, sid string, ms []domain.Mudanca) error
 }
 
 // Travas consulta, ao longo de uma chamada, se o mes de um banco esta conferido (fechamento mensal).
@@ -68,9 +69,10 @@ func NewLancamentos(repo Repositorio, ef Efeitos) *Lancamentos {
 
 const formatoTempo = "2006-01-02T15:04:05.000Z"
 
-// escrita traduz o erro do repository: "dados invalidos" passa; o resto vira o erro de salvar ou excluir.
+// escrita traduz o erro do repository: "dados invalidos" e o conflito de versao passam; o resto vira o erro de
+// salvar ou excluir.
 func escrita(op string, sentinela, err error) error {
-	if errors.Is(err, domain.ErrDadosInvalidos) {
+	if errors.Is(err, domain.ErrDadosInvalidos) || errors.Is(err, domain.ErrConflitoVersao) {
 		return err
 	}
 	log.Println(op+":", err)
@@ -83,8 +85,9 @@ func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.La
 	if err := domain.ValidarTx(body); err != nil {
 		return nil, &ErroValidacao{err.Error()}
 	}
+	agora := time.Now().UTC().Format(formatoTempo)
 	body["id"] = domain.NovoID()
-	body["criadoEm"] = time.Now().UTC().Format(formatoTempo)
+	body["criadoEm"] = agora
 	body["criadoPor"] = sub
 	al, temAlvo := domain.AlvoDe(body)
 	if temAlvo {
@@ -92,7 +95,8 @@ func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.La
 			return nil, err
 		}
 	}
-	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Depois: body}); err != nil {
+	versoes := domain.VersoesDaEscrita(0, nil, body, domain.AcaoInsert, sub, agora)
+	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Depois: body, Versoes: versoes}); err != nil {
 		return nil, escrita("post tx", ErrSalvar, err)
 	}
 	if temAlvo {
@@ -113,7 +117,7 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 	if err != nil {
 		return nil, ErrInterno
 	}
-	if antigo == nil {
+	if antigo == nil || domain.Excluido(antigo) {
 		return nil, ErrNaoEncontrado
 	}
 	if restrito && !domain.EhDono(antigo, sub) {
@@ -143,7 +147,13 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 			}
 		}
 	}
-	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Antes: antes, Depois: novo, DataAnterior: de}); err != nil {
+	ultima, err := s.repo.UltimaVersao(ctx, sid, id)
+	if err != nil {
+		log.Println("put tx: ultima versao:", err)
+		return nil, ErrInterno
+	}
+	versoes := domain.VersoesDaEscrita(ultima, antes, novo, domain.AcaoUpdate, sub, time.Now().UTC().Format(formatoTempo))
+	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Antes: antes, Depois: novo, DataAnterior: de, Versoes: versoes}); err != nil {
 		return nil, escrita("put tx", ErrSalvar, err)
 	}
 	if len(alvos) > 0 {
@@ -154,8 +164,10 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 	return s.ef.ComSeq(ctx, sid, domain.Publico(novo)), nil
 }
 
-// Excluir apaga o lancamento que esta sob a data "de". Excluir o que nao existe responde ok.
-func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de string) (domain.Doc, error) {
+// Excluir exclui o lancamento que esta sob a data "de". A exclusao e logica: o lancamento fica na tabela, marcado
+// com excluidoEm, e some das telas; a versao delete guarda como ficou. Excluir o que ja esta excluido, ou o que nao
+// existe, responde ok sem gravar nada.
+func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de, sub string) (domain.Doc, error) {
 	de, err := domain.NormData(de)
 	if err != nil {
 		return nil, &ErroValidacao{"parametro de (dataEvento atual) obrigatorio"}
@@ -164,45 +176,59 @@ func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de string) (domain.D
 	if err != nil {
 		return nil, ErrInterno
 	}
+	if antigo == nil || domain.Excluido(antigo) {
+		return domain.Doc{"ok": true}, nil
+	}
 	al, temAlvo := domain.AlvoDe(antigo)
-	if antigo != nil && temAlvo {
+	if temAlvo {
 		if err := s.ef.Travas(ctx, sid).Checar(al); err != nil {
 			return nil, err
 		}
 	}
-	if err := s.repo.Excluir(ctx, sid, de, id); err != nil {
+	ultima, err := s.repo.UltimaVersao(ctx, sid, id)
+	if err != nil {
+		log.Println("del tx: ultima versao:", err)
+		return nil, ErrInterno
+	}
+	agora := time.Now().UTC().Format(formatoTempo)
+	depois := domain.CopiaRasa(antigo)
+	depois["excluidoEm"] = agora
+	versoes := domain.VersoesDaEscrita(ultima, antigo, depois, domain.AcaoDelete, sub, agora)
+	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Antes: antigo, Depois: depois, DataAnterior: de, Versoes: versoes}); err != nil {
 		return nil, escrita("del tx", ErrExcluir, err)
 	}
 	s.ef.RemoverAviso(ctx, sid, id)
-	if antigo != nil && temAlvo {
+	if temAlvo {
 		s.ef.InvalidarSaldos(ctx, sid, []domain.Alvo{al})
 	}
 	resposta := domain.Doc{"ok": true}
-	if antigo != nil {
-		s.ef.ComSeq(ctx, sid, resposta)
-	}
+	s.ef.ComSeq(ctx, sid, resposta)
 	return resposta, nil
 }
 
-// Importar grava ate 25 lancamentos por chamada. Preserva id e criadoEm quando vierem no item, entao reimportar o
-// mesmo backup sobrescreve em vez de duplicar. O que o banco nao aceitar a tempo volta em "pendentes".
+// Importar grava ate 25 lancamentos por chamada, numa unica transacao: ou entram todos os aceitos, ou nenhum (e todos
+// voltam em "pendentes" para reenviar). Preserva id e criadoEm quando vierem no item. Um id que ja existe e uma edicao
+// (a versao guarda o estado anterior); um id novo e uma criacao.
 func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain.Doc) (domain.Doc, error) {
 	bruto, _ := body["itens"].([]any)
 	if len(bruto) == 0 || len(bruto) > 25 {
 		return nil, &ErroValidacao{"itens deve ter de 1 a 25 lancamentos"}
 	}
-	ts := time.Now().UTC().Format(formatoTempo)
+	agora := time.Now().UTC().Format(formatoTempo)
 	rejeitados := []domain.Doc{}
 	vistas := map[string]bool{}
+	ultimas := map[string]int{} // maior versao por id, contando o que este lote ja vai gravar
 	tr := s.ef.Travas(ctx, sid)
 	var alvos []domain.Alvo
 	var aceitos []domain.Lancamento
+	var mudancas []domain.Mudanca
 	for i, x := range bruto {
 		d, ok := x.(map[string]any)
 		if !ok {
 			rejeitados = append(rejeitados, domain.Doc{"indice": i, "motivo": "item invalido"})
 			continue
 		}
+		delete(d, "excluidoEm") // a exclusao so se faz pela rota de exclusao
 		if err := domain.ValidarTx(d); err != nil {
 			rejeitados = append(rejeitados, domain.Doc{"indice": i, "motivo": err.Error()})
 			continue
@@ -211,7 +237,7 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 			d["id"] = domain.NovoID()
 		}
 		if c, _ := d["criadoEm"].(string); c == "" {
-			d["criadoEm"] = ts
+			d["criadoEm"] = agora
 		}
 		d["criadoPor"] = sub
 		if vistas[domain.Identidade(d)] {
@@ -231,32 +257,57 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 				continue
 			}
 		}
+		id, _ := d["id"].(string)
+		data, _ := d["dataEvento"].(string)
+		antigo, err := s.repo.Buscar(ctx, sid, data, id)
+		if err != nil {
+			log.Println("importar: buscar:", err)
+			return nil, ErrInterno
+		}
+		ultima, visto := ultimas[id]
+		if !visto {
+			if ultima, err = s.repo.UltimaVersao(ctx, sid, id); err != nil {
+				log.Println("importar: ultima versao:", err)
+				return nil, ErrInterno
+			}
+		}
+		acao := domain.AcaoInsert
+		if antigo != nil {
+			acao = domain.AcaoUpdate
+		}
+		versoes := domain.VersoesDaEscrita(ultima, antigo, d, acao, sub, agora)
+		ultimas[id] = versoes[len(versoes)-1].Numero
+		mudancas = append(mudancas, domain.Mudanca{Antes: antigo, Depois: d, DataAnterior: data, Versoes: versoes})
 		aceitos = append(aceitos, d)
 		if temAlvo {
 			alvos = append(alvos, al)
 		}
 	}
-	enviados := len(aceitos)
-	var pend []domain.Lancamento
-	if enviados > 0 {
-		pend = s.repo.GravarLote(ctx, sid, aceitos)
-		s.ef.InvalidarSaldos(ctx, sid, alvos)
+	gravou := false
+	if len(mudancas) > 0 {
+		if err := s.repo.SalvarLote(ctx, sid, mudancas); err != nil {
+			log.Println("importar: salvar lote:", err)
+		} else {
+			gravou = true
+			s.ef.InvalidarSaldos(ctx, sid, alvos)
+		}
 	}
 	pendentes := []domain.Doc{}
-	naoGravados := map[string]bool{}
-	for _, d := range pend {
-		naoGravados[domain.Identidade(d)] = true
-		pendentes = append(pendentes, domain.Publico(d))
-	}
-	for _, d := range aceitos {
-		if !naoGravados[domain.Identidade(d)] {
+	gravados := 0
+	if gravou {
+		gravados = len(aceitos)
+		for _, d := range aceitos {
 			s.ef.SincronizarAviso(ctx, sid, d)
+		}
+	} else {
+		for _, d := range aceitos {
+			pendentes = append(pendentes, domain.Publico(d))
 		}
 	}
 	resposta := domain.Doc{}
-	if enviados > len(pend) {
+	if gravou {
 		s.ef.ComSeq(ctx, sid, resposta) // algo foi gravado: quem mais estiver com a tela aberta precisa saber
 	}
-	resposta["gravados"], resposta["rejeitados"], resposta["pendentes"] = enviados-len(pend), rejeitados, pendentes
+	resposta["gravados"], resposta["rejeitados"], resposta["pendentes"] = gravados, rejeitados, pendentes
 	return resposta, nil
 }

@@ -85,7 +85,8 @@ DynamoDB sem discutir com o dono.**
   mantêm o contrato e passam sempre pelo service (só as rotas de histórico são novas); a tela "Histórico de versões"
   busca por **mês de alteração**; o GSI por data entra depois, quando a leitura pesar; a capacidade da tabela (5 WCU)
   fica para depois da refatoração. Fases: 0 (um caminho de escrita), 1 (versões e exclusão lógica), 2 (busca, diff e
-  restauração na API), 3 (tela, com demo antes). Detalhes em
+  restauração na API), 3 (tela, com demo antes). **Fases 0 e 1 implementadas** (a 1 grava as versões e exclui
+  logicamente; falta verificar o `Deny` de IAM em dev). Detalhes em
   [`.ai/specs/historico/`](.ai/specs/historico/) (`intent.md`, `plan.md` e `spec.md`).
 - 32. [ ] <a id="item-32"></a>**[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
   que o front recebe e recebe tudo por construtor; `domain` com tipos e regras puras que todos usam; adaptadores

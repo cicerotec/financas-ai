@@ -337,7 +337,7 @@ func rodarAvisos(ctx context.Context, agora time.Time) (int, error) {
 			log.Println("avisos: ler lancamento:", err)
 			continue
 		}
-		if tx == nil { // excluido
+		if tx == nil || tx["excluidoEm"] != nil { // excluido
 			removerAviso(ctx, sid, id)
 			continue
 		}

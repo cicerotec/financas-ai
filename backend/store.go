@@ -116,6 +116,9 @@ func listarTx(ctx context.Context, sid string, f filtroTx) ([]doc, string, error
 			if err := attributevalue.UnmarshalMap(it, &d); err != nil {
 				return nil, "", err
 			}
+			if d["excluidoEm"] != nil { // excluido logicamente: some das listas, mas continua na tabela e no historico
+				continue
+			}
 			if f.Banco != "" && d["banco"] != f.Banco {
 				continue
 			}
