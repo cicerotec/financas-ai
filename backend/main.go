@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,21 +16,21 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
+	"financas/auth"
+	"financas/controller"
+	"financas/repository"
+	"financas/service"
 )
 
 type resp = events.LambdaFunctionURLResponse
 type req = events.LambdaFunctionURLRequest
 
-var cfgNomes = map[string]bool{"listas": true, "tags": true, "combos": true, "saldos": true, "cartoes": true}
-
-func out(status int, v any) (resp, error) {
-	b, _ := json.Marshal(v)
-	return resp{StatusCode: status, Headers: map[string]string{"content-type": "application/json"}, Body: string(b)}, nil
-}
-func erro(status int, msg string) (resp, error) { return out(status, doc{"erro": msg}) }
+func out(status int, v any) (resp, error)        { return controller.Out(status, v) }
+func erro(status int, msg string) (resp, error) { return controller.Erro(status, msg) }
 
 func handler(ctx context.Context, r req) (resp, error) {
-	u, err := verificarToken(strings.TrimPrefix(r.Headers["authorization"], "Bearer "))
+	u, err := auth.VerificarToken(strings.TrimPrefix(r.Headers["authorization"], "Bearer "))
 	if err != nil {
 		return erro(http.StatusUnauthorized, "nao autenticado")
 	}
@@ -50,7 +49,7 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 		return erro(http.StatusNotFound, "rota inexistente")
 	}
 	sid := p[1]
-	acaoReq, ok := rotaParaAcao(m, p[2:])
+	acaoReq, ok := auth.RotaParaAcao(m, p[2:])
 	if !ok {
 		return erro(http.StatusNotFound, "rota inexistente")
 	}
@@ -62,8 +61,8 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 	if role == "" {
 		return erro(http.StatusForbidden, "sem acesso a esse espaco")
 	}
-	dec := permitido(role, acaoReq)
-	if dec == negado {
+	dec := auth.Permitido(role, acaoReq)
+	if dec == auth.Negado {
 		log.Printf("negado: sub=%s papel=%s acao=%s", u.Sub, role, acaoReq)
 		return erro(http.StatusForbidden, "sem permissao para esta acao")
 	}
@@ -73,41 +72,42 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 			return erro(http.StatusBadRequest, "json invalido")
 		}
 	}
-	lancamentos := novoServicoLancamentos(novoRepoLancamentos()) // a ligacao fica aqui ate o main montar as pecas (item 32)
+	// a ligacao das pecas fica aqui ate o main montar tudo uma vez so (item 32 do BACKLOG)
+	lanc := controller.NewLancamentos(service.NewLancamentos(repository.NewLancamentos(db, table), efeitosRaiz{}))
 	switch acaoReq {
-	case acaoLerTx:
+	case auth.AcaoLerTx:
 		return getTxs(ctx, sid, qs)
-	case acaoCriarTx:
-		return postTx(ctx, lancamentos, sid, u, body)
-	case acaoImportarTx:
-		return postTxBatch(ctx, lancamentos, sid, u, body)
-	case acaoEditarTx:
-		return putTx(ctx, lancamentos, sid, p[3], qs["de"], body, u.Sub, dec == soDono)
-	case acaoExcluirTx:
-		return delTx(ctx, lancamentos, sid, p[3], qs["de"])
-	case acaoLerCfg:
+	case auth.AcaoCriarTx:
+		return lanc.PostTx(ctx, sid, u.Sub, body)
+	case auth.AcaoImportarTx:
+		return lanc.PostTxBatch(ctx, sid, u.Sub, body)
+	case auth.AcaoEditarTx:
+		return lanc.PutTx(ctx, sid, p[3], qs["de"], body, u.Sub, dec == auth.SoDono)
+	case auth.AcaoExcluirTx:
+		return lanc.DelTx(ctx, sid, p[3], qs["de"])
+	case auth.AcaoLerCfg:
 		return getCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]))
-	case acaoEscreverCfg:
+	case auth.AcaoEscreverCfg:
 		return putCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]), body)
-	case acaoAdicionarTags:
+	case auth.AcaoAdicionarTags:
 		return postTags(ctx, sid, body)
-	case acaoLerSeq:
+	case auth.AcaoLerSeq:
 		return getSeq(ctx, sid)
-	case acaoLerFech:
+	case auth.AcaoLerFech:
 		return getFechamentos(ctx, sid)
-	case acaoEscreverFech:
+	case auth.AcaoEscreverFech:
 		return putFechamentos(ctx, sid, body)
-	case acaoConferirMes:
+	case auth.AcaoConferirMes:
 		return conferirMes(ctx, sid, u.Sub, body)
-	case acaoReabrirMes:
+	case auth.AcaoReabrirMes:
 		return reabrirMes(ctx, sid, body)
-	case acaoLerAparencia:
+	case auth.AcaoLerAparencia:
 		return getCfg(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA")
-	case acaoEditarPerfil:
+	case auth.AcaoEditarPerfil:
 		return putPerfil(ctx, sid, u, body)
-	case acaoTestarAviso:
+	case auth.AcaoTestarAviso:
 		return postAvisoTeste(ctx, sid, u)
-	case acaoEscreverAparenc:
+	case auth.AcaoEscreverAparenc:
 		return putAparencia(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA", body)
 	}
 	return erro(http.StatusNotFound, "rota inexistente")
@@ -162,42 +162,6 @@ func getTxs(ctx context.Context, sid string, qs map[string]string) (resp, error)
 	return out(200, doc{"itens": itens, "proximo": cursor})
 }
 
-// valida e normaliza os campos obrigatorios de um lancamento
-func validarTx(d doc) error {
-	s, _ := d["dataEvento"].(string)
-	if s == "" {
-		return errors.New("dataEvento obrigatoria")
-	}
-	n, err := normData(s)
-	if err != nil {
-		return err
-	}
-	d["dataEvento"] = n
-	// zero e negativo sao aceitos de proposito (lancamentos so de nota, estornos)
-	if _, ok := d["valor"].(float64); !ok {
-		return errors.New("valor deve ser numerico")
-	}
-	if t := d["tipo"]; t != "entrada" && t != "saida" {
-		return errors.New("tipo deve ser entrada ou saida")
-	}
-	for _, c := range []string{"status", "banco"} {
-		if s, _ := d[c].(string); s == "" {
-			return errors.New(c + " obrigatorio")
-		}
-	}
-	if err := validarAviso(d); err != nil {
-		return err
-	}
-	return validarSerie(d)
-}
-
-func protegidos(d doc) {
-	for _, k := range []string{"PK", "SK", "id", "criadoEm", "criadoPor"} {
-		delete(d, k)
-	}
-}
-
-var reID = regexp.MustCompile(`^[a-z0-9]{6,40}$`)
 
 func getCfg(ctx context.Context, pk, sk string) (resp, error) {
 	d, err := getItem(ctx, pk, sk)

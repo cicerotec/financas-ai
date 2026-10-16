@@ -1,4 +1,5 @@
-package main
+// Package auth valida o token do Cognito e decide o que cada papel pode fazer.
+package auth
 
 import (
 	"crypto/rsa"
@@ -65,9 +66,11 @@ func (c *keyCache) get(kid string) (*rsa.PublicKey, error) {
 	return nil, errors.New("kid desconhecido")
 }
 
-type user struct{ Sub, Email string }
+// User e quem fez a chamada, a partir do id token.
+type User struct{ Sub, Email string }
 
-func verificarToken(raw string) (*user, error) {
+// VerificarToken valida o id token (RS256, iss, aud, exp) e devolve quem e.
+func VerificarToken(raw string) (*User, error) {
 	claims := jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(raw, claims, func(t *jwt.Token) (any, error) {
 		kid, _ := t.Header["kid"].(string)
@@ -85,5 +88,5 @@ func verificarToken(raw string) (*user, error) {
 		return nil, errors.New("sem sub")
 	}
 	email, _ := claims["email"].(string)
-	return &user{Sub: sub, Email: email}, nil
+	return &User{Sub: sub, Email: email}, nil
 }

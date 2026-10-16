@@ -13,7 +13,7 @@ Dados financeiros de uma família (lançamentos, saldos, cartões, notas) e o ac
   (`scripts/seed.sh`). Login com e-mail, senha de no mínimo 10 caracteres com minúscula, maiúscula e número.
 - **Fluxo `code` com PKCE** (Hosted UI), sem segredo no cliente. Escopos `openid` e `email`.
 - **Tokens:** ID token e access token de 60 minutos; refresh token de 30 dias.
-- **Validação no backend** (`backend/auth.go`), em toda requisição: assinatura RS256 com as chaves públicas do pool
+- **Validação no backend** (`backend/auth/token.go`), em toda requisição: assinatura RS256 com as chaves públicas do pool
   (JWKS), `iss`, `aud` (o `CLIENT_ID`), expiração obrigatória e `token_use == "id"`. Sem `sub`, recusa. Qualquer falha é
   `401`.
 - A Function URL é `AuthType: NONE` **de propósito**: a barreira é o JWT validado dentro da Lambda. Por isso a
@@ -22,7 +22,7 @@ Dados financeiros de uma família (lançamentos, saldos, cartões, notas) e o ac
   alta. O MFA que existe hoje é o da **sessão AWS do dono** para operar a conta (`scripts/aws-mfa.ps1`).
 
 ## O que cada pessoa pode: autorização
-**Regra de ouro (`backend/authz.go`): o que não está liberado explicitamente é negado.** Papel ou ação desconhecidos
+**Regra de ouro (`backend/auth/authz.go`): o que não está liberado explicitamente é negado.** Papel ou ação desconhecidos
 viram `403`. A decisão é função pura, testada em `authz_test.go`.
 
 O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo, `403`. Cada rota é traduzida em uma
@@ -109,7 +109,7 @@ manual.
 | Resumo do Telegram acima de 4096 caracteres | Nenhum aviso chega naquele dia (disponibilidade, não vazamento) | item 28, item 34 |
 
 ## Regras ao mexer (propostas, a confirmar com o dono)
-- **Rota nova exige ação nova** em `authz.go`, com o que owner e member podem, **e teste** em `authz_test.go`. Nunca
+- **Rota nova exige ação nova** em `auth/authz.go`, com o que owner e member podem, **e teste** em `auth/authz_test.go`. Nunca
   liberar por padrão.
 - **Não afrouxar a validação do token** (`algoritmo`, `iss`, `aud`, `exp`, `token_use`) nem passar a aceitar o access token
   sem decisão do dono.

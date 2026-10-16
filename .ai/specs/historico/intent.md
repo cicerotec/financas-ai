@@ -62,7 +62,7 @@ foi, quem o mudou nem voltar atrás.
   mesmo contrato, e **sempre passam pelo service**. Só as rotas de histórico são novas (versões, restaurar, lista de
   excluídos), e o `GET /tx` esconde os excluídos. (Texto anterior: o front migra tela por
   tela para as novas; descartado.)
-- Cada rota nova exige **ação nova em `authz.go`, com teste** (o que não está liberado é negado).
+- Cada rota nova exige **ação nova em `auth/authz.go`, com teste** (o que não está liberado é negado).
 - **Sem buraco no histórico:** toda rota de escrita passa pelo mesmo caminho de escrita do
   service e grava a versão. O `DELETE` passa a fazer exclusão lógica por dentro, mantendo a resposta que o front
   já espera.
@@ -78,7 +78,7 @@ foi, quem o mudou nem voltar atrás.
 - **`criadoPor` e `criadoEm` voltam da versão**, não de quem restaurou; quem restaurou fica em `porSub`.
 - Restaurar um lançamento que já está ativo na versão pedida não faz nada e responde `409`.
 
-### Permissões (ação nova em `authz.go`, com teste)
+### Permissões (ação nova em `auth/authz.go`, com teste)
 - **Owner:** vê todas as versões e restaura qualquer uma.
 - **Member:** vê o histórico dos lançamentos que **criou** (incluindo as edições do owner neles) e restaura só versões de
   lançamentos que criou **e que ainda existem**, a mesma regra do `tx.editar`.

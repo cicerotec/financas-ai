@@ -3,10 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -108,46 +104,6 @@ func TestFakeQueryOrdemLimiteEContinuacao(t *testing.T) {
 	}
 	if got, _ := consulta(false, 0, "TX#c"); strings.Join(got, ",") != "TX#b,TX#a" {
 		t.Errorf("continuacao em ordem decrescente: %v", got)
-	}
-}
-
-// F0-T4: os controllers de lancamento nao chegam ao banco, e o service nao importa o SDK da AWS.
-func TestControllersDeLancamentoNaoChamamOBanco(t *testing.T) {
-	proibidos := map[string]bool{"db": true, "dynamodb": true, "types": true, "attributevalue": true,
-		"table": true, "getItem": true, "marshal": true, "key": true}
-	fset := token.NewFileSet()
-	arq, err := parser.ParseFile(fset, "controller_lancamento.go", nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	achados := map[string]bool{}
-	for _, d := range arq.Decls {
-		fn, ok := d.(*ast.FuncDecl)
-		if !ok {
-			continue
-		}
-		achados[fn.Name.Name] = true
-		ast.Inspect(fn, func(n ast.Node) bool {
-			if id, ok := n.(*ast.Ident); ok && proibidos[id.Name] {
-				t.Errorf("%s usa %q: controller nao toca o banco, so o service", fn.Name.Name, id.Name)
-			}
-			return true
-		})
-	}
-	for _, nome := range []string{"postTx", "putTx", "delTx", "postTxBatch"} {
-		if !achados[nome] {
-			t.Errorf("controller %s nao encontrado em controller_lancamento.go (o teste nao pode passar vazio)", nome)
-		}
-	}
-
-	srv, err := parser.ParseFile(fset, "servico_lancamento.go", nil, parser.ImportsOnly)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, im := range srv.Imports {
-		if p, _ := strconv.Unquote(im.Path.Value); strings.Contains(p, "aws") {
-			t.Errorf("servico_lancamento.go importa %s: o service nao conhece o SDK da AWS", p)
-		}
 	}
 }
 

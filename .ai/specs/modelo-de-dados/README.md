@@ -20,14 +20,14 @@ justamente porque o conteúdo é inventado.
 | `USER#<sub>` | `SPACE#<sid>` | Vínculo da pessoa com o espaço: `role` (`owner` ou `member`), `apelido` e `telegramChatId` | `store.go` (`papel`), `perfil.go` |
 | `SPACE#<sid>` | `META` | Dados do espaço: `nome` e `ownerSub` | `main.go`, `avisos.go` |
 | `SPACE#<sid>` | `SEQ` | Contador de alterações (`seq`), somado a cada escrita de lançamento | `seq.go` |
-| `SPACE#<sid>` | `CFG#LISTAS` | Listas de status e bancos, cores e as caixas (`statusReal`, `statusFuturo`, `afetaSaldoBanco`) | `main.go` (`cfgNomes`) |
+| `SPACE#<sid>` | `CFG#LISTAS` | Listas de status e bancos, cores e as caixas (`statusReal`, `statusFuturo`, `afetaSaldoBanco`) | `auth/authz.go` (`cfgNomes`) |
 | `SPACE#<sid>` | `CFG#TAGS` | Tags já usadas (`usadas`); o member só acrescenta | `tags.go` |
 | `SPACE#<sid>` | `CFG#COMBOS` | Combos de tags | `main.go` |
 | `SPACE#<sid>` | `CFG#SALDOS` | Início do controle por banco (`dataInicio`, `saldoInicial`) | `fechamento.go` |
 | `SPACE#<sid>` | `CFG#CARTOES` | **Hoje por banco** (`porBanco[banco]`): `diaPadrao`, `inicio` e `faturas["AAAA-MM"]` (`fechamento`, `valorBanco`, `conferida`). **Dívida:** o cartão não é um banco (pode não ter nenhum, e quem paga a fatura é uma escolha); deve virar uma entidade própria, por cartão, no item 33 do BACKLOG | front (`atualizarConfigCartoes`) |
 | `SPACE#<sid>` | `SALDO#<banco>` | Fechamento mensal do banco: `caches`, `conferidos`, `invalidoDe`, `base` | `fechamento.go` |
 | `SPACE#<sid>` | `USER#<sub>#CFG#APARENCIA` | Aparência da própria pessoa (cores, estilo) | `main.go` |
-| `SPACE#<sid>` | `TX#<dataEvento>#<id>` | Um lançamento. Excluído logicamente, ganha `excluidoEm` (**planejado**, Fase 1 do histórico) | `main.go` (`postTx`), `store.go` (`txSK`) |
+| `SPACE#<sid>` | `TX#<dataEvento>#<id>` | Um lançamento. Excluído logicamente, ganha `excluidoEm` (**planejado**, Fase 1 do histórico) | `repository/lancamento.go` (`Salvar`), `repository/dynamo.go` (`TxSK`) |
 | `HIST#<sid>` | `TX#<id>#<versão com 8 dígitos>` | Uma versão de um lançamento (**planejada**, Fase 1 do histórico) | ainda não existe; veja [`specs/historico/`](../historico/spec.md) |
 
 Os itens `CFG#*` e `SALDO#*` têm `version`: é o controle otimista (o cliente manda a versão que leu; se mudou, a

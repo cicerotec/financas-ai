@@ -3,19 +3,18 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"math"
 	"net/http"
-	"reflect"
 	"regexp"
 	"time"
-	_ "time/tzdata" // fuso de Sao Paulo mesmo onde o sistema nao tem /usr/share/zoneinfo
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
+	"financas/domain"
 )
 
 // Fechamento mensal por banco.
@@ -32,14 +31,6 @@ import (
 //
 // Um item por banco: PK=SPACE#<id>, SK=SALDO#<banco>. O mes e sempre o do fuso de Sao Paulo.
 
-var fusoApp = func() *time.Location {
-	l, err := time.LoadLocation("America/Sao_Paulo")
-	if err != nil {
-		return time.FixedZone("BRT", -3*3600)
-	}
-	return l
-}()
-
 var (
 	agora = time.Now // os testes trocam
 	reMes = regexp.MustCompile(`^\d{4}-(0[1-9]|1[0-2])$`)
@@ -47,46 +38,7 @@ var (
 
 func mesAtual() string { return agora().In(fusoApp).Format("2006-01") }
 
-func mesDe(dataEvento string) string {
-	t, err := time.Parse(time.RFC3339Nano, dataEvento)
-	if err != nil {
-		return ""
-	}
-	return t.In(fusoApp).Format("2006-01")
-}
-
 func skSaldo(banco string) string { return "SALDO#" + banco }
-
-type alvo struct{ banco, mes string }
-
-func alvoDe(d doc) (alvo, bool) {
-	b, _ := d["banco"].(string)
-	s, _ := d["dataEvento"].(string)
-	m := mesDe(s)
-	return alvo{b, m}, b != "" && m != ""
-}
-
-// campos que mudam o saldo de um banco; o resto (descricao, nota, tags...) pode ser editado em mes conferido
-var camposSaldo = []string{"valor", "tipo", "status", "banco", "dataEvento"}
-
-func mudaSaldo(antigo, novo doc) bool {
-	for _, c := range camposSaldo {
-		if !reflect.DeepEqual(antigo[c], novo[c]) {
-			return true
-		}
-	}
-	a, _ := antigo["oculto"].(bool)
-	n, _ := novo["oculto"].(bool)
-	return a != n
-}
-
-func copiaRasa(d doc) doc {
-	c := make(doc, len(d))
-	for k, v := range d {
-		c[k] = v
-	}
-	return c
-}
 
 func lerSaldo(ctx context.Context, sid, banco string) (doc, error) {
 	return getItem(ctx, spacePK(sid), skSaldo(banco))
@@ -133,12 +85,6 @@ func atualizarSaldo(ctx context.Context, sid, banco string, fn func(d doc) error
 
 // ---------- trava dos meses conferidos ----------
 
-type travaErro struct{ banco, mes, ate string }
-
-func (e *travaErro) Error() string {
-	return fmt.Sprintf("o mes %s do banco %s esta conferido (ate %s) e travado: reabra o mes na aba Saldos para alterar", e.mes, e.banco, e.ate)
-}
-
 // travas consulta o ultimo mes conferido de cada banco, lendo cada banco uma vez so.
 type travas struct {
 	ctx     context.Context
@@ -178,61 +124,45 @@ func (t *travas) mesDeInicio(banco string) (string, error) {
 
 // anteriorAoInicio: lancamento de mes anterior ao inicio do controle do banco nao entra no saldo
 // (e historico), entao nao precisa de trava nem invalida cache.
-func (t *travas) anteriorAoInicio(a alvo) (bool, error) {
-	ini, err := t.mesDeInicio(a.banco)
-	return ini != "" && a.mes < ini, err
+func (t *travas) anteriorAoInicio(a domain.Alvo) (bool, error) {
+	ini, err := t.mesDeInicio(a.Banco)
+	return ini != "" && a.Mes < ini, err
 }
 
-// checar devolve *travaErro se o mes do alvo esta travado.
-func (t *travas) checar(a alvo) error {
-	ate, ok := t.ate[a.banco]
+// checar devolve *domain.ErroMesConferido se o mes do alvo esta travado.
+func (t *travas) checar(a domain.Alvo) error {
+	ate, ok := t.ate[a.Banco]
 	if !ok {
-		d, err := lerSaldo(t.ctx, t.sid, a.banco)
+		d, err := lerSaldo(t.ctx, t.sid, a.Banco)
 		if err != nil {
 			return err
 		}
 		ate = ultimoConferido(d)
-		t.ate[a.banco] = ate
+		t.ate[a.Banco] = ate
 	}
-	if ate != "" && a.mes <= ate {
+	if ate != "" && a.Mes <= ate {
 		antes, err := t.anteriorAoInicio(a)
 		if err != nil {
 			return err
 		}
 		if !antes {
-			return &travaErro{a.banco, a.mes, ate}
+			return &domain.ErroMesConferido{Banco: a.Banco, Mes: a.Mes, Ate: ate}
 		}
 	}
 	return nil
 }
 
-// respTrava traduz o erro da trava em resposta HTTP; ok=false quando nao ha erro.
-func respTrava(err error) (resp, bool) {
-	if err == nil {
-		return resp{}, false
-	}
-	var te *travaErro
-	if errors.As(err, &te) {
-		r, _ := out(http.StatusConflict, doc{"erro": te.Error(), "codigo": "mes_conferido",
-			"banco": te.banco, "mes": te.mes, "conferidoAte": te.ate})
-		return r, true
-	}
-	log.Println("trava:", err)
-	r, _ := erro(500, "erro interno")
-	return r, true
-}
-
 // invalidarSaldos marca que os caches do banco deixaram de valer a partir do mes do alvo
 // e muda a version (barra caches calculados antes desta escrita).
-func invalidarSaldos(ctx context.Context, sid string, alvos []alvo) {
+func invalidarSaldos(ctx context.Context, sid string, alvos []domain.Alvo) {
 	minimo := map[string]string{}
 	tr := novasTravas(ctx, sid)
 	for _, a := range alvos {
 		if antes, err := tr.anteriorAoInicio(a); err == nil && antes {
 			continue // historico anterior ao inicio nao muda nenhum saldo
 		}
-		if cur, ok := minimo[a.banco]; !ok || a.mes < cur {
-			minimo[a.banco] = a.mes
+		if cur, ok := minimo[a.Banco]; !ok || a.Mes < cur {
+			minimo[a.Banco] = a.Mes
 		}
 	}
 	for banco, mes := range minimo {
