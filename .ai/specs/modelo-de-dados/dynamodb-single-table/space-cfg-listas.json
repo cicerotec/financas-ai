@@ -1,0 +1,38 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "CFG#LISTAS",
+ "afetaSaldoBanco": {
+  "CONTAS": true,
+  "CREDITO": false,
+  "PAGO": true
+ },
+ "banco": [
+  "Nubank",
+  "Itau",
+  "Bradesco",
+  "Inter",
+  "C6",
+  "Carteira"
+ ],
+ "status": [
+  "PAGO",
+  "PREVISTO",
+  "CREDITO IN",
+  "CREDITO EX",
+  "CONTAS",
+  "TRANSFERINDO",
+  "CREDITANDO",
+  "CREDITO"
+ ],
+ "statusFuturo": {
+  "CREDITANDO": true,
+  "PREVISTO": true,
+  "TRANSFERINDO": true
+ },
+ "statusReal": {
+  "CREDITANDO": false,
+  "PREVISTO": false,
+  "TRANSFERINDO": false
+ },
+ "version": 33
+}

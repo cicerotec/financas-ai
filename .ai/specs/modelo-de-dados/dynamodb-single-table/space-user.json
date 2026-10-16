@@ -1,0 +1,17 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "USER#136c3aca-...#CFG#APARENCIA",
+ "estiloCor": "linha",
+ "layoutSaldos": "linhas",
+ "ordemManual": [
+ ],
+ "ordemSaldos": "lista",
+ "statusCor": {
+  "CONTAS": "#378ADD",
+  "CREDITO": "#7F77DD",
+  "CREDITO IN": "#7F77DD",
+  "PAGO": "#639922",
+  "PREVISTO": "#639922",
+  "TRANSFERINDO": "#E24B4A"
+ }
+}

@@ -1,0 +1,11 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "CFG#SALDOS",
+ "porBanco": {
+  "Bradesco": {
+   "dataInicio": "2026-09-01",
+   "saldoInicial": 50
+  }
+ },
+ "version": 1
+}

@@ -7,6 +7,7 @@ de chave que existe**, para saber quais chaves há e o formato de cada uma.
 |---|---|
 | [`dynamodb-payload-exemplo.json`](dynamodb-payload-exemplo.json) | Os itens em JSON simples, legível |
 | [`dynamodb-batch-write-request.json`](dynamodb-batch-write-request.json) | Os mesmos itens no formato do `BatchWriteItem` (`aws dynamodb batch-write-item`) |
+| [`dynamodb-single-table/`](dynamodb-single-table/) | Um arquivo por item, como ele fica na tabela (`PK`, `SK` e atributos), com identificadores truncados (`8c95812f-...`) |
 
 **Só dados fictícios.** O repositório é público: nunca coloque aqui lançamento, saldo, e-mail ou `sub` reais. Exportações
 de dados reais ficam em `/local/`, que o git ignora. A pasta tem uma exceção no `.gitignore` (`!.ai/specs/**/*.json`)
@@ -23,10 +24,11 @@ justamente porque o conteúdo é inventado.
 | `SPACE#<sid>` | `CFG#TAGS` | Tags já usadas (`usadas`); o member só acrescenta | `tags.go` |
 | `SPACE#<sid>` | `CFG#COMBOS` | Combos de tags | `main.go` |
 | `SPACE#<sid>` | `CFG#SALDOS` | Início do controle por banco (`dataInicio`, `saldoInicial`) | `fechamento.go` |
-| `SPACE#<sid>` | `CFG#CARTOES` | Por cartão: `diaPadrao`, `inicio` e `faturas["AAAA-MM"]` (`fechamento`, `valorBanco`, `conferida`) | front (`atualizarConfigCartoes`) |
+| `SPACE#<sid>` | `CFG#CARTOES` | **Hoje por banco** (`porBanco[banco]`): `diaPadrao`, `inicio` e `faturas["AAAA-MM"]` (`fechamento`, `valorBanco`, `conferida`). **Dívida:** o cartão não é um banco (pode não ter nenhum, e quem paga a fatura é uma escolha); deve virar uma entidade própria, por cartão, no item 33 do BACKLOG | front (`atualizarConfigCartoes`) |
 | `SPACE#<sid>` | `SALDO#<banco>` | Fechamento mensal do banco: `caches`, `conferidos`, `invalidoDe`, `base` | `fechamento.go` |
 | `SPACE#<sid>` | `USER#<sub>#CFG#APARENCIA` | Aparência da própria pessoa (cores, estilo) | `main.go` |
-| `SPACE#<sid>` | `TX#<dataEvento>#<id>` | Um lançamento | `main.go` (`postTx`), `store.go` (`txSK`) |
+| `SPACE#<sid>` | `TX#<dataEvento>#<id>` | Um lançamento. Excluído logicamente, ganha `excluidoEm` (**planejado**, Fase 1 do histórico) | `main.go` (`postTx`), `store.go` (`txSK`) |
+| `HIST#<sid>` | `TX#<id>#<versão com 8 dígitos>` | Uma versão de um lançamento (**planejada**, Fase 1 do histórico) | ainda não existe; veja [`specs/historico/`](../historico/spec.md) |
 
 Os itens `CFG#*` e `SALDO#*` têm `version`: é o controle otimista (o cliente manda a versão que leu; se mudou, a
 gravação é recusada com conflito).
@@ -41,6 +43,30 @@ gravação é recusada com conflito).
 - **Opcionais:** `descricao`, `nota`, `tags`, `excluirDoTotal`, `oculto`, `faturaAjuste` (`-1`, `0` ou `+1`),
   `valorEstimado`, `transferParId` (liga as duas pontas de uma transferência), `aviso` (`{ dias: [3,1,0], insistir }`) e
   `serie` (`{ id, indice, intervalo }`). O backend valida `aviso` e `serie`; os demais ele grava como vieram.
+
+### Campo novo no lançamento: `excluidoEm` (planejado)
+Texto ISO com milissegundos (`2026-09-22T10:15:30.120Z`), gravado **só** quando o lançamento é excluído, e removido se
+ele for restaurado. **Sem o campo, o lançamento está vivo**: nada foi migrado. O servidor nunca devolve `excluidoEm` em
+`GET /tx`; os excluídos somem das listas. Exemplo: [`space-tx_excluida.json`](dynamodb-single-table/space-tx_excluida.json).
+
+## Versão do histórico (`HIST#...`, planejada)
+Uma partição própria por espaço (`HIST#<sid>`), para o `Deny` de `UpdateItem` e `DeleteItem` por IAM
+(`dynamodb:LeadingKeys` só enxerga a `PK`). A `SK` é `TX#<id>#<versão com 8 dígitos>` e usa o **`id`**, não a chave viva,
+porque a chave do lançamento muda quando a data é editada.
+
+| Atributo | O que é |
+|---|---|
+| `versao` | Número, igual ao sufixo da `SK`; a primeira é `1` |
+| `acao` | `insert`, `update`, `delete` ou `restore` |
+| `registro` | O lançamento **como ficou depois** da ação (na exclusão, com `excluidoEm`); na versão 1 preguiçosa, **como era antes** |
+| `porSub` | `sub` de quem agiu; vazio na versão 1 preguiçosa (autor desconhecido) |
+| `em` | Texto ISO em UTC, com milissegundos |
+| `deVersao` | Só no `restore`: a versão de origem |
+
+O histórico só recebe versões novas, gravadas junto com o lançamento na mesma transação, com `attribute_not_exists(SK)`.
+Sem migração: a versão 1 nasce na primeira edição ou exclusão de um lançamento antigo. A vida de um lançamento (versão
+1 preguiçosa, edição, exclusão) está em [`hist-versao_insert.json`](dynamodb-single-table/hist-versao_insert.json),
+[`_update`](dynamodb-single-table/hist-versao_update.json) e [`_delete`](dynamodb-single-table/hist-versao_delete.json).
 
 ## Regra para mexer neste modelo
 Nenhuma chave ou campo novo no DynamoDB sem discutir antes com o dono (veja [`guardrails.md`](../../guardrails.md)).

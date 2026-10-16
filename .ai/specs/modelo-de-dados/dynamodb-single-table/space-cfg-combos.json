@@ -1,0 +1,61 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "CFG#COMBOS",
+ "lista": [
+  {
+   "tags": [
+    "mercado",
+    "mercado-mensal"
+   ]
+  },
+  {
+   "tags": [
+    "mercado",
+    "mercado-extra"
+   ]
+  },
+  {
+   "tags": [
+    "mercado",
+    "mercado-fixo"
+   ]
+  },
+  {
+   "tags": [
+    "transporte",
+    "transporte-mensal"
+   ]
+  },
+  {
+   "tags": [
+    "transporte",
+    "transporte-extra"
+   ]
+  },
+  {
+   "tags": [
+    "transporte",
+    "transporte-fixo"
+   ]
+  },
+  {
+   "tags": [
+    "casa",
+    "casa-mensal"
+   ]
+  },
+  {
+   "tags": [
+    "casa",
+    "casa-extra"
+   ]
+  },
+  {
+   "tags": [
+    "casa",
+    "casa-fixo"
+   ]
+  }
+ ],
+ "version": 1
+}
