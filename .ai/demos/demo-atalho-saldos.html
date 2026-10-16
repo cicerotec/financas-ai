@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Atalho Saldos no cabeçalho</title>
+<style>
+/* Tokens do app (web/index.html). Layout: cabeçalhos de celular lado a lado (320, 360 e 390 px) com o atalho Saldos antes do ⋮. */
+:root{
+  --bg:#f1f0ec; --card:#fff; --text:#1d2220; --muted:#5c645e; --border:#e4e2dc;
+  --accent:#0f6b4f; --accent-bg:#dcefe5; --faint:#8c938d; --frame:#e9e8e3;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121513; --card:#1f2421; --text:#e8ebe7; --muted:#a3aaa4; --border:#2e3430;
+  --accent:#5fc9a0; --accent-bg:#1c3a2e; --faint:#7b827c; --frame:#0c0f0d; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#121513; --card:#1f2421; --text:#e8ebe7; --muted:#a3aaa4; --border:#2e3430;
+  --accent:#5fc9a0; --accent-bg:#1c3a2e; --faint:#7b827c; --frame:#0c0f0d; color-scheme:dark;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px;}
+.wrap{max-width:1000px;margin:0 auto;}
+h1{font-size:18px;margin:0 0 6px;}
+h2{font-size:13px;font-weight:600;color:var(--muted);margin:0 0 8px;}
+.nota{color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 18px;max-width:64ch;}
+.grade{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;}
+.quadro{min-width:0;}
+.tela{background:var(--frame);border-radius:20px;padding:10px 0 14px;overflow:hidden;}
+.corpo{padding:0 12px;}
+.card{background:var(--card);border-radius:16px;padding:12px 14px;margin:0 0 10px;font-size:13px;color:var(--muted);}
+.card b{display:block;color:var(--text);font-size:15px;margin-bottom:2px;}
+
+/* cabeçalho de celular */
+.hd{position:relative;background:var(--bg);border-bottom:1px solid var(--border);padding:0 6px 0 16px;margin-bottom:12px;}
+.bar{display:flex;align-items:center;gap:2px;min-height:56px;}
+.nome{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15;}
+.app{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tela-nome{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.at,.ib{border:0;background:transparent;color:var(--text);cursor:pointer;flex:none;font:inherit;padding:0;}
+.at{width:56px;height:52px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+.at .ic{font-size:20px;line-height:1;}
+.at .lb{font-size:11px;color:var(--muted);line-height:1.1;}
+.at[aria-current="page"]{background:var(--accent-bg);}
+.at[aria-current="page"] .lb{color:var(--text);font-weight:600;}
+.ib{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;}
+.ib[aria-expanded="true"]{background:var(--accent-bg);}
+.ib svg{width:24px;height:24px;}
+.at:focus-visible,.ib:focus-visible,.mi:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+.shade{position:absolute;inset:0;top:56px;height:260px;background:rgba(0,0,0,.35);z-index:1;}
+.drop{position:absolute;top:54px;right:8px;width:232px;max-width:calc(100% - 16px);background:var(--card);border:1px solid var(--border);
+  border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:6px;z-index:2;}
+.grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px;}
+.grp:first-child{padding-top:6px;}
+.mi{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;border:0;background:transparent;color:inherit;font:inherit;text-align:left;padding:0 10px;border-radius:10px;cursor:pointer;}
+.mi.on{background:var(--accent-bg);font-weight:600;}
+.mi .mic{width:22px;text-align:center;font-size:17px;flex:none;}
+.mi .ck{margin-left:auto;color:var(--accent);font-weight:700;}
+.drop hr{border:0;border-top:1px solid var(--border);margin:4px 6px;}
+.drop .ja{font-size:11px;color:var(--faint);padding:4px 10px 8px;line-height:1.35;}
+
+.hoje{margin-top:22px;}
+.perde{margin:22px 0 0;font-size:13px;color:var(--muted);line-height:1.55;max-width:72ch;}
+.perde b{color:var(--text);}
+.perde ul{margin:6px 0 0;padding-left:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Atalho Saldos no cabeçalho</h1>
+  <p class="nota">Proposta: dois atalhos, <b>Histórico</b> e <b>Saldos</b>, entre o nome da tela e o ⋮. O título continua dizendo onde você está; o atalho só ganha destaque quando você está naquela tela. Toque nos atalhos e no ⋮ para testar. Dados de exemplo.</p>
+
+  <h2>Larguras de celular, em telas diferentes</h2>
+  <div class="grade" id="grade"></div>
+
+  <h2 class="hoje">Como está hoje (só o ⋮)</h2>
+  <div class="grade" id="hoje"></div>
+
+  <div class="perde">
+    <b>O que se perde e o que se ganha</b>
+    <ul>
+      <li>Histórico e Saldos passam a ser <b>um toque</b> em vez de dois. As outras seis telas continuam em dois toques.</li>
+      <li>O cabeçalho cresce de 52 para 56 px, por causa do rótulo de 11 px embaixo do ícone (ícone sozinho é ambíguo).</li>
+      <li>Em 320 px sobram cerca de 120 px para o nome da tela. "Tendências" usa cerca de 105 px e cabe justo; o nome do app, acima, perde o final com reticências.</li>
+      <li>Os dois continuam dentro do ⋮ para o menu seguir completo e igual ao de hoje.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(function(){
+  var T=[['lancar','Lançar','✏️','Dia a dia'],['historico','Histórico','🕘','Dia a dia'],['futuros','Futuros','📅','Dia a dia'],
+         ['cartao','Cartão','💳','Acompanhar'],['saldos','Saldos','🏦','Acompanhar'],['tendencias','Tendências','📈','Acompanhar'],
+         ['listas','Listas','🏷️','Configurar'],['importar','Importar','📥','Configurar']];
+  var MAIS='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+  function nome(id){for(var i=0;i<T.length;i++)if(T[i][0]===id)return T[i][1];return '';}
+  var CORPO='<div class="card"><b>Conteúdo da tela</b>Exemplo de dados</div><div class="card"><b>Outro cartão</b>Exemplo de dados</div>';
+
+  function quadro(alvo,titulo,largura,inicial,comAtalho){
+    var q=document.createElement('div');q.className='quadro';q.style.width=largura+'px';q.style.maxWidth='100%';
+    q.innerHTML='<h2>'+titulo+'</h2><div class="tela"></div>';
+    alvo.appendChild(q);
+    var tela=q.querySelector('.tela'),atual=inicial,aberto=false;
+    function desenhar(){
+      var m='',g='';
+      T.forEach(function(t){
+        if(t[3]!==g){if(g)m+='<hr>';m+='<div class="grp">'+t[3]+'</div>';g=t[3];}
+        var on=t[0]===atual;
+        m+='<button type="button" class="mi'+(on?' on':'')+'" role="menuitem" data-id="'+t[0]+'"><span class="mic">'+t[2]+'</span>'+t[1]+(on?'<span class="ck">✓</span>':'')+'</button>';
+      });
+      var sal=comAtalho?['historico','saldos'].map(function(id){
+        var ic=id==='historico'?'🕘':'🏦';
+        return '<button type="button" class="at" data-id="'+id+'" aria-label="'+nome(id)+'"'+(atual===id?' aria-current="page"':'')+'><span class="ic">'+ic+'</span><span class="lb">'+nome(id)+'</span></button>';
+      }).join(''):'';
+      tela.innerHTML='<div class="hd"><div class="bar"><div class="nome"><span class="app">💰 Finanças da Família</span><span class="tela-nome">'+nome(atual)+'</span></div>'+
+        sal+'<button type="button" class="ib" aria-label="Menu" aria-haspopup="menu" aria-expanded="'+aberto+'">'+MAIS+'</button></div>'+
+        (aberto?'<div class="shade"></div><div class="drop" role="menu">'+m+'<div class="ja">Na demo, trocar de tela só muda o título.</div></div>':'')+'</div>'+
+        '<div class="corpo">'+CORPO+'</div>';
+      tela.querySelectorAll('[data-id]').forEach(function(b){b.onclick=function(){atual=b.getAttribute('data-id');aberto=false;desenhar();};});
+      tela.querySelector('.ib').onclick=function(){aberto=!aberto;desenhar();};
+      var sh=tela.querySelector('.shade');if(sh)sh.onclick=function(){aberto=false;desenhar();};
+    }
+    desenhar();
+  }
+
+  var g=document.getElementById('grade');
+  quadro(g,'320 px · em Tendências (pior caso)',320,'tendencias',true);
+  quadro(g,'360 px · em Histórico (atalho destacado)',360,'historico',true);
+  quadro(g,'390 px · em Saldos (atalho destacado)',390,'saldos',true);
+  quadro(document.getElementById('hoje'),'360 px · em Saldos',360,'saldos',false);
+})();
+</script>
+</body>
+</html>

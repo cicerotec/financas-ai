@@ -741,6 +741,9 @@ function irParaAba(t){
   const nomeAba = document.querySelector(`nav button[data-tab="${t}"]`);
   if(nomeAba) document.getElementById('mnTela').textContent = nomeAba.textContent;
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active', x.dataset.tab===t));
+  document.querySelectorAll('.mn-at').forEach(x=>{
+    if(x.dataset.atalho===t) x.setAttribute('aria-current','page'); else x.removeAttribute('aria-current');
+  });
   document.querySelectorAll('main section').forEach(sec=>sec.classList.add('hidden'));
   document.getElementById('tab-'+t).classList.remove('hidden');
   if(t==='saldos') carregarSaldosConfig().then(()=>carregarSaldos(false));
@@ -783,6 +786,7 @@ function abrirMenuApp(){
 function setupMenuApp(){
   const btn = document.getElementById('mnBtn'), drop = document.getElementById('mnDrop');
   btn.addEventListener('click', ()=>{ if(drop.hidden) abrirMenuApp(); else fecharMenuApp(false); });
+  document.querySelectorAll('.mn-at').forEach(a=>a.addEventListener('click', ()=>irParaAba(a.dataset.atalho)));
   document.getElementById('mnShade').addEventListener('click', ()=>fecharMenuApp(false));
   drop.addEventListener('click', e=>{
     const it = e.target.closest('.mn-it'); if(!it) return;
