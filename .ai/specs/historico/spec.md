@@ -21,7 +21,7 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
 | Atributo | Tipo | Regra |
 |---|---|---|
 | `PK` | string | `HIST#<sid>` (o `sid` vem da rota, depois de `papel()`; nunca do corpo) |
-| `SK` | string | `TX#<id>#<versão com 8 dígitos>`, ex.: `TX#k3x9a1#00000003` |
+| `SK` | string | `TX#<id>#<versão com 8 dígitos>`, ex.: `TX#k3x9a1m7q2w8e5r4t6y1#00000003` |
 | `versao` | número | igual ao sufixo da `SK`; a primeira é `1` |
 | `acao` | string | `insert`, `update`, `delete` ou `restore` |
 | `registro` | mapa | o lançamento **como ficou depois** da ação (na exclusão, com `excluidoEm`); no v1 preguiçoso, **como era antes** |
@@ -34,10 +34,10 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
 
 ```json
 {
-  "PK": "HIST#esp-demo", "SK": "TX#k3x9a1#00000002",
+  "PK": "HIST#esp-demo", "SK": "TX#k3x9a1m7q2w8e5r4t6y1#00000002",
   "versao": 2, "acao": "update", "porSub": "sub-demo-1", "em": "2026-09-14T13:02:11.482Z",
   "registro": {
-    "id": "k3x9a1", "dataEvento": "2026-09-10T12:00:00.000Z", "descricao": "Mercado", "valor": 187.5,
+    "id": "k3x9a1m7q2w8e5r4t6y1", "dataEvento": "2026-09-10T12:00:00.000Z", "descricao": "Mercado", "valor": 187.5,
     "tipo": "saida", "status": "PAGO", "banco": "BANCO-A", "criadoPor": "sub-demo-1", "criadoEm": "2026-09-10T12:05:00.000Z"
   }
 }
@@ -81,6 +81,9 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
   difere da do item excluído, vale a mecânica de mudança de chave (R2).
 - **R15.** Restaurar quando o conteúdo vivo já é igual ao da versão, e o item não está excluído, responde `409` com
   `codigo: "ja_nessa_versao"` e **não grava**.
+- **R15b.** Uma versão cujo `registro` tem `excluidoEm` (a versão `delete`) **não é restaurável**: restaurar uma
+  exclusão seria excluir de novo. `restauravel = false` com o motivo "Esta versão é a exclusão. Restaure uma versão
+  anterior."; `POST .../restaurar` nela responde `409` com `codigo: "versao_de_exclusao"`.
 - **R16.** A trava vale para a versão **e** para o estado atual: se qualquer um dos dois cai em mês conferido, a
   restauração é bloqueada (`mes_conferido`) e a versão aparece como não restaurável, com o motivo. **Fechamento
   conferido é absoluto.**
@@ -103,15 +106,16 @@ Erros seguem o formato de hoje (`{"erro": "...", "codigo": "..."}`).
 {
   "mes": "2026-09", "truncado": false,
   "itens": [
-    { "id": "k3x9a1", "descricao": "Mercado", "valor": 187.5, "tipo": "saida", "dataEvento": "2026-09-10T12:00:00.000Z",
-      "banco": "BANCO-A", "status": "PAGO", "excluido": false, "acao": "update", "versao": 2,
-      "em": "2026-09-14T13:02:11.482Z", "porSub": "sub-demo-1" }
+    { "id": "k3x9a1m7q2w8e5r4t6y1", "descricao": "Mercado", "valor": 187.5, "tipo": "saida", "dataEvento": "2026-09-10T12:00:00.000Z",
+      "banco": "BANCO-A", "status": "PAGO", "excluido": false, "excluidoEm": null, "acao": "update", "versao": 2,
+      "em": "2026-09-14T13:02:11.482Z", "porSub": "sub-demo-1", "porNome": "Ana" }
   ]
 }
 ```
 
-Uma linha por lançamento, com a **última** versão do mês, ordenada por `em` decrescente. `excluido` vem do `registro`
-da última versão do mês.
+Uma linha por lançamento, com a **última** versão do mês, ordenada por `em` decrescente. `excluidoEm` vem do `registro`
+da última versão do mês (`null` se vivo) e `excluido` é `excluidoEm != null`. `porNome` é o `apelido` do vínculo
+`USER#<sub>` / `SPACE#<sid>` (vazio se não houver).
 
 ### `GET /spaces/{sid}/tx/{id}/versoes` (ação `historico.ler`)
 
@@ -120,14 +124,14 @@ Todas as versões do `id`, da mais nova para a mais antiga. Sem nenhuma versão 
 
 ```json
 {
-  "id": "k3x9a1", "excluido": false, "semHistorico": false,
+  "id": "k3x9a1m7q2w8e5r4t6y1", "excluido": false, "semHistorico": false,
   "versoes": [
-    { "versao": 2, "acao": "update", "porSub": "sub-demo-1", "em": "2026-09-14T13:02:11.482Z", "deVersao": null,
+    { "versao": 2, "acao": "update", "porSub": "sub-demo-1", "porNome": "Ana", "em": "2026-09-14T13:02:11.482Z", "deVersao": null,
       "diff": [ { "campo": "valor", "antes": 180, "depois": 187.5 } ],
-      "registro": { "id": "k3x9a1", "valor": 187.5 },
+      "registro": { "id": "k3x9a1m7q2w8e5r4t6y1", "valor": 187.5 },
       "restauravel": true, "motivo": "" },
-    { "versao": 1, "acao": "insert", "porSub": "", "em": "2026-09-14T13:02:11.482Z", "deVersao": null,
-      "diff": [], "registro": { "id": "k3x9a1", "valor": 180 },
+    { "versao": 1, "acao": "insert", "porSub": "", "porNome": "", "em": "2026-09-14T13:02:11.482Z", "deVersao": null,
+      "diff": [], "registro": { "id": "k3x9a1m7q2w8e5r4t6y1", "valor": 180 },
       "restauravel": false, "motivo": "O lançamento já está nessa versão." }
   ]
 }
@@ -138,13 +142,145 @@ Todas as versões do `id`, da mais nova para a mais antiga. Sem nenhuma versão 
 
 ### `POST /spaces/{sid}/tx/{id}/versoes/{n}/restaurar` (ação `historico.restaurar`)
 
-Corpo vazio. `200` devolve o lançamento (como o `putTx`, com `seq`). Erros: `400` (`n` inválido), `403` (papel), `404`
+Corpo vazio. `200` devolve o lançamento (como o `putTx`, com `_seq`). Erros: `400` (`n` inválido), `403` (papel), `404`
 (versão ou lançamento inexistente), `409` com `mes_conferido`, `ja_nessa_versao` ou `conflito_versao`.
 
 ### Rotas atuais (contrato mantido)
 
 `POST /tx`, `PUT /tx/{id}`, `DELETE /tx/{id}`, `POST /tx/batch` e `GET /tx` **não mudam de formato**. Mudam por dentro:
 passam pelo service (R1), gravam versão (R2) e `DELETE` é lógico (R6); `GET /tx` esconde os excluídos (R11).
+
+## Exemplos (curl)
+
+Um lançamento ao longo da vida: criar, editar, excluir, achar no histórico, ver as versões e restaurar. Só dados
+fictícios. Os campos novos são `excluidoEm` (no item vivo e em `registro`), `registro`, `acao`, `versao` e `deVersao`.
+
+```bash
+API="https://<id>.lambda-url.<regiao>.on.aws"     # Function URL (web/config.js)
+SID="esp-demo"                                    # id do espaço
+TOKEN="<id token do Cognito>"                     # o front manda como "Authorization: Bearer <token>"
+ID="k3x9a1m7q2w8e5r4t6y1"
+DE="2026-09-10T12:00:00.000Z"                     # dataEvento atual (as rotas PUT e DELETE pedem ?de=)
+H=(-H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json")
+```
+
+### 1. Criar (`POST /tx`) grava o lançamento e a versão 1 (`insert`)
+
+```bash
+curl -s -X POST "$API/spaces/$SID/tx" "${H[@]}" -d '{
+  "dataEvento": "2026-09-10T12:00:00.000Z", "descricao": "Mercado", "valor": 180,
+  "tipo": "saida", "status": "PAGO", "banco": "Nubank", "tags": ["mercado-mensal"]
+}'
+```
+```json
+{ "id": "k3x9a1m7q2w8e5r4t6y1", "dataEvento": "2026-09-10T12:00:00.000Z", "descricao": "Mercado", "valor": 180,
+  "tipo": "saida", "status": "PAGO", "banco": "Nubank", "tags": ["mercado-mensal"],
+  "criadoEm": "2026-09-10T12:05:00.000Z", "criadoPor": "sub-demo-1", "_seq": 101 }
+```
+Status `201`. A resposta é igual à de hoje: **não traz** `excluidoEm`, `registro` nem versão. No DynamoDB, além do
+item vivo, nasce `HIST#esp-demo` / `TX#k3x9a1m7q2w8e5r4t6y1#00000001` com `acao = insert` e `registro` = o lançamento.
+
+### 2. Editar (`PUT /tx/{id}?de=`) grava a versão 2 (`update`)
+
+```bash
+curl -s -X PUT "$API/spaces/$SID/tx/$ID?de=$DE" "${H[@]}" -d '{ "valor": 187.5 }'
+```
+```json
+{ "id": "k3x9a1m7q2w8e5r4t6y1", "dataEvento": "2026-09-10T12:00:00.000Z", "descricao": "Mercado", "valor": 187.5,
+  "tipo": "saida", "status": "PAGO", "banco": "Nubank", "tags": ["mercado-mensal"],
+  "criadoEm": "2026-09-10T12:05:00.000Z", "criadoPor": "sub-demo-1", "_seq": 102 }
+```
+Status `200`. Em um lançamento **legado** (sem versões), a mesma chamada grava duas versões na mesma transação: a **v1**
+(estado de antes, `acao = insert`, `porSub` vazio) e a **v2** (`update`).
+
+### 3. Excluir (`DELETE /tx/{id}?de=`) é lógico: grava `excluidoEm` e a versão 3 (`delete`)
+
+```bash
+curl -s -X DELETE "$API/spaces/$SID/tx/$ID?de=$DE" "${H[@]}"
+```
+```json
+{ "ok": true, "_seq": 103 }
+```
+Status `200`, a mesma resposta de hoje. **O que muda é o que fica gravado.** Item vivo no DynamoDB, agora com o campo novo:
+```json
+{ "PK": "SPACE#esp-demo", "SK": "TX#2026-09-10T12:00:00.000Z#k3x9a1m7q2w8e5r4t6y1",
+  "id": "k3x9a1m7q2w8e5r4t6y1", "descricao": "Mercado", "valor": 187.5, "banco": "Nubank", "status": "PAGO", "tipo": "saida",
+  "dataEvento": "2026-09-10T12:00:00.000Z", "criadoPor": "sub-demo-1", "criadoEm": "2026-09-10T12:05:00.000Z",
+  "excluidoEm": "2026-09-14T15:40:05.221Z" }
+```
+Versão 3 (`HIST#esp-demo` / `TX#k3x9a1m7q2w8e5r4t6y1#00000003`): `acao = delete`, `porSub = sub-demo-1`,
+`em = 2026-09-14T15:40:05.221Z` e `registro` **com** `excluidoEm`. Repetir o `DELETE` responde o mesmo `200` e **não**
+grava versão (R6).
+
+### 4. Listar (`GET /tx`) já não mostra o excluído (R11)
+
+```bash
+curl -s "$API/spaces/$SID/tx?de=2026-09-01&ate=2026-09-30" "${H[@]}"
+```
+```json
+{ "itens": [], "proximo": "" }
+```
+`excluidoEm` **nunca** sai em `GET /tx`.
+
+### 5. Achar no histórico (`GET /historico`), por mês de alteração e texto
+
+```bash
+curl -s "$API/spaces/$SID/historico?mes=2026-09&q=mercado" "${H[@]}"
+```
+```json
+{ "mes": "2026-09", "truncado": false,
+  "itens": [
+    { "id": "k3x9a1m7q2w8e5r4t6y1", "descricao": "Mercado", "valor": 187.5, "tipo": "saida",
+      "dataEvento": "2026-09-10T12:00:00.000Z", "banco": "Nubank", "status": "PAGO",
+      "excluido": true, "excluidoEm": "2026-09-14T15:40:05.221Z", "acao": "delete", "versao": 3,
+      "em": "2026-09-14T15:40:05.221Z", "porSub": "sub-demo-1", "porNome": "Ana" } ] }
+```
+
+### 6. Ver as versões (`GET /tx/{id}/versoes`)
+
+```bash
+curl -s "$API/spaces/$SID/tx/$ID/versoes" "${H[@]}"
+```
+```json
+{ "id": "k3x9a1m7q2w8e5r4t6y1", "excluido": true, "semHistorico": false,
+  "versoes": [
+    { "versao": 3, "acao": "delete", "porSub": "sub-demo-1", "porNome": "Ana", "em": "2026-09-14T15:40:05.221Z", "deVersao": null,
+      "diff": [ { "campo": "excluidoEm", "antes": null, "depois": "2026-09-14T15:40:05.221Z" } ],
+      "registro": { "id": "k3x9a1m7q2w8e5r4t6y1", "valor": 187.5, "excluidoEm": "2026-09-14T15:40:05.221Z" },
+      "restauravel": false, "motivo": "Esta versão é a exclusão. Restaure uma versão anterior." },
+    { "versao": 2, "acao": "update", "porSub": "sub-demo-1", "porNome": "Ana", "em": "2026-09-14T13:02:11.482Z", "deVersao": null,
+      "diff": [ { "campo": "valor", "antes": 180, "depois": 187.5 } ],
+      "registro": { "id": "k3x9a1m7q2w8e5r4t6y1", "valor": 187.5 },
+      "restauravel": true, "motivo": "" },
+    { "versao": 1, "acao": "insert", "porSub": "sub-demo-1", "porNome": "Ana", "em": "2026-09-10T12:05:00.000Z", "deVersao": null,
+      "diff": [], "registro": { "id": "k3x9a1m7q2w8e5r4t6y1", "valor": 180 },
+      "restauravel": true, "motivo": "" } ] }
+```
+(`registro` abreviado aqui; na resposta real vem o lançamento inteiro.)
+
+### 7. Restaurar a versão 2 (`POST .../versoes/2/restaurar`) reativa e grava a versão 4 (`restore`)
+
+```bash
+curl -s -X POST "$API/spaces/$SID/tx/$ID/versoes/2/restaurar" "${H[@]}"
+```
+```json
+{ "id": "k3x9a1m7q2w8e5r4t6y1", "dataEvento": "2026-09-10T12:00:00.000Z", "descricao": "Mercado", "valor": 187.5,
+  "tipo": "saida", "status": "PAGO", "banco": "Nubank", "tags": ["mercado-mensal"],
+  "criadoEm": "2026-09-10T12:05:00.000Z", "criadoPor": "sub-demo-1", "_seq": 104 }
+```
+Status `200`. O `excluidoEm` **sai** do item vivo, e nasce a versão 4: `acao = restore`, `deVersao = 2`, `porSub` = quem
+restaurou, `registro` = o conteúdo da versão 2. As versões 1 a 3 continuam intactas (R13, R14).
+
+### 8. Restaurar bloqueado pelo fechamento (R16)
+
+Se o mês 2026-09 do banco `Nubank` estiver conferido, a mesma chamada responde `409` e **não grava nada**:
+```json
+{ "erro": "o mes 2026-09 do banco Nubank esta conferido (ate 2026-09) e travado: reabra o mes na aba Saldos para alterar",
+  "codigo": "mes_conferido", "banco": "Nubank", "mes": "2026-09", "conferidoAte": "2026-09" }
+```
+Em `GET /versoes`, a mesma versão vem com `"restauravel": false` e `motivo` com esse texto, e a tela mostra o botão
+desabilitado. Outros `409` da restauração: `{"erro": "...", "codigo": "ja_nessa_versao"}` (R15) e
+`{"erro": "alterado por outra pessoa", "codigo": "conflito_versao"}` (R3).
 
 ## Permissões (`authz.go`, com teste)
 
@@ -244,6 +380,7 @@ Entrega: `HIST#`, R2 a R11, `excluidoEm`, `Deny` no `template.yaml`. Capacidade 
 | F2-T19 | Member restaura o que criou e que está vivo | Permitido |
 | F2-T20 | Member restaura excluído ou de outro | `403` |
 | F2-T21 | Restaurar dispara `invalidarSaldos`, tags, aviso e `seq` | Como uma edição normal |
+| F2-T23 | Restaurar a versão `delete` | `409` `versao_de_exclusao`, e em `/versoes` ela vem com `restauravel: false` e o motivo (R15b) |
 | F2-T22 | Restaurar lançamento de cartão em fatura conferida | **Não** bloqueia (R17); teste documenta a lacuna do item 33 |
 
 **Pronto quando:** F2-T1 a F2-T22 passam; `security.md` com `historico.ler` e `historico.restaurar`.

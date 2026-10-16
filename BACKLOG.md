@@ -95,7 +95,10 @@ DynamoDB sem discutir com o dono.**
   do nome `CONTAS`/`TRANSFERINDO`, é outra decisão por etiqueta: a regra passa a ser do servidor, e o que fazer com o
   campo gravado é discussão). Saem do front `ehCredito*`, `ajustePadrao`,
   `faturaBase`, `ehFuturo`, `afetaSaldo`. Os status `CREDITO IN`/`EX` deixam de ser necessários; migração dos
-  lançamentos antigos sem `faturaAjuste` fica a discutir. Absorve o item 14.
+  lançamentos antigos sem `faturaAjuste` fica a discutir. **O cartão vira entidade própria:** hoje `CFG#CARTOES` é
+  `porBanco` e o lançamento de crédito liga ao cartão pelo campo `banco`, mas o cartão não é um banco (pode não ter
+  nenhum, e o banco que paga a fatura é uma escolha). Passa a ser por cartão, com o vínculo ao lançamento e a migração
+  a discutir antes de criar qualquer campo. Absorve o item 14.
 - 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
