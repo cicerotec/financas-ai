@@ -19,7 +19,8 @@ feito e ideias).
 | [`deploy-github-actions.md`](deploy-github-actions.md) | Deploy, release e as roles OIDC |
 | [`fluxo-de-versoes.md`](fluxo-de-versoes.md) | Branches, tags e releases |
 | [`specs/modelo-de-dados/`](specs/modelo-de-dados/README.md) | As chaves do DynamoDB, com exemplos fictícios em JSON |
-| [`specs/historico/intent.md`](specs/historico/intent.md) | Intent do histórico de versões e recuperação (rascunho; `plan` e `spec` a criar) |
+| [`specs/historico/intent.md`](specs/historico/intent.md) | Intent do histórico de versões e recuperação |
+| [`specs/historico/plan.md`](specs/historico/plan.md) | Plan do histórico: fases, decisões a confirmar e riscos (rascunho; `spec` a criar) |
 | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | Demo aprovada do Desfazer depois de excluir ou editar (padrão 11b de `padrao-de-telas.md`; provisório até o histórico) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
