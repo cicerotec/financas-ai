@@ -28,7 +28,7 @@ Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave n
    excluídos**. Sem campo = vivo: **sem backfill** e sem a dualidade de `ativo` (campo ausente e `true` querendo
    dizer a mesma coisa). Já informa a exclusão e quando ocorreu. O filtro pula quem tem `excluidoEm`
    (`attribute_not_exists(excluidoEm)` no DynamoDB, ou um `continue` em Go como em `listarTx`).
-2. **A rota antiga `GET /tx` também esconde os excluídos.** O intent diz que só as rotas novas devolvem "só os
+2. **A rota antiga `GET /tx` também esconde os excluídos (fechada pelo dono em 2026-10-15).** O intent diz que só as rotas novas devolvem "só os
    ativos", mas o `DELETE` antigo passa a ser lógico: se o `GET` antigo não filtrar, o excluído **reaparece** nas
    telas atuais. Filtrar não muda o formato da resposta; devolve o mesmo que o `DELETE` sempre prometeu.
 3. **Capacidade de escrita.** Uma escrita de 1 KB passa de 1 WCU para **4 WCU** (put + versão, ambos transacionais, a
