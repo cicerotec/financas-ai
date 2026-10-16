@@ -1,25 +1,26 @@
 {
  "PK": "HIST#8c95812f-...",
- "SK": "TX#h8i9j0k1l2m3n4o5p6q7#00000003",
- "versao": 3,
+ "SK": "TX#ciu6jio9rsda4yz3wy07#00000003",
  "acao": "delete",
- "porSub": "sub-demo-dono",
- "em": "2026-09-22T10:15:30.120Z",
+ "em": "2025-01-03T10:15:30.120Z",
+ "porSub": "dados-ficticios",
  "registro": {
-  "id": "h8i9j0k1l2m3n4o5p6q7",
-  "dataEvento": "2026-09-20T18:00:00.000Z",
-  "criadoEm": "2026-09-20T18:05:00.000Z",
-  "criadoPor": "sub-demo-dono",
-  "nota": "",
-  "tags": [
-   "Lazer"
-  ],
+  "banco": "Bradesco",
+  "criadoEm": "2025-01-01T19:01:00.000Z",
+  "criadoPor": "dados-ficticios",
+  "dataEvento": "2025-01-01T20:28:00.000Z",
+  "descricao": "Eletronico",
+  "excluidoEm": "2025-01-03T10:15:30.120Z",
   "excluirDoTotal": false,
+  "id": "ciu6jio9rsda4yz3wy07",
+  "nota": "",
   "status": "PAGO",
+  "tags": [
+   "compras-casa",
+   "compras-pet"
+  ],
   "tipo": "saida",
-  "descricao": "Ingresso cancelado demo",
-  "banco": "BANCO DEMO A",
-  "valor": 89.9,
-  "excluidoEm": "2026-09-22T10:15:30.120Z"
- }
+  "valor": 311.22
+ },
+ "versao": 3
 }

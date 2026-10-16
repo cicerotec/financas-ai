@@ -872,14 +872,14 @@
           "tipo": {
             "S": "saida"
           },
+          "valor": {
+            "N": "89.9"
+          },
           "descricao": {
             "S": "Ingresso cancelado demo"
           },
           "banco": {
             "S": "BANCO DEMO A"
-          },
-          "valor": {
-            "N": "89.9"
           },
           "excluidoEm": {
             "S": "2026-09-22T10:15:30.120Z"
@@ -941,14 +941,14 @@
               "tipo": {
                 "S": "saida"
               },
+              "valor": {
+                "N": "99.9"
+              },
               "descricao": {
                 "S": "Ingresso cancelado demo"
               },
               "banco": {
                 "S": "BANCO DEMO A"
-              },
-              "valor": {
-                "N": "99.9"
               }
             }
           }
@@ -1009,14 +1009,14 @@
               "tipo": {
                 "S": "saida"
               },
+              "valor": {
+                "N": "89.9"
+              },
               "descricao": {
                 "S": "Ingresso cancelado demo"
               },
               "banco": {
                 "S": "BANCO DEMO A"
-              },
-              "valor": {
-                "N": "89.9"
               }
             }
           }
@@ -1077,14 +1077,14 @@
               "tipo": {
                 "S": "saida"
               },
+              "valor": {
+                "N": "89.9"
+              },
               "descricao": {
                 "S": "Ingresso cancelado demo"
               },
               "banco": {
                 "S": "BANCO DEMO A"
-              },
-              "valor": {
-                "N": "89.9"
               },
               "excluidoEm": {
                 "S": "2026-09-22T10:15:30.120Z"

@@ -318,9 +318,9 @@
       "excluirDoTotal": false,
       "status": "PAGO",
       "tipo": "saida",
+      "valor": 89.9,
       "descricao": "Ingresso cancelado demo",
       "banco": "BANCO DEMO A",
-      "valor": 89.9,
       "excluidoEm": "2026-09-22T10:15:30.120Z"
     },
     {
@@ -342,9 +342,9 @@
         "excluirDoTotal": false,
         "status": "PAGO",
         "tipo": "saida",
+        "valor": 99.9,
         "descricao": "Ingresso cancelado demo",
-        "banco": "BANCO DEMO A",
-        "valor": 99.9
+        "banco": "BANCO DEMO A"
       }
     },
     {
@@ -366,9 +366,9 @@
         "excluirDoTotal": false,
         "status": "PAGO",
         "tipo": "saida",
+        "valor": 89.9,
         "descricao": "Ingresso cancelado demo",
-        "banco": "BANCO DEMO A",
-        "valor": 89.9
+        "banco": "BANCO DEMO A"
       }
     },
     {
@@ -390,9 +390,9 @@
         "excluirDoTotal": false,
         "status": "PAGO",
         "tipo": "saida",
+        "valor": 89.9,
         "descricao": "Ingresso cancelado demo",
         "banco": "BANCO DEMO A",
-        "valor": 89.9,
         "excluidoEm": "2026-09-22T10:15:30.120Z"
       }
     }
