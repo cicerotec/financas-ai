@@ -25,7 +25,7 @@ pendentes: nenhum.
 - [\[Backend\] - **\[Agora\] Histórico imutável e versionado:**](#item-31)
 - [\[Backend\] - **\[Agora\] Arquitetura em camadas:**](#item-32)
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
-- [\[Backend\] - **\[Próximo\] Mês anterior exige confirmação explícita:**](#item-38)
+- [\[Backend\] - **\[Próximo\] Fechamento automático do mês anterior:**](#item-38)
 - [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe:**](#item-33)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
@@ -33,6 +33,7 @@ pendentes: nenhum.
 - [\[Processo\] - **\[Próximo\] Remover `financas-app.html`:**](#item-36)
 - [\[Infra\] - **\[Depois\] AWS Budget de US$ 1 e backup periódico:**](#item-11)
 - [\[Backend\] - **\[Depois\] Saldos e faturas do cartão calculados na Lambda:**](#item-14)
+- [\[Backend\] - **\[Depois\] Open Finance (visão):**](#item-39)
 - [\[Backend\] - **\[Depois\] Colaboração, Fase 1:**](#item-12)
 - [\[Backend\] - **\[Depois\] Colaboração, Fase 2:**](#item-13)
 - [\[Backend\] - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
@@ -87,8 +88,8 @@ DynamoDB sem discutir com o dono.**
   busca por **mês de alteração**; o GSI por data entra depois, quando a leitura pesar; a capacidade da tabela (5 WCU)
   fica para depois da refatoração. Fases: 0 (um caminho de escrita), 1 (versões e exclusão lógica), 2 (busca, diff e
   restauração na API), 3 (tela, com demo antes). **Fases 0 e 1 implementadas e verificadas em dev** (a 1 grava as
-  versões e exclui logicamente, com o `Deny` de IAM conferido). A Fase 2 espera a decisão do item 38 sobre restaurar em mês
-  anterior. Detalhes em
+  versões e exclui logicamente, com o `Deny` de IAM conferido). O backend do item 38 vem antes da Fase 2 (restaurar usa a mesma
+  regra do mês anterior). Detalhes em
   [`.ai/specs/historico/`](.ai/specs/historico/) (`intent.md`, `plan.md` e `spec.md`).
 - 32. [ ] <a id="item-32"></a>**[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
   que o front recebe e recebe tudo por construtor; `domain` com tipos e regras puras que todos usam; adaptadores
@@ -99,20 +100,21 @@ DynamoDB sem discutir com o dono.**
   **Feito (PR #100):** cada camada virou uma pasta em `backend/` (`domain/`, `auth/`, `repository/`, `service/`,
   `controller/`), com a regra de dependência testada em `arquitetura_test.go`; lançamentos e `auth` já migraram. Falta
   o resto da raiz (`store`, `fechamento`, `tags`, `perfil`, `seq`, `cfg`) e a pasta `dispatcher/`, que nasce com o item 34.
-- 38. [ ] <a id="item-38"></a>**[Próximo] Mês anterior exige confirmação explícita (trava em dois níveis):** hoje só o mês
-  **conferido** com o extrato trava (absoluto até reabrir). Proposta do dono (2026-10-16): como o saldo é conferido
-  visualmente, e não pelo app, **alterar um evento de um mês anterior ao atual deve ser bloqueado mesmo sem conferência, e
-  a pessoa precisa ser explícita** (confirmar que quer mexer no passado). Dois níveis: **mês conferido = trava
-  absoluta** (reabrir o mês, como hoje); **mês anterior não conferido = confirmação explícita** (o backend recusa com
-  `409` e um código próprio, a tela mostra a janela de confirmação e reenvia com a confirmação; o front só exibe, não
-  decide). Vale para criar, editar, excluir, importar e, na Fase 2 do histórico, restaurar. Segue a regra de hoje de só
-  travar o que muda o saldo (valor, tipo, status, banco, data, oculto), e o que é anterior ao início do controle
-  continua livre. **A decidir antes de implementar, e antes do spec de restaurar da Fase 2 do item 31:** (a) quais
-  meses entram (todos os anteriores ao atual, ou uma folga, como o mês passado até certo dia, para lançar atrasado no
-  virar do mês); (b) como a confirmação viaja (campo no corpo ou parâmetro) e se fica gravada na versão do histórico
-  (campo novo: só com aprovação); (c) o encaixe com o Desfazer de 6 s da exclusão, que só chama o servidor depois do
-  aviso (a recusa chegaria tarde); (d) importação e restauração. **Custo:** um toque a mais ao editar o passado. Demo
-  antes de qualquer tela.
+- 38. [ ] <a id="item-38"></a>**[Próximo] Fechamento automático do mês anterior (confirmação explícita para mexer no passado):**
+  decisões do dono (2026-10-16). O **conferido manual** da aba Saldos é herança da planilha e fica **opcional** (trava
+  absoluta, como hoje, sem ser removido); o sistema deve fluir sem ele. O mês **fecha sozinho**: um evento de mês anterior
+  só pode ser alterado com **confirmação explícita**. O mês anterior fica livre até o dia 7 do mês seguinte; **a partir do
+  dia 8** (fuso de São Paulo) exige confirmação; meses mais antigos sempre. A regra é **calculada pela data**, sem gravar
+  estado nem campo novo no lançamento, e vale só para o que muda o saldo (valor, tipo, status, banco, data, oculto):
+  descrição, nota e tags seguem livres, e o que é anterior ao início do controle também. O backend recusa com `409` e um
+  código próprio (nome a definir no spec); a tela mostra a janela de confirmação e reenvia com o sinal de confirmação;
+  o front só exibe. Vale para criar, editar, excluir, importar (item a item, como no mês conferido) e restaurar (Fase 2
+  do item 31). A confirmação fica gravada **na versão do histórico** (campo novo só no item `HIST#`, nunca no lançamento
+  vivo; o nome exato entra no spec). **Excluir passa a ser imediato:** o `DELETE` vai na hora, a recusa aparece antes de
+  o item sumir, e o **Desfazer vira uma restauração** (a resposta do `DELETE` diz qual versão restaurar); depois dos 6 s
+  ainda dá para recuperar pela tela de histórico. Isso muda o padrão 11b de `padrao-de-telas.md` (demo antes do código).
+  **Ordem:** o backend deste item vem antes da Fase 2 do item 31 (restaurar usa a mesma regra); a mudança de tela vem na
+  Fase 3. **Custo:** um toque a mais ao editar o passado. Depende do item 31.
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
@@ -130,6 +132,15 @@ DynamoDB sem discutir com o dono.**
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
   4096 caracteres do item 28.
+- 39. [ ] <a id="item-39"></a>**[Depois] Open Finance: lançamentos e saldos vindos do banco (visão):** visão do dono
+  (2026-10-16): o app deixa de depender de lançar e conferir à mão; os lançamentos e o saldo de cada conta vêm do banco.
+  (a) O lançamento vindo do banco é a **fonte da verdade**: valor, tipo, data e banco **não editáveis**; a pessoa edita a
+  classificação (tags, descrição, nota). Os campos que mudam o saldo são os mesmos de `mudaSaldo`. (b) **Conferência
+  automática:** o sistema compara o saldo calculado com o que o banco informa e marca o mês como conferido pelo sistema,
+  ou aponta a divergência; o botão manual some. (c) **Pré-requisitos:** saldo calculado no servidor (itens 14 e 33); id
+  estável do banco em cada lançamento para não duplicar (a importação já preserva o `id` do item); e a origem do
+  lançamento (manual ou banco), uma decisão de modelo que só entra com aprovação (princípio 3). (d) Provedor, custo e
+  consentimento a pesquisar. Depende dos itens 33 e 38.
 - 14. [ ] <a id="item-14"></a>**[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
   ao fechamento mensal; faltam as faturas do cartão e as tendências). Absorvido pelo item 33.
 - 12. [ ] <a id="item-12"></a>**[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho (o contador
