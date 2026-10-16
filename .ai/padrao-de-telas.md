@@ -15,6 +15,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Futuros por largura | [`demos/demo-futuros-largura.html`](demos/demo-futuros-largura.html) | **vale sobre a demo acima onde diferirem**: prazo embaixo do valor, descrição em até 2 linhas, "⋯" no celular, botões no computador e realce na cor do status |
 | Resumo da Futuros | [`demos/demo-resumo-futuros.html`](demos/demo-resumo-futuros.html) | a comparação que decidiu o resumo (opção A), com valores extremos e larguras de 320 a 390 px |
 | Total do Histórico | [`demos/demo-historico-total.html`](demos/demo-historico-total.html) | a soma da lista (renda menos gasto) à direita da linha do contador, na busca por texto e no mês aberto |
+| Atalhos no cabeçalho | [`demos/demo-atalho-saldos.html`](demos/demo-atalho-saldos.html) | Histórico e Saldos entre o nome da tela e o ⋮, em 320, 360 e 390 px, com o "como está hoje" (aprovado em 2026-10-15) |
 | Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
 
 ## Princípios
@@ -71,11 +72,18 @@ Aprovado pelo dono em 2026-10-14. Presente no topo de todas as demos de `demos/`
   destaque e o botão **⋮** (alvo de 48 px). O ⋮ abre um menu suspenso com as telas agrupadas em **Dia a dia** (Lançar,
   Histórico, Futuros), **Acompanhar** (Cartão, Saldos, Tendências) e **Configurar** (Listas, Importar). A tela atual leva
   destaque e "✓". Toque fora do menu ou Esc fecha, e o foco volta ao ⋮.
+- **Atalhos Histórico e Saldos** (aprovado em 2026-10-15, `demos/demo-atalho-saldos.html`): dois botões de 56 × 52 px
+  entre o nome da tela e o ⋮, com ícone e rótulo de 11 px embaixo (ícone sozinho é ambíguo). Ficam **sempre no mesmo
+  lugar**; o da tela atual ganha fundo `--accent-bg` e `aria-current="page"`. O título continua sendo a fonte da verdade
+  sobre onde se está. Os dois também seguem dentro do ⋮. Cabeçalho de 56 px (era 52). Em 320 px sobram ~120 px para o
+  nome da tela ("Tendências" cabe justo) e o nome do app, acima, ganha reticências.
 - **Janela larga (1160 px ou mais):** não muda nada: título e abas em botões, como sempre. O limite é o mesmo da tabela de
   Futuros.
 - **No app**, as abas em botões (`nav`) continuam sendo a fonte das telas e dos nomes; o menu é montado a partir delas
   (`MENU_APP` em `web/js/app.js` só define a ordem, os grupos e os ícones). Membro não vê Importar, nem no menu.
-- **Custo:** trocar de tela passa a pedir dois toques (⋮ e a tela) em vez de um. Em troca, o cabeçalho cai de 2 linhas para 1.
+- **Custo:** trocar de tela passa a pedir dois toques (⋮ e a tela) em vez de um, **exceto Histórico e Saldos** (um toque).
+  Em troca, o cabeçalho cai de 2 linhas para 1. A barra inferior estilo C6 foi descartada: lá a barra some em toda tela
+  empilhada, e o app é de navegação plana.
 
 ## Padrões do celular
 **1. Linha-resumo que abre tela cheia.** Cartão com título em negrito e, embaixo, o valor atual em `--muted`
