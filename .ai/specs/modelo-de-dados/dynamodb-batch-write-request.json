@@ -831,6 +831,268 @@
           }
         }
       }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {
+            "S": "SPACE#ws-familia-demo"
+          },
+          "SK": {
+            "S": "TX#2026-09-20T18:00:00.000Z#h8i9j0k1l2m3n4o5p6q7"
+          },
+          "id": {
+            "S": "h8i9j0k1l2m3n4o5p6q7"
+          },
+          "dataEvento": {
+            "S": "2026-09-20T18:00:00.000Z"
+          },
+          "criadoEm": {
+            "S": "2026-09-20T18:05:00.000Z"
+          },
+          "criadoPor": {
+            "S": "sub-demo-dono"
+          },
+          "nota": {
+            "S": ""
+          },
+          "tags": {
+            "L": [
+              {
+                "S": "Lazer"
+              }
+            ]
+          },
+          "excluirDoTotal": {
+            "BOOL": false
+          },
+          "status": {
+            "S": "PAGO"
+          },
+          "tipo": {
+            "S": "saida"
+          },
+          "descricao": {
+            "S": "Ingresso cancelado demo"
+          },
+          "banco": {
+            "S": "BANCO DEMO A"
+          },
+          "valor": {
+            "N": "89.9"
+          },
+          "excluidoEm": {
+            "S": "2026-09-22T10:15:30.120Z"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {
+            "S": "HIST#ws-familia-demo"
+          },
+          "SK": {
+            "S": "TX#h8i9j0k1l2m3n4o5p6q7#00000001"
+          },
+          "versao": {
+            "N": "1"
+          },
+          "acao": {
+            "S": "insert"
+          },
+          "porSub": {
+            "S": ""
+          },
+          "em": {
+            "S": "2026-09-21T09:00:00.000Z"
+          },
+          "registro": {
+            "M": {
+              "id": {
+                "S": "h8i9j0k1l2m3n4o5p6q7"
+              },
+              "dataEvento": {
+                "S": "2026-09-20T18:00:00.000Z"
+              },
+              "criadoEm": {
+                "S": "2026-09-20T18:05:00.000Z"
+              },
+              "criadoPor": {
+                "S": "sub-demo-dono"
+              },
+              "nota": {
+                "S": ""
+              },
+              "tags": {
+                "L": [
+                  {
+                    "S": "Lazer"
+                  }
+                ]
+              },
+              "excluirDoTotal": {
+                "BOOL": false
+              },
+              "status": {
+                "S": "PAGO"
+              },
+              "tipo": {
+                "S": "saida"
+              },
+              "descricao": {
+                "S": "Ingresso cancelado demo"
+              },
+              "banco": {
+                "S": "BANCO DEMO A"
+              },
+              "valor": {
+                "N": "99.9"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {
+            "S": "HIST#ws-familia-demo"
+          },
+          "SK": {
+            "S": "TX#h8i9j0k1l2m3n4o5p6q7#00000002"
+          },
+          "versao": {
+            "N": "2"
+          },
+          "acao": {
+            "S": "update"
+          },
+          "porSub": {
+            "S": "sub-demo-dono"
+          },
+          "em": {
+            "S": "2026-09-21T09:00:00.000Z"
+          },
+          "registro": {
+            "M": {
+              "id": {
+                "S": "h8i9j0k1l2m3n4o5p6q7"
+              },
+              "dataEvento": {
+                "S": "2026-09-20T18:00:00.000Z"
+              },
+              "criadoEm": {
+                "S": "2026-09-20T18:05:00.000Z"
+              },
+              "criadoPor": {
+                "S": "sub-demo-dono"
+              },
+              "nota": {
+                "S": ""
+              },
+              "tags": {
+                "L": [
+                  {
+                    "S": "Lazer"
+                  }
+                ]
+              },
+              "excluirDoTotal": {
+                "BOOL": false
+              },
+              "status": {
+                "S": "PAGO"
+              },
+              "tipo": {
+                "S": "saida"
+              },
+              "descricao": {
+                "S": "Ingresso cancelado demo"
+              },
+              "banco": {
+                "S": "BANCO DEMO A"
+              },
+              "valor": {
+                "N": "89.9"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {
+            "S": "HIST#ws-familia-demo"
+          },
+          "SK": {
+            "S": "TX#h8i9j0k1l2m3n4o5p6q7#00000003"
+          },
+          "versao": {
+            "N": "3"
+          },
+          "acao": {
+            "S": "delete"
+          },
+          "porSub": {
+            "S": "sub-demo-dono"
+          },
+          "em": {
+            "S": "2026-09-22T10:15:30.120Z"
+          },
+          "registro": {
+            "M": {
+              "id": {
+                "S": "h8i9j0k1l2m3n4o5p6q7"
+              },
+              "dataEvento": {
+                "S": "2026-09-20T18:00:00.000Z"
+              },
+              "criadoEm": {
+                "S": "2026-09-20T18:05:00.000Z"
+              },
+              "criadoPor": {
+                "S": "sub-demo-dono"
+              },
+              "nota": {
+                "S": ""
+              },
+              "tags": {
+                "L": [
+                  {
+                    "S": "Lazer"
+                  }
+                ]
+              },
+              "excluirDoTotal": {
+                "BOOL": false
+              },
+              "status": {
+                "S": "PAGO"
+              },
+              "tipo": {
+                "S": "saida"
+              },
+              "descricao": {
+                "S": "Ingresso cancelado demo"
+              },
+              "banco": {
+                "S": "BANCO DEMO A"
+              },
+              "valor": {
+                "N": "89.9"
+              },
+              "excluidoEm": {
+                "S": "2026-09-22T10:15:30.120Z"
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

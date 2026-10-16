@@ -1,0 +1,19 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "TX#2026-09-20T18:00:00.000Z#h8i9j0k1l2m3n4o5p6q7",
+ "id": "h8i9j0k1l2m3n4o5p6q7",
+ "dataEvento": "2026-09-20T18:00:00.000Z",
+ "criadoEm": "2026-09-20T18:05:00.000Z",
+ "criadoPor": "sub-demo-dono",
+ "nota": "",
+ "tags": [
+  "Lazer"
+ ],
+ "excluirDoTotal": false,
+ "status": "PAGO",
+ "tipo": "saida",
+ "descricao": "Ingresso cancelado demo",
+ "banco": "BANCO DEMO A",
+ "valor": 89.9,
+ "excluidoEm": "2026-09-22T10:15:30.120Z"
+}

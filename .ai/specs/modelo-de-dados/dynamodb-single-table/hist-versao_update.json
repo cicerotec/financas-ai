@@ -1,0 +1,24 @@
+{
+ "PK": "HIST#8c95812f-...",
+ "SK": "TX#h8i9j0k1l2m3n4o5p6q7#00000002",
+ "versao": 2,
+ "acao": "update",
+ "porSub": "sub-demo-dono",
+ "em": "2026-09-21T09:00:00.000Z",
+ "registro": {
+  "id": "h8i9j0k1l2m3n4o5p6q7",
+  "dataEvento": "2026-09-20T18:00:00.000Z",
+  "criadoEm": "2026-09-20T18:05:00.000Z",
+  "criadoPor": "sub-demo-dono",
+  "nota": "",
+  "tags": [
+   "Lazer"
+  ],
+  "excluirDoTotal": false,
+  "status": "PAGO",
+  "tipo": "saida",
+  "descricao": "Ingresso cancelado demo",
+  "banco": "BANCO DEMO A",
+  "valor": 89.9
+ }
+}
