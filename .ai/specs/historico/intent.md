@@ -50,8 +50,9 @@ foi, quem o mudou nem voltar atrás.
 ### Exclusão
 - **Exclusão lógica**, como em `arquitetura.md` e no item 31 do backlog. Excluir não apaga o item vivo: marca-o como
   inativo e grava a versão `delete`. O excluído some das telas e continua na tabela e no histórico.
-- Isso exige um **indicador novo no item vivo** (nome provisório `ativo`; o dono é indiferente ao nome). É campo novo no
-  DynamoDB: **só com aprovação** (princípio 3) e entra no modelo de dados na mesma entrega.
+- Isso exige um **indicador novo no item vivo**: **`excluidoEm`** (data e hora ISO), gravado **só nos excluídos**; sem
+  o campo, o lançamento está vivo e não há migração. Nome fechado pelo dono em 2026-10-15 (substitui o `ativo`
+  provisório, que exigiria valor nos vivos). É campo novo no DynamoDB e entra no modelo de dados na mesma entrega.
 - As consultas das **rotas novas** devolvem só os ativos. As rotas atuais não mudam de contrato (veja "Rotas").
 - Continua só do owner, como hoje.
 

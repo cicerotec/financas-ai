@@ -24,10 +24,10 @@ que ordem. O roteiro verificável (`spec.md`) vem depois de o dono aprovar este 
 
 Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave nova nasce sem este ok (princípio 3).
 
-1. **Nome e forma do indicador de exclusão.** O intent propõe `ativo`. Com `ativo = true` gravado, **todo lançamento
-   existente precisa ser migrado**, e um item sem o campo vira "inativo" por engano se o filtro errar. Proposta: gravar
-   **`excluidoEm`** (data e hora, ISO) **só nos excluídos**. Sem campo = vivo, **sem backfill** e sem risco de
-   esquecer um item. O filtro vira `attribute_not_exists(excluidoEm)`. O dono ainda diz o nome.
+1. **Indicador de exclusão: `excluidoEm` (fechada pelo dono em 2026-10-15).** Data e hora (ISO) gravadas **só nos
+   excluídos**. Sem campo = vivo: **sem backfill** e sem a dualidade de `ativo` (campo ausente e `true` querendo
+   dizer a mesma coisa). Já informa a exclusão e quando ocorreu. O filtro pula quem tem `excluidoEm`
+   (`attribute_not_exists(excluidoEm)` no DynamoDB, ou um `continue` em Go como em `listarTx`).
 2. **A rota antiga `GET /tx` também esconde os excluídos.** O intent diz que só as rotas novas devolvem "só os
    ativos", mas o `DELETE` antigo passa a ser lógico: se o `GET` antigo não filtrar, o excluído **reaparece** nas
    telas atuais. Filtrar não muda o formato da resposta; devolve o mesmo que o `DELETE` sempre prometeu.
