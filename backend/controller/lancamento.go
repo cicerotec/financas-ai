@@ -39,9 +39,9 @@ func (c *Lancamentos) PutTx(ctx context.Context, sid, id, de string, body domain
 	return Out(200, d)
 }
 
-// DelTx: DELETE /spaces/{sid}/tx/{id}?de=<dataEvento atual>
-func (c *Lancamentos) DelTx(ctx context.Context, sid, id, de string) (Resp, error) {
-	d, err := c.svc.Excluir(ctx, sid, id, de)
+// DelTx: DELETE /spaces/{sid}/tx/{id}?de=<dataEvento atual>. A exclusao e logica.
+func (c *Lancamentos) DelTx(ctx context.Context, sid, id, de, sub string) (Resp, error) {
+	d, err := c.svc.Excluir(ctx, sid, id, de, sub)
 	if err != nil {
 		return respostaErro(err)
 	}

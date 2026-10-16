@@ -14,16 +14,71 @@ type Doc = map[string]any
 // Lancamento e um lancamento financeiro. As regras ficam em funcoes puras (ValidarTx, AlvoDe, MudaSaldo, TagsDe...).
 type Lancamento = Doc
 
+// Acao diz o que uma versao do historico registra.
+type Acao string
+
+const (
+	AcaoInsert  Acao = "insert"  // o lancamento nasceu
+	AcaoUpdate  Acao = "update"  // mudou (inclui ocultar, ajustar fatura e mudar a data)
+	AcaoDelete  Acao = "delete"  // exclusao logica
+	AcaoRestore Acao = "restore" // uma versao antiga foi recuperada
+)
+
+// Versao e um ponto do historico de um lancamento. O Registro e o lancamento inteiro (sem chaves do banco).
+type Versao struct {
+	Numero   int
+	Acao     Acao
+	PorSub   string // sub de quem agiu; vazio na versao 1 preguicosa (autor desconhecido)
+	Em       string // ISO, UTC, com milissegundos
+	DeVersao int    // so no restore: a versao de origem
+	Registro Lancamento
+}
+
 // Mudanca e uma escrita de lancamento entregue ao repository. E o que o service pede; as chaves do banco
-// (PK, SK) e as expressoes do DynamoDB sao assunto so do repository.
+// (PK, SK) e as expressoes do DynamoDB sao assunto so do repository. O lancamento e as Versoes entram na mesma
+// transacao: ou gravam os dois, ou nenhum.
 type Mudanca struct {
 	Antes        Lancamento // estado anterior; nil na criacao
 	Depois       Lancamento // estado novo, ja validado
 	DataAnterior string     // dataEvento sob a qual o lancamento estava gravado (chave antiga); vazio na criacao
+	Versoes      []Versao   // o que vai para o historico junto com a escrita
 }
 
-// ErrDadosInvalidos: o lancamento nao pode ser serializado para gravar (nao acontece com valores vindos de JSON).
-var ErrDadosInvalidos = errors.New("dados invalidos")
+var (
+	// ErrDadosInvalidos: o lancamento nao pode ser serializado para gravar (nao acontece com valores vindos de JSON).
+	ErrDadosInvalidos = errors.New("dados invalidos")
+	// ErrConflitoVersao: outra escrita gravou a mesma versao antes (ou o lancamento ja existe). Nada foi gravado.
+	ErrConflitoVersao = errors.New("alterado por outra pessoa")
+)
+
+// Registro devolve o lancamento como o historico o guarda: uma copia, sem as chaves do banco.
+func Registro(l Lancamento) Lancamento {
+	c := CopiaRasa(l)
+	delete(c, "PK")
+	delete(c, "SK")
+	return c
+}
+
+// Excluido diz se o lancamento foi excluido logicamente (so os excluidos tem o campo excluidoEm).
+func Excluido(l Lancamento) bool {
+	_, tem := l["excluidoEm"]
+	return tem && l["excluidoEm"] != nil
+}
+
+// VersoesDaEscrita decide o que vai para o historico numa escrita. ultima e a maior versao ja gravada do lancamento.
+//   - lancamento novo (antes == nil): uma versao, com a acao dada;
+//   - lancamento antigo, sem nenhuma versao: a versao 1 (estado de antes, insert, autor desconhecido) e a 2 (estado
+//     de depois), na mesma transacao;
+//   - lancamento com historico: so a proxima.
+func VersoesDaEscrita(ultima int, antes, depois Lancamento, acao Acao, porSub, em string) []Versao {
+	nova := func(n int) Versao {
+		return Versao{Numero: n, Acao: acao, PorSub: porSub, Em: em, Registro: Registro(depois)}
+	}
+	if antes != nil && ultima == 0 {
+		return []Versao{{Numero: 1, Acao: AcaoInsert, Em: em, Registro: Registro(antes)}, nova(2)}
+	}
+	return []Versao{nova(ultima + 1)}
+}
 
 // Identidade identifica um lancamento dentro de um espaco sem expor a chave do banco.
 func Identidade(l Lancamento) string {
@@ -34,15 +89,16 @@ func Identidade(l Lancamento) string {
 
 // Protegidos tira do corpo os campos que so o servidor define.
 func Protegidos(d Doc) {
-	for _, k := range []string{"PK", "SK", "id", "criadoEm", "criadoPor"} {
+	for _, k := range []string{"PK", "SK", "id", "criadoEm", "criadoPor", "excluidoEm"} {
 		delete(d, k)
 	}
 }
 
-// Publico limpa as chaves internas antes de devolver ao cliente.
+// Publico limpa as chaves internas (e o excluidoEm) antes de devolver ao cliente.
 func Publico(d Doc) Doc {
 	delete(d, "PK")
 	delete(d, "SK")
+	delete(d, "excluidoEm")
 	return d
 }
 

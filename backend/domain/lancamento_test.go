@@ -52,3 +52,43 @@ func TestAlvoDeEMudaSaldo(t *testing.T) {
 		t.Error("mudar o valor mexe no saldo")
 	}
 }
+
+func TestVersoesDaEscrita(t *testing.T) {
+	antes := Doc{"id": "a", "valor": 1.0, "PK": "SPACE#s", "SK": "TX#x"}
+	depois := Doc{"id": "a", "valor": 2.0}
+
+	// lancamento novo: so a versao pedida, com o numero seguinte
+	vs := VersoesDaEscrita(0, nil, depois, AcaoInsert, "quem", "t")
+	if len(vs) != 1 || vs[0].Numero != 1 || vs[0].Acao != AcaoInsert || vs[0].PorSub != "quem" {
+		t.Errorf("criacao: %+v", vs)
+	}
+	// antigo, sem historico: v1 de antes (autor desconhecido) e v2 de depois
+	vs = VersoesDaEscrita(0, antes, depois, AcaoUpdate, "quem", "t")
+	if len(vs) != 2 || vs[0].Numero != 1 || vs[0].Acao != AcaoInsert || vs[0].PorSub != "" || vs[0].Registro["valor"] != 1.0 ||
+		vs[1].Numero != 2 || vs[1].Acao != AcaoUpdate || vs[1].PorSub != "quem" || vs[1].Registro["valor"] != 2.0 {
+		t.Errorf("legado: %+v", vs)
+	}
+	if _, tem := vs[0].Registro["PK"]; tem {
+		t.Error("o registro nao leva as chaves do banco")
+	}
+	// com historico: so a proxima
+	vs = VersoesDaEscrita(7, antes, depois, AcaoDelete, "quem", "t")
+	if len(vs) != 1 || vs[0].Numero != 8 || vs[0].Acao != AcaoDelete {
+		t.Errorf("com historico: %+v", vs)
+	}
+}
+
+func TestExcluidoPublicoEProtegidos(t *testing.T) {
+	if Excluido(Doc{}) || Excluido(Doc{"excluidoEm": nil}) || !Excluido(Doc{"excluidoEm": "2026-01-01T00:00:00.000Z"}) {
+		t.Error("so quem tem excluidoEm preenchido esta excluido")
+	}
+	d := Doc{"PK": "x", "SK": "y", "excluidoEm": "z", "valor": 1.0}
+	if p := Publico(d); p["excluidoEm"] != nil || p["PK"] != nil || p["valor"] != 1.0 {
+		t.Errorf("Publico deve tirar PK, SK e excluidoEm: %v", p)
+	}
+	corpo := Doc{"excluidoEm": "falso", "descricao": "x"}
+	Protegidos(corpo)
+	if corpo["excluidoEm"] != nil {
+		t.Error("o cliente nao pode gravar nem limpar excluidoEm pelo corpo")
+	}
+}
