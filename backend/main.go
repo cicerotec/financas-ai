@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,21 +16,21 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
+	"financas/auth"
+	"financas/controller"
+	"financas/repository"
+	"financas/service"
 )
 
 type resp = events.LambdaFunctionURLResponse
 type req = events.LambdaFunctionURLRequest
 
-var cfgNomes = map[string]bool{"listas": true, "tags": true, "combos": true, "saldos": true, "cartoes": true}
-
-func out(status int, v any) (resp, error) {
-	b, _ := json.Marshal(v)
-	return resp{StatusCode: status, Headers: map[string]string{"content-type": "application/json"}, Body: string(b)}, nil
-}
-func erro(status int, msg string) (resp, error) { return out(status, doc{"erro": msg}) }
+func out(status int, v any) (resp, error)        { return controller.Out(status, v) }
+func erro(status int, msg string) (resp, error) { return controller.Erro(status, msg) }
 
 func handler(ctx context.Context, r req) (resp, error) {
-	u, err := verificarToken(strings.TrimPrefix(r.Headers["authorization"], "Bearer "))
+	u, err := auth.VerificarToken(strings.TrimPrefix(r.Headers["authorization"], "Bearer "))
 	if err != nil {
 		return erro(http.StatusUnauthorized, "nao autenticado")
 	}
@@ -50,7 +49,7 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 		return erro(http.StatusNotFound, "rota inexistente")
 	}
 	sid := p[1]
-	acaoReq, ok := rotaParaAcao(m, p[2:])
+	acaoReq, ok := auth.RotaParaAcao(m, p[2:])
 	if !ok {
 		return erro(http.StatusNotFound, "rota inexistente")
 	}
@@ -62,8 +61,8 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 	if role == "" {
 		return erro(http.StatusForbidden, "sem acesso a esse espaco")
 	}
-	dec := permitido(role, acaoReq)
-	if dec == negado {
+	dec := auth.Permitido(role, acaoReq)
+	if dec == auth.Negado {
 		log.Printf("negado: sub=%s papel=%s acao=%s", u.Sub, role, acaoReq)
 		return erro(http.StatusForbidden, "sem permissao para esta acao")
 	}
@@ -73,40 +72,42 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 			return erro(http.StatusBadRequest, "json invalido")
 		}
 	}
+	// a ligacao das pecas fica aqui ate o main montar tudo uma vez so (item 32 do BACKLOG)
+	lanc := controller.NewLancamentos(service.NewLancamentos(repository.NewLancamentos(db, table), efeitosRaiz{}))
 	switch acaoReq {
-	case acaoLerTx:
+	case auth.AcaoLerTx:
 		return getTxs(ctx, sid, qs)
-	case acaoCriarTx:
-		return postTx(ctx, sid, u, body)
-	case acaoImportarTx:
-		return postTxBatch(ctx, sid, u, body)
-	case acaoEditarTx:
-		return putTx(ctx, sid, p[3], qs["de"], body, u.Sub, dec == soDono)
-	case acaoExcluirTx:
-		return delTx(ctx, sid, p[3], qs["de"])
-	case acaoLerCfg:
+	case auth.AcaoCriarTx:
+		return lanc.PostTx(ctx, sid, u.Sub, body)
+	case auth.AcaoImportarTx:
+		return lanc.PostTxBatch(ctx, sid, u.Sub, body)
+	case auth.AcaoEditarTx:
+		return lanc.PutTx(ctx, sid, p[3], qs["de"], body, u.Sub, dec == auth.SoDono)
+	case auth.AcaoExcluirTx:
+		return lanc.DelTx(ctx, sid, p[3], qs["de"])
+	case auth.AcaoLerCfg:
 		return getCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]))
-	case acaoEscreverCfg:
+	case auth.AcaoEscreverCfg:
 		return putCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]), body)
-	case acaoAdicionarTags:
+	case auth.AcaoAdicionarTags:
 		return postTags(ctx, sid, body)
-	case acaoLerSeq:
+	case auth.AcaoLerSeq:
 		return getSeq(ctx, sid)
-	case acaoLerFech:
+	case auth.AcaoLerFech:
 		return getFechamentos(ctx, sid)
-	case acaoEscreverFech:
+	case auth.AcaoEscreverFech:
 		return putFechamentos(ctx, sid, body)
-	case acaoConferirMes:
+	case auth.AcaoConferirMes:
 		return conferirMes(ctx, sid, u.Sub, body)
-	case acaoReabrirMes:
+	case auth.AcaoReabrirMes:
 		return reabrirMes(ctx, sid, body)
-	case acaoLerAparencia:
+	case auth.AcaoLerAparencia:
 		return getCfg(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA")
-	case acaoEditarPerfil:
+	case auth.AcaoEditarPerfil:
 		return putPerfil(ctx, sid, u, body)
-	case acaoTestarAviso:
+	case auth.AcaoTestarAviso:
 		return postAvisoTeste(ctx, sid, u)
-	case acaoEscreverAparenc:
+	case auth.AcaoEscreverAparenc:
 		return putAparencia(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA", body)
 	}
 	return erro(http.StatusNotFound, "rota inexistente")
@@ -161,291 +162,6 @@ func getTxs(ctx context.Context, sid string, qs map[string]string) (resp, error)
 	return out(200, doc{"itens": itens, "proximo": cursor})
 }
 
-// valida e normaliza os campos obrigatorios de um lancamento
-func validarTx(d doc) error {
-	s, _ := d["dataEvento"].(string)
-	if s == "" {
-		return errors.New("dataEvento obrigatoria")
-	}
-	n, err := normData(s)
-	if err != nil {
-		return err
-	}
-	d["dataEvento"] = n
-	// zero e negativo sao aceitos de proposito (lancamentos so de nota, estornos)
-	if _, ok := d["valor"].(float64); !ok {
-		return errors.New("valor deve ser numerico")
-	}
-	if t := d["tipo"]; t != "entrada" && t != "saida" {
-		return errors.New("tipo deve ser entrada ou saida")
-	}
-	for _, c := range []string{"status", "banco"} {
-		if s, _ := d[c].(string); s == "" {
-			return errors.New(c + " obrigatorio")
-		}
-	}
-	if err := validarAviso(d); err != nil {
-		return err
-	}
-	return validarSerie(d)
-}
-
-func protegidos(d doc) {
-	for _, k := range []string{"PK", "SK", "id", "criadoEm", "criadoPor"} {
-		delete(d, k)
-	}
-}
-
-func postTx(ctx context.Context, sid string, u *user, body doc) (resp, error) {
-	protegidos(body)
-	if err := validarTx(body); err != nil {
-		return erro(400, err.Error())
-	}
-	id := novoID()
-	body["id"] = id
-	body["criadoEm"] = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
-	body["criadoPor"] = u.Sub
-	body["PK"] = spacePK(sid)
-	body["SK"] = txSK(body["dataEvento"].(string), id)
-	item, err := marshal(body)
-	if err != nil {
-		return erro(400, "dados invalidos")
-	}
-	al, temAlvo := alvoDe(body)
-	if temAlvo {
-		if r, bloq := respTrava(novasTravas(ctx, sid).checar(al)); bloq {
-			return r, nil
-		}
-	}
-	if _, err := db.PutItem(ctx, &dynamodb.PutItemInput{TableName: &table, Item: item,
-		ConditionExpression: aws.String("attribute_not_exists(PK)")}); err != nil {
-		log.Println("post tx:", err)
-		return erro(500, "erro ao salvar")
-	}
-	if temAlvo {
-		invalidarSaldos(ctx, sid, []alvo{al})
-	}
-	garantirTagsServidor(ctx, sid, tagsDe(body))
-	sincronizarAviso(ctx, sid, body)
-	return out(201, comSeq(ctx, sid, publico(body)))
-}
-
-var reID = regexp.MustCompile(`^[a-z0-9]{6,40}$`)
-
-// Importacao em lote (ate 25 por chamada). Preserva id e criadoEm quando vierem no item,
-// entao reimportar o mesmo backup sobrescreve em vez de duplicar. O que o DynamoDB nao
-// aceitar a tempo volta em "pendentes" para o cliente reenviar.
-func postTxBatch(ctx context.Context, sid string, u *user, body doc) (resp, error) {
-	bruto, _ := body["itens"].([]any)
-	if len(bruto) == 0 || len(bruto) > 25 {
-		return erro(400, "itens deve ter de 1 a 25 lancamentos")
-	}
-	agora := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
-	var reqs []types.WriteRequest
-	rejeitados := []doc{}
-	vistas := map[string]bool{}
-	tr := novasTravas(ctx, sid)
-	var alvos []alvo
-	var aceitos []doc
-	for i, x := range bruto {
-		d, ok := x.(map[string]any)
-		if !ok {
-			rejeitados = append(rejeitados, doc{"indice": i, "motivo": "item invalido"})
-			continue
-		}
-		delete(d, "PK")
-		delete(d, "SK")
-		if err := validarTx(d); err != nil {
-			rejeitados = append(rejeitados, doc{"indice": i, "motivo": err.Error()})
-			continue
-		}
-		if id, _ := d["id"].(string); !reID.MatchString(id) {
-			d["id"] = novoID()
-		}
-		if c, _ := d["criadoEm"].(string); c == "" {
-			d["criadoEm"] = agora
-		}
-		d["criadoPor"] = u.Sub
-		d["PK"] = spacePK(sid)
-		d["SK"] = txSK(d["dataEvento"].(string), d["id"].(string))
-		if vistas[d["SK"].(string)] {
-			rejeitados = append(rejeitados, doc{"indice": i, "motivo": "duplicado no mesmo lote"})
-			continue
-		}
-		vistas[d["SK"].(string)] = true
-		al, temAlvo := alvoDe(d)
-		if temAlvo {
-			if err := tr.checar(al); err != nil {
-				var te *travaErro
-				if !errors.As(err, &te) {
-					log.Println("trava:", err)
-					return erro(500, "erro interno")
-				}
-				rejeitados = append(rejeitados, doc{"indice": i, "motivo": "mes conferido e travado (" + te.banco + ", " + te.mes + ")"})
-				continue
-			}
-		}
-		item, err := marshal(d)
-		if err != nil {
-			rejeitados = append(rejeitados, doc{"indice": i, "motivo": "dados invalidos"})
-			continue
-		}
-		reqs = append(reqs, types.WriteRequest{PutRequest: &types.PutRequest{Item: item}})
-		aceitos = append(aceitos, d)
-		if temAlvo {
-			alvos = append(alvos, al)
-		}
-	}
-	enviados := len(reqs)
-	pend := reqs
-	if enviados > 0 {
-		pend = gravarLote(ctx, reqs)
-		invalidarSaldos(ctx, sid, alvos)
-	}
-	pendentes := []doc{}
-	naoGravados := map[string]bool{}
-	for _, w := range pend {
-		var d doc
-		if attributevalue.UnmarshalMap(w.PutRequest.Item, &d) == nil {
-			if sk, _ := d["SK"].(string); sk != "" {
-				naoGravados[sk] = true
-			}
-			pendentes = append(pendentes, publico(d))
-		}
-	}
-	for _, d := range aceitos {
-		if sk, _ := d["SK"].(string); !naoGravados[sk] {
-			sincronizarAviso(ctx, sid, d)
-		}
-	}
-	resposta := doc{}
-	if enviados > len(pend) {
-		comSeq(ctx, sid, resposta) // algo foi gravado: quem mais estiver com a tela aberta precisa saber
-	}
-	resposta["gravados"], resposta["rejeitados"], resposta["pendentes"] = enviados-len(pend), rejeitados, pendentes
-	return out(200, resposta)
-}
-
-// BatchWriteItem com nova tentativa dos itens nao processados (limite de escrita).
-// Devolve o que sobrou quando o tempo da Lambda esta acabando.
-func gravarLote(ctx context.Context, reqs []types.WriteRequest) []types.WriteRequest {
-	limite := time.Now().Add(10 * time.Second)
-	if prazo, ok := ctx.Deadline(); ok {
-		limite = prazo.Add(-4 * time.Second)
-	}
-	espera := 200 * time.Millisecond
-	for len(reqs) > 0 {
-		saida, err := db.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
-			RequestItems: map[string][]types.WriteRequest{table: reqs}})
-		if err != nil {
-			log.Println("batch write:", err)
-		} else {
-			reqs = saida.UnprocessedItems[table]
-		}
-		if len(reqs) == 0 || time.Now().Add(espera).After(limite) {
-			break
-		}
-		time.Sleep(espera)
-		if espera < 2*time.Second {
-			espera *= 2
-		}
-	}
-	return reqs
-}
-
-func putTx(ctx context.Context, sid, id, de string, body doc, sub string, restrito bool) (resp, error) {
-	de, err := normData(de)
-	if err != nil {
-		return erro(400, "parametro de (dataEvento atual) obrigatorio")
-	}
-	antigo, err := getItem(ctx, spacePK(sid), txSK(de, id))
-	if err != nil {
-		return erro(500, "erro interno")
-	}
-	if antigo == nil {
-		return erro(404, "lancamento nao encontrado")
-	}
-	if restrito && !ehDono(antigo, sub) {
-		log.Printf("negado: sub=%s tentou editar lancamento de outra pessoa (%s)", sub, id)
-		return erro(http.StatusForbidden, "so e possivel editar os lancamentos criados por voce")
-	}
-	protegidos(body)
-	antes := copiaRasa(antigo)
-	novo := antigo
-	for k, v := range body {
-		novo[k] = v
-	}
-	if err := validarTx(novo); err != nil {
-		return erro(400, err.Error())
-	}
-	novo["SK"] = txSK(novo["dataEvento"].(string), id)
-	item, err := marshal(novo)
-	if err != nil {
-		return erro(400, "dados invalidos")
-	}
-	var alvos []alvo
-	if mudaSaldo(antes, novo) { // editar descricao, nota ou tags nao mexe no saldo e nao e travado
-		for _, d := range []doc{antes, novo} {
-			if al, ok := alvoDe(d); ok {
-				alvos = append(alvos, al)
-			}
-		}
-		tr := novasTravas(ctx, sid)
-		for _, al := range alvos {
-			if r, bloq := respTrava(tr.checar(al)); bloq {
-				return r, nil
-			}
-		}
-	}
-	if novo["SK"] == txSK(de, id) {
-		_, err = db.PutItem(ctx, &dynamodb.PutItemInput{TableName: &table, Item: item})
-	} else { // dataEvento mudou: a chave muda, entao apaga a antiga e grava a nova juntas
-		_, err = db.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{TransactItems: []types.TransactWriteItem{
-			{Delete: &types.Delete{TableName: &table, Key: key(spacePK(sid), txSK(de, id))}},
-			{Put: &types.Put{TableName: &table, Item: item}},
-		}})
-	}
-	if err != nil {
-		log.Println("put tx:", err)
-		return erro(500, "erro ao salvar")
-	}
-	if len(alvos) > 0 {
-		invalidarSaldos(ctx, sid, alvos)
-	}
-	garantirTagsServidor(ctx, sid, tagsDe(novo))
-	sincronizarAviso(ctx, sid, novo)
-	return out(200, comSeq(ctx, sid, publico(novo)))
-}
-
-func delTx(ctx context.Context, sid, id, de string) (resp, error) {
-	de, err := normData(de)
-	if err != nil {
-		return erro(400, "parametro de (dataEvento atual) obrigatorio")
-	}
-	antigo, err := getItem(ctx, spacePK(sid), txSK(de, id))
-	if err != nil {
-		return erro(500, "erro interno")
-	}
-	al, temAlvo := alvoDe(antigo)
-	if antigo != nil && temAlvo {
-		if r, bloq := respTrava(novasTravas(ctx, sid).checar(al)); bloq {
-			return r, nil
-		}
-	}
-	if _, err := db.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: &table, Key: key(spacePK(sid), txSK(de, id))}); err != nil {
-		log.Println("del tx:", err)
-		return erro(500, "erro ao excluir")
-	}
-	removerAviso(ctx, sid, id)
-	if antigo != nil && temAlvo {
-		invalidarSaldos(ctx, sid, []alvo{al})
-	}
-	resposta := doc{"ok": true}
-	if antigo != nil {
-		comSeq(ctx, sid, resposta)
-	}
-	return out(200, resposta)
-}
 
 func getCfg(ctx context.Context, pk, sk string) (resp, error) {
 	d, err := getItem(ctx, pk, sk)

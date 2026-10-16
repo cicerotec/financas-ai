@@ -4,22 +4,12 @@ import (
 	"context"
 	"errors"
 	"log"
+
+	"financas/domain"
 )
 
 // Tags: a lista compartilhada (CFG#TAGS, campo "usadas") so cresce por aqui. O member nao
 // consegue reescrever a lista (PUT em cfg/tags e so do owner), mas pode acrescentar tags novas.
-
-func tagsDe(d doc) []string {
-	var t []string
-	if l, ok := d["tags"].([]any); ok {
-		for _, x := range l {
-			if s, ok := x.(string); ok {
-				t = append(t, s)
-			}
-		}
-	}
-	return t
-}
 
 // adicionarTags acrescenta ao CFG#TAGS apenas o que ainda nao existe. Devolve o que foi adicionado.
 func adicionarTags(ctx context.Context, sid string, novas []string) ([]string, error) {
@@ -41,7 +31,7 @@ func adicionarTags(ctx context.Context, sid string, novas []string) ([]string, e
 			}
 			versao, _ = atual["version"].(float64)
 		}
-		falta := faltantes(novas, existentes)
+		falta := domain.Faltantes(novas, existentes)
 		if len(falta) == 0 {
 			return nil, nil
 		}
@@ -64,7 +54,7 @@ func adicionarTags(ctx context.Context, sid string, novas []string) ([]string, e
 // garantirTagsServidor e chamado ao salvar um lancamento: tags novas entram na lista sozinhas.
 // Falha aqui nao derruba o salvamento do lancamento (so registra).
 func garantirTagsServidor(ctx context.Context, sid string, tags []string) {
-	novas := normalizarTags(tags)
+	novas := domain.NormalizarTags(tags)
 	if len(novas) == 0 {
 		return
 	}
@@ -74,7 +64,7 @@ func garantirTagsServidor(ctx context.Context, sid string, tags []string) {
 }
 
 func postTags(ctx context.Context, sid string, body doc) (resp, error) {
-	novas := normalizarTags(tagsDe(body))
+	novas := domain.NormalizarTags(domain.TagsDe(body))
 	if len(novas) == 0 {
 		return erro(400, "informe ao menos uma tag")
 	}

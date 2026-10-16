@@ -39,6 +39,42 @@ adapters     repository (dynamodb), telegram, e-mail, whatsapp, auth, relógio: 
 - O miolo das regras (fatura base, ajuste, saldo) são **funções puras**, sem I/O; o service lê pelo repositório, chama a
   função pura e devolve a visão pronta.
 
+## Estrutura de pastas do backend (fechada em 2026-10-16)
+
+Cada camada é uma pasta, que em Go é um pacote. O `main.go` fica na raiz de `backend/`.
+
+```
+backend/
+  main.go        liga as peças (client, repository, service, controller) e roteia
+  domain/        tipos e regras puras (Doc, Lancamento, Mudanca, ValidarTx, AlvoDe, MudaSaldo, tags, aviso, série,
+                 ErroMesConferido). Não importa nada do projeto nem a AWS
+  auth/          token do Cognito (token.go) e permissões por papel (authz.go)
+  repository/    adaptador DynamoDB: dynamo.go (a interface do cliente e as chaves) e lancamento.go. É o único
+                 lugar com PK, SK e expressões
+  service/       regra de uso. Declara as interfaces de que precisa (Repositorio, Efeitos); não importa AWS nem HTTP
+  controller/    HTTP: recebe o request, chama o service e traduz o erro em resposta. Não toca o banco
+  (raiz)         store.go, fechamento.go, tags.go, perfil.go, avisos.go, telegram.go, seq.go: ainda não migraram
+```
+
+**Quem pode importar quem** (o teste `arquitetura_test.go` falha se alguém quebrar):
+
+| Pacote | Não pode importar |
+|---|---|
+| `domain` | nada do projeto, nada da AWS, `net/http` |
+| `service` | `controller`, `repository`, `auth`, AWS, `net/http` |
+| `controller` | `repository`, `auth`, o SDK da AWS |
+| `repository` | `service`, `controller`, `auth` |
+| `auth` | `service`, `controller`, `repository`, o SDK da AWS |
+
+- **A migração é por fatia** (item 32), não de uma vez. Já estão nas pastas: os lançamentos (`controller`, `service`,
+  `repository`, regras em `domain`) e o `auth`. O resto migra quando a sua fatia entrar.
+- **Pontes temporárias na raiz:** `efeitos.go` liga o service de lançamentos aos efeitos que ainda moram na raiz
+  (saldos, tags, avisos e contador), e `dominio_compat.go` guarda os nomes antigos que a raiz ainda usa. Cada nome sai
+  de lá quando a fatia que o usa migra.
+- **`dispatcher/` ainda não existe.** O despachante de avisos com vários canais é o item 34 do BACKLOG. A pasta nasce
+  junto com ele, quando `avisos.go` e `telegram.go` virarem despachante e strategies de canal.
+- Os testes ficam ao lado do código que testam. Os de comportamento da API ficam na raiz, porque passam por `processar`.
+
 ## Persistência: o repository (fechada)
 
 O service **não recebe o client do DynamoDB**: recebe um **repository**, que esconde o banco. Quem conhece o DynamoDB é

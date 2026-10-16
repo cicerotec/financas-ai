@@ -39,7 +39,7 @@ func (f *bancoFake) PutItem(_ context.Context, in *dynamodb.PutItemInput, _ ...f
 	k := chave(sv(in.Item["PK"]), sv(in.Item["SK"]))
 	atual, existe := f.itens[k]
 	switch aws.ToString(in.ConditionExpression) {
-	case "attribute_not_exists(PK)":
+	case "attribute_not_exists(PK)", "attribute_not_exists(SK)":
 		if existe {
 			return nil, &types.ConditionalCheckFailedException{}
 		}
@@ -64,7 +64,29 @@ func (f *bancoFake) DeleteItem(_ context.Context, in *dynamodb.DeleteItemInput, 
 	delete(f.itens, chave(sv(in.Key["PK"]), sv(in.Key["SK"])))
 	return &dynamodb.DeleteItemOutput{}, nil
 }
+// TransactWriteItems e tudo ou nada, como o DynamoDB: primeiro confere as condicoes de todos os itens (so
+// attribute_not_exists(PK) e (SK) sao entendidas); se qualquer uma falha, nada muda e volta
+// TransactionCanceledException. Dois itens da mesma chave na mesma transacao tambem sao recusados.
 func (f *bancoFake) TransactWriteItems(_ context.Context, in *dynamodb.TransactWriteItemsInput, _ ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error) {
+	vistas := map[string]bool{}
+	for _, t := range in.TransactItems {
+		var k string
+		switch {
+		case t.Put != nil:
+			k = chave(sv(t.Put.Item["PK"]), sv(t.Put.Item["SK"]))
+			if c := aws.ToString(t.Put.ConditionExpression); c != "" {
+				if _, existe := f.itens[k]; (c == "attribute_not_exists(PK)" || c == "attribute_not_exists(SK)") && existe {
+					return nil, &types.TransactionCanceledException{Message: aws.String("ConditionalCheckFailed em " + k)}
+				}
+			}
+		case t.Delete != nil:
+			k = chave(sv(t.Delete.Key["PK"]), sv(t.Delete.Key["SK"]))
+		}
+		if k != "" && vistas[k] {
+			return nil, &types.TransactionCanceledException{Message: aws.String("dois itens com a mesma chave: " + k)}
+		}
+		vistas[k] = true
+	}
 	for _, t := range in.TransactItems {
 		if t.Delete != nil {
 			delete(f.itens, chave(sv(t.Delete.Key["PK"]), sv(t.Delete.Key["SK"])))
@@ -148,8 +170,25 @@ func (f *bancoFake) Query(_ context.Context, in *dynamodb.QueryInput, _ ...func(
 		sks = append(sks, k)
 	}
 	sort.Strings(sks)
+	desc := in.ScanIndexForward != nil && !*in.ScanIndexForward
+	if desc {
+		for i, j := 0, len(sks)-1; i < j; i, j = i+1, j-1 {
+			sks[i], sks[j] = sks[j], sks[i]
+		}
+	}
 	out := &dynamodb.QueryOutput{}
 	for _, k := range sks {
+		sk := sv(f.itens[k]["SK"])
+		if ini, ok := in.ExclusiveStartKey["SK"]; ok { // continua depois da chave informada, na ordem da consulta
+			if (!desc && sk <= sv(ini)) || (desc && sk >= sv(ini)) {
+				continue
+			}
+		}
+		if in.Limit != nil && *in.Limit > 0 && int32(len(out.Items)) >= *in.Limit {
+			ultimo := out.Items[len(out.Items)-1]
+			out.LastEvaluatedKey = map[string]types.AttributeValue{"PK": ultimo["PK"], "SK": ultimo["SK"]}
+			break
+		}
 		out.Items = append(out.Items, f.itens[k])
 	}
 	return out, nil

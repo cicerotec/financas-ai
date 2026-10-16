@@ -93,6 +93,9 @@ DynamoDB sem discutir com o dono.**
   `ssmCli`, `table`, `agora()`). Entra por fatias verticais, uma regra por vez, com o app no ar. **Só a fatia dos
   lançamentos** (repository e service de lançamentos, injetados) entra com o 31, na Fase 0 dele (decisão de
   2026-10-15); `fechamento`, `tags`, `avisos`, `cfg` e `perfil` seguem como estão e migram nas fatias seguintes.
+  **Feito (PR #100):** cada camada virou uma pasta em `backend/` (`domain/`, `auth/`, `repository/`, `service/`,
+  `controller/`), com a regra de dependência testada em `arquitetura_test.go`; lançamentos e `auth` já migraram. Falta
+  o resto da raiz (`store`, `fechamento`, `tags`, `perfil`, `seq`, `cfg`) e a pasta `dispatcher/`, que nasce com o item 34.
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
@@ -131,7 +134,7 @@ DynamoDB sem discutir com o dono.**
   4096 caracteres (uns 40 avisos no mesmo dia para a mesma pessoa); nesse caso nenhum aviso chega naquele dia. A
   correção seria dividir o resumo em mensagens menores (detalhe em `.ai/avisos.md`).
 - 27. [ ] <a id="item-27"></a>**[Depois] Tela de permissões por usuário** (hoje só há dois papéis fixos, `owner` e `member`, na matriz de
-  `authz.go`): centralizar numa tela do dono o que cada pessoa pode ver e fazer. Motivos vindos do uso real: a esposa
+  `auth/authz.go`): centralizar numa tela do dono o que cada pessoa pode ver e fazer. Motivos vindos do uso real: a esposa
   clica em "valor estimado" ao lançar (campo que hoje não precisa) e vê cartões e saldos de bancos que não são dela.
   Decidido:
   - **Valor estimado** é permissão (liga/desliga por pessoa), não preferência de tela: ela pode passar a fazer
