@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"net/http"
+	"strconv"
 
 	"financas/domain"
 	"financas/service"
@@ -42,6 +44,37 @@ func (c *Lancamentos) PutTx(ctx context.Context, sid, id, de string, body domain
 // DelTx: DELETE /spaces/{sid}/tx/{id}?de=<dataEvento atual>. A exclusao e logica.
 func (c *Lancamentos) DelTx(ctx context.Context, sid, id, de, sub string) (Resp, error) {
 	d, err := c.svc.Excluir(ctx, sid, id, de, sub)
+	if err != nil {
+		return respostaErro(err)
+	}
+	return Out(200, d)
+}
+
+// GetHistorico: GET /spaces/{sid}/historico?mes=AAAA-MM&q=. restrito: so o que a pessoa criou (member).
+func (c *Lancamentos) GetHistorico(ctx context.Context, sid, mes, q, sub string, restrito bool) (Resp, error) {
+	d, err := c.svc.Historico(ctx, sid, mes, q, sub, restrito)
+	if err != nil {
+		return respostaErro(err)
+	}
+	return Out(200, d)
+}
+
+// GetVersoes: GET /spaces/{sid}/tx/{id}/versoes?de=<dataEvento, so para lancamento sem historico>
+func (c *Lancamentos) GetVersoes(ctx context.Context, sid, id, de, sub string, restrito bool) (Resp, error) {
+	d, err := c.svc.Versoes(ctx, sid, id, de, sub, restrito)
+	if err != nil {
+		return respostaErro(err)
+	}
+	return Out(200, d)
+}
+
+// PostRestaurar: POST /spaces/{sid}/tx/{id}/versoes/{n}/restaurar (corpo vazio).
+func (c *Lancamentos) PostRestaurar(ctx context.Context, sid, id, versao, sub string, restrito bool) (Resp, error) {
+	n, err := strconv.Atoi(versao)
+	if err != nil || n < 1 {
+		return Erro(http.StatusBadRequest, "versao invalida")
+	}
+	d, err := c.svc.Restaurar(ctx, sid, id, n, sub, restrito)
 	if err != nil {
 		return respostaErro(err)
 	}

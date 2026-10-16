@@ -92,3 +92,41 @@ func TestExcluidoPublicoEProtegidos(t *testing.T) {
 		t.Error("o cliente nao pode gravar nem limpar excluidoEm pelo corpo")
 	}
 }
+
+func TestDiffListaSoOQueMudou(t *testing.T) {
+	antes := Doc{"PK": "x", "valor": 180.0, "descricao": "Mercado", "tags": []any{"a"}, "nota": "velha"}
+	depois := Doc{"SK": "y", "valor": 187.5, "descricao": "Mercado", "tags": []any{"a"}, "oculto": true}
+	got := Diff(antes, depois)
+	if len(got) != 3 {
+		t.Fatalf("esperava 3 campos (nota, oculto, valor), vieram %v", got)
+	}
+	if got[0]["campo"] != "nota" || got[0]["antes"] != "velha" || got[0]["depois"] != nil ||
+		got[1]["campo"] != "oculto" || got[1]["antes"] != nil || got[1]["depois"] != true ||
+		got[2]["campo"] != "valor" || got[2]["antes"] != 180.0 || got[2]["depois"] != 187.5 {
+		t.Errorf("diff = %v", got)
+	}
+	if d := Diff(Doc{"a": 1.0}, Doc{"a": 1.0}); d == nil || len(d) != 0 {
+		t.Errorf("sem mudanca deve ser lista vazia, nao nil: %#v", d)
+	}
+}
+
+func TestMesValidoEMesmoConteudo(t *testing.T) {
+	for _, ok := range []string{"2026-09", "2026-12", "1999-01"} {
+		if !MesValido(ok) {
+			t.Errorf("%s deveria ser valido", ok)
+		}
+	}
+	for _, ruim := range []string{"", "2026-13", "2026-00", "2026-9", "26-09", "2026-09-01"} {
+		if MesValido(ruim) {
+			t.Errorf("%q nao e um mes valido", ruim)
+		}
+	}
+	a := Doc{"PK": "x", "SK": "y", "valor": 1.0}
+	b := Doc{"valor": 1.0, "excluidoEm": "z"}
+	if !MesmoConteudo(a, b) {
+		t.Error("chaves do banco e excluidoEm nao contam")
+	}
+	if MesmoConteudo(a, Doc{"valor": 2.0}) {
+		t.Error("valor diferente e conteudo diferente")
+	}
+}

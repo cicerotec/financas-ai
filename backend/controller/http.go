@@ -36,9 +36,13 @@ func respostaErro(err error) (Resp, error) {
 		return Erro(http.StatusBadRequest, err.Error())
 	case errors.Is(err, domain.ErrConflitoVersao): // outra escrita chegou antes: nada foi gravado
 		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "conflito_versao"})
-	case errors.Is(err, service.ErrNaoEncontrado):
+	case errors.Is(err, service.ErrNaoEncontrado), errors.Is(err, service.ErrVersaoNaoAchada):
 		return Erro(http.StatusNotFound, err.Error())
-	case errors.Is(err, service.ErrSoDono):
+	case errors.Is(err, service.ErrJaNessaVersao): // restaurar o que ja esta assim: nada a gravar
+		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "ja_nessa_versao"})
+	case errors.Is(err, service.ErrVersaoDeExclusao):
+		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "versao_de_exclusao"})
+	case errors.Is(err, service.ErrSoDono), errors.Is(err, service.ErrSemAcesso), errors.Is(err, service.ErrSoDonoRestaura):
 		return Erro(http.StatusForbidden, err.Error())
 	case errors.Is(err, service.ErrSalvar), errors.Is(err, service.ErrExcluir), errors.Is(err, service.ErrInterno):
 		return Erro(http.StatusInternalServerError, err.Error())
