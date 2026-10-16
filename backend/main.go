@@ -84,7 +84,7 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 	case auth.AcaoEditarTx:
 		return lanc.PutTx(ctx, sid, p[3], qs["de"], body, u.Sub, dec == auth.SoDono)
 	case auth.AcaoExcluirTx:
-		return lanc.DelTx(ctx, sid, p[3], qs["de"])
+		return lanc.DelTx(ctx, sid, p[3], qs["de"], u.Sub)
 	case auth.AcaoLerCfg:
 		return getCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]))
 	case auth.AcaoEscreverCfg:

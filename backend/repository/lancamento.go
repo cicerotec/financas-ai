@@ -2,8 +2,9 @@ package repository
 
 import (
 	"context"
-	"log"
-	"time"
+	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -13,8 +14,14 @@ import (
 	"financas/domain"
 )
 
-// Lancamentos implementa a persistencia de lancamentos (service.RepositorioLancamentos). E o unico lugar que
-// monta a chave de um lancamento e as expressoes de escrita.
+// Lancamentos implementa a persistencia de lancamentos (service.Repositorio). E o unico lugar que monta a chave de
+// um lancamento e de uma versao do historico, e as expressoes de escrita.
+//
+//	lancamento vivo   PK = SPACE#<sid>   SK = TX#<dataEvento>#<id>
+//	versao            PK = HIST#<sid>    SK = TX#<id>#<versao com 8 digitos>
+//
+// O historico so recebe versoes novas: toda versao e gravada com attribute_not_exists(SK) e nao ha metodo para
+// editar nem apagar uma versao (o template.yaml ainda nega UpdateItem e DeleteItem em HIST#*).
 type Lancamentos struct {
 	db    DynamoAPI
 	table string
@@ -24,9 +31,17 @@ func NewLancamentos(db DynamoAPI, table string) *Lancamentos {
 	return &Lancamentos{db: db, table: table}
 }
 
-// Buscar devolve nil (sem erro) quando o lancamento nao existe.
+// HistPK e a PK do historico de um espaco. Separada da do espaco para o IAM poder negar edicao e exclusao nela.
+func HistPK(sid string) string { return "HIST#" + sid }
+
+// HistSK e a SK de uma versao: o id do lancamento (nao a chave viva, que muda com a data) e a versao com 8 digitos.
+func HistSK(id string, versao int) string { return fmt.Sprintf("TX#%s#%08d", id, versao) }
+
+// Buscar devolve o lancamento vivo, incluindo o excluido logicamente, ou nil (sem erro) se nao existe. A leitura e
+// consistente: quem le para depois escrever (editar, excluir) nao pode ver o estado de antes da escrita anterior.
 func (r *Lancamentos) Buscar(ctx context.Context, sid, dataEvento, id string) (domain.Lancamento, error) {
-	out, err := r.db.GetItem(ctx, &dynamodb.GetItemInput{TableName: &r.table, Key: Key(SpacePK(sid), TxSK(dataEvento, id))})
+	out, err := r.db.GetItem(ctx, &dynamodb.GetItemInput{TableName: &r.table, Key: Key(SpacePK(sid), TxSK(dataEvento, id)),
+		ConsistentRead: aws.Bool(true)})
 	if err != nil || out.Item == nil {
 		return nil, err
 	}
@@ -34,84 +49,98 @@ func (r *Lancamentos) Buscar(ctx context.Context, sid, dataEvento, id string) (d
 	return d, attributevalue.UnmarshalMap(out.Item, &d)
 }
 
-// Salvar poe PK e SK no proprio Depois (o service ainda usa o mesmo mapa depois de gravar). Sem Antes, so cria
-// (falha se ja existir). Se a data mudou, a chave muda: apaga a antiga e grava a nova na mesma transacao.
+// UltimaVersao devolve o maior numero de versao gravado para o id (0 se o lancamento nao tem historico). A leitura e
+// consistente: com uma leitura atrasada, duas edicoes seguidas (salvar e desfazer) dariam um falso conflito de versao.
+func (r *Lancamentos) UltimaVersao(ctx context.Context, sid, id string) (int, error) {
+	out, err := r.db.Query(ctx, &dynamodb.QueryInput{
+		TableName:              &r.table,
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :s)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: HistPK(sid)},
+			":s":  &types.AttributeValueMemberS{Value: "TX#" + id + "#"},
+		},
+		ScanIndexForward: aws.Bool(false),
+		Limit:            aws.Int32(1),
+		ConsistentRead:   aws.Bool(true),
+	})
+	if err != nil || len(out.Items) == 0 {
+		return 0, err
+	}
+	n, ok := out.Items[0]["versao"].(*types.AttributeValueMemberN)
+	if !ok {
+		return 0, errors.New("versao sem numero em " + HistSK(id, 0))
+	}
+	v, err := strconv.Atoi(n.Value)
+	return v, err
+}
+
+// Salvar grava o lancamento e as suas versoes numa unica transacao: tudo ou nada. Poe PK e SK no proprio Depois (o
+// service ainda usa o mesmo mapa depois de gravar). Sem Antes, so cria. Se a data mudou, a chave muda: a antiga sai
+// na mesma transacao. Devolve domain.ErrConflitoVersao se outra escrita gravou a mesma versao antes.
 func (r *Lancamentos) Salvar(ctx context.Context, sid string, m domain.Mudanca) error {
+	itens, err := r.itens(sid, m)
+	if err != nil {
+		return err
+	}
+	return r.transacionar(ctx, itens)
+}
+
+// SalvarLote grava varias mudancas numa unica transacao (a importacao): se uma falhar, nenhuma entra.
+func (r *Lancamentos) SalvarLote(ctx context.Context, sid string, ms []domain.Mudanca) error {
+	var todos []types.TransactWriteItem
+	for _, m := range ms {
+		itens, err := r.itens(sid, m)
+		if err != nil {
+			return err
+		}
+		todos = append(todos, itens...)
+	}
+	return r.transacionar(ctx, todos)
+}
+
+func (r *Lancamentos) itens(sid string, m domain.Mudanca) ([]types.TransactWriteItem, error) {
 	d := m.Depois
 	data, _ := d["dataEvento"].(string)
 	id, _ := d["id"].(string)
 	d["PK"], d["SK"] = SpacePK(sid), TxSK(data, id)
-	item, err := attributevalue.MarshalMap(d)
+	vivo, err := attributevalue.MarshalMap(d)
 	if err != nil {
-		return domain.ErrDadosInvalidos
+		return nil, domain.ErrDadosInvalidos
 	}
-	switch {
-	case m.Antes == nil:
-		_, err = r.db.PutItem(ctx, &dynamodb.PutItemInput{TableName: &r.table, Item: item,
-			ConditionExpression: aws.String("attribute_not_exists(PK)")})
-	case d["SK"] == TxSK(m.DataAnterior, id):
-		_, err = r.db.PutItem(ctx, &dynamodb.PutItemInput{TableName: &r.table, Item: item})
-	default: // dataEvento mudou: a chave muda, entao apaga a antiga e grava a nova juntas
-		_, err = r.db.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{TransactItems: []types.TransactWriteItem{
-			{Delete: &types.Delete{TableName: &r.table, Key: Key(SpacePK(sid), TxSK(m.DataAnterior, id))}},
-			{Put: &types.Put{TableName: &r.table, Item: item}},
-		}})
+	put := &types.Put{TableName: &r.table, Item: vivo}
+	if m.Antes == nil {
+		put.ConditionExpression = aws.String("attribute_not_exists(PK)")
 	}
-	return err
-}
-
-func (r *Lancamentos) Excluir(ctx context.Context, sid, dataEvento, id string) error {
-	_, err := r.db.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: &r.table, Key: Key(SpacePK(sid), TxSK(dataEvento, id))})
-	return err
-}
-
-// GravarLote usa BatchWriteItem com nova tentativa dos itens nao processados (limite de escrita). Devolve o que
-// sobrou quando o tempo da Lambda esta acabando.
-func (r *Lancamentos) GravarLote(ctx context.Context, sid string, itens []domain.Lancamento) []domain.Lancamento {
-	var reqs []types.WriteRequest
-	var sobra []domain.Lancamento
-	for _, d := range itens {
-		data, _ := d["dataEvento"].(string)
-		id, _ := d["id"].(string)
-		d["PK"], d["SK"] = SpacePK(sid), TxSK(data, id)
-		item, err := attributevalue.MarshalMap(d)
-		if err != nil { // os valores vem de JSON e sempre serializam; mesmo assim, nunca some em silencio
-			log.Println("lote: marshal:", err)
-			sobra = append(sobra, d)
-			continue
+	itens := []types.TransactWriteItem{{Put: put}}
+	if m.Antes != nil && d["SK"] != TxSK(m.DataAnterior, id) { // a data mudou: a chave antiga sai junto
+		itens = append(itens, types.TransactWriteItem{Delete: &types.Delete{TableName: &r.table, Key: Key(SpacePK(sid), TxSK(m.DataAnterior, id))}})
+	}
+	for _, v := range m.Versoes {
+		item := domain.Doc{"PK": HistPK(sid), "SK": HistSK(id, v.Numero), "versao": float64(v.Numero),
+			"acao": string(v.Acao), "porSub": v.PorSub, "em": v.Em, "registro": v.Registro}
+		if v.DeVersao > 0 {
+			item["deVersao"] = float64(v.DeVersao)
 		}
-		reqs = append(reqs, types.WriteRequest{PutRequest: &types.PutRequest{Item: item}})
-	}
-	for _, w := range r.gravarLote(ctx, reqs) {
-		var d domain.Lancamento
-		if attributevalue.UnmarshalMap(w.PutRequest.Item, &d) == nil {
-			sobra = append(sobra, d)
-		}
-	}
-	return sobra
-}
-
-func (r *Lancamentos) gravarLote(ctx context.Context, reqs []types.WriteRequest) []types.WriteRequest {
-	limite := time.Now().Add(10 * time.Second)
-	if prazo, ok := ctx.Deadline(); ok {
-		limite = prazo.Add(-4 * time.Second)
-	}
-	espera := 200 * time.Millisecond
-	for len(reqs) > 0 {
-		saida, err := r.db.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
-			RequestItems: map[string][]types.WriteRequest{r.table: reqs}})
+		av, err := attributevalue.MarshalMap(item)
 		if err != nil {
-			log.Println("batch write:", err)
-		} else {
-			reqs = saida.UnprocessedItems[r.table]
+			return nil, domain.ErrDadosInvalidos
 		}
-		if len(reqs) == 0 || time.Now().Add(espera).After(limite) {
-			break
-		}
-		time.Sleep(espera)
-		if espera < 2*time.Second {
-			espera *= 2
+		// nunca sobrescreve uma versao: se a SK ja existe, outra escrita chegou antes
+		itens = append(itens, types.TransactWriteItem{Put: &types.Put{TableName: &r.table, Item: av,
+			ConditionExpression: aws.String("attribute_not_exists(SK)")}})
+	}
+	return itens, nil
+}
+
+func (r *Lancamentos) transacionar(ctx context.Context, itens []types.TransactWriteItem) error {
+	_, err := r.db.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{TransactItems: itens})
+	var cancelada *types.TransactionCanceledException
+	if errors.As(err, &cancelada) {
+		for _, motivo := range cancelada.CancellationReasons {
+			if aws.ToString(motivo.Code) == "ConditionalCheckFailed" {
+				return domain.ErrConflitoVersao
+			}
 		}
 	}
-	return reqs
+	return err
 }

@@ -125,21 +125,24 @@ qual canal está por trás.
 **Regra de domínio (fechada):** toda criação, edição, ocultação e exclusão gera uma **versão** com o registro inteiro,
 quem fez e quando. Restaurar uma versão antiga cria uma versão nova com aquele conteúdo; o passado nunca é reescrito.
 
-Esboço do mecanismo, **a discutir antes de qualquer chave** (princípio 3):
+Mecanismo (decisões do dono de 2026-10-15; o roteiro está em [`specs/historico/`](specs/historico/spec.md)). A **Fase 1**
+está implementada para lançamentos:
 - registro atual e versão gravados **na mesma transação** (`TransactWriteItems`, que o backend já usa), com checagem da
   versão esperada contra edição concorrente (parte do item 12);
-- a interface `Repositorio` só expõe anexar versão; não existe método de editar ou apagar histórico;
+- a interface `Repositorio` não tem método de editar nem apagar versão (há teste de reflexão); toda versão é gravada
+  com `attribute_not_exists(SK)`;
 - o histórico numa partição própria, para a role da Lambda poder ter `Deny` de `UpdateItem` e `DeleteItem` por IAM;
-- **exclusão lógica** (some das telas, fica no histórico);
+- **exclusão lógica**: o lançamento ganha `excluidoEm` (só nos excluídos), some das telas e fica na tabela e no
+  histórico;
 - escopo: lançamentos primeiro, depois configurações (`listas`, `cartoes`, `saldos`, `combos`, hoje sobrescritas por
   `PUT` do blob inteiro) e fechamentos;
-- migração: o estado atual de cada registro vira a versão 1.
+- **sem migração**: a versão 1 nasce na primeira edição ou exclusão de um lançamento que ainda não tem histórico
+  (estado de antes, autor desconhecido), junto com a versão 2.
 
 O service tem **um único caminho de escrita**, que sempre grava registro e versão juntos. Como o controller só chega ao
 dado pelo service, não existe atalho que pule o histórico.
 
-**PITR** do DynamoDB ligado só em prod, como proteção até o histórico entrar (`template.yaml`, 35 dias de retenção).
-Em aberto: confirmar a exclusão lógica.
+**PITR** do DynamoDB ligado só em prod, como proteção complementar (`template.yaml`, 35 dias de retenção).
 
 ## Domínio: o que o dono explicou
 

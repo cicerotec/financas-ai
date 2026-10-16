@@ -82,7 +82,11 @@ só existe no front não protege nada (veja [`arquitetura.md`](arquitetura.md)).
   AWS. O template **não define CSP própria**.
 - **API:** Function URL com CORS restrito às origens do front (CloudFront e `localhost`). CORS **não é controle de
   acesso**: quem chama sem navegador ignora; quem protege é o JWT.
-- **Lambda:** CRUD na própria tabela (inclui `DeleteItem`), leitura do parâmetro do Telegram e nada mais.
+- **Lambda:** CRUD na própria tabela (inclui `DeleteItem`), leitura do parâmetro do Telegram e nada mais. **Exceto no
+  histórico:** um `Deny` (`HistoricoImutavel`, no `template.yaml`) nega `UpdateItem` e `DeleteItem` em itens cuja `PK` começa
+  com `HIST#`, então a Lambda só acrescenta versões. O IAM não impede um `PutItem` sobre uma versão que já existe (ele
+  não vê o conteúdo da tabela); isso é coberto pela condição `attribute_not_exists(SK)` em toda escrita de versão, com
+  teste. Verificar a negação em dev com `aws iam simulate-principal-policy` (ver `specs/historico/spec.md`, Fase 1).
 - **Tabela:** `DeletionPolicy: Retain` e `UpdateReplacePolicy: Retain` (o deploy não apaga a tabela). **PITR ligado só em
   prod** (`!If [EhDev, false, true]` no `template.yaml`; retenção de 35 dias; o `dev` fica desligado). Além dele, só o
   botão Exportar. O backup periódico do item 11 segue adiado.
@@ -103,7 +107,7 @@ manual.
 | Sem WAF nem limite de taxa na Function URL | Enxurrada de requisições (custo e disponibilidade) | item 18 |
 | Member lê tudo | Dados de bancos e cartões que não são dela | item 27 |
 | Sem MFA no login do app | Senha vazada basta para entrar | item 37 (prioridade alta) |
-| Sem histórico de versões (PITR só em prod, janela de 35 dias) | Uma edição errada perde o dado depois da janela (aconteceu em 2026-10-10) | item 31 |
+| Histórico de versões só dos lançamentos, e sem tela de recuperação ainda (PITR só em prod, janela de 35 dias) | Configurações e fechamentos continuam sem versão; recuperar um lançamento ainda é pelo banco | item 31 (fases 2 e 3) |
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
 | Campos opcionais do lançamento gravados como vêm (ex. `faturaAjuste` sem validação) | Valor inesperado persiste | item 33 (regras no backend) |
 | Resumo do Telegram acima de 4096 caracteres | Nenhum aviso chega naquele dia (disponibilidade, não vazamento) | item 28, item 34 |

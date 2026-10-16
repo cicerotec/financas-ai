@@ -34,6 +34,8 @@ func respostaErro(err error) (Resp, error) {
 		return Erro(http.StatusBadRequest, ev.Error())
 	case errors.Is(err, domain.ErrDadosInvalidos):
 		return Erro(http.StatusBadRequest, err.Error())
+	case errors.Is(err, domain.ErrConflitoVersao): // outra escrita chegou antes: nada foi gravado
+		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "conflito_versao"})
 	case errors.Is(err, service.ErrNaoEncontrado):
 		return Erro(http.StatusNotFound, err.Error())
 	case errors.Is(err, service.ErrSoDono):

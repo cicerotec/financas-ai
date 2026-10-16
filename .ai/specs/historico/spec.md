@@ -311,6 +311,9 @@ sem chave nova. `bancoFake` fiel. Estado: **implementada** (PR #100).
 
 ### Fase 1: gravar versões e excluir logicamente
 
+Estado: **implementada** (branch `feature/historico-fase-1`). O `GET /tx` e a rotina de avisos tratam `excluidoEm` como
+excluído. A verificação do IAM em dev (abaixo) ainda precisa ser feita depois do deploy.
+
 Entrega: `HIST#`, R2 a R11, `excluidoEm`, `Deny` no `template.yaml`. Capacidade da tabela inalterada.
 
 | Id | Cenário | Esperado |

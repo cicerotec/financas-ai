@@ -19,6 +19,10 @@ import (
 
 type bancoFake struct {
 	itens map[string]map[string]types.AttributeValue
+	// ganchos dos testes do historico: antesDaTransacao roda no comeco de TransactWriteItems (simula outra escrita
+	// que chega primeiro) e falharTransacao faz a proxima transacao falhar (nada e aplicado).
+	antesDaTransacao func()
+	falharTransacao  error
 }
 
 func novoBancoFake() *bancoFake {
@@ -68,6 +72,14 @@ func (f *bancoFake) DeleteItem(_ context.Context, in *dynamodb.DeleteItemInput, 
 // attribute_not_exists(PK) e (SK) sao entendidas); se qualquer uma falha, nada muda e volta
 // TransactionCanceledException. Dois itens da mesma chave na mesma transacao tambem sao recusados.
 func (f *bancoFake) TransactWriteItems(_ context.Context, in *dynamodb.TransactWriteItemsInput, _ ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error) {
+	if gancho := f.antesDaTransacao; gancho != nil {
+		f.antesDaTransacao = nil
+		gancho()
+	}
+	if err := f.falharTransacao; err != nil {
+		f.falharTransacao = nil
+		return nil, err
+	}
 	vistas := map[string]bool{}
 	for _, t := range in.TransactItems {
 		var k string
@@ -76,7 +88,8 @@ func (f *bancoFake) TransactWriteItems(_ context.Context, in *dynamodb.TransactW
 			k = chave(sv(t.Put.Item["PK"]), sv(t.Put.Item["SK"]))
 			if c := aws.ToString(t.Put.ConditionExpression); c != "" {
 				if _, existe := f.itens[k]; (c == "attribute_not_exists(PK)" || c == "attribute_not_exists(SK)") && existe {
-					return nil, &types.TransactionCanceledException{Message: aws.String("ConditionalCheckFailed em " + k)}
+					return nil, &types.TransactionCanceledException{Message: aws.String("ConditionalCheckFailed em " + k),
+						CancellationReasons: []types.CancellationReason{{Code: aws.String("ConditionalCheckFailed")}}}
 				}
 			}
 		case t.Delete != nil:
@@ -311,8 +324,15 @@ func TestOwnerEditaEExcluiQualquerUm(t *testing.T) {
 	esperar(t, "owner edita registro do member", c, 200)
 	c, _ = chamar(t, "own", "DELETE", "spaces/s1/tx/idlegado", map[string]string{"de": dataLegado}, "")
 	esperar(t, "owner exclui", c, 200)
-	if f.ler(t, pkEspaco, dePrefixoTx+dataLegado+"#idlegado") != nil {
-		t.Error("registro deveria ter sido excluido pelo owner")
+	// a exclusao e logica (historico, fase 1): o registro continua na tabela, marcado, e some das listas
+	if d := f.ler(t, pkEspaco, dePrefixoTx+dataLegado+"#idlegado"); d == nil || d["excluidoEm"] == nil {
+		t.Errorf("registro deveria ter ficado marcado como excluido pelo owner: %v", d)
+	}
+	_, lista := chamar(t, "own", "GET", "spaces/s1/tx", nil, "")
+	for _, x := range lista["itens"].([]any) {
+		if x.(map[string]any)["id"] == "idlegado" {
+			t.Error("o excluido nao pode aparecer em GET /tx")
+		}
 	}
 }
 
