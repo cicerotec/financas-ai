@@ -6,29 +6,38 @@ import (
 	"financas/service"
 )
 
-// Servidor e o conjunto montado uma vez, em main: os controllers de cada assunto ja migrado para as camadas, ligados
-// ao repository e ao service. Os assuntos que ainda moram na raiz (avisos e Telegram) seguem chamando as suas
-// funcoes; migram na fatia 4 do item 32 do BACKLOG.
+// dynamoAPI e o que o codigo usa do DynamoDB; os testes trocam por um banco em memoria.
+type dynamoAPI = repository.DynamoAPI
+
+// Servidor e o conjunto montado uma vez, em main: um controller por assunto, ligado ao seu service e ao repository.
+// E a unica ligacao das camadas; o roteador (roteador.go) so escolhe o controller de cada rota.
 type Servidor struct {
 	lanc   *controller.Lancamentos
 	esp    *controller.Espacos
 	cfg    *controller.Config
 	perfil *controller.Perfil
 	fech   *controller.Fechamento
+	avisos *controller.Avisos
 }
 
-// novoServidor liga repository, service e controller. E o unico lugar que faz essa ligacao.
-func novoServidor(db dynamoAPI, table string, rel service.Relogio) *Servidor {
+// novoServidor liga repository, service e controller. Recebe o que vem de fora (banco, tabela, relogio, canal de envio e o
+// ambiente, "dev" ou "prod"). E o unico lugar que faz essa ligacao.
+func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador service.Notificador, ambiente string) *Servidor {
 	cfgRepo := repository.NewConfig(db, table)
 	pessoas := repository.NewPessoas(db, table)
+	espacos := repository.NewEspacos(db, table)
+	lancRepo := repository.NewLancamentos(db, table)
 	tags := service.NewTags(cfgRepo)
 	contador := service.NewContador(repository.NewContador(db, table))
 	fech := service.NewFechamento(repository.NewSaldos(db, table), cfgRepo, rel)
+	avisos := service.NewAvisos(repository.NewAvisos(db, table), lancRepo, cfgRepo, pessoas, espacos, notificador, rel, ambiente)
+	efeitos := service.NewEfeitos(fech, tags, avisos, contador)
 	return &Servidor{
-		lanc:   controller.NewLancamentos(service.NewLancamentos(repository.NewLancamentos(db, table), efeitosRaiz{tags: tags, contador: contador, fech: fech}, pessoas)),
-		esp:    controller.NewEspacos(service.NewEspacos(repository.NewEspacos(db, table))),
+		lanc:   controller.NewLancamentos(service.NewLancamentos(lancRepo, efeitos, pessoas)),
+		esp:    controller.NewEspacos(service.NewEspacos(espacos)),
 		cfg:    controller.NewConfig(service.NewConfig(cfgRepo), tags, contador),
 		perfil: controller.NewPerfil(service.NewPerfil(pessoas)),
 		fech:   controller.NewFechamento(fech),
+		avisos: controller.NewAvisos(avisos),
 	}
 }

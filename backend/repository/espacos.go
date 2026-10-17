@@ -72,3 +72,10 @@ func (r *Espacos) EspacosDe(ctx context.Context, sub string) ([]domain.Espaco, e
 	}
 	return res, nil
 }
+
+// Dono devolve o sub do dono do espaco (o ownerSub do META); vazio se nao houver.
+func (r *Espacos) Dono(ctx context.Context, sid string) string {
+	meta, _ := r.getItem(ctx, SpacePK(sid), "META")
+	dono, _ := meta["ownerSub"].(string)
+	return dono
+}

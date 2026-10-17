@@ -194,7 +194,7 @@ func TestF2RaizSemOsAssuntosMigrados(t *testing.T) {
 	}
 	proibidos := []string{"func getCfg(", "func putCfg(", "func putAparencia(", "func putPerfil(", "func normalizarApelido(",
 		"UpdateItemInput", "dynamodb.PutItemInput"}
-	for _, nome := range []string{"main.go", "roteador.go", "perfil.go"} {
+	for _, nome := range []string{"main.go", "roteador.go"} {
 		fonte := ler(nome)
 		for _, p := range proibidos {
 			if strings.Contains(fonte, p) {

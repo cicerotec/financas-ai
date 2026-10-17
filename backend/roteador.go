@@ -6,12 +6,12 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 
 	"financas/auth"
 	"financas/controller"
+	"financas/domain"
 )
 
 // O roteador: recebe o evento da Function URL (ou do agendamento), autentica, classifica a rota, confere o papel e chama o
@@ -35,7 +35,7 @@ func (s *Servidor) handler(ctx context.Context, r req) (resp, error) {
 }
 
 // processar roda uma requisicao ja autenticada: classifica a rota, confere o papel e executa.
-func (s *Servidor) processar(ctx context.Context, u *user, m string, p []string, qs map[string]string, rawBody string) (resp, error) {
+func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []string, qs map[string]string, rawBody string) (resp, error) {
 	if len(p) == 1 && p[0] == "me" && m == "GET" {
 		return s.esp.GetMe(ctx, u.Sub, u.Email)
 	}
@@ -59,7 +59,7 @@ func (s *Servidor) processar(ctx context.Context, u *user, m string, p []string,
 		log.Printf("negado: sub=%s papel=%s acao=%s", u.Sub, role, acaoReq)
 		return erro(http.StatusForbidden, "sem permissao para esta acao")
 	}
-	var body doc
+	var body domain.Doc
 	if (m == "POST" || m == "PUT") && acaoReq != auth.AcaoRestaurar { // restaurar nao tem corpo
 		if err := json.Unmarshal([]byte(rawBody), &body); err != nil || body == nil {
 			return erro(http.StatusBadRequest, "json invalido")
@@ -105,7 +105,7 @@ func (s *Servidor) processar(ctx context.Context, u *user, m string, p []string,
 	case auth.AcaoEditarPerfil:
 		return s.perfil.PutPerfil(ctx, sid, u.Sub, body)
 	case auth.AcaoTestarAviso:
-		return postAvisoTeste(ctx, sid, u)
+		return s.avisos.PostAvisoTeste(ctx, sid, u.Sub)
 	case auth.AcaoEscreverAparenc:
 		return s.cfg.PutAparencia(ctx, sid, u.Sub, body)
 	}
@@ -119,8 +119,7 @@ func (s *Servidor) entrada(ctx context.Context, raw json.RawMessage) (any, error
 		Acao string `json:"acao"`
 	}
 	if json.Unmarshal(raw, &ev) == nil && ev.Acao == "avisos" {
-		n, err := rodarAvisos(ctx, time.Now())
-		return doc{"enviados": n}, err
+		return s.avisos.Rodar(ctx)
 	}
 	var r req
 	if err := json.Unmarshal(raw, &r); err != nil {

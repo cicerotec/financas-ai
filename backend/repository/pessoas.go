@@ -31,3 +31,17 @@ func (p *Pessoas) Apelido(ctx context.Context, sid, sub string) string {
 	s, _ := d["apelido"].(string)
 	return s
 }
+
+// ChatID devolve o chat id do Telegram do vinculo da pessoa com o espaco; vazio se ela nao cadastrou.
+func (p *Pessoas) ChatID(ctx context.Context, sid, sub string) (string, error) {
+	out, err := p.db.GetItem(ctx, &dynamodb.GetItemInput{TableName: &p.table, Key: Key("USER#"+sub, SpacePK(sid))})
+	if err != nil || out.Item == nil {
+		return "", err
+	}
+	var d map[string]any
+	if err := attributevalue.UnmarshalMap(out.Item, &d); err != nil {
+		return "", err
+	}
+	chat, _ := d["telegramChatId"].(string)
+	return chat, nil
+}
