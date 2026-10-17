@@ -522,7 +522,10 @@ function htmlValorLinha(l){
 // na API; aqui só se esconde o que o papel não pode usar.
 function ehOwner(){ return papelAtual === 'owner'; }
 // Escrita recusada porque o mês está conferido: a mensagem do servidor já diz o que fazer.
-function msgErro(err, padrao){ return err && err.codigo === 'mes_conferido' ? err.message : padrao; }
+function msgErro(err, padrao){ return err && (err.codigo === 'mes_conferido' || err.codigo === 'cancelado') ? err.message : padrao; }
+// Mes fechado por data (item 38): o servidor recusou com 409 mes_fechado; aqui so se pergunta. As funcoes sao chamadas pelo api.js.
+window.confirmarMesFechado = (info, acao)=>confirmarModal(`Este lançamento é de ${rotuloMes(info.mes)}, que já fechou. ${acao} mesmo assim? O saldo desse mês e dos seguintes muda. A confirmação fica gravada no histórico.`, acao + ' mesmo assim');
+window.confirmarMesFechadoLote = (n)=>confirmarModal(`${n} lançamento(s) são de meses já fechados e ficaram de fora. Importar esses mesmo assim? O saldo desses meses muda. A confirmação fica gravada no histórico de cada um.`, 'Importar mesmo assim');
 window.addEventListener('unhandledrejection', ev=>{
   if(ev.reason && ev.reason.codigo === 'mes_conferido'){ ev.preventDefault(); toast(ev.reason.message, true); }
 });
@@ -594,11 +597,12 @@ async function avisar(msg){
     document.getElementById('modalOk').onclick = ()=>{ document.getElementById('modalOverlay').classList.add('hidden'); resolve(); };
   });
 }
-function confirmarModal(msg){
+function confirmarModal(msg, rotuloOk){
   return new Promise(resolve=>{
     document.getElementById('modalMsg').textContent = msg;
     document.getElementById('modalExtra').innerHTML = '';
-    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Confirmar</button>';
+    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar"></button>';
+    document.getElementById('modalConfirmar').textContent = rotuloOk || 'Confirmar';
     document.getElementById('modalOverlay').classList.remove('hidden');
     const fechar = (v)=>{ document.getElementById('modalOverlay').classList.add('hidden'); resolve(v); };
     document.getElementById('modalCancelar').onclick = ()=>fechar(false);

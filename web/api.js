@@ -86,6 +86,29 @@
     return r;
   }
 
+  // Mes fechado por data (item 38): o servidor recusa com 409 mes_fechado e quem decide e ele. Aqui so se mostra a
+  // pergunta (window.confirmarMesFechado, do app.js) e, se a pessoa confirmar, reenvia com ?confirmaMesFechado=1.
+  // Ids ja confirmados nesta sessao reenviam direto (o Desfazer de uma edicao confirmada nao pergunta de novo).
+  const confirmados = new Set();
+  const comConfirmacao = (path, confirma) => path + (confirma ? (path.includes('?') ? '&' : '?') + 'confirmaMesFechado=1' : '');
+  async function escreverConfirmando(id, acao, enviar) {
+    let confirma = !!(id && confirmados.has(id));
+    let r = await enviar(confirma);
+    if (r.status === 409 && r.body && r.body.codigo === 'mes_fechado' && !confirma && window.confirmarMesFechado) {
+      if (!(await window.confirmarMesFechado(r.body, acao))) {
+        const e = new Error('Cancelado: nada foi alterado.');
+        e.codigo = 'cancelado';
+        throw e;
+      }
+      confirma = true;
+      r = await enviar(true);
+    }
+    r = escrita(r);
+    const ident = id || (r.body && r.body.id);
+    if (confirma && ident) confirmados.add(ident);
+    return r;
+  }
+
   let ESPACO = null;
   let SUB = '';
   let EMAIL = '';
@@ -333,7 +356,8 @@
     return () => ouvintes.delete(L);
   };
   Consulta.prototype.add = async function (obj) {
-    const { body } = escrita(await api('POST', (await base()) + '/tx', obj));
+    const b = await base();
+    const { body } = await escreverConfirmando(obj && obj.id, 'Lançar', (c) => api('POST', comConfirmacao(b + '/tx', c), obj));
     const { _seq, ...d } = body;
     guardar(d); escreverNoCache('put', d); registrarSeq(_seq);
     return { id: d.id };
@@ -343,14 +367,16 @@
       update: async (patch) => {
         const antigo = cache.get(id);
         if (!antigo) throw new Error('Lancamento nao carregado: recarregue a pagina.');
-        const { body } = escrita(await api('PUT', (await base()) + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento), patch));
+        const b = await base();
+        const { body } = await escreverConfirmando(id, 'Alterar', (c) => api('PUT', comConfirmacao(b + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento), c), patch));
         const { _seq, ...d } = body;
         guardar(d); escreverNoCache('put', d); registrarSeq(_seq);
       },
       delete: async () => {
         const antigo = cache.get(id);
         if (!antigo) throw new Error('Lancamento nao carregado: recarregue a pagina.');
-        const { body } = escrita(await api('DELETE', (await base()) + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento)));
+        const b = await base();
+        const { body } = await escreverConfirmando(id, 'Excluir', (c) => api('DELETE', comConfirmacao(b + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento), c)));
         cache.delete(id); escreverNoCache('del', { id }); registrarSeq(body._seq);
       }
     };
@@ -360,10 +386,10 @@
   // a tempo (limite de escrita) e reenviamos ate acabar. Reimportar sobrescreve pelo id.
   // Envia um lote. Falha de rede ou erro 5xx/429 e tentada de novo (ate 3 vezes, com espera): reenviar e seguro
   // porque os itens levam id (o servidor sobrescreve pelo id em vez de duplicar). Erro 4xx de verdade sobe na hora.
-  async function enviarLote(b, lote, aviso) {
+  async function enviarLote(b, lote, aviso, confirma) {
     for (let t = 1; ; t++) {
       try {
-        return (await api('POST', b + '/tx/batch', { itens: lote })).body;
+        return (await api('POST', comConfirmacao(b + '/tx/batch', confirma), { itens: lote })).body;
       } catch (e) {
         const temporario = !e.code || e.code >= 500 || e.code === 429;
         if (!temporario || t >= 3) throw e;
@@ -379,24 +405,38 @@
     const TAM = 25;
     let gravados = 0, processados = 0;
     const rejeitados = [];
-    try {
-      for (let i = 0; i < itens.length; i += TAM) {
-        let lote = itens.slice(i, i + TAM);
+    // Envia a lista em lotes; indiceDe(i) devolve a posicao original no arquivo do item i da lista.
+    const enviarLista = async (lista, confirma, indiceDe, comProgresso) => {
+      for (let i = 0; i < lista.length; i += TAM) {
+        let lote = lista.slice(i, i + TAM);
         let primeira = true, tentativas = 0;
         while (lote.length) {
-          const body = await enviarLote(b, lote, (t) => progresso && progresso(processados, itens.length, { espera: t }));
+          const body = await enviarLote(b, lote, (t) => comProgresso && progresso && progresso(processados, itens.length, { espera: t }), confirma);
           gravados += body.gravados || 0;
-          if (primeira) (body.rejeitados || []).forEach((r) => rejeitados.push({ indice: i + r.indice, motivo: r.motivo }));
+          if (primeira) (body.rejeitados || []).forEach((r) => rejeitados.push({ indice: indiceDe(i + r.indice), motivo: r.motivo, codigo: r.codigo }));
           primeira = false;
           lote = body.pendentes || [];
           if (lote.length) {
             if (++tentativas > 10) throw new Error('O banco de dados recusou itens repetidamente (capacidade de escrita esgotada).');
-            if (progresso) progresso(processados, itens.length, { espera: tentativas });
+            if (comProgresso && progresso) progresso(processados, itens.length, { espera: tentativas });
             await new Promise((r) => setTimeout(r, 1500));
           }
         }
-        processados = Math.min(i + TAM, itens.length);
-        if (progresso) progresso(processados, itens.length);
+        if (comProgresso) {
+          processados = Math.min(i + TAM, itens.length);
+          if (progresso) progresso(processados, itens.length);
+        }
+      }
+    };
+    try {
+      await enviarLista(itens, false, (i) => i, true);
+      // Os de mes fechado ficaram de fora: uma pergunta so, e reenvia apenas esses com a confirmacao.
+      const fechados = rejeitados.filter((r) => r.codigo === 'mes_fechado');
+      if (fechados.length && window.confirmarMesFechadoLote && (await window.confirmarMesFechadoLote(fechados.length))) {
+        const demais = rejeitados.filter((r) => r.codigo !== 'mes_fechado');
+        rejeitados.length = 0;
+        demais.forEach((r) => rejeitados.push(r));
+        await enviarLista(fechados.map((r) => itens[r.indice]), true, (i) => fechados[i].indice, false);
       }
     } catch (e) {
       e.gravados = gravados; e.processados = processados; e.rejeitados = rejeitados;
@@ -433,8 +473,8 @@
     (await api('GET', (await base()) + '/tx/' + encodeURIComponent(id) + '/versoes' + (de ? '?de=' + encodeURIComponent(de) : ''))).body;
   // Restaura a versao n (grava uma versao nova). Os 409 voltam como { status, body } (mes conferido, ja esta nessa versao,
   // versao da exclusao, conflito); o 200 avisa as outras telas, que leem lancamentos, para recarregar.
-  const restaurarVersao = async (id, n) => {
-    const r = await api('POST', (await base()) + '/tx/' + encodeURIComponent(id) + '/versoes/' + n + '/restaurar');
+  const restaurarVersao = async (id, n, confirma) => {
+    const r = await api('POST', comConfirmacao((await base()) + '/tx/' + encodeURIComponent(id) + '/versoes/' + n + '/restaurar', confirma));
     if (r.status === 200) { registrarSeq(r.body._seq); atualizarOuvintes('col'); }
     return r;
   };

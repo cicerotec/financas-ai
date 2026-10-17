@@ -37,5 +37,7 @@ jobs:
         run: node web/recorrencia.test.js
       - name: Testes do front (tela Historico de versoes)
         run: node web/versoes.test.js
+      - name: Testes do front (confirmacao de mes fechado)
+        run: node web/confirmacao.test.js
       - name: sam validate --lint
         run: sam validate --lint --region sa-east-1
