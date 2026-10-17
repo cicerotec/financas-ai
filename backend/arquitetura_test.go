@@ -18,7 +18,7 @@ func TestCamadasRespeitamAsDependencias(t *testing.T) {
 		"service":    {"financas/controller", "financas/repository", "financas/auth", "github.com/aws/", "net/http"},
 		"controller": {"financas/repository", "financas/auth", sdk},
 		"repository": {"financas/service", "financas/controller", "financas/auth"},
-		"relogio":    {"financas/", "github.com/aws/", "net/http"},
+		"utils/relogio": {"financas/", "github.com/aws/", "net/http"},
 		"auth":       {"financas/service", "financas/controller", "financas/repository", sdk},
 	}
 	for pacote, lista := range proibidos {

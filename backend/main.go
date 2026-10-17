@@ -14,7 +14,7 @@ import (
 
 	"financas/auth"
 	"financas/controller"
-	"financas/relogio"
+	"financas/utils/relogio"
 )
 
 type resp = events.LambdaFunctionURLResponse
