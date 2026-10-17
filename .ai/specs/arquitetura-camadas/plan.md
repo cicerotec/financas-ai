@@ -42,16 +42,16 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 
 | # | Fatia | Sai da raiz | Entrega |
 |---|---|---|---|
-| 1 | **Espaços e leitura de lançamentos** | `store.go` (`papel`, `getItem` dos espaços, `listarTx`, cursor), `getMe`, `getTxs` | `repository/espacos.go`, `service.Espacos`, `Lancamentos.Listar`; o `Relogio` e o montador único nascem aqui, e o `main` passa a injetar `db` e `table` |
+| 1 | **Espaços e leitura de lançamentos** | `store.go` (`papel`, `getItem` dos espaços, `listarTx`, cursor), `getMe`, `getTxs` | `repository/espacos.go`, `service.Espacos`, `Lancamentos.Listar`; o montador único (`Servidor`, montado uma vez em `main`) nasce aqui; `db` e `table` seguem globais para o resto da raiz até a fatia 4 |
 | 2 | **Configurações, tags, contador e perfil** | `getCfg`, `putCfg`, `putAparencia`, `salvarCfg`, `tags.go`, `seq.go`, `perfil.go` | `repository/config.go`, `service.Config` e `service.Perfil`; some a ponte `GarantirTags` e `ComSeq` do `efeitos.go` |
-| 3 | **Fechamento e saldos** | `fechamento.go` (saldos, conferir, reabrir, `travas`, `invalidarSaldos`) | `repository/saldos.go`, `service.Fechamento`; a trava passa a ser do service (some a ponte `Travas` e `InvalidarSaldos`) |
+| 3 | **Fechamento e saldos** | `fechamento.go` (saldos, conferir, reabrir, `travas`, `invalidarSaldos`) | `Relogio` (interface e adaptadores real e fixo), `repository/saldos.go`, `service.Fechamento`; a trava passa a ser do service (some a ponte `Travas` e `InvalidarSaldos`) |
 | 4 | **Avisos e Telegram** | `avisos.go`, `telegram.go`, `enviarMensagem` | `repository/avisos.go`, `service.Avisos`, adaptador `notificacao/telegram.go`; **sem** despachante (item 34); somem as últimas globais e `efeitos.go`/`dominio_compat.go` |
 
 Depois da 4, `main.go` só liga, e o item 34 constrói o despachante em cima de `service.Avisos`.
 
-**Por que essa ordem:** a 1 é a mais simples e cria o que as outras reutilizam (relógio, montador, injeção de `db`); a 2 é
+**Por que essa ordem:** a 1 é a mais simples e cria o que as outras reutilizam (o montador único); a 2 é
 mecânica (CRUD de configuração); a 3 é a de maior risco (trava de mês, usada por todo lançamento) e por isso vem com a
-fundação já provada; a 4 depende do relógio e do telegram injetados e fecha as globais.
+fundação já provada; o `Relogio` nasce na 3 (onde `agora` é usado de fato); a 4 depende do relógio e do telegram injetados e fecha as globais.
 
 ## Como cada fatia é entregue
 
