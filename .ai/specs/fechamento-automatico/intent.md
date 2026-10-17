@@ -3,8 +3,8 @@
 Item 38 do BACKLOG. Este documento diz **o quê e por quê**; o como (`plan.md`) e o roteiro verificável (`spec.md`) vêm
 junto, para o dono aprovar antes de qualquer código.
 
-**Estado:** decisões fechadas com o dono em 2026-10-16 (registradas no item 38 do BACKLOG). Falta a aprovação do plan e do
-spec. Nada foi implementado.
+**Estado:** decisões fechadas com o dono em 2026-10-16 (registradas no item 38 do BACKLOG); plan e spec aprovados. Fase A
+(backend) implementada; as fases B e C (tela) esperam a demo.
 
 ## Por quê
 

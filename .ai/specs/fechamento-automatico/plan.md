@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje (`backend/service/`, `fechamento.go`,
 `efeitos.go`, `web/js/app.js`). O roteiro verificável é o [`spec.md`](spec.md).
 
-**Estado:** rascunho de 2026-10-16, aguardando o ok do dono. Nada foi implementado.
+**Estado:** aprovado pelo dono. Fase A (backend) implementada; as fases B e C (tela) esperam a demo.
 
 ## Onde o código está hoje
 

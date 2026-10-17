@@ -89,7 +89,8 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
   restauração é bloqueada **quando ela mexe no saldo** (`MudaSaldo`, a mesma regra da edição: só descrição, nota e tags
   passam) **ou quando reativa um excluído**. Nesse caso responde `409` (`mes_conferido`) e a versão aparece como não
   restaurável, com o motivo. **Fechamento
-  conferido é absoluto.**
+  conferido é absoluto.** Já o mês **fechado por data** (item 38) não bloqueia: pede a confirmação (`confirmaMesFechado=1`), e
+  `exigeConfirmacao` na versão avisa antes.
 - **R17.** A trava de **fatura** do cartão não existe (item 33): restaurar lançamento de cartão em fatura conferida
   **não** é bloqueado, e isso está documentado no intent.
 

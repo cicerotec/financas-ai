@@ -49,8 +49,12 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 
 Dois detalhes que contam:
 - **Registro sem `criadoPor` não é de ninguém:** só o owner mexe nele (`ehDono`).
-- **Campos que o cliente não define** (`protegidos`): `PK`, `SK`, `id`, `criadoEm` e `criadoPor` são descartados do corpo e
-  preenchidos pelo servidor; ninguém grava um lançamento "em nome de" outra pessoa nem escolhe a própria chave.
+- **Campos que o cliente não define** (`protegidos`): `PK`, `SK`, `id`, `criadoEm`, `criadoPor`, `excluidoEm` e as marcas de confirmação
+  (`confirmaMesFechado`, `confirmouMesFechado`) são descartados do corpo e preenchidos pelo servidor; ninguém grava um lançamento
+  "em nome de" outra pessoa, escolhe a própria chave nem se declara excluído ou confirmado.
+- **Mês fechado por data (item 38):** escrever em mês anterior ao atual (depois do dia 7, em São Paulo) que muda o saldo exige a
+  **confirmação explícita** na query (`confirmaMesFechado=1`); sem ela, `409 mes_fechado`. A decisão é do servidor e do relógio dele,
+  nunca do cliente. O **conferido** continua absoluto: a confirmação não o destrava. A confirmação fica gravada na versão do histórico.
 - **O `sub` do perfil vem sempre do token**, nunca do corpo: `putPerfil` grava no item de quem fez a chamada.
 
 **O front não é fronteira de segurança.** Esconder um botão para o member é conforto; a recusa é do backend. Regra que

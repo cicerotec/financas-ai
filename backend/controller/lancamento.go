@@ -15,8 +15,8 @@ type Lancamentos struct{ svc *service.Lancamentos }
 func NewLancamentos(svc *service.Lancamentos) *Lancamentos { return &Lancamentos{svc: svc} }
 
 // PostTx: POST /spaces/{sid}/tx
-func (c *Lancamentos) PostTx(ctx context.Context, sid, sub string, body domain.Doc) (Resp, error) {
-	d, err := c.svc.Criar(ctx, sid, sub, body)
+func (c *Lancamentos) PostTx(ctx context.Context, sid, sub string, body domain.Doc, confirma bool) (Resp, error) {
+	d, err := c.svc.Criar(ctx, sid, sub, body, confirma)
 	if err != nil {
 		return respostaErro(err)
 	}
@@ -24,8 +24,8 @@ func (c *Lancamentos) PostTx(ctx context.Context, sid, sub string, body domain.D
 }
 
 // PostTxBatch: POST /spaces/{sid}/tx/batch
-func (c *Lancamentos) PostTxBatch(ctx context.Context, sid, sub string, body domain.Doc) (Resp, error) {
-	d, err := c.svc.Importar(ctx, sid, sub, body)
+func (c *Lancamentos) PostTxBatch(ctx context.Context, sid, sub string, body domain.Doc, confirma bool) (Resp, error) {
+	d, err := c.svc.Importar(ctx, sid, sub, body, confirma)
 	if err != nil {
 		return respostaErro(err)
 	}
@@ -33,8 +33,8 @@ func (c *Lancamentos) PostTxBatch(ctx context.Context, sid, sub string, body dom
 }
 
 // PutTx: PUT /spaces/{sid}/tx/{id}?de=<dataEvento atual>. restrito: so quem criou pode editar (member).
-func (c *Lancamentos) PutTx(ctx context.Context, sid, id, de string, body domain.Doc, sub string, restrito bool) (Resp, error) {
-	d, err := c.svc.Editar(ctx, sid, id, de, body, sub, restrito)
+func (c *Lancamentos) PutTx(ctx context.Context, sid, id, de string, body domain.Doc, sub string, restrito, confirma bool) (Resp, error) {
+	d, err := c.svc.Editar(ctx, sid, id, de, body, sub, restrito, confirma)
 	if err != nil {
 		return respostaErro(err)
 	}
@@ -42,8 +42,8 @@ func (c *Lancamentos) PutTx(ctx context.Context, sid, id, de string, body domain
 }
 
 // DelTx: DELETE /spaces/{sid}/tx/{id}?de=<dataEvento atual>. A exclusao e logica.
-func (c *Lancamentos) DelTx(ctx context.Context, sid, id, de, sub string) (Resp, error) {
-	d, err := c.svc.Excluir(ctx, sid, id, de, sub)
+func (c *Lancamentos) DelTx(ctx context.Context, sid, id, de, sub string, confirma bool) (Resp, error) {
+	d, err := c.svc.Excluir(ctx, sid, id, de, sub, confirma)
 	if err != nil {
 		return respostaErro(err)
 	}
@@ -69,12 +69,12 @@ func (c *Lancamentos) GetVersoes(ctx context.Context, sid, id, de, sub string, r
 }
 
 // PostRestaurar: POST /spaces/{sid}/tx/{id}/versoes/{n}/restaurar (corpo vazio).
-func (c *Lancamentos) PostRestaurar(ctx context.Context, sid, id, versao, sub string, restrito bool) (Resp, error) {
+func (c *Lancamentos) PostRestaurar(ctx context.Context, sid, id, versao, sub string, restrito, confirma bool) (Resp, error) {
 	n, err := strconv.Atoi(versao)
 	if err != nil || n < 1 {
 		return Erro(http.StatusBadRequest, "versao invalida")
 	}
-	d, err := c.svc.Restaurar(ctx, sid, id, n, sub, restrito)
+	d, err := c.svc.Restaurar(ctx, sid, id, n, sub, restrito, confirma)
 	if err != nil {
 		return respostaErro(err)
 	}

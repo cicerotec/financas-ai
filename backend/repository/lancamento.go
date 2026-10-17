@@ -121,6 +121,9 @@ func (r *Lancamentos) itens(sid string, m domain.Mudanca) ([]types.TransactWrite
 		if v.DeVersao > 0 {
 			item["deVersao"] = float64(v.DeVersao)
 		}
+		if v.ConfirmouMesFechado { // so a versao em que a confirmacao era necessaria e foi dada; nunca o item vivo
+			item["confirmouMesFechado"] = true
+		}
 		av, err := attributevalue.MarshalMap(item)
 		if err != nil {
 			return nil, domain.ErrDadosInvalidos
@@ -161,6 +164,7 @@ func versaoDe(item map[string]types.AttributeValue) (domain.Versao, error) {
 	if dv, ok := d["deVersao"].(float64); ok {
 		v.DeVersao = int(dv)
 	}
+	v.ConfirmouMesFechado, _ = d["confirmouMesFechado"].(bool)
 	v.Registro, _ = d["registro"].(map[string]any)
 	v.ID = strOf(v.Registro["id"])
 	return v, nil

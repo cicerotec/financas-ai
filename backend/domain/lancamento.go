@@ -32,6 +32,7 @@ type Versao struct {
 	PorSub   string // sub de quem agiu; vazio na versao 1 preguicosa (autor desconhecido)
 	Em       string // ISO, UTC, com milissegundos
 	DeVersao int    // so no restore: a versao de origem
+	ConfirmouMesFechado bool // a confirmacao explicita de mes fechado por data era necessaria e foi dada (so nas versoes de acao)
 	Registro Lancamento
 }
 
@@ -90,7 +91,7 @@ func Identidade(l Lancamento) string {
 
 // Protegidos tira do corpo os campos que so o servidor define.
 func Protegidos(d Doc) {
-	for _, k := range []string{"PK", "SK", "id", "criadoEm", "criadoPor", "excluidoEm"} {
+	for _, k := range []string{"PK", "SK", "id", "criadoEm", "criadoPor", "excluidoEm", "confirmaMesFechado", "confirmouMesFechado"} {
 		delete(d, k)
 	}
 }
