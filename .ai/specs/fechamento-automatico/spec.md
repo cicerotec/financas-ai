@@ -4,7 +4,7 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
 (`A-T<n>` para o backend da fase A), para o PR dizer exatamente o que cobriu. Quando este texto e o do intent divergirem, vale
 o plan.
 
-**Estado:** rascunho de 2026-10-16, aguardando o ok do dono. Nada foi implementado.
+**Estado:** aprovado pelo dono. **Fase A (backend) implementada**; as fases B e C (tela) esperam a demo.
 
 ## Regras
 

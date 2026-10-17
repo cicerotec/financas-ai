@@ -62,6 +62,7 @@ porque a chave do lançamento muda quando a data é editada.
 | `porSub` | `sub` de quem agiu; vazio na versão 1 preguiçosa (autor desconhecido) |
 | `em` | Texto ISO em UTC, com milissegundos |
 | `deVersao` | Só no `restore`: a versão de origem |
+| `confirmouMesFechado` | `true` só na versão em que a pessoa **confirmou** mexer em mês fechado por data (item 38) e a confirmação era necessária; nunca na versão 1 preguiçosa nem no lançamento vivo. Exemplo: [`hist-versao_update_confirmada.json`](dynamodb-single-table/hist-versao_update_confirmada.json) |
 
 O histórico só recebe versões novas, gravadas junto com o lançamento na mesma `TransactWriteItems`, com `attribute_not_exists(SK)` (a segunda de duas edições concorrentes falha com `409`). A role da Lambda tem `Deny` de `UpdateItem` e `DeleteItem` em `HIST#*` (`template.yaml`, `HistoricoImutavel`).
 Sem migração: a versão 1 nasce na primeira edição ou exclusão de um lançamento antigo. A vida de um lançamento (versão

@@ -13,7 +13,9 @@ type efeitosRaiz struct{}
 
 type travasRaiz struct{ t *travas }
 
-func (a travasRaiz) Checar(al domain.Alvo) error { return a.t.checar(al) }
+func (a travasRaiz) Checar(al domain.Alvo, confirmado bool) (bool, error) {
+	return a.t.checar(al, confirmado, agora())
+}
 
 func (efeitosRaiz) Travas(ctx context.Context, sid string) service.Travas {
 	return travasRaiz{novasTravas(ctx, sid)}

@@ -12,7 +12,7 @@ import (
 // o passado. Se o lancamento esta excluido, reativa no mesmo id (e, se a data da versao e outra, troca a chave). Passa
 // pelos mesmos efeitos de uma edicao e pela trava do fechamento, para a versao e para o estado atual. restrito: o
 // member so restaura o que criou e que ainda existe.
-func (s *Lancamentos) Restaurar(ctx context.Context, sid, id string, n int, sub string, restrito bool) (domain.Lancamento, error) {
+func (s *Lancamentos) Restaurar(ctx context.Context, sid, id string, n int, sub string, restrito, confirma bool) (domain.Lancamento, error) {
 	vs, err := s.repo.Versoes(ctx, sid, id)
 	if err != nil {
 		log.Println("restaurar: ler versoes:", err)
@@ -34,13 +34,16 @@ func (s *Lancamentos) Restaurar(ctx context.Context, sid, id string, n int, sub 
 	if restrito && !domain.EhDono(ultimo.Registro, sub) {
 		return nil, ErrSemAcesso
 	}
-	bloqueio, falha := bloqueioDeRestauracao(s.ef.Travas(ctx, sid), ultimo.Registro, *escolhida, restrito)
+	bloqueio, exige, falha := bloqueioDeRestauracao(s.ef.Travas(ctx, sid), ultimo.Registro, *escolhida, restrito)
 	if falha != nil {
 		log.Println("restaurar: trava:", falha)
 		return nil, ErrInterno
 	}
 	if bloqueio != nil {
 		return nil, bloqueio
+	}
+	if exige != nil && !confirma { // mes fechado por data: so com a confirmacao explicita
+		return nil, exige
 	}
 	dataVivo, _ := ultimo.Registro["dataEvento"].(string)
 	vivo, err := s.repo.Buscar(ctx, sid, dataVivo, id)
@@ -58,6 +61,7 @@ func (s *Lancamentos) Restaurar(ctx context.Context, sid, id string, n int, sub 
 	}
 	versoes := domain.VersoesDaEscrita(ultimo.Numero, vivo, depois, domain.AcaoRestore, sub, time.Now().UTC().Format(formatoTempo))
 	versoes[len(versoes)-1].DeVersao = n
+	marcarConfirmacao(versoes, exige != nil)
 	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Antes: vivo, Depois: depois, DataAnterior: dataVivo, Versoes: versoes}); err != nil {
 		return nil, escrita("restaurar", ErrSalvar, err)
 	}

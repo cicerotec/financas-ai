@@ -30,10 +30,14 @@ type Repositorio interface {
 	VersoesDoEspaco(ctx context.Context, sid string, limite int) ([]domain.Versao, bool, error)
 }
 
-// Travas consulta, ao longo de uma chamada, se o mes de um banco esta conferido (fechamento mensal).
-// Checar devolve *domain.ErroMesConferido quando esta travado; qualquer outro erro e falha ao consultar.
+// Travas consulta, ao longo de uma chamada, se o mes de um banco pode receber a escrita. Checar devolve:
+//   - *domain.ErroMesConferido: o mes foi conferido com o extrato (absoluto: a confirmacao nao o destrava);
+//   - *domain.ErroMesFechado: o mes fechou por data e falta a confirmacao explicita (confirmado = false);
+//   - qualquer outro erro: falha ao consultar.
+//
+// exigiu diz que o mes esta fechado por data e a confirmacao dada era necessaria (vai para a versao do historico).
 type Travas interface {
-	Checar(a domain.Alvo) error
+	Checar(a domain.Alvo, confirmado bool) (exigiu bool, err error)
 }
 
 // Efeitos sao os efeitos derivados de uma escrita de lancamento. Ficam fora da transacao do lancamento e uma
@@ -85,7 +89,16 @@ func escrita(op string, sentinela, err error) error {
 }
 
 // Criar grava um lancamento novo. O id, criadoEm e criadoPor sao do servidor.
-func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.Lancamento) (domain.Lancamento, error) {
+// marcarConfirmacao poe na versao da acao (a ultima; a versao 1 preguicosa nao e acao de ninguem) que a confirmacao de mes
+// fechado por data era necessaria e foi dada.
+func marcarConfirmacao(vs []domain.Versao, exigiu bool) {
+	if exigiu && len(vs) > 0 {
+		vs[len(vs)-1].ConfirmouMesFechado = true
+	}
+}
+
+// Criar grava um lancamento novo. confirma: a pessoa confirmou mexer em mes fechado por data.
+func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.Lancamento, confirma bool) (domain.Lancamento, error) {
 	domain.Protegidos(body)
 	if err := domain.ValidarTx(body); err != nil {
 		return nil, &ErroValidacao{err.Error()}
@@ -95,12 +108,16 @@ func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.La
 	body["criadoEm"] = agora
 	body["criadoPor"] = sub
 	al, temAlvo := domain.AlvoDe(body)
+	exigiu := false
 	if temAlvo {
-		if err := s.ef.Travas(ctx, sid).Checar(al); err != nil {
+		ex, err := s.ef.Travas(ctx, sid).Checar(al, confirma)
+		if err != nil {
 			return nil, err
 		}
+		exigiu = ex
 	}
 	versoes := domain.VersoesDaEscrita(0, nil, body, domain.AcaoInsert, sub, agora)
+	marcarConfirmacao(versoes, exigiu)
 	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Depois: body, Versoes: versoes}); err != nil {
 		return nil, escrita("post tx", ErrSalvar, err)
 	}
@@ -113,7 +130,7 @@ func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.La
 }
 
 // Editar aplica o patch ao lancamento que esta sob a data "de". restrito: so quem criou pode editar (member).
-func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch domain.Lancamento, sub string, restrito bool) (domain.Lancamento, error) {
+func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch domain.Lancamento, sub string, restrito, confirma bool) (domain.Lancamento, error) {
 	de, err := domain.NormData(de)
 	if err != nil {
 		return nil, &ErroValidacao{"parametro de (dataEvento atual) obrigatorio"}
@@ -139,6 +156,7 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 		return nil, &ErroValidacao{err.Error()}
 	}
 	var alvos []domain.Alvo
+	exigiu := false
 	if domain.MudaSaldo(antes, novo) { // editar descricao, nota ou tags nao mexe no saldo e nao e travado
 		for _, d := range []domain.Lancamento{antes, novo} {
 			if al, ok := domain.AlvoDe(d); ok {
@@ -147,9 +165,11 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 		}
 		tr := s.ef.Travas(ctx, sid)
 		for _, al := range alvos {
-			if err := tr.Checar(al); err != nil {
+			ex, err := tr.Checar(al, confirma)
+			if err != nil {
 				return nil, err
 			}
+			exigiu = exigiu || ex
 		}
 	}
 	ultima, err := s.repo.UltimaVersao(ctx, sid, id)
@@ -158,6 +178,7 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 		return nil, ErrInterno
 	}
 	versoes := domain.VersoesDaEscrita(ultima, antes, novo, domain.AcaoUpdate, sub, time.Now().UTC().Format(formatoTempo))
+	marcarConfirmacao(versoes, exigiu)
 	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Antes: antes, Depois: novo, DataAnterior: de, Versoes: versoes}); err != nil {
 		return nil, escrita("put tx", ErrSalvar, err)
 	}
@@ -172,7 +193,7 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 // Excluir exclui o lancamento que esta sob a data "de". A exclusao e logica: o lancamento fica na tabela, marcado
 // com excluidoEm, e some das telas; a versao delete guarda como ficou. Excluir o que ja esta excluido, ou o que nao
 // existe, responde ok sem gravar nada.
-func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de, sub string) (domain.Doc, error) {
+func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de, sub string, confirma bool) (domain.Doc, error) {
 	de, err := domain.NormData(de)
 	if err != nil {
 		return nil, &ErroValidacao{"parametro de (dataEvento atual) obrigatorio"}
@@ -185,10 +206,13 @@ func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de, sub string) (dom
 		return domain.Doc{"ok": true}, nil
 	}
 	al, temAlvo := domain.AlvoDe(antigo)
+	exigiu := false
 	if temAlvo {
-		if err := s.ef.Travas(ctx, sid).Checar(al); err != nil {
+		ex, err := s.ef.Travas(ctx, sid).Checar(al, confirma)
+		if err != nil {
 			return nil, err
 		}
+		exigiu = ex
 	}
 	ultima, err := s.repo.UltimaVersao(ctx, sid, id)
 	if err != nil {
@@ -199,6 +223,7 @@ func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de, sub string) (dom
 	depois := domain.CopiaRasa(antigo)
 	depois["excluidoEm"] = agora
 	versoes := domain.VersoesDaEscrita(ultima, antigo, depois, domain.AcaoDelete, sub, agora)
+	marcarConfirmacao(versoes, exigiu)
 	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Antes: antigo, Depois: depois, DataAnterior: de, Versoes: versoes}); err != nil {
 		return nil, escrita("del tx", ErrExcluir, err)
 	}
@@ -206,7 +231,8 @@ func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de, sub string) (dom
 	if temAlvo {
 		s.ef.InvalidarSaldos(ctx, sid, []domain.Alvo{al})
 	}
-	resposta := domain.Doc{"ok": true}
+	// desfazer: a versao de antes da exclusao (a que o Desfazer restaura); a exclusao e sempre a ultima versao gravada
+	resposta := domain.Doc{"ok": true, "desfazer": domain.Doc{"versao": versoes[len(versoes)-1].Numero - 1}}
 	s.ef.ComSeq(ctx, sid, resposta)
 	return resposta, nil
 }
@@ -214,7 +240,7 @@ func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de, sub string) (dom
 // Importar grava ate 25 lancamentos por chamada, numa unica transacao: ou entram todos os aceitos, ou nenhum (e todos
 // voltam em "pendentes" para reenviar). Preserva id e criadoEm quando vierem no item. Um id que ja existe e uma edicao
 // (a versao guarda o estado anterior); um id novo e uma criacao.
-func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain.Doc) (domain.Doc, error) {
+func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain.Doc, confirma bool) (domain.Doc, error) {
 	bruto, _ := body["itens"].([]any)
 	if len(bruto) == 0 || len(bruto) > 25 {
 		return nil, &ErroValidacao{"itens deve ter de 1 a 25 lancamentos"}
@@ -234,6 +260,8 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 			continue
 		}
 		delete(d, "excluidoEm") // a exclusao so se faz pela rota de exclusao
+		delete(d, "confirmaMesFechado")  // a confirmacao so vale pela query, e nunca vai para o lancamento
+		delete(d, "confirmouMesFechado") // a marca e so da versao do historico
 		if err := domain.ValidarTx(d); err != nil {
 			rejeitados = append(rejeitados, domain.Doc{"indice": i, "motivo": err.Error()})
 			continue
@@ -251,16 +279,24 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 		}
 		vistas[domain.Identidade(d)] = true
 		al, temAlvo := domain.AlvoDe(d)
+		exigiu := false
 		if temAlvo {
-			if err := tr.Checar(al); err != nil {
-				var te *domain.ErroMesConferido
-				if !errors.As(err, &te) {
+			ex, err := tr.Checar(al, confirma)
+			if err != nil {
+				var conferido *domain.ErroMesConferido
+				var fechado *domain.ErroMesFechado
+				switch {
+				case errors.As(err, &conferido):
+					rejeitados = append(rejeitados, domain.Doc{"indice": i, "codigo": "mes_conferido", "motivo": "mes conferido e travado (" + conferido.Banco + ", " + conferido.Mes + ")"})
+				case errors.As(err, &fechado):
+					rejeitados = append(rejeitados, domain.Doc{"indice": i, "codigo": "mes_fechado", "motivo": "mes fechado (" + fechado.Banco + ", " + fechado.Mes + "): confirme para importar"})
+				default:
 					log.Println("trava:", err)
 					return nil, ErrInterno
 				}
-				rejeitados = append(rejeitados, domain.Doc{"indice": i, "motivo": "mes conferido e travado (" + te.Banco + ", " + te.Mes + ")"})
 				continue
 			}
+			exigiu = ex
 		}
 		id, _ := d["id"].(string)
 		data, _ := d["dataEvento"].(string)
@@ -281,6 +317,7 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 			acao = domain.AcaoUpdate
 		}
 		versoes := domain.VersoesDaEscrita(ultima, antigo, d, acao, sub, agora)
+		marcarConfirmacao(versoes, exigiu)
 		ultimas[id] = versoes[len(versoes)-1].Numero
 		mudancas = append(mudancas, domain.Mudanca{Antes: antigo, Depois: d, DataAnterior: data, Versoes: versoes})
 		aceitos = append(aceitos, d)

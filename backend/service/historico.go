@@ -104,7 +104,7 @@ func (s *Lancamentos) Historico(ctx context.Context, sid, mes, q, sub string, re
 		itens = append(itens, domain.Doc{"id": id, "descricao": r["descricao"], "valor": r["valor"], "tipo": r["tipo"],
 			"dataEvento": r["dataEvento"], "banco": r["banco"], "status": r["status"],
 			"excluido": excluidoEm != nil, "excluidoEm": excluidoEm, "acao": string(v.Acao), "versao": v.Numero,
-			"em": v.Em, "porSub": v.PorSub, "porNome": nomes.de(v.PorSub)})
+			"em": v.Em, "porSub": v.PorSub, "porNome": nomes.de(v.PorSub), "confirmouMesFechado": v.ConfirmouMesFechado})
 	}
 	sort.Slice(itens, func(i, j int) bool {
 		if itens[i]["em"] != itens[j]["em"] {
@@ -138,29 +138,37 @@ func alvosDe(a, b domain.Lancamento) []domain.Alvo {
 // versao e a exclusao; so o dono restaura um excluido; o lancamento ja esta nessa versao; e a trava do fechamento, que
 // vale para a versao e para o estado atual e so quando a restauracao mexe no saldo (como na edicao). O segundo valor
 // e falha ao consultar a trava, nao um motivo.
-func bloqueioDeRestauracao(tr Travas, atual domain.Lancamento, v domain.Versao, member bool) (motivo error, falha error) {
+func bloqueioDeRestauracao(tr Travas, atual domain.Lancamento, v domain.Versao, member bool) (motivo error, exige *domain.ErroMesFechado, falha error) {
 	if domain.Excluido(v.Registro) {
-		return ErrVersaoDeExclusao, nil
+		return ErrVersaoDeExclusao, nil, nil
 	}
 	excluido := domain.Excluido(atual)
 	if member && excluido {
-		return ErrSoDonoRestaura, nil
+		return ErrSoDonoRestaura, nil, nil
 	}
 	if !excluido && domain.MesmoConteudo(atual, v.Registro) {
-		return ErrJaNessaVersao, nil
+		return ErrJaNessaVersao, nil, nil
 	}
 	if excluido || domain.MudaSaldo(atual, v.Registro) {
 		for _, al := range alvosDe(atual, v.Registro) {
-			if err := tr.Checar(al); err != nil {
-				var te *domain.ErroMesConferido
-				if errors.As(err, &te) {
-					return te, nil
+			// sem confirmacao: o conferido bloqueia (absoluto); o fechado por data so avisa que a confirmacao e necessaria
+			if _, err := tr.Checar(al, false); err != nil {
+				var conferido *domain.ErroMesConferido
+				var fechado *domain.ErroMesFechado
+				switch {
+				case errors.As(err, &conferido):
+					return conferido, nil, nil
+				case errors.As(err, &fechado):
+					if exige == nil {
+						exige = fechado
+					}
+				default:
+					return nil, nil, err
 				}
-				return nil, err
 			}
 		}
 	}
-	return nil, nil
+	return nil, exige, nil
 }
 
 // Versoes devolve o historico de um lancamento, da versao mais nova para a mais antiga, com o diff de cada uma e se
@@ -203,7 +211,7 @@ func (s *Lancamentos) Versoes(ctx context.Context, sid, id, de, sub string, rest
 		if i > 0 {
 			diff = domain.Diff(vs[i-1].Registro, v.Registro)
 		}
-		bloqueio, falha := bloqueioDeRestauracao(tr, ultimo.Registro, v, restrito)
+		bloqueio, exige, falha := bloqueioDeRestauracao(tr, ultimo.Registro, v, restrito)
 		if falha != nil {
 			log.Println("versoes: trava:", falha)
 			return nil, ErrInterno
@@ -218,7 +226,8 @@ func (s *Lancamentos) Versoes(ctx context.Context, sid, id, de, sub string, rest
 		}
 		saida = append(saida, domain.Doc{"versao": v.Numero, "acao": string(v.Acao), "porSub": v.PorSub,
 			"porNome": nomes.de(v.PorSub), "em": v.Em, "deVersao": deVersao, "diff": diff, "registro": v.Registro,
-			"restauravel": bloqueio == nil, "motivo": motivo})
+			"restauravel": bloqueio == nil, "motivo": motivo, "exigeConfirmacao": bloqueio == nil && exige != nil,
+			"confirmouMesFechado": v.ConfirmouMesFechado})
 	}
 	return domain.Doc{"id": id, "excluido": domain.Excluido(ultimo.Registro), "semHistorico": false, "versoes": saida}, nil
 }

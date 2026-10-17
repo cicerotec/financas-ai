@@ -335,7 +335,7 @@ func TestImportarRejeitaItemEmMesConferidoEGravaOResto(t *testing.T) {
 	chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":0,"base":"x","caches":{}}`)
 	conferir(t, "own", "ITAU", "2026-03", 1)
 	lote := `{"itens":[` + corpoImport("idtravado1", "2026-01-20T10:00:00.000Z", "travado") + `,` + corpoImport("idlivre001", "2026-06-20T10:00:00.000Z", "livre") + `]}`
-	c, d := chamar(t, "own", "POST", "spaces/s1/tx/batch", nil, lote)
+	c, d := chamar(t, "own", "POST", "spaces/s1/tx/batch", conf, lote)
 	esperar(t, "importar", c, 200)
 	rej, _ := d["rejeitados"].([]any)
 	if d["gravados"] != 1.0 || len(rej) != 1 || !strings.Contains(fmt.Sprint(rej[0]), "mes conferido e travado") {

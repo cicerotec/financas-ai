@@ -29,6 +29,7 @@ func Erro(status int, msg string) (Resp, error) { return Out(status, domain.Doc{
 func respostaErro(err error) (Resp, error) {
 	var ev *service.ErroValidacao
 	var mes *domain.ErroMesConferido
+	var fechado *domain.ErroMesFechado
 	switch {
 	case errors.As(err, &ev):
 		return Erro(http.StatusBadRequest, ev.Error())
@@ -46,6 +47,9 @@ func respostaErro(err error) (Resp, error) {
 		return Erro(http.StatusForbidden, err.Error())
 	case errors.Is(err, service.ErrSalvar), errors.Is(err, service.ErrExcluir), errors.Is(err, service.ErrInterno):
 		return Erro(http.StatusInternalServerError, err.Error())
+	case errors.As(err, &fechado): // mes fechado por data: 409 confirmavel (reenviar com confirmaMesFechado=1)
+		return Out(http.StatusConflict, domain.Doc{"erro": fechado.Error(), "codigo": "mes_fechado",
+			"banco": fechado.Banco, "mes": fechado.Mes, "confirmavel": true})
 	case errors.As(err, &mes): // mes conferido: 409 com o que o front precisa para explicar
 		return Out(http.StatusConflict, domain.Doc{"erro": mes.Error(), "codigo": "mes_conferido",
 			"banco": mes.Banco, "mes": mes.Mes, "conferidoAte": mes.Ate})
