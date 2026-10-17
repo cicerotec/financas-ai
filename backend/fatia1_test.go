@@ -182,7 +182,7 @@ func TestF1RaizSoLigaAsPecasMigradas(t *testing.T) {
 	if strings.Count(servidor, "func novoServidor(") != 1 {
 		t.Error("deve existir um unico montador: novoServidor")
 	}
-	for _, nome := range []string{"main.go", "roteador.go", "store.go"} {
+	for _, nome := range []string{"main.go", "roteador.go"} {
 		if fonte := ler(nome); strings.Contains(fonte, "dynamodb.QueryInput") || strings.Contains(fonte, "func papel(") || strings.Contains(fonte, "func listarTx(") {
 			t.Errorf("%s ainda le espacos ou lancamentos direto do banco (migrou para repository/)", nome)
 		}

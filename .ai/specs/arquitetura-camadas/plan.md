@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje. Cada fatia vira uma entrega própria
 (branch, spec curto, PR, release); o app fica no ar entre elas.
 
-**Estado:** decisões do dono fechadas em 2026-10-17 (seção final); falta o spec da fatia 1 para começar.
+**Estado:** as quatro fatias estão implementadas (a 4, avisos e Telegram, esperando a conferência em dev). Specs: [`spec-fatia-1.md`](spec-fatia-1.md), [`spec-fatia-2.md`](spec-fatia-2.md), [`spec-fatia-3.md`](spec-fatia-3.md) e [`spec-fatia-4.md`](spec-fatia-4.md).
 
 ## Onde o código está hoje (o que falta migrar)
 

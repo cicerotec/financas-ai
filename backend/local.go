@@ -77,7 +77,7 @@ func eventoDe(r *http.Request, corpo string) req {
 }
 
 // rodarLocal abre a porta e nao volta (so se der erro).
-func rodarLocal(porta string, s *Servidor) {
+func rodarLocal(porta string, s *Servidor, table string) {
 	if os.Getenv("AMBIENTE") != "dev" {
 		log.Fatal("modo local so roda com AMBIENTE=dev (ele usa as suas credenciais da AWS e nunca deve tocar a tabela de producao)")
 	}

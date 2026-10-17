@@ -99,9 +99,11 @@ DynamoDB sem discutir com o dono.**
   **Feito (PR #100):** cada camada virou uma pasta em `backend/` (`domain/`, `auth/`, `repository/`, `service/`,
   `controller/`), com a regra de dependência testada em `arquitetura_test.go`; lançamentos e `auth` já migraram. Falta
   o resto da raiz (`fechamento`, `tags`, `perfil`, `seq`, `cfg`, avisos e Telegram), em quatro fatias (plano em
-  [`.ai/specs/arquitetura-camadas/`](.ai/specs/arquitetura-camadas/plan.md)). **Fatia 1 (espaços e leitura de lançamentos)
-  e fatia 2 (configurações, tags, contador e perfil) no ar; fatia 3 (fechamento, saldos e a trava de mês, com o `Relogio` injetado)
-  implementada**, falta conferir em dev. Falta a fatia 4 (avisos e Telegram). O despachante de avisos vive no `service` e os canais em `notificacao/` (item 34).
+  [`.ai/specs/arquitetura-camadas/`](.ai/specs/arquitetura-camadas/plan.md)). **Fatias 1 a 3 (espaços e leitura de lançamentos;
+  configurações, tags, contador e perfil; fechamento, saldos e a trava de mês, com o `Relogio` injetado) no ar; fatia 4
+  (avisos e Telegram, `adapter/notificacao`, sem variáveis globais e sem as pontes da raiz) implementada**, falta conferir
+  em dev e marcar o item. O despachante de avisos (item 34) vive no `service`, em cima do `Notificador`, e os canais ficam em
+  `adapter/notificacao/`.
   Achado para outra entrega: cursor inválido em `GET /tx` devolve `500`; o certo seria `400`.
 - 38. [x] <a id="item-38"></a>**[Próximo] Fechamento automático do mês anterior (confirmação explícita para mexer no passado):**
   decisões do dono (2026-10-16). O **conferido manual** da aba Saldos é herança da planilha e fica **opcional** (trava
@@ -137,7 +139,9 @@ DynamoDB sem discutir com o dono.**
 - 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
-  4096 caracteres do item 28.
+  4096 caracteres do item 28. **Ponto de partida (item 32, fatia 4):** o `Avisador` já existe com o nome `service.Notificador`
+  (`Enviar(destino, texto)`), o canal Telegram é o primeiro arquivo de `adapter/notificacao/`, e a rotina diária está em
+  `service.Avisos`; falta o despachante por assinatura e os outros canais.
 - 39. [ ] <a id="item-39"></a>**[Depois] Open Finance: lançamentos e saldos vindos do banco (visão):** visão do dono
   (2026-10-16): o app deixa de depender de lançar e conferir à mão; os lançamentos e o saldo de cada conta vêm do banco.
   (a) O lançamento vindo do banco é a **fonte da verdade**: valor, tipo, data e banco **não editáveis**; a pessoa edita a
