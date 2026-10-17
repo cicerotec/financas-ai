@@ -545,8 +545,8 @@ function toast(msg, erro){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>el.classList.remove('on'), erro ? 6000 : 3500);
 }
-// Aviso com ação ("Desfazer"), com barra de tempo. Um por vez: abrir outro encerra o anterior na hora (onFim),
-// que é quando a exclusão adiada de fato vai ao servidor. Padrão da demo .ai/demos/demo-desfazer.html.
+// Aviso com ação ("Desfazer"), com barra de tempo. Um por vez: abrir outro encerra o anterior na hora (onFim).
+// Padrão da demo .ai/demos/demo-desfazer.html; a exclusão imediata é da demo .ai/demos/demo-exclusao-imediata.html.
 const AVISO_ACAO_MS = 6000;
 let avisoAcaoAtual = null, avisoAcaoTimer;
 function fecharAvisoAcao(porAcao){
@@ -571,7 +571,7 @@ function mostrarAvisoAcao({txt, sub, rotulo, onAcao, onFim, erro, ms}){
   el.classList.add('on');
   avisoAcaoTimer = setTimeout(()=>fecharAvisoAcao(false), dur);
 }
-// Sair da aba ou do app encerra o aviso na hora: a exclusão adiada vale em vez de se perder.
+// Sair da aba ou do app encerra o aviso na hora (o Desfazer some; a exclusão já tinha sido feita no servidor).
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden') fecharAvisoAcao(false); });
 window.addEventListener('pagehide', ()=>fecharAvisoAcao(false));
 
@@ -1561,7 +1561,7 @@ function htmlItemLancamento(l, o){
   const seu = (o.prazo && !ehOwner() && l.criadoPor && l.criadoPor === meuSub) ? ' · <span class="muted">criado por você</span>' : '';
   const marca = (o.marcarFuturo && fut) ? '<div class="item-meta marca-futuro">📅 Evento futuro · aparece também em Futuros</div>' : '';
   return `
-    <div class="item ${l.oculto?'oculto':''} ${fut?'futuro':''} ${atrasado?'atrasado':''}" style="${estiloItemCor(l.status)}">
+    <div class="item ${l.oculto?'oculto':''} ${fut?'futuro':''} ${atrasado?'atrasado':''} ${excluindo.has(l.id)?'excluindo':''}" style="${estiloItemCor(l.status)}">
       <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span>${htmlValorLinha(l)}</div>
       <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)}${chipAviso(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}${prazo}${seu}</div>
       ${marca}
@@ -1635,7 +1635,7 @@ function htmlEventoFuturo(l){
   const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
   const cor = estiloCor==='nenhum' ? 'var(--faint)' : corStatus(l.status);
   const sub = [serie, l.oculto?'oculto':''].filter(Boolean).join(' · ');
-  return `<div class="fut-row ${l.oculto?'oculto':''}" style="--cor:${cor}">
+  return `<div class="fut-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}" style="--cor:${cor}">
     <button type="button" class="fut-m" data-fut-abrir="${id}" aria-haspopup="dialog">
       <span class="l"><span class="d">${esc(l.descricao)}</span><span class="mt">${chipAviso(l).trim()} ${dataBR(l)} · ${esc(l.status)} · ${esc(l.banco||'-')}${serie?' · '+serie:''}${l.oculto?' · oculto':''}</span></span>
       <span class="r">${htmlValorLinha(l)}${prazo}</span>
@@ -1801,9 +1801,11 @@ async function ocultarLancamento(id){
   aplicarLocal(id, {oculto: novo});
 }
 
-// Exclusão com Desfazer: depois do Confirmar o lançamento some de todas as telas, mas o DELETE só vai ao servidor
-// quando o aviso termina (6 s, ou antes se outro aviso abrir ou a aba sair de vista). Desfazer cancela a chamada.
-const exclusaoPendente = new Map(); // id -> {c, m, b}: o item guardado de cada lista enquanto está escondido
+// Exclusão imediata (item 38, fase C): depois do Confirmar o DELETE vai ao servidor na hora e o lançamento fica na lista
+// ("Excluindo…") até a resposta; as recusas (mês conferido, mês fechado, rede) chegam antes de ele sumir. Só então some
+// de todas as telas e o aviso oferece Desfazer por 6 s, que é uma restauração da versão que o DELETE devolveu.
+const excluindo = new Set(); // ids com DELETE em andamento
+const exclusaoPendente = new Map(); // id -> {c, m, b}: o item guardado de cada lista enquanto está excluído e o Desfazer vale
 function atualizarVistas(){
   try{ renderTagPicker(); }catch(e){}
   cartaoUltimaCalc = 0;
@@ -1833,27 +1835,46 @@ function devolverLocal(id){
   atualizarVistas();
 }
 function cortar(t, n){ t = String(t || ''); return t.length > n ? t.slice(0, n) + '…' : t; }
-function iniciarExclusao(id, desc){
-  esconderLocal(id);
-  mostrarAvisoAcao({
-    txt: 'Excluído: ' + cortar(desc, 40), sub: 'Some de vez depois de 6 segundos.', rotulo: 'Desfazer',
-    onAcao: ()=>devolverLocal(id),
-    onFim: ()=>efetivarExclusao(id, desc)
-  });
-}
-async function efetivarExclusao(id, desc){
+async function iniciarExclusao(id, desc){
+  if(excluindo.has(id)) return;
+  excluindo.add(id); atualizarVistas();
+  let r;
   try{
-    await db.collection("lancamentos").doc(id).delete();
-    exclusaoPendente.delete(id);
+    r = await db.collection("lancamentos").doc(id).delete();
   }catch(err){
     console.error(err);
-    devolverLocal(id);
+    excluindo.delete(id); atualizarVistas();
+    if(err && err.codigo === 'cancelado'){ toast(err.message); return; }
+    if(err && err.codigo === 'mes_conferido'){ toast(err.message, true); return; }
     mostrarAvisoAcao({
       txt: 'Não foi possível excluir "' + cortar(desc, 40) + '".',
-      sub: msgErro(err, 'Confira a conexão. O lançamento voltou para a lista.'),
+      sub: 'Confira a conexão. O lançamento continua na lista.',
       rotulo: 'Tentar de novo', erro: true, ms: 8000,
       onAcao: ()=>iniciarExclusao(id, desc)
     });
+    return;
+  }
+  excluindo.delete(id);
+  esconderLocal(id);
+  const versao = r && r.desfazer && r.desfazer.versao;
+  mostrarAvisoAcao({
+    txt: 'Excluído: ' + cortar(desc, 40), sub: 'Dá para desfazer por 6 segundos.', rotulo: 'Desfazer',
+    onAcao: ()=>desfazerExclusao(id, versao),
+    onFim: ()=>exclusaoPendente.delete(id)
+  });
+}
+// Desfazer = restaurar a versão anterior à exclusão (a API a devolve no DELETE). Se falhar, o lançamento continua excluído.
+async function desfazerExclusao(id, versao){
+  const falha = (m)=>{ exclusaoPendente.delete(id); toast((m || 'Não foi possível desfazer.') + ' O lançamento continua excluído: recupere em Histórico de versões.', true); };
+  if(!versao){ falha(); return; }
+  try{
+    const r = await db.restaurarVersao(id, versao);
+    if(r.status !== 200){ falha(r.body && r.body.erro); return; }
+    devolverLocal(id);
+    toast('Exclusão desfeita');
+  }catch(err){
+    console.error(err);
+    falha(msgErro(err));
   }
 }
 async function excluirLancamento(id){
@@ -1862,7 +1883,7 @@ async function excluirLancamento(id){
   if(!l) return;
   const resumo = cortar(l.descricao, 40) + ' · ' + fmtMoeda(l.valor);
   if(!(await confirmarModal(`Excluir este lançamento (${resumo})? Depois de excluir, dá para desfazer por 6 segundos.`))) return;
-  iniciarExclusao(id, l.descricao);
+  await iniciarExclusao(id, l.descricao);
 }
 
 // Desfazer de uma edição: reenvia, como edição normal, os valores que a edição trocou (o PUT mescla campo a campo).

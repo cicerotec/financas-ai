@@ -74,6 +74,8 @@ button.ghost{background:transparent;border:1px solid var(--border);color:var(--t
 .tag{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:3px 9px;font-size:12px;cursor:pointer;}
 .tag.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
 .item{border-bottom:1px solid var(--border);padding:10px 0;}
+.excluindo{opacity:.55;pointer-events:none;}
+.excluindo .item-desc::after,.excluindo .fut-m .d::after{content:' · Excluindo…';font-weight:400;}
 .item:last-child{border-bottom:none;}
 .item-top{display:flex;justify-content:space-between;font-size:14px;}
 .item-desc{font-weight:600;}

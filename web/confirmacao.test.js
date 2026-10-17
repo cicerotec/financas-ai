@@ -80,6 +80,40 @@ const zera = () => { pedidos.length = 0; perguntas = []; perguntasLote = []; res
   assert(pedidos[0].caminho.endsWith('&confirmaMesFechado=1'));
   assert.strictEqual(perguntas.length, 0);
 
+  // excluir: o DELETE devolve o corpo (com desfazer.versao); em mes fechado pergunta uma vez, e o Desfazer (restaurar) leva a confirmacao
+  zera();
+  servidor = () => ({ status: 201, body: Object.assign({}, antigo, { id: 'ex1', _seq: 4 }) });
+  await col.add({ id: 'ex1' });
+  zera();
+  servidor = (m, c) => (c.includes('confirmaMesFechado=1') ? { status: 200, body: { ok: true, desfazer: { versao: 2 }, _seq: 5 } } : fechado('2026-08'));
+  const del = await col.doc('ex1').delete();
+  assert.strictEqual(del.desfazer.versao, 2);
+  assert.deepStrictEqual(perguntas, [{ mes: '2026-08', acao: 'Excluir' }]);
+  assert(pedidos[1].caminho.endsWith('?de=' + encodeURIComponent(antigo.dataEvento) + '&confirmaMesFechado=1'));
+  zera();
+  servidor = () => ({ status: 200, body: { id: 'ex1', _seq: 6 } });
+  await db.restaurarVersao('ex1', del.desfazer.versao);
+  assert.strictEqual(pedidos[0].caminho, '/spaces/sp1/tx/ex1/versoes/2/restaurar?confirmaMesFechado=1');
+  assert.strictEqual(perguntas.length, 0);
+  // excluir em mes aberto: sem pergunta e o Desfazer restaura sem confirmacao
+  zera();
+  servidor = () => ({ status: 201, body: Object.assign({}, antigo, { id: 'ex2', _seq: 7 }) });
+  await col.add({ id: 'ex2' });
+  servidor = () => ({ status: 200, body: { ok: true, desfazer: { versao: 3 }, _seq: 8 } });
+  zera();
+  assert.strictEqual((await col.doc('ex2').delete()).desfazer.versao, 3);
+  assert.strictEqual(perguntas.length, 0);
+  await db.restaurarVersao('ex2', 3);
+  assert.strictEqual(pedidos[1].caminho, '/spaces/sp1/tx/ex2/versoes/3/restaurar');
+  // excluir cancelado na pergunta: nada excluido
+  servidor = () => ({ status: 201, body: Object.assign({}, antigo, { id: 'ex3', _seq: 9 }) });
+  await col.add({ id: 'ex3' });
+  zera(); respostaPergunta = false;
+  servidor = (m, c) => (m === 'DELETE' ? fechado('2026-08') : { status: 200, body: {} });
+  await assert.rejects(col.doc('ex3').delete(), (e) => e.codigo === 'cancelado');
+  assert.strictEqual(pedidos.filter((p) => p.metodo === 'DELETE').length, 1);
+  respostaPergunta = true;
+
   // mês conferido continua sem confirmação possível
   zera();
   servidor = () => ({ status: 409, body: { erro: 'o mes esta conferido', codigo: 'mes_conferido' } });
@@ -91,9 +125,9 @@ const zera = () => { pedidos.length = 0; perguntas = []; perguntasLote = []; res
   zera();
   servidor = () => ({ status: 200, body: { id: ID, _seq: 9 } });
   await db.restaurarVersao(ID, 1, true);
-  await db.restaurarVersao(ID, 1, false);
+  await db.restaurarVersao('semconf', 1, false);
   assert.strictEqual(pedidos[0].caminho, '/spaces/sp1/tx/' + ID + '/versoes/1/restaurar?confirmaMesFechado=1');
-  assert.strictEqual(pedidos[1].caminho, '/spaces/sp1/tx/' + ID + '/versoes/1/restaurar');
+  assert.strictEqual(pedidos[1].caminho, '/spaces/sp1/tx/semconf/versoes/1/restaurar');
 
   // importar: o arquivo vai sem confirmação; os de mês fechado ficam de fora e uma pergunta só reenvia apenas esses
   const itens = [0, 1, 2, 3].map((i) => ({ id: 'i' + i, dataEvento: '2026-0' + (i + 5) + '-10T12:00:00.000Z' }));
