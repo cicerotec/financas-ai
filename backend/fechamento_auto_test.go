@@ -307,7 +307,9 @@ func TestORelogioDoServidorDecide(t *testing.T) {
 	})
 }
 
-// A-T17: so o domain conhece o dia limite; o service, o controller e a raiz nao repetem o numero nem a regra
+// A-T17: so o domain conhece o dia limite; o service, o controller e a raiz nao repetem o numero nem a regra. A decisao de
+// "mes fechado" vive na trava (service/fechamento.go, desde a fatia 3 do item 32); os outros arquivos do service a recebem
+// pela interface Travas.
 func TestSoODomainConheceODiaLimite(t *testing.T) {
 	filepath.Walk(".", func(caminho string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !strings.HasSuffix(caminho, ".go") || strings.HasSuffix(caminho, "_test.go") {
@@ -321,7 +323,7 @@ func TestSoODomainConheceODiaLimite(t *testing.T) {
 		if strings.Contains(string(fonte), "DiaLimiteMesAnterior") {
 			t.Errorf("%s usa DiaLimiteMesAnterior: so o domain conhece o dia limite", p)
 		}
-		if strings.HasPrefix(p, "service/") && strings.Contains(string(fonte), "MesFechadoPorData") {
+		if strings.HasPrefix(p, "service/") && p != "service/fechamento.go" && strings.Contains(string(fonte), "MesFechadoPorData") {
 			t.Errorf("%s decide o mes fechado: a regra vem da trava (Travas.Checar), nao do service", p)
 		}
 		return nil

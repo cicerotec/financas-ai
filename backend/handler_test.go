@@ -268,7 +268,7 @@ var srvTeste *Servidor
 func cenario(t *testing.T) *bancoFake {
 	f := novoBancoFake()
 	db = f // a raiz ainda le a global nos assuntos que nao migraram (fatias 2 a 4 do item 32)
-	srvTeste = novoServidor(f, table)
+	srvTeste = novoServidor(f, table, relogioTeste)
 	f.colocar(t, doc{"PK": "USER#own", "SK": "SPACE#s1", "role": "owner"})
 	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member"})
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "META", "nome": "Familia"})

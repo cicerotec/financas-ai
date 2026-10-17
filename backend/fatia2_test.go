@@ -202,8 +202,8 @@ func TestF2RaizSemOsAssuntosMigrados(t *testing.T) {
 			}
 		}
 	}
-	// a unica ponte que sobra: salvarCfg delega ao repository (o fechamento usa ate a fatia 3)
-	if !strings.Contains(ler("main.go"), "repository.NewConfig(db, table).SalvarItem(") {
-		t.Error("salvarCfg deve ser a ponte de uma linha para repository.Config.SalvarItem")
+	// a ponte salvarCfg do fechamento sumiu na fatia 3
+	if strings.Contains(ler("main.go"), "func salvarCfg(") {
+		t.Error("salvarCfg era a ponte do fechamento e saiu na fatia 3")
 	}
 }

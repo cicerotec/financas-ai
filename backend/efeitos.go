@@ -7,24 +7,17 @@ import (
 	"financas/service"
 )
 
-// efeitosRaiz liga o service de lancamentos aos efeitos que ainda moram na raiz (saldos, tags, avisos, contador).
+// efeitosRaiz liga o service de lancamentos aos efeitos: tags, contador e saldos ja sao services; os avisos ainda moram na raiz.
 // Cada um vira um adaptador proprio quando a sua fatia migrar de pasta (item 32 do BACKLOG).
 type efeitosRaiz struct {
 	tags     *service.Tags
 	contador *service.Contador
+	fech     *service.Fechamento
 }
 
-type travasRaiz struct{ t *travas }
-
-func (a travasRaiz) Checar(al domain.Alvo, confirmado bool) (bool, error) {
-	return a.t.checar(al, confirmado, agora())
-}
-
-func (efeitosRaiz) Travas(ctx context.Context, sid string) service.Travas {
-	return travasRaiz{novasTravas(ctx, sid)}
-}
-func (efeitosRaiz) InvalidarSaldos(ctx context.Context, sid string, alvos []domain.Alvo) {
-	invalidarSaldos(ctx, sid, alvos)
+func (e efeitosRaiz) Travas(ctx context.Context, sid string) service.Travas { return e.fech.Travas(ctx, sid) }
+func (e efeitosRaiz) InvalidarSaldos(ctx context.Context, sid string, alvos []domain.Alvo) {
+	e.fech.InvalidarSaldos(ctx, sid, alvos)
 }
 func (e efeitosRaiz) GarantirTags(ctx context.Context, sid string, tags []string) {
 	e.tags.Garantir(ctx, sid, tags)

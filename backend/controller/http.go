@@ -31,6 +31,7 @@ func respostaErro(err error) (Resp, error) {
 	var mes *domain.ErroMesConferido
 	var fechado *domain.ErroMesFechado
 	var confl *service.ErroConflitoConfig
+	var ordem *service.ErroOrdemFechamento
 	switch {
 	case errors.As(err, &ev):
 		return Erro(http.StatusBadRequest, ev.Error())
@@ -38,6 +39,10 @@ func respostaErro(err error) (Resp, error) {
 		return Erro(http.StatusBadRequest, err.Error())
 	case errors.As(err, &confl): // configuracao gravada por outra pessoa: o cliente mescla com o estado atual
 		return Out(http.StatusConflict, domain.Doc{"erro": confl.Error(), "atual": confl.Atual})
+	case errors.As(err, &ordem): // conferir ou reabrir fora da sequencia
+		return Out(http.StatusConflict, domain.Doc{"erro": ordem.Error(), "codigo": "ordem"})
+	case errors.Is(err, service.ErrMesNaoConferido):
+		return Erro(http.StatusNotFound, err.Error())
 	case errors.Is(err, domain.ErrVinculoNaoEncontrado):
 		return Erro(http.StatusNotFound, err.Error())
 	case errors.Is(err, domain.ErrConflitoVersao): // outra escrita chegou antes: nada foi gravado

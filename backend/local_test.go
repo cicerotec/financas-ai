@@ -25,7 +25,7 @@ func TestEventoDeImitaAFunctionURL(t *testing.T) {
 
 // Sem token a API local responde 401, como a da AWS (o handler e o mesmo).
 func TestServidorLocalSemTokenDa401(t *testing.T) {
-	s := httptest.NewServer(servidorLocal(novoServidor(novoBancoFake(), "")))
+	s := httptest.NewServer(servidorLocal(novoServidor(novoBancoFake(), "", relogioTeste)))
 	defer s.Close()
 	res, err := http.Get(s.URL + "/me")
 	if err != nil {
@@ -41,7 +41,7 @@ func TestServidorLocalSemTokenDa401(t *testing.T) {
 }
 
 func TestServidorLocalResponderPreflightDoCORS(t *testing.T) {
-	s := httptest.NewServer(servidorLocal(novoServidor(novoBancoFake(), "")))
+	s := httptest.NewServer(servidorLocal(novoServidor(novoBancoFake(), "", relogioTeste)))
 	defer s.Close()
 	r, _ := http.NewRequest(http.MethodOptions, s.URL+"/spaces/s1/tx", nil)
 	r.Header.Set("Origin", "http://localhost:8080")

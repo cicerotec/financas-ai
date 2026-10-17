@@ -51,11 +51,12 @@ backend/
                  ErroMesConferido). Não importa nada do projeto nem a AWS
   auth/          token do Cognito (token.go) e permissões por papel (authz.go)
   repository/    adaptador DynamoDB: dynamo.go (a interface do cliente e as chaves), lancamento.go (inclui a listagem),
-                 espacos.go (papel e espaços da pessoa), config.go (configurações e aparência), contador.go (o _seq)
-                 e perfil.go (apelido e chat id no vínculo). É o único lugar com PK, SK e expressões
+                 espacos.go (papel e espaços da pessoa), config.go (configurações e aparência), contador.go (o _seq),
+                 perfil.go (apelido e chat id no vínculo) e saldos.go (fechamento mensal por banco). É o único lugar com PK, SK e expressões
   service/       regra de uso. Declara as interfaces de que precisa (Repositorio, Efeitos); não importa AWS nem HTTP
   controller/    HTTP: recebe o request, chama o service e traduz o erro em resposta. Não toca o banco
-  (raiz)         store.go (só helpers), fechamento.go, avisos.go, telegram.go e postAvisoTeste (perfil.go): ainda não migraram
+  relogio/       adaptadores do relógio (Real e Fixo); o service declara a interface Relogio e nunca chama time.Now
+  (raiz)         store.go (só helpers), avisos.go, telegram.go e postAvisoTeste (perfil.go): ainda não migraram
 ```
 
 **Quem pode importar quem** (o teste `arquitetura_test.go` falha se alguém quebrar):
@@ -69,7 +70,7 @@ backend/
 | `auth` | `service`, `controller`, `repository`, o SDK da AWS |
 
 - **A migração é por fatia** (item 32), não de uma vez. Já estão nas pastas: os lançamentos (`controller`, `service`,
-  `repository`, regras em `domain`), os espaços e a leitura de lançamentos (fatia 1), as configurações, tags, contador e perfil (fatia 2) e o `auth`. O resto
+  `repository`, regras em `domain`), os espaços e a leitura de lançamentos (fatia 1), as configurações, tags, contador e perfil (fatia 2), o fechamento e a trava de mês (fatia 3) e o `auth`. O resto
   migra quando a sua fatia entrar ([`specs/arquitetura-camadas/`](specs/arquitetura-camadas/plan.md)).
 - **Pontes temporárias na raiz:** `efeitos.go` liga o service de lançamentos aos efeitos que ainda moram na raiz
   (saldos, tags, avisos e contador), e `dominio_compat.go` guarda os nomes antigos que a raiz ainda usa. Cada nome sai
