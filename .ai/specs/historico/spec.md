@@ -123,7 +123,8 @@ da última versão do mês (`null` se vivo) e `excluido` é `excluidoEm != null`
 
 Todas as versões do `id`, da mais nova para a mais antiga. Um lançamento antigo, que nunca foi alterado, não tem versão
 e a chave viva leva a `dataEvento`, então só se acha com o parâmetro `?de=<dataEvento>`: com ele, `200` com
-`"semHistorico": true`, `"versoes": []` e `"atual"`; sem ele, ou sem lançamento, `404`.
+`"semHistorico": true`, `"versoes": []` e `"atual"`; sem ele, ou sem lançamento, `404`. A API procura as versões pelo `id`, então com versões o `?de=` é **ignorado**; ele só vale
+quando não há nenhuma.
 
 ```json
 {
