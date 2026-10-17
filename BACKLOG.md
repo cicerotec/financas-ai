@@ -22,7 +22,6 @@ Só o que ainda não foi feito, na ordem de prioridade (**[Agora]**, depois **[P
 com o salto para o registro real. **Ao concluir um item, marque `[x]` no registro e tire a linha daqui.** Bugs
 pendentes: nenhum.
 
-- [\[Backend\] - **\[Agora\] Arquitetura em camadas:**](#item-32)
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
 - [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe:**](#item-33)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
@@ -90,19 +89,19 @@ DynamoDB sem discutir com o dono.**
   implementada e verificada em dev**; **a 3 (tela Histórico de versões) está implementada e verificada em dev**. O item 38 (fechamento automático do mês anterior) fica para
   depois do histórico: a restauração da Fase 2 respeita a trava do mês conferido, como as outras escritas. Detalhes em
   [`.ai/specs/historico/`](.ai/specs/historico/) (`intent.md`, `plan.md` e `spec.md`).
-- 32. [ ] <a id="item-32"></a>**[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
+- 32. [x] <a id="item-32"></a>**[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
   que o front recebe e recebe tudo por construtor; `domain` com tipos e regras puras que todos usam; adaptadores
   (DynamoDB, Telegram, auth, relógio) atrás de interfaces declaradas pelo service; sem variáveis globais (`db`,
   `ssmCli`, `table`, `agora()`). Entra por fatias verticais, uma regra por vez, com o app no ar. **Só a fatia dos
   lançamentos** (repository e service de lançamentos, injetados) entra com o 31, na Fase 0 dele (decisão de
   2026-10-15); `fechamento`, `tags`, `avisos`, `cfg` e `perfil` seguem como estão e migram nas fatias seguintes.
   **Feito (PR #100):** cada camada virou uma pasta em `backend/` (`domain/`, `auth/`, `repository/`, `service/`,
-  `controller/`), com a regra de dependência testada em `arquitetura_test.go`; lançamentos e `auth` já migraram. Falta
-  o resto da raiz (`fechamento`, `tags`, `perfil`, `seq`, `cfg`, avisos e Telegram), em quatro fatias (plano em
-  [`.ai/specs/arquitetura-camadas/`](.ai/specs/arquitetura-camadas/plan.md)). **Fatias 1 a 3 (espaços e leitura de lançamentos;
-  configurações, tags, contador e perfil; fechamento, saldos e a trava de mês, com o `Relogio` injetado) no ar; fatia 4
-  (avisos e Telegram, `adapter/notificacao`, sem variáveis globais e sem as pontes da raiz) implementada**, falta conferir
-  em dev e marcar o item. O despachante de avisos (item 34) vive no `service`, em cima do `Notificador`, e os canais ficam em
+  `controller/`), com a regra de dependência testada em `arquitetura_test.go`; lançamentos e `auth` migraram primeiro. O
+  resto da raiz (`fechamento`, `tags`, `perfil`, `seq`, `cfg`, avisos e Telegram) migrou depois, em quatro fatias, **todas no ar e conferidas em dev (concluído em 2026-10-17)** (plano em
+  [`.ai/specs/arquitetura-camadas/`](.ai/specs/arquitetura-camadas/plan.md)). **Fatias 1 a 4 (espaços e leitura de lançamentos;
+  configurações, tags, contador e perfil; fechamento, saldos e a trava de mês, com o `Relogio` injetado; avisos e Telegram,
+  `adapter/notificacao`, sem variáveis globais e sem as pontes da raiz).** A raiz de `backend/` só liga (`main.go`,
+  `servidor.go`, `roteador.go`, `local.go`). O despachante de avisos (item 34) vive no `service`, em cima do `Notificador`, e os canais ficam em
   `adapter/notificacao/`.
   Achado para outra entrega: cursor inválido em `GET /tx` devolve `500`; o certo seria `400`.
 - 38. [x] <a id="item-38"></a>**[Próximo] Fechamento automático do mês anterior (confirmação explícita para mexer no passado):**
