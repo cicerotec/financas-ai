@@ -14,7 +14,7 @@ import (
 
 	"financas/auth"
 	"financas/controller"
-	"financas/repository"
+	"financas/utils/relogio"
 )
 
 type resp = events.LambdaFunctionURLResponse
@@ -93,13 +93,13 @@ func (s *Servidor) processar(ctx context.Context, u *user, m string, p []string,
 	case auth.AcaoLerSeq:
 		return s.cfg.GetSeq(ctx, sid)
 	case auth.AcaoLerFech:
-		return getFechamentos(ctx, sid)
+		return s.fech.GetFechamentos(ctx, sid)
 	case auth.AcaoEscreverFech:
-		return putFechamentos(ctx, sid, body)
+		return s.fech.PutFechamentos(ctx, sid, body)
 	case auth.AcaoConferirMes:
-		return conferirMes(ctx, sid, u.Sub, body)
+		return s.fech.PostConferir(ctx, sid, u.Sub, body)
 	case auth.AcaoReabrirMes:
-		return reabrirMes(ctx, sid, body)
+		return s.fech.PostReabrir(ctx, sid, body)
 	case auth.AcaoLerAparencia:
 		return s.cfg.GetAparencia(ctx, sid, u.Sub)
 	case auth.AcaoEditarPerfil:
@@ -110,12 +110,6 @@ func (s *Servidor) processar(ctx context.Context, u *user, m string, p []string,
 		return s.cfg.PutAparencia(ctx, sid, u.Sub, body)
 	}
 	return erro(http.StatusNotFound, "rota inexistente")
-}
-
-// salvarCfg e a ponte do fechamento (fechamento.go grava os itens SALDO#<banco> com o mesmo controle otimista) ate a fatia 3
-// do item 32; a logica mora em repository.Config.
-func salvarCfg(ctx context.Context, pk, sk string, body doc, esperada float64) (doc, error) {
-	return repository.NewConfig(db, table).SalvarItem(ctx, pk, sk, body, esperada)
 }
 
 // entrada separa os dois tipos de evento que a Lambda recebe: a chamada HTTP da Function URL e o agendamento diario
@@ -139,7 +133,7 @@ func main() {
 	if err := initDB(context.Background()); err != nil {
 		log.Fatal(err)
 	}
-	s := novoServidor(db, table)
+	s := novoServidor(db, table, relogio.Real{})
 	if porta := os.Getenv("LOCAL_PORT"); porta != "" { // so no computador do desenvolvedor (local.go)
 		rodarLocal(porta, s)
 		return
