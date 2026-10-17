@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -264,6 +265,10 @@ func entrada(ctx context.Context, raw json.RawMessage) (any, error) {
 func main() {
 	if err := initDB(context.Background()); err != nil {
 		log.Fatal(err)
+	}
+	if porta := os.Getenv("LOCAL_PORT"); porta != "" { // so no computador do desenvolvedor (local.go)
+		rodarLocal(porta)
+		return
 	}
 	lambda.Start(entrada)
 }
