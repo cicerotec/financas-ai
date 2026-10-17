@@ -4,8 +4,8 @@ Esta pasta tem uma coleção e um ambiente do Postman para conhecer a API do app
 
 | Arquivo | Para quê |
 |---|---|
-| `financas.postman_collection.json` | As requisições, em 4 pastas: **0** quem sou eu, **1** leitura (segura), **2** escrita (cria dados de verdade) e **3** erros de propósito |
-| `financas.postman_environment.json` | As variáveis (`baseUrl`, `token`, `spaceId`, `bancoTeste`...) |
+| `financas.postman_collection.json` | As requisições, em 5 pastas: **0** quem sou eu, **1** leitura (segura), **2** escrita (cria dados de verdade), **3** erros de propósito e **4** histórico de versões (busca por mês, versões com diff e restaurar), com exemplos de resposta em cada requisição |
+| `financas.postman_environment.json` | As variáveis (`baseUrl`, `token`, `spaceId`, `bancoTeste`, e as do histórico: `mesHistorico`, `histId`, `versaoRestaurar`, `ultimaVersao`) |
 
 ## Primeiros passos
 1. No Postman: **Import** e escolha os dois arquivos. Depois, no canto superior direito, selecione o ambiente **Finanças da Família (produção)**.
@@ -33,11 +33,14 @@ Todas levam `Authorization: Bearer <token>`. `{id}` é o `spaceId`.
 | `GET /spaces/{id}/tx` | Lista lançamentos (`de`, `ate`, `banco`, `status`, `q`, `limite`, `ordem`, `cursor`) | todos |
 | `POST /spaces/{id}/tx` | Cria um lançamento | todos |
 | `PUT /spaces/{id}/tx/{txId}?de=<dataEvento atual>` | Altera campos do lançamento | dono: todos; membro: só os dela |
-| `DELETE /spaces/{id}/tx/{txId}?de=<dataEvento atual>` | Exclui | só dono |
+| `DELETE /spaces/{id}/tx/{txId}?de=<dataEvento atual>` | Exclui (lógico: some das telas e fica no histórico) | só dono |
 | `POST /spaces/{id}/tx/batch` | Importa até 25 lançamentos | só dono |
 | `GET /spaces/{id}/seq` | Contador de alterações | todos |
 | `GET /spaces/{id}/cfg/{nome}` | Configuração (`listas`, `tags`, `combos`, `saldos`, `cartoes`) | todos |
 | `GET /spaces/{id}/fechamentos` | Fechamento mensal por banco | todos |
+| `GET /spaces/{id}/historico?mes=AAAA-MM&q=` | Lançamentos que mudaram no mês (excluídos e alterados), por mês da alteração | dono: todos; membro: só os dela |
+| `GET /spaces/{id}/tx/{txId}/versoes` | Versões do lançamento, com diff e se cada uma pode ser restaurada (`?de=` para lançamento antigo, nunca alterado) | dono: todos; membro: só os dela |
+| `POST /spaces/{id}/tx/{txId}/versoes/{n}/restaurar` | Restaura a versão `n` (grava uma versão nova; corpo vazio) | dono: todos; membro: só os dela e que existem |
 
 A `dataEvento` é ISO 8601 em UTC (ex.: `2026-09-28T22:08:00.000Z`) e faz parte da chave do lançamento, por isso editar ou excluir pede a data atual em `?de=`.
 
@@ -48,3 +51,5 @@ A `dataEvento` é ISO 8601 em UTC (ex.: `2026-09-28T22:08:00.000Z`) e faz parte 
 4. Veja `cfg/listas` e compare com a aba **Listas** do app.
 5. Crie o lançamento de teste, confira o `_seq` na resposta, ache-o no app (aba **Futuros**, se o status for PREVISTO) e depois rode **Ocultar**.
 6. Rode a pasta **3** e explique por que cada requisição devolveu 401, 403, 404, 400 ou 403.
+7. Depois de criar e editar o lançamento de teste (pasta 2), rode **Busca do mês** da pasta **4** e ache-o. Abra **Versões de um lançamento** e leia o `diff` de cada versão.
+8. Rode **Restaurar uma versão** e veja que a lista de versões ganhou uma versão nova (`restore`), sem apagar as antigas. Tente de novo e leia o `409`.
