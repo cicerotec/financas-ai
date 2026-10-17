@@ -550,7 +550,7 @@
                 }
               ]
             },
-            "description": "Um lançamento antigo, que nunca foi editado nem excluído, **não tem versões**. A chave dele leva a `dataEvento`, então sem as versões o servidor não tem como achá-lo só pelo id: informe a data em `?de=` (preencha `txId` e `txDataEvento` com os de um lançamento antigo). A resposta traz `semHistorico: true` e o estado atual. Sem `?de=`, ou com lançamento inexistente, é 404."
+            "description": "A API procura as versões pelo `id`. **O `?de=` só é usado quando o lançamento não tem nenhuma versão**; se tem, a data é ignorada. Um lançamento antigo, que nunca foi editado nem excluído, não tem versões, e a chave dele leva a `dataEvento`: sem a data a API não tem como achá-lo só pelo id. Para esse caso, preencha `txId` e `txDataEvento` com os de um lançamento antigo. A resposta traz `semHistorico: true` e o estado atual. Sem `?de=` (ou com lançamento inexistente) é 404. Com o lançamento de teste da pasta 2, que já tem versões, o resultado é o mesmo com ou sem a data."
           },
           "response": [
             {
