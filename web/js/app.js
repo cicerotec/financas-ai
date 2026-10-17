@@ -749,6 +749,7 @@ function irParaAba(t){
   if(t==='saldos') carregarSaldosConfig().then(()=>carregarSaldos(false));
   if(t==='cartao') carregarCartoesConfig().then(()=>carregarCartoes(false));
   if(t==='futuros') renderFuturos();
+  if(t==='versoes') abrirVersoes();
 }
 function setupTabs(){
   document.querySelectorAll('nav button').forEach(b=>{
@@ -761,7 +762,7 @@ function setupTabs(){
 const MENU_APP = [
   ['Dia a dia', [['lancar','✏️'],['historico','🕘'],['futuros','📅']]],
   ['Acompanhar', [['cartao','💳'],['saldos','🏦'],['tendencias','📈']]],
-  ['Configurar', [['listas','🏷️'],['importar','📥']]]
+  ['Configurar', [['listas','🏷️'],['versoes','🧾'],['importar','📥']]]
 ];
 function fecharMenuApp(voltarFoco){
   const btn = document.getElementById('mnBtn');
