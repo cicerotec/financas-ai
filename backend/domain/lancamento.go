@@ -168,3 +168,12 @@ func ValidarTx(d Doc) error {
 	}
 	return ValidarSerie(d)
 }
+
+// FiltroTx e o que a listagem de lancamentos aceita: periodo (De e Ate sao prefixos de dataEvento), filtros em memoria
+// (banco, status e texto em descricao e nota), ordem, tamanho da pagina e cursor da pagina anterior.
+type FiltroTx struct {
+	De, Ate, Banco, Q, Status string
+	Asc                       bool
+	Limite                    int
+	Cursor                    string
+}

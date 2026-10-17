@@ -389,7 +389,7 @@ func TestEntradaDistingueAgendamentoDeHTTP(t *testing.T) {
 	cenarioAvisos(t)
 	env := trocaEnvio(t, nil)
 	// o agendamento so manda {"acao":"avisos"}; a data de hoje real nao bate com o cenario, entao nada e enviado
-	r, err := entrada(context.Background(), json.RawMessage(`{"acao":"avisos"}`))
+	r, err := srvTeste.entrada(context.Background(), json.RawMessage(`{"acao":"avisos"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -399,7 +399,7 @@ func TestEntradaDistingueAgendamentoDeHTTP(t *testing.T) {
 	_ = env
 
 	// uma chamada HTTP sem token cai no handler e volta 401, mesmo que o corpo fale em "avisos"
-	r, err = entrada(context.Background(), json.RawMessage(`{"requestContext":{"http":{"method":"GET"}},"rawPath":"/me","headers":{},"body":"{\"acao\":\"avisos\"}"}`))
+	r, err = srvTeste.entrada(context.Background(), json.RawMessage(`{"requestContext":{"http":{"method":"GET"}},"rawPath":"/me","headers":{},"body":"{\"acao\":\"avisos\"}"}`))
 	if err != nil {
 		t.Fatal(err)
 	}

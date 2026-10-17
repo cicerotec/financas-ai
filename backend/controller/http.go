@@ -45,7 +45,7 @@ func respostaErro(err error) (Resp, error) {
 		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "versao_de_exclusao"})
 	case errors.Is(err, service.ErrSoDono), errors.Is(err, service.ErrSemAcesso), errors.Is(err, service.ErrSoDonoRestaura):
 		return Erro(http.StatusForbidden, err.Error())
-	case errors.Is(err, service.ErrSalvar), errors.Is(err, service.ErrExcluir), errors.Is(err, service.ErrInterno):
+	case errors.Is(err, service.ErrSalvar), errors.Is(err, service.ErrExcluir), errors.Is(err, service.ErrInterno), errors.Is(err, service.ErrListar):
 		return Erro(http.StatusInternalServerError, err.Error())
 	case errors.As(err, &fechado): // mes fechado por data: 409 confirmavel (reenviar com confirmaMesFechado=1)
 		return Out(http.StatusConflict, domain.Doc{"erro": fechado.Error(), "codigo": "mes_fechado",

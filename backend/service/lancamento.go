@@ -26,6 +26,8 @@ type Repositorio interface {
 	SalvarLote(ctx context.Context, sid string, ms []domain.Mudanca) error
 	// Versoes devolve o historico do lancamento, da primeira versao para a ultima (vazio se nao tem).
 	Versoes(ctx context.Context, sid, id string) ([]domain.Versao, error)
+	// Listar devolve os lancamentos vivos do espaco, em paginas; proximo e o cursor da seguinte ("" se acabou).
+	Listar(ctx context.Context, sid string, f domain.FiltroTx) (itens []domain.Doc, proximo string, err error)
 	// VersoesDoEspaco devolve as versoes de todos os lancamentos do espaco, ate o limite; truncado diz que havia mais.
 	VersoesDoEspaco(ctx context.Context, sid string, limite int) ([]domain.Versao, bool, error)
 }
@@ -59,6 +61,7 @@ var (
 	ErrSalvar        = errors.New("erro ao salvar")
 	ErrExcluir       = errors.New("erro ao excluir")
 	ErrInterno       = errors.New("erro interno")
+	ErrListar        = errors.New("erro ao listar")
 )
 
 // ErroValidacao e um 400 com a mensagem da regra que falhou.
@@ -352,4 +355,17 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 	}
 	resposta["gravados"], resposta["rejeitados"], resposta["pendentes"] = gravados, rejeitados, pendentes
 	return resposta, nil
+}
+
+// Listar: GET /spaces/{sid}/tx. Nunca devolve nil nos itens; qualquer falha de leitura vira ErrListar.
+func (s *Lancamentos) Listar(ctx context.Context, sid string, f domain.FiltroTx) ([]domain.Doc, string, error) {
+	itens, proximo, err := s.repo.Listar(ctx, sid, f)
+	if err != nil {
+		log.Println("listar:", err)
+		return nil, "", ErrListar
+	}
+	if itens == nil {
+		itens = []domain.Doc{}
+	}
+	return itens, proximo, nil
 }

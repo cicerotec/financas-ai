@@ -45,15 +45,17 @@ Cada camada é uma pasta, que em Go é um pacote. O `main.go` fica na raiz de `b
 
 ```
 backend/
-  main.go        liga as peças (client, repository, service, controller) e roteia
+  main.go        cria os clients e o Servidor (servidor.go, montado uma vez) e roteia
+  servidor.go    liga repository, service e controller dos assuntos já migrados (novoServidor)
   domain/        tipos e regras puras (Doc, Lancamento, Mudanca, ValidarTx, AlvoDe, MudaSaldo, tags, aviso, série,
                  ErroMesConferido). Não importa nada do projeto nem a AWS
   auth/          token do Cognito (token.go) e permissões por papel (authz.go)
-  repository/    adaptador DynamoDB: dynamo.go (a interface do cliente e as chaves) e lancamento.go. É o único
-                 lugar com PK, SK e expressões
+  repository/    adaptador DynamoDB: dynamo.go (a interface do cliente e as chaves), lancamento.go (inclui a listagem)
+                 e espacos.go (papel e espaços da pessoa). É o único lugar com PK, SK e expressões
   service/       regra de uso. Declara as interfaces de que precisa (Repositorio, Efeitos); não importa AWS nem HTTP
   controller/    HTTP: recebe o request, chama o service e traduz o erro em resposta. Não toca o banco
-  (raiz)         store.go, fechamento.go, tags.go, perfil.go, avisos.go, telegram.go, seq.go: ainda não migraram
+  (raiz)         store.go (só helpers), fechamento.go, tags.go, perfil.go, avisos.go, telegram.go, seq.go e as rotas de
+                 configuração: ainda não migraram
 ```
 
 **Quem pode importar quem** (o teste `arquitetura_test.go` falha se alguém quebrar):
@@ -67,7 +69,8 @@ backend/
 | `auth` | `service`, `controller`, `repository`, o SDK da AWS |
 
 - **A migração é por fatia** (item 32), não de uma vez. Já estão nas pastas: os lançamentos (`controller`, `service`,
-  `repository`, regras em `domain`) e o `auth`. O resto migra quando a sua fatia entrar.
+  `repository`, regras em `domain`), os espaços e a leitura de lançamentos (fatia 1, 2026-10-17) e o `auth`. O resto
+  migra quando a sua fatia entrar ([`specs/arquitetura-camadas/`](specs/arquitetura-camadas/plan.md)).
 - **Pontes temporárias na raiz:** `efeitos.go` liga o service de lançamentos aos efeitos que ainda moram na raiz
   (saldos, tags, avisos e contador), e `dominio_compat.go` guarda os nomes antigos que a raiz ainda usa. Cada nome sai
   de lá quando a fatia que o usa migra.
