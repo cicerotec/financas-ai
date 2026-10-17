@@ -378,6 +378,7 @@
         const b = await base();
         const { body } = await escreverConfirmando(id, 'Excluir', (c) => api('DELETE', comConfirmacao(b + '/tx/' + id + '?de=' + encodeURIComponent(antigo.dataEvento), c)));
         cache.delete(id); escreverNoCache('del', { id }); registrarSeq(body._seq);
+        return body; // traz desfazer: { versao } (a versao a restaurar para desfazer a exclusao)
       }
     };
   };
@@ -474,7 +475,8 @@
   // Restaura a versao n (grava uma versao nova). Os 409 voltam como { status, body } (mes conferido, ja esta nessa versao,
   // versao da exclusao, conflito); o 200 avisa as outras telas, que leem lancamentos, para recarregar.
   const restaurarVersao = async (id, n, confirma) => {
-    const r = await api('POST', comConfirmacao((await base()) + '/tx/' + encodeURIComponent(id) + '/versoes/' + n + '/restaurar', confirma));
+    // id ja confirmado nesta sessao (ex.: exclusao em mes fechado) leva a confirmacao tambem: o Desfazer nao pergunta de novo
+    const r = await api('POST', comConfirmacao((await base()) + '/tx/' + encodeURIComponent(id) + '/versoes/' + n + '/restaurar', confirma || confirmados.has(id)));
     if (r.status === 200) { registrarSeq(r.body._seq); atualizarOuvintes('col'); }
     return r;
   };

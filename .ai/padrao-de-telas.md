@@ -18,6 +18,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Atalhos no cabeçalho | [`demos/demo-atalho-saldos.html`](demos/demo-atalho-saldos.html) | Histórico e Saldos entre o nome da tela e o ⋮, em 320, 360 e 390 px, com o "como está hoje" (aprovado em 2026-10-15) |
 | Histórico de versões | [`demos/demo-historico-versoes.html`](demos/demo-historico-versoes.html) | busca por mês, lista de excluídos e alterados, versões com diff e Restaurar (desabilitado com o motivo), estados vazio e truncado, papéis dono e membro e a visão de computador (aprovado em 2026-10-16) |
 | Confirmação de mês fechado | [`demos/demo-confirmacao-mes-fechado.html`](demos/demo-confirmacao-mes-fechado.html) | segunda janela ao editar/lançar em mês fechado, restaurar com aviso no cartão, importar com uma pergunta no fim, mês conferido sem confirmação (aprovado em 2026-10-17) |
+| Excluir na hora | [`demos/demo-exclusao-imediata.html`](demos/demo-exclusao-imediata.html) | DELETE imediato com o item na lista até a resposta, recusas antes de sumir (conferido, mês fechado, rede), Desfazer por restauração e seu erro (aprovado em 2026-10-17) |
 | Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
 
 ## Princípios
@@ -124,7 +125,7 @@ a tela não calcula nada, só pergunta e reenvia com `?confirmaMesFechado=1` (qu
   pergunta ("N lançamento(s) são de meses já fechados… Importar esses mesmo assim?") reenvia só esses. Recusar deixa-os rejeitados.
 - **Mês conferido** continua sem confirmação possível: mensagem do servidor em vermelho.
 - **Custo:** ao editar são dois toques e uma ida e volta a mais ao servidor; numa série de repetições cada mês fechado pergunta
-  separadamente; a exclusão ainda pergunta só depois do aviso de 6 s (a exclusão imediata é a fase C). Teste: `web/confirmacao.test.js` (CI).
+  separadamente. Teste: `web/confirmacao.test.js` (CI).
 
 ## Padrões do celular
 **1. Linha-resumo que abre tela cheia.** Cartão com título em negrito e, embaixo, o valor atual em `--muted`
@@ -183,25 +184,34 @@ em Futuros.
 
 **11. Aviso rápido (toast).** Faixa escura na base da tela, 2 segundos, para confirmar ("Oculto: saiu dos totais.").
 
-**11b. Desfazer depois de excluir ou editar** (aprovado em 2026-10-14, provisório até o histórico de versões estar
-no ar; veja `specs/historico/intent.md`). Duas camadas, de propósito: a **janela de confirmação** pega o engano de
-toque e o **aviso com Desfazer** pega o arrependimento.
-- **Excluir:** janela "Excluir este lançamento (descrição · valor)? Depois de excluir, dá para desfazer por 6
-  segundos." com Cancelar e Confirmar. Confirmado, o lançamento some de **todas** as telas na hora, mas o `DELETE` só vai
-  ao servidor quando o aviso termina. Desfazer cancela a chamada: o servidor nunca soube.
+**11b. Excluir na hora e Desfazer depois de excluir ou editar** (editar: aprovado em 2026-10-14; excluir imediato: aprovado
+em 2026-10-17, item 38 fase C, demo [`demos/demo-exclusao-imediata.html`](demos/demo-exclusao-imediata.html)). Duas camadas, de
+propósito: a **janela de confirmação** pega o engano de toque e o **aviso com Desfazer** pega o arrependimento.
+- **Excluir:** janela "Excluir este lançamento (descrição · valor)? Depois de excluir, dá para desfazer por 6 segundos." com
+  Cancelar e Confirmar. Confirmado, o `DELETE` vai **ao servidor na hora** e o lançamento **continua na lista**, esmaecido e
+  com "Excluindo…" (`.excluindo`), até a resposta. Só com o `200` ele some de todas as telas e abre o aviso "Excluído" com
+  **Desfazer**. Recusas chegam **antes** de ele sumir: mês conferido → mensagem em vermelho; mês fechado por data → a janela da
+  confirmação ("…Excluir mesmo assim?", ver a seção Confirmação de mês fechado) e reenvio; rede → aviso vermelho com "Tentar
+  de novo", e o lançamento fica.
+- **Desfazer a exclusão é uma restauração:** o app pede `POST /tx/{id}/versoes/{n}/restaurar` com a `desfazer.versao` que o
+  `DELETE` devolveu (leva a confirmação do mês fechado, se houve). Volta com o mesmo id e uma versão nova no histórico. Se falhar
+  (rede, mês conferido nesse meio tempo): aviso vermelho dizendo que o lançamento continua excluído e que dá para recuperá-lo
+  em Histórico de versões.
 - **Editar:** o botão Salvar da edição abre "Salvar a alteração?" com o que mudou (`Valor: R$ 50,00 → R$ 75,50`).
   Confirmado, a edição é gravada e o aviso mostra "Edição salva" com Desfazer, que reenvia os valores anteriores como
   uma edição normal (campo que não existia volta `null`). Nada muda de contrato: é o `PUT` de hoje.
 - **Aviso:** faixa escura na base, 6 s, texto + linha de apoio + botão **Desfazer** (alvo de 48 px) e uma barra fina
-  que mostra o tempo. **Um por vez:** abrir outro efetiva o anterior na hora. Erro ao efetivar: o item volta à lista e
-  o aviso fica vermelho, com "Tentar de novo". `role="status"`; a barra não anima com `prefers-reduced-motion`.
-- **Custos que a demo diz:** um toque a mais por exclusão e edição; **trocar de aba ou de app efetiva a exclusão na
-  hora** (o Desfazer some); o Desfazer vale só na sessão e só por 6 s (recuperar depois é o histórico); ele não passa
-  por cima da regra do backend (a trava do fechamento responde igual) nem da lacuna da fatura do cartão (item 33).
+  que mostra o tempo. **Um por vez:** abrir outro fecha o anterior (o Desfazer dele some). Erro: aviso vermelho, com "Tentar de
+  novo" quando cabe. `role="status"`; a barra não anima com `prefers-reduced-motion`.
+- **Custos que a demo diz:** um toque a mais por exclusão e edição; o lançamento só some depois da resposta do servidor (cerca
+  de um segundo); excluir e desfazer deixam **duas versões** no histórico; o Desfazer vale só na sessão e só por 6 s (depois,
+  o Histórico de versões); trocar de aba ou de app **não** muda a exclusão (já foi feita), só tira o botão Desfazer; ele não
+  passa por cima da regra do backend (conferido, mês fechado) nem da lacuna da fatura do cartão (item 33).
 - **Ocultar** continua sem confirmação e sem Desfazer (fica para uma decisão própria).
-- Implementação: `mostrarAvisoAcao` e `fecharAvisoAcao` (aviso), `iniciarExclusao`, `esconderLocal` e `devolverLocal`
-  (exclusão adiada) e `desfazerEdicao` (edição), em `web/index.html`. Os `onSnapshot` e as buscas filtram
-  `exclusaoPendente`, para um item escondido não reaparecer antes da hora.
+- Implementação (em `web/js/app.js`): `mostrarAvisoAcao` e `fecharAvisoAcao` (aviso), `iniciarExclusao` (DELETE na hora, set
+  `excluindo`), `desfazerExclusao` (restauração), `esconderLocal` e `devolverLocal` (tiram e devolvem o item das listas) e
+  `desfazerEdicao` (edição). Os `onSnapshot` e as buscas filtram `exclusaoPendente`, para um item excluído não reaparecer
+  enquanto o Desfazer vale. `db.collection().doc().delete()` devolve o corpo (com `desfazer.versao`).
 
 **12. Fluxo de criação em tela cheia (Prever e Estender).** Uma tela cheia por cima do app (fixa, com a rolagem da página
 travada) que junta os padrões 1 a 7:
