@@ -3,15 +3,12 @@ package main
 import (
 	"fmt"
 	"testing"
-	"time"
 )
 
 // relogio fixo: hoje e 05/10/2026, entao o mes atual e 2026-10
 func relogioFixo(t *testing.T) {
 	t.Helper()
-	velho := agora
-	agora = func() time.Time { return time.Date(2026, 10, 5, 15, 0, 0, 0, time.UTC) }
-	t.Cleanup(func() { agora = velho })
+	relogioEm(t, 2026, 10, 5, 15, 0)
 }
 
 func corpoTx(data, banco string, valor float64) string {

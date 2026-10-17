@@ -7,11 +7,9 @@ import (
 	"strings"
 	"testing"
 	"time"
-)
 
-// Os testes nao dependem do ambiente em que rodam: o deploy do dev executa "go test" com AMBIENTE=dev, o que poria
-// [DEV] nas mensagens esperadas sem marca. Quem testa a marca define ambienteApp por conta propria.
-func init() { ambienteApp = "" }
+	"financas/domain"
+)
 
 // ---------- validacao ----------
 
@@ -126,12 +124,12 @@ func TestMoeda(t *testing.T) {
 }
 
 func TestMontarResumoOrdenaAtrasadosPrimeiro(t *testing.T) {
-	linhas := []linhaAviso{
-		{kind: avisoAntes, n: 3, venc: "2026-10-10", tipo: "saida", descricao: "Condomínio", valor: 800, banco: "ITAU"},
-		{kind: avisoAtrasado, n: 2, venc: "2026-10-05", tipo: "saida", descricao: "Internet", valor: 120, banco: "NUBANK"},
-		{kind: avisoHoje, venc: "2026-10-07", tipo: "entrada", descricao: "Aluguel", valor: 2500, banco: "ITAU"},
+	linhas := []domain.LinhaAviso{
+		{Kind: avisoAntes, N: 3, Venc: "2026-10-10", Tipo: "saida", Descricao: "Condomínio", Valor: 800, Banco: "ITAU"},
+		{Kind: avisoAtrasado, N: 2, Venc: "2026-10-05", Tipo: "saida", Descricao: "Internet", Valor: 120, Banco: "NUBANK"},
+		{Kind: avisoHoje, Venc: "2026-10-07", Tipo: "entrada", Descricao: "Aluguel", Valor: 2500, Banco: "ITAU"},
 	}
-	r := montarResumo("2026-10-07", linhas)
+	r := domain.MontarResumo("", "2026-10-07", linhas)
 	ordem := []string{"Atrasado há 2 dias (05/10/2026): Internet — R$ 120,00 (NUBANK)", "A receber hoje (07/10/2026): Aluguel", "Vence em 3 dias (10/10/2026): Condomínio — R$ 800,00 (ITAU)"}
 	ult := -1
 	for _, trecho := range ordem {
@@ -147,7 +145,7 @@ func TestMontarResumoOrdenaAtrasadosPrimeiro(t *testing.T) {
 	if !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
 		t.Errorf("cabecalho inesperado:\n%s", r)
 	}
-	if !strings.Contains(montarResumo("2026-10-07", []linhaAviso{{kind: avisoAntes, n: 1, venc: "2026-10-08", descricao: " "}}), "Vence em 1 dia (08/10/2026): (sem descrição)") {
+	if !strings.Contains(domain.MontarResumo("", "2026-10-07", []domain.LinhaAviso{{Kind: avisoAntes, N: 1, Venc: "2026-10-08", Descricao: " "}}), "Vence em 1 dia (08/10/2026): (sem descrição)") {
 		t.Error("singular e descricao vazia")
 	}
 }
@@ -233,22 +231,41 @@ func TestImportacaoEmLoteSincronizaOAviso(t *testing.T) {
 type envio struct{ chat, texto string }
 
 // trocaEnvio troca o envio real por um que guarda as mensagens.
-func trocaEnvio(t *testing.T, falhaCom error) *[]envio {
-	var enviados []envio
-	antes := enviarMensagem
-	enviarMensagem = func(_ context.Context, chat, texto string) error {
-		if falhaCom != nil {
-			return falhaCom
-		}
-		enviados = append(enviados, envio{chat, texto})
-		return nil
+// notifFalso e o canal de envio dos testes: guarda as mensagens (ou falha com o erro dado). E o Notificador do Servidor
+// montado em cenario(); nao ha mais variavel global de producao para trocar.
+type notifFalso struct {
+	falhaCom error
+	enviados []envio
+}
+
+func (n *notifFalso) Enviar(_ context.Context, chat, texto string) error {
+	if n.falhaCom != nil {
+		return n.falhaCom
 	}
-	t.Cleanup(func() { enviarMensagem = antes })
-	return &enviados
+	n.enviados = append(n.enviados, envio{chat, texto})
+	return nil
+}
+
+var notifTeste = &notifFalso{}
+
+// trocaEnvio zera as mensagens guardadas e, se falhaCom, faz o envio falhar ate o fim do teste.
+func trocaEnvio(t *testing.T, falhaCom error) *[]envio {
+	notifTeste.enviados, notifTeste.falhaCom = nil, falhaCom
+	t.Cleanup(func() { notifTeste.enviados, notifTeste.falhaCom = nil, nil })
+	return &notifTeste.enviados
+}
+
+// rodarAvisos roda a rotina diaria como se fosse "quando" (o Servidor le o dia pelo relogio injetado).
+func rodarAvisos(ctx context.Context, quando time.Time) (int, error) {
+	antes := relogioTeste.Definir(quando)
+	defer relogioTeste.Definir(antes)
+	d, err := srvTeste.avisos.Rodar(ctx)
+	n, _ := d["enviados"].(int)
+	return n, err
 }
 
 func agoraBR(dia string) time.Time {
-	t, _ := time.ParseInLocation("2006-01-02 15:04", dia+" 08:00", fusoBR)
+	t, _ := time.ParseInLocation("2006-01-02 15:04", dia+" 08:00", domain.FusoBR)
 	return t
 }
 
@@ -363,7 +380,7 @@ func TestRotinaSemVinculoOuSemTelegramNaoQuebra(t *testing.T) {
 	// Telegram nao configurado no servidor: encerra sem erro
 	f2, _ := cenarioAvisos(t)
 	_ = f2
-	trocaEnvio(t, errTelegramNaoConfigurado)
+	trocaEnvio(t, domain.ErrCanalNaoConfigurado)
 	if n, err := rodarAvisos(context.Background(), agoraBR("2026-10-10")); err != nil || n != 0 {
 		t.Errorf("nao configurado: (%d, %v)", n, err)
 	}
@@ -389,7 +406,7 @@ func TestEntradaDistingueAgendamentoDeHTTP(t *testing.T) {
 	cenarioAvisos(t)
 	env := trocaEnvio(t, nil)
 	// o agendamento so manda {"acao":"avisos"}; a data de hoje real nao bate com o cenario, entao nada e enviado
-	r, err := entrada(context.Background(), json.RawMessage(`{"acao":"avisos"}`))
+	r, err := srvTeste.entrada(context.Background(), json.RawMessage(`{"acao":"avisos"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -399,7 +416,7 @@ func TestEntradaDistingueAgendamentoDeHTTP(t *testing.T) {
 	_ = env
 
 	// uma chamada HTTP sem token cai no handler e volta 401, mesmo que o corpo fale em "avisos"
-	r, err = entrada(context.Background(), json.RawMessage(`{"requestContext":{"http":{"method":"GET"}},"rawPath":"/me","headers":{},"body":"{\"acao\":\"avisos\"}"}`))
+	r, err = srvTeste.entrada(context.Background(), json.RawMessage(`{"requestContext":{"http":{"method":"GET"}},"rawPath":"/me","headers":{},"body":"{\"acao\":\"avisos\"}"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -463,7 +480,7 @@ func TestMensagemDeTeste(t *testing.T) {
 		t.Errorf("enviado = %v", *env)
 	}
 
-	trocaEnvio(t, errTelegramNaoConfigurado)
+	trocaEnvio(t, domain.ErrCanalNaoConfigurado)
 	st, _ = chamar(t, "mem", "POST", "spaces/s1/avisos/teste", nil, "{}")
 	esperar(t, "nao configurado", st, 503)
 	trocaEnvio(t, errors.New("chat not found"))
@@ -486,15 +503,12 @@ func TestGetMeDevolveOChatID(t *testing.T) {
 }
 
 func TestMensagensDoDevTemMarcaDev(t *testing.T) {
-	linhas := []linhaAviso{{kind: avisoHoje, venc: "2026-10-07", tipo: "saida", descricao: "Luz", valor: 10, banco: "ITAU"}}
-	original := ambienteApp
-	t.Cleanup(func() { ambienteApp = original })
-
-	ambienteApp = "dev"
-	if r := montarResumo("2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10/2026\n") {
+	linhas := []domain.LinhaAviso{{Kind: avisoHoje, Venc: "2026-10-07", Tipo: "saida", Descricao: "Luz", Valor: 10, Banco: "ITAU"}}
+	if r := domain.MontarResumo(domain.MarcaAmbiente("dev"), "2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10/2026\n") {
 		t.Errorf("resumo do dev sem [DEV]:\n%s", r)
 	}
 	f := cenario(t)
+	srvTeste = novoServidor(f, "", relogioTeste, notifTeste, "dev") // o mesmo cenario, mas num ambiente dev
 	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member", "telegramChatId": "222222"})
 	env := trocaEnvio(t, nil)
 	chamar(t, "mem", "POST", "spaces/s1/avisos/teste", nil, "{}")
@@ -503,8 +517,7 @@ func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 	}
 
 	for _, amb := range []string{"prod", ""} {
-		ambienteApp = amb
-		if r := montarResumo("2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
+		if r := domain.MontarResumo(domain.MarcaAmbiente(amb), "2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
 			t.Errorf("ambiente %q nao deve ter [DEV]:\n%s", amb, r)
 		}
 	}

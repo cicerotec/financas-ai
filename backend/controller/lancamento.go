@@ -80,3 +80,17 @@ func (c *Lancamentos) PostRestaurar(ctx context.Context, sid, id, versao, sub st
 	}
 	return Out(200, d)
 }
+
+// GetTxs: GET /spaces/{sid}/tx?de=&ate=&banco=&status=&q=&ordem=asc&limite=&cursor=. limite: 1 a 1000, senao 200.
+func (c *Lancamentos) GetTxs(ctx context.Context, sid string, qs map[string]string) (Resp, error) {
+	f := domain.FiltroTx{De: qs["de"], Ate: qs["ate"], Banco: qs["banco"], Q: qs["q"], Status: qs["status"],
+		Asc: qs["ordem"] == "asc", Limite: 200, Cursor: qs["cursor"]}
+	if n, err := strconv.Atoi(qs["limite"]); err == nil && n > 0 && n <= 1000 {
+		f.Limite = n
+	}
+	itens, proximo, err := c.svc.Listar(ctx, sid, f)
+	if err != nil {
+		return respostaErro(err)
+	}
+	return Out(200, domain.Doc{"itens": itens, "proximo": proximo})
+}

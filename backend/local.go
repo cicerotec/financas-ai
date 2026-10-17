@@ -23,7 +23,7 @@ import (
 const limiteCorpoLocal = 6 << 20 // 6 MB, o teto de uma Function URL
 
 // servidorLocal devolve o handler HTTP do modo local. Separado do rodarLocal para ser testado sem abrir porta.
-func servidorLocal() http.Handler {
+func servidorLocal(s *Servidor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// o front em outra porta (localhost:8080) chama esta API: na AWS isso e o CORS da Function URL
 		if origem := r.Header.Get("Origin"); origem != "" {
@@ -41,7 +41,7 @@ func servidorLocal() http.Handler {
 			http.Error(w, "corpo grande demais", http.StatusRequestEntityTooLarge)
 			return
 		}
-		res, err := handler(r.Context(), eventoDe(r, string(corpo)))
+		res, err := s.handler(r.Context(), eventoDe(r, string(corpo)))
 		if err != nil {
 			log.Println("local: handler:", err)
 			http.Error(w, "erro interno", http.StatusInternalServerError)
@@ -77,11 +77,11 @@ func eventoDe(r *http.Request, corpo string) req {
 }
 
 // rodarLocal abre a porta e nao volta (so se der erro).
-func rodarLocal(porta string) {
+func rodarLocal(porta string, s *Servidor, table string) {
 	if os.Getenv("AMBIENTE") != "dev" {
 		log.Fatal("modo local so roda com AMBIENTE=dev (ele usa as suas credenciais da AWS e nunca deve tocar a tabela de producao)")
 	}
 	endereco := "127.0.0.1:" + porta
 	log.Printf("API local em http://%s (tabela %s). Ctrl+C para parar.", endereco, table)
-	log.Fatal(http.ListenAndServe(endereco, servidorLocal()))
+	log.Fatal(http.ListenAndServe(endereco, servidorLocal(s)))
 }

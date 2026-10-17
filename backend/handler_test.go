@@ -23,6 +23,13 @@ type bancoFake struct {
 	// que chega primeiro) e falharTransacao faz a proxima transacao falhar (nada e aplicado).
 	antesDaTransacao func()
 	falharTransacao  error
+	// falharLeitura faz GetItem e Query falharem (a leitura de papel, espacos e lancamentos).
+	falharLeitura error
+	// fatia 2: falharPut faz o proximo PutItem falhar; falharContador faz o ADD seq falhar; antesDoPut roda no comeco de
+	// PutItem (simula outra pessoa gravando a mesma configuracao antes).
+	falharPut       error
+	falharContador  error
+	antesDoPut      func(*dynamodb.PutItemInput)
 }
 
 func novoBancoFake() *bancoFake {
@@ -33,6 +40,9 @@ func sv(a types.AttributeValue) string { return a.(*types.AttributeValueMemberS)
 func chave(pk, sk string) string       { return pk + "|" + sk }
 
 func (f *bancoFake) GetItem(_ context.Context, in *dynamodb.GetItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+	if f.falharLeitura != nil {
+		return nil, f.falharLeitura
+	}
 	it, ok := f.itens[chave(sv(in.Key["PK"]), sv(in.Key["SK"]))]
 	if !ok {
 		return &dynamodb.GetItemOutput{}, nil
@@ -40,6 +50,12 @@ func (f *bancoFake) GetItem(_ context.Context, in *dynamodb.GetItemInput, _ ...f
 	return &dynamodb.GetItemOutput{Item: it}, nil
 }
 func (f *bancoFake) PutItem(_ context.Context, in *dynamodb.PutItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
+	if f.falharPut != nil {
+		return nil, f.falharPut
+	}
+	if f.antesDoPut != nil {
+		f.antesDoPut(in)
+	}
 	k := chave(sv(in.Item["PK"]), sv(in.Item["SK"]))
 	atual, existe := f.itens[k]
 	switch aws.ToString(in.ConditionExpression) {
@@ -125,6 +141,9 @@ func (f *bancoFake) BatchWriteItem(_ context.Context, in *dynamodb.BatchWriteIte
 func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
 	k := chave(sv(in.Key["PK"]), sv(in.Key["SK"]))
 	if aws.ToString(in.UpdateExpression) == "ADD seq :um" { // contador do espaco: cria o item se nao existir
+		if f.falharContador != nil {
+			return nil, f.falharContador
+		}
 		it, ok := f.itens[k]
 		if !ok {
 			it = map[string]types.AttributeValue{"PK": in.Key["PK"], "SK": in.Key["SK"]}
@@ -165,6 +184,9 @@ func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, 
 
 // Query: entende "PK = :pk AND SK BETWEEN :a AND :b" e "PK = :pk AND begins_with(SK, :s)".
 func (f *bancoFake) Query(_ context.Context, in *dynamodb.QueryInput, _ ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error) {
+	if f.falharLeitura != nil {
+		return nil, f.falharLeitura
+	}
 	pk := sv(in.ExpressionAttributeValues[":pk"])
 	var sks []string
 	for k, it := range f.itens {
@@ -240,9 +262,12 @@ const (
 	dePrefixoTx = "TX#"
 )
 
+// srvTeste e o Servidor do cenario atual: montado com o banco falso, como o main monta com o DynamoDB.
+var srvTeste *Servidor
+
 func cenario(t *testing.T) *bancoFake {
 	f := novoBancoFake()
-	db = f
+	srvTeste = novoServidor(f, "", relogioTeste, notifTeste, "")
 	f.colocar(t, doc{"PK": "USER#own", "SK": "SPACE#s1", "role": "owner"})
 	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member"})
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "META", "nome": "Familia"})
@@ -264,7 +289,7 @@ func cenario(t *testing.T) *bancoFake {
 
 func chamar(t *testing.T, sub, metodo, caminho string, qs map[string]string, corpo string) (int, doc) {
 	t.Helper()
-	r, _ := processar(context.Background(), &user{Sub: sub}, metodo, strings.Split(caminho, "/"), qs, corpo)
+	r, _ := srvTeste.processar(context.Background(), &user{Sub: sub}, metodo, strings.Split(caminho, "/"), qs, corpo)
 	var d doc
 	_ = json.Unmarshal([]byte(r.Body), &d)
 	return r.StatusCode, d

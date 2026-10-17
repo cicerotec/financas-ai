@@ -58,3 +58,30 @@ type ErroMesConferido struct{ Banco, Mes, Ate string }
 func (e *ErroMesConferido) Error() string {
 	return fmt.Sprintf("o mes %s do banco %s esta conferido (ate %s) e travado: reabra o mes na aba Saldos para alterar", e.Mes, e.Banco, e.Ate)
 }
+
+// MesAtual devolve o mes (AAAA-MM) do instante dado, no fuso do app.
+func MesAtual(agora time.Time) string { return agora.In(FusoApp).Format("2006-01") }
+
+// UltimoConferido devolve o mes mais recente conferido de um item SALDO#<banco>; "" se nenhum.
+func UltimoConferido(d Doc) string {
+	m, _ := d["conferidos"].(map[string]any)
+	u := ""
+	for k := range m {
+		if k > u {
+			u = k
+		}
+	}
+	return u
+}
+
+// MesDeInicio devolve o mes da data de inicio do controle de um banco, lida da configuracao de saldos (CFG#SALDOS);
+// "" se o banco nao tem data de inicio valida.
+func MesDeInicio(cfgSaldos Doc, banco string) string {
+	por, _ := cfgSaldos["porBanco"].(map[string]any)
+	if b, ok := por[banco].(map[string]any); ok {
+		if di, _ := b["dataInicio"].(string); len(di) >= 7 && MesValido(di[:7]) {
+			return di[:7]
+		}
+	}
+	return ""
+}

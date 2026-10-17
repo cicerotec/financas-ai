@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -217,4 +219,86 @@ func (r *Lancamentos) Versoes(ctx context.Context, sid, id string) ([]domain.Ver
 // Nao tem indice por data: le a particao inteira (um GSI por data entra depois, sem mudar o contrato).
 func (r *Lancamentos) VersoesDoEspaco(ctx context.Context, sid string, limite int) ([]domain.Versao, bool, error) {
 	return r.consultaHistorico(ctx, sid, "TX#", limite)
+}
+
+// ErrCursorInvalido: o cursor da paginacao nao e uma SK de lancamento.
+var ErrCursorInvalido = errors.New("cursor invalido")
+
+func codCursor(sk string) string { return base64.RawURLEncoding.EncodeToString([]byte(sk)) }
+
+func decCursor(c string) (string, bool) {
+	b, err := base64.RawURLEncoding.DecodeString(c)
+	if err != nil || !strings.HasPrefix(string(b), "TX#") {
+		return "", false
+	}
+	return string(b), true
+}
+
+// Listar devolve os lancamentos vivos do espaco, em paginas por SK (a data). Os excluidos logicamente nao saem. banco,
+// status e texto filtram em memoria; proximo e o cursor da pagina seguinte ("" se acabou).
+func (r *Lancamentos) Listar(ctx context.Context, sid string, f domain.FiltroTx) ([]domain.Doc, string, error) {
+	a, b := "TX#", "TX#~"
+	if f.De != "" {
+		a = "TX#" + f.De
+	}
+	if f.Ate != "" {
+		b = "TX#" + f.Ate
+	}
+	in := &dynamodb.QueryInput{
+		TableName:              aws.String(r.table),
+		KeyConditionExpression: aws.String("PK = :pk AND SK BETWEEN :a AND :b"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: SpacePK(sid)},
+			":a":  &types.AttributeValueMemberS{Value: a},
+			":b":  &types.AttributeValueMemberS{Value: b},
+		},
+		ScanIndexForward: aws.Bool(f.Asc),
+		Limit:            aws.Int32(500),
+	}
+	if f.Cursor != "" {
+		sk, ok := decCursor(f.Cursor)
+		if !ok {
+			return nil, "", ErrCursorInvalido
+		}
+		in.ExclusiveStartKey = Key(SpacePK(sid), sk)
+	}
+	q := strings.ToLower(f.Q)
+	var res []domain.Doc
+	for {
+		out, err := r.db.Query(ctx, in)
+		if err != nil {
+			return nil, "", err
+		}
+		for _, it := range out.Items {
+			var d domain.Doc
+			if err := attributevalue.UnmarshalMap(it, &d); err != nil {
+				return nil, "", err
+			}
+			if d["excluidoEm"] != nil { // excluido logicamente: some das listas, mas continua na tabela e no historico
+				continue
+			}
+			if f.Banco != "" && d["banco"] != f.Banco {
+				continue
+			}
+			if f.Status != "" && d["status"] != f.Status {
+				continue
+			}
+			if q != "" {
+				t, _ := d["descricao"].(string)
+				n, _ := d["nota"].(string)
+				if !strings.Contains(strings.ToLower(t+" "+n), q) {
+					continue
+				}
+			}
+			sk, _ := d["SK"].(string)
+			res = append(res, domain.Publico(d))
+			if len(res) >= f.Limite {
+				return res, codCursor(sk), nil
+			}
+		}
+		if out.LastEvaluatedKey == nil {
+			return res, "", nil
+		}
+		in.ExclusiveStartKey = out.LastEvaluatedKey
+	}
 }

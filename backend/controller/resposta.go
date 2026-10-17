@@ -30,11 +30,25 @@ func respostaErro(err error) (Resp, error) {
 	var ev *service.ErroValidacao
 	var mes *domain.ErroMesConferido
 	var fechado *domain.ErroMesFechado
+	var confl *service.ErroConflitoConfig
+	var ordem *service.ErroOrdemFechamento
 	switch {
 	case errors.As(err, &ev):
 		return Erro(http.StatusBadRequest, ev.Error())
 	case errors.Is(err, domain.ErrDadosInvalidos):
 		return Erro(http.StatusBadRequest, err.Error())
+	case errors.As(err, &confl): // configuracao gravada por outra pessoa: o cliente mescla com o estado atual
+		return Out(http.StatusConflict, domain.Doc{"erro": confl.Error(), "atual": confl.Atual})
+	case errors.As(err, &ordem): // conferir ou reabrir fora da sequencia
+		return Out(http.StatusConflict, domain.Doc{"erro": ordem.Error(), "codigo": "ordem"})
+	case errors.Is(err, service.ErrTelegramNaoConfigurado):
+		return Erro(http.StatusServiceUnavailable, err.Error())
+	case errors.Is(err, service.ErrTelegramRecusou):
+		return Erro(http.StatusBadGateway, err.Error())
+	case errors.Is(err, service.ErrMesNaoConferido):
+		return Erro(http.StatusNotFound, err.Error())
+	case errors.Is(err, domain.ErrVinculoNaoEncontrado):
+		return Erro(http.StatusNotFound, err.Error())
 	case errors.Is(err, domain.ErrConflitoVersao): // outra escrita chegou antes: nada foi gravado
 		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "conflito_versao"})
 	case errors.Is(err, service.ErrNaoEncontrado), errors.Is(err, service.ErrVersaoNaoAchada):
@@ -45,7 +59,7 @@ func respostaErro(err error) (Resp, error) {
 		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "versao_de_exclusao"})
 	case errors.Is(err, service.ErrSoDono), errors.Is(err, service.ErrSemAcesso), errors.Is(err, service.ErrSoDonoRestaura):
 		return Erro(http.StatusForbidden, err.Error())
-	case errors.Is(err, service.ErrSalvar), errors.Is(err, service.ErrExcluir), errors.Is(err, service.ErrInterno):
+	case errors.Is(err, service.ErrSalvar), errors.Is(err, service.ErrExcluir), errors.Is(err, service.ErrInterno), errors.Is(err, service.ErrListar), errors.Is(err, service.ErrSalvarTags):
 		return Erro(http.StatusInternalServerError, err.Error())
 	case errors.As(err, &fechado): // mes fechado por data: 409 confirmavel (reenviar com confirmaMesFechado=1)
 		return Out(http.StatusConflict, domain.Doc{"erro": fechado.Error(), "codigo": "mes_fechado",
