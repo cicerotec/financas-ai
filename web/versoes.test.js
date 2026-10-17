@@ -31,7 +31,7 @@ const ctx = {
   esc: (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
   fmtMoeda: (v) => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ','),
   toast: (msg, erro) => toasts.push({ msg, erro: !!erro }),
-  confirmarModal: async (msg, rotulo) => { chamadas.push({ confirmou: msg, rotulo }); return ctx.__confirma; },
+  confirmarModal: async (msg, rotulo) => { chamadas.push({ confirmou: msg, rotulo }); if (ctx.__aoConfirmar) await ctx.__aoConfirmar(); return ctx.__confirma; },
   comBotaoOcupado: async (btn, rotulo, fn) => fn(),
   mesAtualApp: () => '2026-10',
   somaMes: (ym, n) => { const [y, m] = ym.split('-').map(Number); const t = y * 12 + (m - 1) + n; return Math.floor(t / 12) + '-' + String(t % 12 + 1).padStart(2, '0'); },
@@ -121,6 +121,12 @@ const espera = () => new Promise((r) => setTimeout(r, 5));
   assert(jan.confirmou.includes('já fechou') && jan.rotulo === 'Restaurar mesmo assim', 'janela unica com o aviso');
   assert.strictEqual(chamadas.filter((c) => c.confirmou).length, 1);
   assert.strictEqual(chamadas.find((c) => c.restaurar).confirma, true, 'envia a confirmacao');
+  // a tela cheia fecha enquanto a janela esta aberta (a janela ficava por baixo): restaura o lancamento certo mesmo assim
+  chamadas.length = 0;
+  ctx.__aoConfirmar = async () => { clique('abrir', { id: ID }); await espera(); cliqueDoc('voltar'); await espera(); };
+  cliqueDoc('restaurar', { n: '1' }); await espera(); await espera();
+  ctx.__aoConfirmar = null;
+  assert.deepStrictEqual(chamadas.find((c) => c.restaurar).restaurar, [ID, 1], 'usa o id guardado antes da janela');
   delete versoesDoItem.versoes[3].exigeConfirmacao;
 
   // cancelar a confirmacao nao chama a API
