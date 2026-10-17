@@ -24,6 +24,10 @@ type Repositorio interface {
 	Salvar(ctx context.Context, sid string, m domain.Mudanca) error
 	// SalvarLote e o Salvar de varias mudancas, tudo ou nada (importacao).
 	SalvarLote(ctx context.Context, sid string, ms []domain.Mudanca) error
+	// Versoes devolve o historico do lancamento, da primeira versao para a ultima (vazio se nao tem).
+	Versoes(ctx context.Context, sid, id string) ([]domain.Versao, error)
+	// VersoesDoEspaco devolve as versoes de todos os lancamentos do espaco, ate o limite; truncado diz que havia mais.
+	VersoesDoEspaco(ctx context.Context, sid string, limite int) ([]domain.Versao, bool, error)
 }
 
 // Travas consulta, ao longo de uma chamada, se o mes de um banco esta conferido (fechamento mensal).
@@ -59,12 +63,13 @@ type ErroValidacao struct{ Msg string }
 func (e *ErroValidacao) Error() string { return e.Msg }
 
 type Lancamentos struct {
-	repo Repositorio
-	ef   Efeitos
+	repo    Repositorio
+	ef      Efeitos
+	pessoas Pessoas
 }
 
-func NewLancamentos(repo Repositorio, ef Efeitos) *Lancamentos {
-	return &Lancamentos{repo: repo, ef: ef}
+func NewLancamentos(repo Repositorio, ef Efeitos, pessoas Pessoas) *Lancamentos {
+	return &Lancamentos{repo: repo, ef: ef, pessoas: pessoas}
 }
 
 const formatoTempo = "2006-01-02T15:04:05.000Z"

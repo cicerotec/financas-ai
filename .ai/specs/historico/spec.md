@@ -85,7 +85,9 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
   exclusão seria excluir de novo. `restauravel = false` com o motivo "Esta versão é a exclusão. Restaure uma versão
   anterior."; `POST .../restaurar` nela responde `409` com `codigo: "versao_de_exclusao"`.
 - **R16.** A trava vale para a versão **e** para o estado atual: se qualquer um dos dois cai em mês conferido, a
-  restauração é bloqueada (`mes_conferido`) e a versão aparece como não restaurável, com o motivo. **Fechamento
+  restauração é bloqueada **quando ela mexe no saldo** (`MudaSaldo`, a mesma regra da edição: só descrição, nota e tags
+  passam) **ou quando reativa um excluído**. Nesse caso responde `409` (`mes_conferido`) e a versão aparece como não
+  restaurável, com o motivo. **Fechamento
   conferido é absoluto.**
 - **R17.** A trava de **fatura** do cartão não existe (item 33): restaurar lançamento de cartão em fatura conferida
   **não** é bloqueado, e isso está documentado no intent.
@@ -119,8 +121,10 @@ da última versão do mês (`null` se vivo) e `excluido` é `excluidoEm != null`
 
 ### `GET /spaces/{sid}/tx/{id}/versoes` (ação `historico.ler`)
 
-Todas as versões do `id`, da mais nova para a mais antiga. Sem nenhuma versão mas com o lançamento vivo:
-`200` com `"semHistorico": true`, `"versoes": []` e `"atual"`. Sem versão e sem lançamento: `404`.
+Todas as versões do `id`, da mais nova para a mais antiga. Um lançamento antigo, que nunca foi alterado, não tem versão
+e a chave viva leva a `dataEvento`, então só se acha com o parâmetro `?de=<dataEvento>`: com ele, `200` com
+`"semHistorico": true`, `"versoes": []` e `"atual"`; sem ele, ou sem lançamento, `404`. A API procura as versões pelo `id`, então com versões o `?de=` é **ignorado**; ele só vale
+quando não há nenhuma.
 
 ```json
 {
@@ -361,6 +365,10 @@ Entrega: `HIST#`, R2 a R11, `excluidoEm`, `Deny` no `template.yaml`. Capacidade 
 `specs/modelo-de-dados/` (chave `HIST#`, `excluidoEm`, exemplo fictício) atualizados.
 
 ### Fase 2: busca por mês, diff e restauração (API)
+
+Estado: **implementada** (branch `feature/historico-fase-2`). Os textos de erro e de `motivo` seguem o resto da API, em
+português sem acento (ex.: "o lancamento ja esta nessa versao"). `POST .../restaurar` não lê corpo; `n` que não é inteiro
+maior que zero responde `400`; versão inexistente, `404`.
 
 | Id | Cenário | Esperado |
 |---|---|---|

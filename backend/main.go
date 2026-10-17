@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -67,13 +68,13 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 		return erro(http.StatusForbidden, "sem permissao para esta acao")
 	}
 	var body doc
-	if m == "POST" || m == "PUT" {
+	if (m == "POST" || m == "PUT") && acaoReq != auth.AcaoRestaurar { // restaurar nao tem corpo
 		if err := json.Unmarshal([]byte(rawBody), &body); err != nil || body == nil {
 			return erro(http.StatusBadRequest, "json invalido")
 		}
 	}
 	// a ligacao das pecas fica aqui ate o main montar tudo uma vez so (item 32 do BACKLOG)
-	lanc := controller.NewLancamentos(service.NewLancamentos(repository.NewLancamentos(db, table), efeitosRaiz{}))
+	lanc := controller.NewLancamentos(service.NewLancamentos(repository.NewLancamentos(db, table), efeitosRaiz{}, repository.NewPessoas(db, table)))
 	switch acaoReq {
 	case auth.AcaoLerTx:
 		return getTxs(ctx, sid, qs)
@@ -85,6 +86,13 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 		return lanc.PutTx(ctx, sid, p[3], qs["de"], body, u.Sub, dec == auth.SoDono)
 	case auth.AcaoExcluirTx:
 		return lanc.DelTx(ctx, sid, p[3], qs["de"], u.Sub)
+	case auth.AcaoLerHistorico:
+		if p[2] == "historico" {
+			return lanc.GetHistorico(ctx, sid, qs["mes"], qs["q"], u.Sub, dec == auth.SoDono)
+		}
+		return lanc.GetVersoes(ctx, sid, p[3], qs["de"], u.Sub, dec == auth.SoDono)
+	case auth.AcaoRestaurar:
+		return lanc.PostRestaurar(ctx, sid, p[3], p[5], u.Sub, dec == auth.SoDono)
 	case auth.AcaoLerCfg:
 		return getCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]))
 	case auth.AcaoEscreverCfg:
@@ -257,6 +265,10 @@ func entrada(ctx context.Context, raw json.RawMessage) (any, error) {
 func main() {
 	if err := initDB(context.Background()); err != nil {
 		log.Fatal(err)
+	}
+	if porta := os.Getenv("LOCAL_PORT"); porta != "" { // so no computador do desenvolvedor (local.go)
+		rodarLocal(porta)
+		return
 	}
 	lambda.Start(entrada)
 }

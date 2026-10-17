@@ -26,6 +26,8 @@ const (
 	AcaoConferirMes     Acao = "fechamento.conferir"
 	AcaoReabrirMes      Acao = "fechamento.reabrir"
 	AcaoTestarAviso     Acao = "avisos.testar" // manda uma mensagem de teste para o proprio Telegram
+	AcaoLerHistorico    Acao = "historico.ler" // busca por mes e versoes de um lancamento
+	AcaoRestaurar       Acao = "historico.restaurar"
 )
 
 // Decisao e o que um papel pode fazer com uma acao.
@@ -49,7 +51,8 @@ func Permitido(papel string, a Acao) Decisao {
 		switch a {
 		case AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-			AcaoLerFech, AcaoEscreverFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso:
+			AcaoLerFech, AcaoEscreverFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso,
+			AcaoLerHistorico, AcaoRestaurar:
 			return Liberado
 		}
 	case PapelMember:
@@ -57,7 +60,7 @@ func Permitido(papel string, a Acao) Decisao {
 		case AcaoLerTx, AcaoCriarTx, AcaoLerCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 			AcaoLerFech, AcaoLerSeq, AcaoTestarAviso:
 			return Liberado
-		case AcaoEditarTx:
+		case AcaoEditarTx, AcaoLerHistorico, AcaoRestaurar: // so o que ela criou (restaurar excluido e so do owner: service)
 			return SoDono
 		}
 	}
@@ -84,6 +87,12 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		case "DELETE":
 			return AcaoExcluirTx, true
 		}
+	case len(rest) == 1 && rest[0] == "historico" && metodo == "GET":
+		return AcaoLerHistorico, true
+	case len(rest) == 3 && rest[0] == "tx" && rest[2] == "versoes" && metodo == "GET":
+		return AcaoLerHistorico, true
+	case len(rest) == 5 && rest[0] == "tx" && rest[2] == "versoes" && rest[4] == "restaurar" && metodo == "POST":
+		return AcaoRestaurar, true
 	case len(rest) == 2 && rest[0] == "cfg" && cfgNomes[rest[1]]:
 		switch metodo {
 		case "GET":

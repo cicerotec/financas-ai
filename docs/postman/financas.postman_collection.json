@@ -287,9 +287,613 @@
               "path": ["spaces", "{{spaceId}}", "tx", "{{txId}}"],
               "query": [{ "key": "de", "value": "{{txDataEvento}}" }]
             },
-            "description": "ATENÇÃO: se você for `owner` isto EXCLUI de verdade o lançamento de teste (use só depois de criá-lo). Para `member` a resposta é 403: é a regra de permissões em ação."
+            "description": "ATENÇÃO: se você for `owner` isto exclui o lançamento de teste (use só depois de criá-lo). A exclusão é **lógica**: ele some das telas, mas fica no histórico e dá para restaurar (pasta 4). Para `member` a resposta é 403: é a regra de permissões em ação."
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Histórico de versões",
+      "description": "Toda escrita de lançamento grava uma versão. A **busca por mês** lista o que foi excluído ou alterado, as **versões** mostram o que mudou, e **restaurar** grava uma versão nova (o passado nunca é reescrito). Rode a pasta 2 antes para ter algo no histórico. Só **Restaurar** grava de verdade; as demais só leem. As respostas de exemplo de cada requisição (aba Examples) mostram o formato.",
+      "item": [
+        {
+          "name": "Busca do mês (excluídos e alterados)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// sem mes escolhido, usa o mes de agora no fuso de Sao Paulo (UTC-3)",
+                  "if (!pm.environment.get('mesHistorico')) {",
+                  "  pm.environment.set('mesHistorico', new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 7));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('traz o mes e a lista', () => { pm.expect(j.mes).to.be.a('string'); pm.expect(j.itens).to.be.an('array'); });",
+                  "pm.test('truncado so aparece se passou de 5.000 versoes', () => pm.expect(j.truncado).to.be.a('boolean'));",
+                  "// guarda o primeiro lancamento da lista para as proximas requisicoes",
+                  "if (j.itens.length) { pm.environment.set('histId', j.itens[0].id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/historico?mes={{mesHistorico}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "spaces",
+                "{{spaceId}}",
+                "historico"
+              ],
+              "query": [
+                {
+                  "key": "mes",
+                  "value": "{{mesHistorico}}"
+                }
+              ]
+            },
+            "description": "Lista os lançamentos que **mudaram no mês** (excluídos e alterados juntos): uma linha por lançamento, com a última versão do mês. O mês é o da **alteração** (não o da data do lançamento), no fuso de São Paulo. Para ver outro mês, troque `mesHistorico` no ambiente (AAAA-MM). Lê a partição inteira do histórico e para em 5.000 versões (`truncado`). O teste guarda o primeiro `id` em `histId`."
+          },
+          "response": [
+            {
+              "name": "200: um lançamento alterado e outro excluído",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spaces/{{spaceId}}/historico?mes={{mesHistorico}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "spaces",
+                    "{{spaceId}}",
+                    "historico"
+                  ],
+                  "query": [
+                    {
+                      "key": "mes",
+                      "value": "{{mesHistorico}}"
+                    }
+                  ]
+                }
+              },
+              "body": "{\n  \"mes\": \"2026-10\",\n  \"truncado\": false,\n  \"itens\": [\n    {\n      \"id\": \"k3x9a1m7q2w8e5r4t6y1\",\n      \"descricao\": \"Mercado\",\n      \"valor\": 187.5,\n      \"tipo\": \"saida\",\n      \"dataEvento\": \"2026-10-10T12:00:00.000Z\",\n      \"banco\": \"Bradesco\",\n      \"status\": \"PAGO\",\n      \"excluido\": false,\n      \"excluidoEm\": null,\n      \"acao\": \"update\",\n      \"versao\": 2,\n      \"em\": \"2026-10-14T13:02:11.482Z\",\n      \"porSub\": \"sub-demo-1\",\n      \"porNome\": \"Ana\"\n    },\n    {\n      \"id\": \"a1b2c3d4e5f6g7h8i9j0\",\n      \"descricao\": \"Ingresso cancelado\",\n      \"valor\": 89.9,\n      \"tipo\": \"saida\",\n      \"dataEvento\": \"2026-10-05T18:00:00.000Z\",\n      \"banco\": \"Bradesco\",\n      \"status\": \"PAGO\",\n      \"excluido\": true,\n      \"excluidoEm\": \"2026-10-12T10:15:30.120Z\",\n      \"acao\": \"delete\",\n      \"versao\": 3,\n      \"em\": \"2026-10-12T10:15:30.120Z\",\n      \"porSub\": \"sub-demo-1\",\n      \"porNome\": \"Ana\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Busca do mês com texto",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/historico?mes={{mesHistorico}}&q=mercado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "spaces",
+                "{{spaceId}}",
+                "historico"
+              ],
+              "query": [
+                {
+                  "key": "mes",
+                  "value": "{{mesHistorico}}"
+                },
+                {
+                  "key": "q",
+                  "value": "mercado"
+                }
+              ]
+            },
+            "description": "`q` procura (sem diferenciar maiúsculas) na descrição e na nota de **qualquer versão do mês**. Por isso um lançamento renomeado ainda é achado pelo nome antigo, e a linha mostra o estado mais novo."
+          },
+          "response": [
+            {
+              "name": "200: achado pelo nome antigo",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spaces/{{spaceId}}/historico?mes={{mesHistorico}}&q=mercado",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "spaces",
+                    "{{spaceId}}",
+                    "historico"
+                  ],
+                  "query": [
+                    {
+                      "key": "mes",
+                      "value": "{{mesHistorico}}"
+                    },
+                    {
+                      "key": "q",
+                      "value": "mercado"
+                    }
+                  ]
+                }
+              },
+              "body": "{\n  \"mes\": \"2026-10\",\n  \"truncado\": false,\n  \"itens\": [\n    {\n      \"id\": \"k3x9a1m7q2w8e5r4t6y1\",\n      \"descricao\": \"Padaria\",\n      \"valor\": 187.5,\n      \"tipo\": \"saida\",\n      \"dataEvento\": \"2026-10-10T12:00:00.000Z\",\n      \"banco\": \"Bradesco\",\n      \"status\": \"PAGO\",\n      \"excluido\": false,\n      \"excluidoEm\": null,\n      \"acao\": \"update\",\n      \"versao\": 2,\n      \"em\": \"2026-10-14T13:02:11.482Z\",\n      \"porSub\": \"sub-demo-1\",\n      \"porNome\": \"Ana\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Versões de um lançamento (com diff)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('as versoes vem da mais nova para a mais antiga', () => { for (let i = 1; i < j.versoes.length; i++) pm.expect(j.versoes[i - 1].versao).to.be.above(j.versoes[i].versao); });",
+                  "pm.test('cada versao diz se pode ser restaurada e por que nao', () => j.versoes.forEach(v => { pm.expect(v.restauravel).to.be.a('boolean'); pm.expect(v.motivo).to.be.a('string'); }));",
+                  "// a versao mais nova (para o teste de \"ja esta nessa versao\") e a mais nova que pode ser restaurada",
+                  "if (j.versoes.length) { pm.environment.set('ultimaVersao', j.versoes[0].versao); }",
+                  "const podeRestaurar = j.versoes.find(v => v.restauravel);",
+                  "if (podeRestaurar) { pm.environment.set('versaoRestaurar', podeRestaurar.versao); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{histId}}/versoes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "spaces",
+                "{{spaceId}}",
+                "tx",
+                "{{histId}}",
+                "versoes"
+              ]
+            },
+            "description": "As versões do lançamento `histId`, da mais nova para a mais antiga. Cada uma traz o `registro` (o lançamento como ficou), o `diff` em relação à versão anterior (a primeira não tem), quem agiu e `restauravel` + `motivo`, calculados no servidor: a versão da exclusão, o que já está igual ao estado atual e meses conferidos não podem ser restaurados. O teste guarda `ultimaVersao` e `versaoRestaurar`."
+          },
+          "response": [
+            {
+              "name": "200: editado, excluído e restaurado",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{histId}}/versoes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "spaces",
+                    "{{spaceId}}",
+                    "tx",
+                    "{{histId}}",
+                    "versoes"
+                  ]
+                }
+              },
+              "body": "{\n  \"id\": \"k3x9a1m7q2w8e5r4t6y1\",\n  \"excluido\": false,\n  \"semHistorico\": false,\n  \"versoes\": [\n    {\n      \"versao\": 4,\n      \"acao\": \"restore\",\n      \"porSub\": \"sub-demo-1\",\n      \"porNome\": \"Ana\",\n      \"em\": \"2026-10-15T09:00:00.000Z\",\n      \"deVersao\": 2,\n      \"diff\": [\n        {\n          \"campo\": \"excluidoEm\",\n          \"antes\": \"2026-10-14T15:40:05.221Z\",\n          \"depois\": null\n        }\n      ],\n      \"registro\": {\n        \"id\": \"k3x9a1m7q2w8e5r4t6y1\",\n        \"dataEvento\": \"2026-10-10T12:00:00.000Z\",\n        \"descricao\": \"Mercado\",\n        \"valor\": 187.5,\n        \"tipo\": \"saida\",\n        \"status\": \"PAGO\",\n        \"banco\": \"Bradesco\",\n        \"tags\": [\n          \"mercado-mensal\"\n        ],\n        \"criadoPor\": \"sub-demo-1\",\n        \"criadoEm\": \"2026-10-10T12:05:00.000Z\"\n      },\n      \"restauravel\": false,\n      \"motivo\": \"o lancamento ja esta nessa versao\"\n    },\n    {\n      \"versao\": 3,\n      \"acao\": \"delete\",\n      \"porSub\": \"sub-demo-1\",\n      \"porNome\": \"Ana\",\n      \"em\": \"2026-10-14T15:40:05.221Z\",\n      \"deVersao\": null,\n      \"diff\": [\n        {\n          \"campo\": \"excluidoEm\",\n          \"antes\": null,\n          \"depois\": \"2026-10-14T15:40:05.221Z\"\n        }\n      ],\n      \"registro\": {\n        \"id\": \"k3x9a1m7q2w8e5r4t6y1\",\n        \"dataEvento\": \"2026-10-10T12:00:00.000Z\",\n        \"descricao\": \"Mercado\",\n        \"valor\": 187.5,\n        \"tipo\": \"saida\",\n        \"status\": \"PAGO\",\n        \"banco\": \"Bradesco\",\n        \"tags\": [\n          \"mercado-mensal\"\n        ],\n        \"criadoPor\": \"sub-demo-1\",\n        \"criadoEm\": \"2026-10-10T12:05:00.000Z\",\n        \"excluidoEm\": \"2026-10-14T15:40:05.221Z\"\n      },\n      \"restauravel\": false,\n      \"motivo\": \"esta versao e a exclusao: restaure uma versao anterior\"\n    },\n    {\n      \"versao\": 2,\n      \"acao\": \"update\",\n      \"porSub\": \"sub-demo-1\",\n      \"porNome\": \"Ana\",\n      \"em\": \"2026-10-14T13:02:11.482Z\",\n      \"deVersao\": null,\n      \"diff\": [\n        {\n          \"campo\": \"valor\",\n          \"antes\": 180,\n          \"depois\": 187.5\n        }\n      ],\n      \"registro\": {\n        \"id\": \"k3x9a1m7q2w8e5r4t6y1\",\n        \"dataEvento\": \"2026-10-10T12:00:00.000Z\",\n        \"descricao\": \"Mercado\",\n        \"valor\": 187.5,\n        \"tipo\": \"saida\",\n        \"status\": \"PAGO\",\n        \"banco\": \"Bradesco\",\n        \"tags\": [\n          \"mercado-mensal\"\n        ],\n        \"criadoPor\": \"sub-demo-1\",\n        \"criadoEm\": \"2026-10-10T12:05:00.000Z\"\n      },\n      \"restauravel\": false,\n      \"motivo\": \"o lancamento ja esta nessa versao\"\n    },\n    {\n      \"versao\": 1,\n      \"acao\": \"insert\",\n      \"porSub\": \"sub-demo-1\",\n      \"porNome\": \"Ana\",\n      \"em\": \"2026-10-10T12:05:00.000Z\",\n      \"deVersao\": null,\n      \"diff\": [],\n      \"registro\": {\n        \"id\": \"k3x9a1m7q2w8e5r4t6y1\",\n        \"dataEvento\": \"2026-10-10T12:00:00.000Z\",\n        \"descricao\": \"Mercado\",\n        \"valor\": 180,\n        \"tipo\": \"saida\",\n        \"status\": \"PAGO\",\n        \"banco\": \"Bradesco\",\n        \"tags\": [\n          \"mercado-mensal\"\n        ],\n        \"criadoPor\": \"sub-demo-1\",\n        \"criadoEm\": \"2026-10-10T12:05:00.000Z\"\n      },\n      \"restauravel\": true,\n      \"motivo\": \"\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Versões de um lançamento antigo (nunca alterado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{txId}}/versoes?de={{txDataEvento}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "spaces",
+                "{{spaceId}}",
+                "tx",
+                "{{txId}}",
+                "versoes"
+              ],
+              "query": [
+                {
+                  "key": "de",
+                  "value": "{{txDataEvento}}"
+                }
+              ]
+            },
+            "description": "A API procura as versões pelo `id`. **O `?de=` só é usado quando o lançamento não tem nenhuma versão**; se tem, a data é ignorada. Um lançamento antigo, que nunca foi editado nem excluído, não tem versões, e a chave dele leva a `dataEvento`: sem a data a API não tem como achá-lo só pelo id. Para esse caso, preencha `txId` e `txDataEvento` com os de um lançamento antigo. A resposta traz `semHistorico: true` e o estado atual. Sem `?de=` (ou com lançamento inexistente) é 404. Com o lançamento de teste da pasta 2, que já tem versões, o resultado é o mesmo com ou sem a data."
+          },
+          "response": [
+            {
+              "name": "200: sem histórico",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{txId}}/versoes?de={{txDataEvento}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "spaces",
+                    "{{spaceId}}",
+                    "tx",
+                    "{{txId}}",
+                    "versoes"
+                  ],
+                  "query": [
+                    {
+                      "key": "de",
+                      "value": "{{txDataEvento}}"
+                    }
+                  ]
+                }
+              },
+              "body": "{\n  \"id\": \"idlegado0000000001\",\n  \"excluido\": false,\n  \"semHistorico\": true,\n  \"versoes\": [],\n  \"atual\": {\n    \"id\": \"idlegado0000000001\",\n    \"dataEvento\": \"2026-01-03T10:00:00.000Z\",\n    \"descricao\": \"Lançamento antigo\",\n    \"valor\": 10,\n    \"tipo\": \"saida\",\n    \"status\": \"PAGO\",\n    \"banco\": \"Bradesco\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Restaurar uma versão (GRAVA DE VERDADE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('a resposta traz o lancamento e o _seq novo', () => { pm.expect(j.id).to.be.a('string'); pm.expect(j._seq).to.be.a('number'); });",
+                  "pm.test('o campo excluidoEm nunca sai', () => pm.expect(j.excluidoEm).to.equal(undefined));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{histId}}/versoes/{{versaoRestaurar}}/restaurar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "spaces",
+                "{{spaceId}}",
+                "tx",
+                "{{histId}}",
+                "versoes",
+                "{{versaoRestaurar}}",
+                "restaurar"
+              ]
+            },
+            "description": "ATENÇÃO: grava de verdade. Restaura a versão `versaoRestaurar` do lançamento `histId` (rode antes **Versões de um lançamento**, que escolhe uma versão restaurável). Grava uma versão **nova** (`restore`, com `deVersao`) com o conteúdo da escolhida: o passado não é reescrito. Se o lançamento estava excluído, ele volta. O corpo é **vazio**. Para `member`: só o que ela criou e que ainda existe; restaurar um excluído é só do `owner`. Meses conferidos travam (409)."
+          },
+          "response": [
+            {
+              "name": "200: restaurado",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{histId}}/versoes/{{versaoRestaurar}}/restaurar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "spaces",
+                    "{{spaceId}}",
+                    "tx",
+                    "{{histId}}",
+                    "versoes",
+                    "{{versaoRestaurar}}",
+                    "restaurar"
+                  ]
+                }
+              },
+              "body": "{\n  \"id\": \"k3x9a1m7q2w8e5r4t6y1\",\n  \"dataEvento\": \"2026-10-10T12:00:00.000Z\",\n  \"descricao\": \"Mercado\",\n  \"valor\": 180,\n  \"tipo\": \"saida\",\n  \"status\": \"PAGO\",\n  \"banco\": \"Bradesco\",\n  \"tags\": [\n    \"mercado-mensal\"\n  ],\n  \"criadoPor\": \"sub-demo-1\",\n  \"criadoEm\": \"2026-10-10T12:05:00.000Z\",\n  \"_seq\": 104\n}"
+            }
+          ]
+        },
+        {
+          "name": "Erros do histórico",
+          "description": "Erros de propósito, para aprender a ler.",
+          "item": [
+            {
+              "name": "Busca sem o mês → 400",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spaces/{{spaceId}}/historico",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "spaces",
+                    "{{spaceId}}",
+                    "historico"
+                  ]
+                },
+                "description": "O `mes` (AAAA-MM) é obrigatório. Sem ele, ou com um mês inválido (`2026-13`), a API responde 400 e explica em `erro`."
+              },
+              "response": [
+                {
+                  "name": "400: mês obrigatório",
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/spaces/{{spaceId}}/historico",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "spaces",
+                        "{{spaceId}}",
+                        "historico"
+                      ]
+                    }
+                  },
+                  "body": "{\n  \"erro\": \"mes obrigatorio, no formato AAAA-MM\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "Restaurar versão que não existe → 404",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{txId}}/versoes/9999/restaurar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "spaces",
+                    "{{spaceId}}",
+                    "tx",
+                    "{{txId}}",
+                    "versoes",
+                    "9999",
+                    "restaurar"
+                  ]
+                },
+                "description": "Não grava nada. Use o `txId` do lançamento de teste da pasta 2. Um número que não é inteiro maior que zero (`0`, `x`) dá 400."
+              },
+              "response": [
+                {
+                  "name": "404: versão inexistente",
+                  "status": "Not Found",
+                  "code": 404,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{txId}}/versoes/9999/restaurar",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "spaces",
+                        "{{spaceId}}",
+                        "tx",
+                        "{{txId}}",
+                        "versoes",
+                        "9999",
+                        "restaurar"
+                      ]
+                    }
+                  },
+                  "body": "{\n  \"erro\": \"versao nao encontrada\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "Restaurar o que já está igual → 409",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{histId}}/versoes/{{ultimaVersao}}/restaurar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "spaces",
+                    "{{spaceId}}",
+                    "tx",
+                    "{{histId}}",
+                    "versoes",
+                    "{{ultimaVersao}}",
+                    "restaurar"
+                  ]
+                },
+                "description": "Rode antes **Versões de um lançamento**, que guarda `ultimaVersao`. Restaurar a versão mais nova não muda nada, então a API recusa e não grava. Se a última versão for a exclusão, o código é `versao_de_exclusao`. Se o mês estiver conferido, é `mes_conferido`, com o banco e o mês. E se outra pessoa gravar ao mesmo tempo, `conflito_versao`."
+              },
+              "response": [
+                {
+                  "name": "409: já está nessa versão",
+                  "status": "Conflict",
+                  "code": 409,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{histId}}/versoes/{{ultimaVersao}}/restaurar",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "spaces",
+                        "{{spaceId}}",
+                        "tx",
+                        "{{histId}}",
+                        "versoes",
+                        "{{ultimaVersao}}",
+                        "restaurar"
+                      ]
+                    }
+                  },
+                  "body": "{\n  \"erro\": \"o lancamento ja esta nessa versao\",\n  \"codigo\": \"ja_nessa_versao\"\n}"
+                },
+                {
+                  "name": "409: versão da exclusão",
+                  "status": "Conflict",
+                  "code": 409,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{histId}}/versoes/{{ultimaVersao}}/restaurar",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "spaces",
+                        "{{spaceId}}",
+                        "tx",
+                        "{{histId}}",
+                        "versoes",
+                        "{{ultimaVersao}}",
+                        "restaurar"
+                      ]
+                    }
+                  },
+                  "body": "{\n  \"erro\": \"esta versao e a exclusao: restaure uma versao anterior\",\n  \"codigo\": \"versao_de_exclusao\"\n}"
+                },
+                {
+                  "name": "409: mês conferido",
+                  "status": "Conflict",
+                  "code": 409,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/spaces/{{spaceId}}/tx/{{histId}}/versoes/{{ultimaVersao}}/restaurar",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "spaces",
+                        "{{spaceId}}",
+                        "tx",
+                        "{{histId}}",
+                        "versoes",
+                        "{{ultimaVersao}}",
+                        "restaurar"
+                      ]
+                    }
+                  },
+                  "body": "{\n  \"erro\": \"o mes 2026-09 do banco Bradesco esta conferido (ate 2026-09) e travado: reabra o mes na aba Saldos para alterar\",\n  \"codigo\": \"mes_conferido\",\n  \"banco\": \"Bradesco\",\n  \"mes\": \"2026-09\",\n  \"conferidoAte\": \"2026-09\"\n}"
+                }
+              ]
+            }
+          ]
         }
       ]
     }

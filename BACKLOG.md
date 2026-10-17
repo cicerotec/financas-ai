@@ -88,7 +88,8 @@ DynamoDB sem discutir com o dono.**
   busca por **mês de alteração**; o GSI por data entra depois, quando a leitura pesar; a capacidade da tabela (5 WCU)
   fica para depois da refatoração. Fases: 0 (um caminho de escrita), 1 (versões e exclusão lógica), 2 (busca, diff e
   restauração na API), 3 (tela, com demo antes). **Fases 0 e 1 implementadas e verificadas em dev** (a 1 grava as
-  versões e exclui logicamente, com o `Deny` de IAM conferido). O item 38 (fechamento automático do mês anterior) fica para
+  versões e exclui logicamente, com o `Deny` de IAM conferido); **a 2 (busca por mês, diff e restauração na API) está
+  implementada**, falta verificar em dev e fazer a tela (fase 3). O item 38 (fechamento automático do mês anterior) fica para
   depois do histórico: a restauração da Fase 2 respeita a trava do mês conferido, como as outras escritas. Detalhes em
   [`.ai/specs/historico/`](.ai/specs/historico/) (`intent.md`, `plan.md` e `spec.md`).
 - 32. [ ] <a id="item-32"></a>**[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o

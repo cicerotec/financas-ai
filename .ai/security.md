@@ -35,6 +35,8 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `tx.editar` (inclui ocultar e ajustar fatura) | todos | **só os criados por ela** (`criadoPor == sub`) |
 | `tx.excluir` | sim | **não** |
 | `tx.importar` (lote) | sim | **não** |
+| `historico.ler` (busca por mês e versões de um lançamento) | todos | **só os criados por ela** |
+| `historico.restaurar` | todos | **só os criados por ela e que ainda existem**; restaurar um excluído é só do owner |
 | `cfg.ler` (listas, tags, combos, saldos, cartões) | sim | sim |
 | `cfg.escrever` (renomear/excluir tag, combos, bancos, status, flags, saldo inicial, início do controle, conferir fatura) | sim | **não** |
 | `tags.adicionar` | sim | sim, **só tags que ainda não existem** (o servidor só acrescenta) |

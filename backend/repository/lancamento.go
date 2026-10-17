@@ -144,3 +144,73 @@ func (r *Lancamentos) transacionar(ctx context.Context, itens []types.TransactWr
 	}
 	return err
 }
+
+// versaoDe le uma versao gravada no historico.
+func versaoDe(item map[string]types.AttributeValue) (domain.Versao, error) {
+	var d domain.Doc
+	if err := attributevalue.UnmarshalMap(item, &d); err != nil {
+		return domain.Versao{}, err
+	}
+	n, ok := d["versao"].(float64)
+	if !ok {
+		return domain.Versao{}, errors.New("versao sem numero em " + fmt.Sprint(d["SK"]))
+	}
+	v := domain.Versao{Numero: int(n)}
+	v.Acao = domain.Acao(strOf(d["acao"]))
+	v.PorSub, v.Em = strOf(d["porSub"]), strOf(d["em"])
+	if dv, ok := d["deVersao"].(float64); ok {
+		v.DeVersao = int(dv)
+	}
+	v.Registro, _ = d["registro"].(map[string]any)
+	v.ID = strOf(v.Registro["id"])
+	return v, nil
+}
+
+func strOf(x any) string { s, _ := x.(string); return s }
+
+// consultaHistorico le as versoes de um prefixo de SK da particao do espaco, pagina por pagina, ate acabar ou
+// juntar mais de "limite" (0 = sem teto). Devolve ate "limite" e se havia mais.
+func (r *Lancamentos) consultaHistorico(ctx context.Context, sid, prefixoSK string, limite int) ([]domain.Versao, bool, error) {
+	in := &dynamodb.QueryInput{
+		TableName:              &r.table,
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :s)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: HistPK(sid)},
+			":s":  &types.AttributeValueMemberS{Value: prefixoSK},
+		},
+		ConsistentRead: aws.Bool(true),
+	}
+	var vs []domain.Versao
+	for {
+		out, err := r.db.Query(ctx, in)
+		if err != nil {
+			return nil, false, err
+		}
+		for _, it := range out.Items {
+			v, err := versaoDe(it)
+			if err != nil {
+				return nil, false, err
+			}
+			vs = append(vs, v)
+		}
+		if limite > 0 && len(vs) > limite {
+			return vs[:limite], true, nil
+		}
+		if out.LastEvaluatedKey == nil {
+			return vs, false, nil
+		}
+		in.ExclusiveStartKey = out.LastEvaluatedKey
+	}
+}
+
+// Versoes devolve todas as versoes do lancamento, da primeira para a ultima (vazio se nao tem historico).
+func (r *Lancamentos) Versoes(ctx context.Context, sid, id string) ([]domain.Versao, error) {
+	vs, _, err := r.consultaHistorico(ctx, sid, "TX#"+id+"#", 0)
+	return vs, err
+}
+
+// VersoesDoEspaco devolve as versoes de todos os lancamentos do espaco, ate o limite; truncado diz que havia mais.
+// Nao tem indice por data: le a particao inteira (um GSI por data entra depois, sem mudar o contrato).
+func (r *Lancamentos) VersoesDoEspaco(ctx context.Context, sid string, limite int) ([]domain.Versao, bool, error) {
+	return r.consultaHistorico(ctx, sid, "TX#", limite)
+}
