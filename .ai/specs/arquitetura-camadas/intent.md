@@ -3,7 +3,7 @@
 Item 32 do BACKLOG. Este documento diz **o quê e por quê**; o como está em [`plan.md`](plan.md). O roteiro verificável
 (`spec.md`) de cada fatia é escrito **quando a fatia começa**, depois do ok do dono, como foi feito no histórico.
 
-**Estado:** rascunho para o dono aprovar. Nenhum código foi alterado. Contexto das decisões já fechadas:
+**Estado:** aprovado pelo dono em 2026-10-17 (decisões no fim do `plan.md`). Nenhum código foi alterado ainda. Contexto das decisões já fechadas:
 [`../../arquitetura.md`](../../arquitetura.md) (camadas, regra de dependência, estrutura de pastas).
 
 ## Por quê

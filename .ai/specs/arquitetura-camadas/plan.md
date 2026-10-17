@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje. Cada fatia vira uma entrega própria
 (branch, spec curto, PR, release); o app fica no ar entre elas.
 
-**Estado:** rascunho para o dono aprovar.
+**Estado:** decisões do dono fechadas em 2026-10-17 (seção final); falta o spec da fatia 1 para começar.
 
 ## Onde o código está hoje (o que falta migrar)
 
@@ -29,7 +29,10 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
   trava), `Avisos`. Cada um declara as interfaces de que precisa (`Repositorio…`, `Relogio`, `Notificador`).
 - **Controllers** em `controller/` traduzem requests e erros, como o dos lançamentos. O roteador deixa de ter `case` com
   lógica: cada rota chama um método.
-- **O telegram** vira um adaptador `telegram/` que implementa `service.Notificador` e recebe o cliente SSM e o HTTP por construtor.
+- **Os canais de envio** moram em `notificacao/`, um arquivo por canal (`telegram.go` agora; `email.go` e `whatsapp.go` quando
+  existirem), como `repository/` tem um arquivo por assunto. Cada um implementa `service.Notificador` e recebe o que precisa
+  (cliente SSM, HTTP) por construtor. **O despachante** (quem recebe, o quê, por qual canal) é regra e vive no `service`, no item 34;
+  por isso a pasta `dispatcher/` do `arquitetura.md` deixa de ser necessária e esse documento é ajustado quando o 34 começar.
 - **A raiz** (`main.go`) fica com: ler variáveis de ambiente, criar clients, montar tudo, entregar o handler à Lambda e ao modo
   local. `entrada` (HTTP ou `{"acao":"avisos"}`) continua lá, só delegando.
 - **Testes:** o `cenario()` passa a construir o conjunto com o `bancoFake`, um relógio fixo e um notificador falso, sem
@@ -42,7 +45,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 | 1 | **Espaços e leitura de lançamentos** | `store.go` (`papel`, `getItem` dos espaços, `listarTx`, cursor), `getMe`, `getTxs` | `repository/espacos.go`, `service.Espacos`, `Lancamentos.Listar`; o `Relogio` e o montador único nascem aqui, e o `main` passa a injetar `db` e `table` |
 | 2 | **Configurações, tags, contador e perfil** | `getCfg`, `putCfg`, `putAparencia`, `salvarCfg`, `tags.go`, `seq.go`, `perfil.go` | `repository/config.go`, `service.Config` e `service.Perfil`; some a ponte `GarantirTags` e `ComSeq` do `efeitos.go` |
 | 3 | **Fechamento e saldos** | `fechamento.go` (saldos, conferir, reabrir, `travas`, `invalidarSaldos`) | `repository/saldos.go`, `service.Fechamento`; a trava passa a ser do service (some a ponte `Travas` e `InvalidarSaldos`) |
-| 4 | **Avisos e Telegram** | `avisos.go`, `telegram.go`, `enviarMensagem` | `repository/avisos.go`, `service.Avisos`, adaptador `telegram/`; **sem** despachante (item 34); somem as últimas globais e `efeitos.go`/`dominio_compat.go` |
+| 4 | **Avisos e Telegram** | `avisos.go`, `telegram.go`, `enviarMensagem` | `repository/avisos.go`, `service.Avisos`, adaptador `notificacao/telegram.go`; **sem** despachante (item 34); somem as últimas globais e `efeitos.go`/`dominio_compat.go` |
 
 Depois da 4, `main.go` só liga, e o item 34 constrói o despachante em cima de `service.Avisos`.
 
@@ -59,13 +62,10 @@ fundação já provada; a 4 depende do relógio e do telegram injetados e fecha 
 4. Deploy em dev, conferência no app, PR para `develop`; release quando o dono quiser.
 5. `arquitetura.md` e o BACKLOG atualizados no mesmo PR (a raiz encolhe a cada fatia).
 
-## Decisões para o dono (recomendação em negrito)
+## Decisões do dono (2026-10-17)
 
-1. **Ordem das fatias:** **1 → 2 → 3 → 4**, como acima. Alternativa: fechamento (3) primeiro, por ser o mais ligado ao item 33.
-2. **Avisos e Telegram:** **migrar na fatia 4, só com injeção, e deixar o despachante para o item 34**. Alternativa: tirar a
-   fatia 4 daqui e fazê-la dentro do 34, mantendo `db`/`ssmCli` globais até lá.
-3. **Relógio:** **interface `Relogio` no service, com adaptador real e fixo**. Alternativa: continuar passando `time.Time` por
-   parâmetro em todo método.
-4. **Um PR por fatia, com release entre elas** (**recomendado**) ou agrupar 1 e 2 num PR só, por serem pequenas.
-5. **Nome dos pacotes novos:** `telegram/` para o adaptador de envio (**recomendado**) ou `notificacao/`, já pensando nos
-   outros canais do item 34.
+1. **Ordem das fatias:** 1 → 2 → 3 → 4.
+2. **Avisos e Telegram:** migram na fatia 4, só com injeção; o despachante fica para o item 34.
+3. **Relógio:** interface `Relogio` no service, com adaptador real e fixo.
+4. **Um PR por fatia**, com release entre elas.
+5. **Pasta dos canais:** `notificacao/`, com um arquivo por canal (telegram, e-mail, WhatsApp). O despachante vive no `service`.
