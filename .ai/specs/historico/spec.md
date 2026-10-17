@@ -400,6 +400,9 @@ maior que zero responde `400`; versão inexistente, `404`.
 
 ### Fase 3: tela
 
+Estado: **implementada** (branch `feature/historico-tela`): demo aprovada em 2026-10-16, tela em `web/js/versoes.js`, testes em
+`web/versoes.test.js`. Falta só conferir no app de dev, no celular e no computador.
+
 Sem código antes da **demo aprovada** (guardrails, "Telas"). A demo é um artefato privado que abre no celular.
 
 - **A demo mostra:** Configurações → Histórico de versões; seletor de mês (padrão: o atual) e busca de texto;

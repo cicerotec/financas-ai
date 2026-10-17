@@ -16,6 +16,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Resumo da Futuros | [`demos/demo-resumo-futuros.html`](demos/demo-resumo-futuros.html) | a comparação que decidiu o resumo (opção A), com valores extremos e larguras de 320 a 390 px |
 | Total do Histórico | [`demos/demo-historico-total.html`](demos/demo-historico-total.html) | a soma da lista (renda menos gasto) à direita da linha do contador, na busca por texto e no mês aberto |
 | Atalhos no cabeçalho | [`demos/demo-atalho-saldos.html`](demos/demo-atalho-saldos.html) | Histórico e Saldos entre o nome da tela e o ⋮, em 320, 360 e 390 px, com o "como está hoje" (aprovado em 2026-10-15) |
+| Histórico de versões | [`demos/demo-historico-versoes.html`](demos/demo-historico-versoes.html) | busca por mês, lista de excluídos e alterados, versões com diff e Restaurar (desabilitado com o motivo), estados vazio e truncado, papéis dono e membro e a visão de computador (aprovado em 2026-10-16) |
 | Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
 
 ## Princípios
@@ -80,10 +81,31 @@ Aprovado pelo dono em 2026-10-14. Presente no topo de todas as demos de `demos/`
 - **Janela larga (1160 px ou mais):** não muda nada: título e abas em botões, como sempre. O limite é o mesmo da tabela de
   Futuros.
 - **No app**, as abas em botões (`nav`) continuam sendo a fonte das telas e dos nomes; o menu é montado a partir delas
-  (`MENU_APP` em `web/js/app.js` só define a ordem, os grupos e os ícones). Membro não vê Importar, nem no menu.
+  (`MENU_APP` em `web/js/app.js` só define a ordem, os grupos e os ícones). Membro não vê Importar, nem no menu. Configurar tem Listas,
+  Histórico de versões e Importar.
 - **Custo:** trocar de tela passa a pedir dois toques (⋮ e a tela) em vez de um, **exceto Histórico e Saldos** (um toque).
   Em troca, o cabeçalho cai de 2 linhas para 1. A barra inferior estilo C6 foi descartada: lá a barra some em toda tela
   empilhada, e o app é de navegação plana.
+
+## Histórico de versões (tela)
+Aprovado pelo dono em 2026-10-16 ([`demos/demo-historico-versoes.html`](demos/demo-historico-versoes.html)). Fica em **Configurar**, depois de Listas
+(`web/js/versoes.js`, seção `tab-versoes`). Só desenha: a busca, o diff, `restauravel` e `motivo` vêm da API.
+- **Busca por mês da alteração** (não o da data do lançamento): ‹ mês › com o seletor nativo (`input type=month`, sem passar do mês
+  atual, que é o padrão) e o campo de texto com o botão Buscar (Enter também busca). O texto olha a descrição e a nota de qualquer
+  versão do mês.
+- **Lista (padrão 8):** uma linha por lançamento com a última alteração do mês: descrição (até 2 linhas), data · banco, a pílula
+  (Criado, Alterado, Excluído ou Restaurado), quem e quando, o valor e "versão N". Mês sem alteração mostra o estado vazio, e
+  `truncado` mostra a faixa "Há mais versões do que a tela mostra. Refine a busca ou escolha outro mês."
+- **Versões:** tocar abre a **tela cheia** com ← (padrão 2); a mais nova primeiro, cada uma só com o que mudou (valor antes → depois).
+  A v1 de um lançamento antigo diz "Estado antes da primeira alteração registrada."
+- **Restaurar:** botão de 52 px por versão, com janela de confirmação ("Restaurar a versão N?") que diz que será gravada uma versão
+  nova e que o lançamento reaparece nas listas, se estava excluído. O botão vem **desabilitado com o motivo** que o servidor mandou
+  (a versão é a exclusão, já está nessa versão, mês conferido, só o dono restaura um excluído). Todos os motivos aparecem na mesma cor
+  de apoio: o front não decide pelo texto.
+- **Computador (1160 px ou mais):** tabela (alterado em, lançamento, o que houve, quem, valor) com o **painel de versões ao lado**,
+  no lugar da tela cheia.
+- **Custo:** só aparece o mês escolhido; restaurar em mês conferido não deixa, nem para o dono; não há atalho "Ver versões" dentro
+  do lançamento. A exclusão imediata com Desfazer por restauração é o item 38 do BACKLOG, não desta tela.
 
 ## Padrões do celular
 **1. Linha-resumo que abre tela cheia.** Cartão com título em negrito e, embaixo, o valor atual em `--muted`

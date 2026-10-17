@@ -421,6 +421,24 @@
   const conferirMes = async (dados) => api('POST', (await base()) + '/fechamentos/conferir', dados);
   const reabrirMes = async (banco, mes) => api('POST', (await base()) + '/fechamentos/reabrir', { banco, mes });
 
+  // Historico de versoes (.ai/specs/historico). Quem decide o que aparece, o diff e se uma versao pode ser restaurada e o servidor.
+  // Busca por mes da alteracao (e texto): { mes, truncado, itens }.
+  const historicoMes = async (mes, q) => {
+    const p = new URLSearchParams({ mes });
+    if (q) p.set('q', q);
+    return (await api('GET', (await base()) + '/historico?' + p)).body;
+  };
+  // Versoes de um lancamento, da mais nova para a mais antiga. de (dataEvento) so serve a lancamento sem nenhuma versao.
+  const versoesDoLancamento = async (id, de) =>
+    (await api('GET', (await base()) + '/tx/' + encodeURIComponent(id) + '/versoes' + (de ? '?de=' + encodeURIComponent(de) : ''))).body;
+  // Restaura a versao n (grava uma versao nova). Os 409 voltam como { status, body } (mes conferido, ja esta nessa versao,
+  // versao da exclusao, conflito); o 200 avisa as outras telas, que leem lancamentos, para recarregar.
+  const restaurarVersao = async (id, n) => {
+    const r = await api('POST', (await base()) + '/tx/' + encodeURIComponent(id) + '/versoes/' + n + '/restaurar');
+    if (r.status === 200) { registrarSeq(r.body._seq); atualizarOuvintes('col'); }
+    return r;
+  };
+
   const dbShim = {
     importarLancamentos,
     adicionarTags,
@@ -428,6 +446,9 @@
     salvarCaches,
     conferirMes,
     reabrirMes,
+    historicoMes,
+    versoesDoLancamento,
+    restaurarVersao,
     collection: (nome) => {
       if (nome !== 'lancamentos') throw new Error('colecao desconhecida: ' + nome);
       return new Consulta();
