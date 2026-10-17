@@ -19,7 +19,10 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 
 ## Desenho
 
-- **Regra pura em `domain/`:** `MesFechadoPorData(mes string, agora time.Time) bool`. O mês M é **aberto** se for o atual, um futuro,
+- **O dia 7 é uma constante, não uma variável:** `const DiaLimiteMesAnterior = 7` em `domain/` (resolvida na compilação, ninguém a muda
+  em tempo de execução, e não há variável global nova). É o único lugar onde o número aparece; a mensagem do erro e os testes a usam.
+- **Regra pura em `domain/`:** `MesFechadoPorData(mes string, agora time.Time) bool`, que recebe o instante como **parâmetro** (não lê
+  relógio nenhum). O mês M é **aberto** se for o atual, um futuro,
   ou o anterior ao atual enquanto o dia do mês em São Paulo for ≤ 7; senão é fechado. Testada em tabela, com as bordas (dia 7 às
   23h59 e dia 8 às 0h em SP, o mesmo instante em UTC, virada de ano).
 - **Erro novo `domain.ErroMesFechado{Banco, Mes}`**, irmão do `ErroMesConferido`, mas **confirmável**.

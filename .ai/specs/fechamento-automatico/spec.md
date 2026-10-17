@@ -14,7 +14,9 @@ o plan.
   atual enquanto o **dia do mês for 7 ou menos**. Qualquer outro mês é **fechado por data**. Exemplos com `agora` = 2026-10-07
   23:59: outubro, setembro e novembro abertos; agosto fechado. Com `agora` = 2026-10-08 00:00: setembro **fechado**. Com `agora` =
   2027-01-05: dezembro de 2026 aberto; novembro fechado.
-- **R3.** O instante é o relógio do servidor (`agora()` da raiz), nunca um valor enviado pelo cliente.
+- **R3.** O instante é o relógio do servidor (`agora()` da raiz), nunca um valor enviado pelo cliente. A função de domínio recebe
+  esse instante como parâmetro. O limite "dia 7" é a **constante** `domain.DiaLimiteMesAnterior = 7` (não é variável, nem global), e a
+  mensagem do erro e os testes a usam em vez de repetir o número.
 - **R4.** Não grava estado nem campo no lançamento: a regra é função do mês e do relógio.
 
 **O que a regra exige**
