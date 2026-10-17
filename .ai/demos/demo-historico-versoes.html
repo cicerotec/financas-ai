@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Demo da tela Histórico de versões (fase 3 do histórico). Aguardando o ok do dono. Referência futura do padrão em ../padrao-de-telas.md. -->
+<!-- Dados fictícios. A busca por mês, o diff, o restauravel/motivo e os bloqueios vêm da API (spec: ../specs/historico/spec.md); a demo só desenha. -->
+<title>Histórico de versões</title>
+<style>
+/* Tokens do app (.ai/padrao-de-telas.md). Layout: celular com lista que abre tela cheia; computador com tabela e painel de versões ao lado. */
+:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--faint:#8c938d;--line:#e4e2dc;--ck:#d3d6d2;--accent:#0f6b4f;--onaccent:#ffffff;--accent-bg:#dcefe5;--danger:#a3321f;--danger-bg:#f8e6e2;--ok:#1d6b45}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.4;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px;max-width:440px;margin-inline:auto}
+body.wide{max-width:1180px}
+h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:0 0 12px;font-size:13px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:transparent;padding:8px 12px;min-height:40px;cursor:pointer;font-size:13px}
+.seg button.on{background:var(--accent);color:var(--onaccent);font-weight:600}
+.frame{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:22px;overflow:hidden}
+.phone{height:640px}
+.scr{position:absolute;inset:0;overflow-y:auto;padding:14px 14px 90px}
+.card{background:var(--card);border-radius:16px;margin:0 0 10px;overflow:hidden}
+/* barra de mes e busca */
+.mes{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.mes .nv{flex:none;width:44px;height:44px;border:0;border-radius:12px;background:var(--card);font-size:22px;cursor:pointer}
+.mes input[type=month]{flex:1;min-width:0;height:44px;border:0;border-radius:12px;background:var(--card);color:var(--fg);font:inherit;font-weight:600;padding:0 10px;text-align:center}
+.busca{display:flex;gap:8px;margin:0 0 10px}
+.busca input{flex:1;min-width:0;height:44px;border:0;border-radius:12px;background:var(--card);color:var(--fg);font:inherit;padding:0 12px}
+.busca button{flex:none;height:44px;padding:0 16px;border:0;border-radius:12px;background:var(--accent);color:var(--onaccent);font-weight:600;cursor:pointer}
+.cont{display:flex;justify-content:space-between;gap:10px;margin:2px 4px 8px;font-size:13px;color:var(--muted)}
+.aviso{background:var(--danger-bg);color:var(--danger);border-radius:14px;padding:10px 14px;font-size:13px;margin:0 0 10px}
+.vazio{padding:28px 16px;text-align:center;color:var(--muted);font-size:13px}
+/* linha da lista (padrao 8) */
+.li{display:flex;align-items:center;gap:12px;padding:8px 16px;min-height:62px;width:100%;background:transparent;border:0;border-top:1px solid var(--line);text-align:left;cursor:pointer}
+.li:first-child{border-top:0}
+.li .t{flex:1;min-width:0}
+.li .t b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600}
+.li .s{display:block;color:var(--muted);font-size:13px}
+.li .r{text-align:right;flex:none}
+.li .v{display:block;white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums}
+.li .v.out{color:var(--danger)}.li .v.in{color:var(--ok)}
+.li .vs{display:block;color:var(--faint);font-size:12px}
+.li.sel{background:var(--accent-bg)}
+.pill{display:inline-block;border-radius:10px;padding:1px 8px;font-size:12px;font-weight:600;background:var(--ck);color:var(--fg);margin-right:6px}
+.pill.ex{background:var(--danger-bg);color:var(--danger)}
+.pill.rs{background:var(--accent-bg);color:var(--accent)}
+/* tela cheia de versoes (padroes 1 e 2) */
+.full{position:absolute;inset:0;background:var(--bg2);overflow-y:auto;z-index:3}
+.full .top{position:sticky;top:0;display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--bg2);border-bottom:1px solid var(--line);z-index:2}
+.full .top b{font-size:18px}
+.full .top button{width:48px;height:48px;border:0;border-radius:50%;background:transparent;font-size:24px;cursor:pointer}
+.full .ctx{padding:10px 16px 4px;font-size:13px;color:var(--muted)}
+.full .ctx b{color:var(--fg)}
+.full .corpo{padding:6px 14px 40px}
+.ver{background:var(--card);border-radius:16px;margin:0 0 10px;padding:12px 16px 14px}
+.ver .h{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.ver .h b{font-size:15px}
+.ver .q{color:var(--muted);font-size:13px;margin:2px 0 8px}
+.ver ul{margin:0 0 10px;padding:0;list-style:none;font-size:14px}
+.ver li{padding:2px 0}
+.ver li s{color:var(--faint);text-decoration:line-through}
+.ver li .n{font-weight:600}
+.ver .rb{width:100%;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--onaccent);font-weight:600;cursor:pointer}
+.ver .rb:disabled{background:var(--ck);color:var(--muted);cursor:not-allowed}
+.ver .mt{margin:8px 2px 0;font-size:13px;color:var(--muted)}
+.ver .mt.dg{color:var(--danger)}
+/* modal de confirmacao e aviso */
+.mov{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:5}
+.modal{background:var(--card);border-radius:16px;padding:18px 16px 14px;width:100%;max-width:420px}
+.modal p{margin:0 0 6px;font-weight:600}
+.modal .m{margin:0 0 14px;font-weight:400;color:var(--muted);font-size:13px}
+.modal .btns{display:flex;gap:10px}
+.modal .btns button{flex:1;padding:13px;border-radius:14px;border:0;font-weight:600;cursor:pointer}
+.modal .no{background:var(--ck)}
+.modal .ok{background:var(--accent);color:var(--onaccent)}
+.toast{position:absolute;left:14px;right:14px;bottom:14px;background:var(--fg);color:var(--bg);border-radius:12px;padding:14px 16px;font-size:14px;z-index:6}
+.toast s{display:block;opacity:.7;text-decoration:none;font-size:12px}
+/* computador */
+.desk{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:16px;align-items:start}
+.deskframe{min-height:640px;padding:16px;position:relative}
+.tab{width:100%;border-collapse:collapse;background:var(--card);border-radius:16px;overflow:hidden;font-size:14px}
+.tab th{background:var(--bg2);color:var(--muted);text-align:left;font-weight:600;font-size:12px;padding:8px 12px}
+.tab td{padding:10px 12px;border-top:1px solid var(--line);vertical-align:top}
+.tab tr.sel td{background:var(--accent-bg)}
+.tab tbody tr{cursor:pointer}
+.tab td.num{text-align:right;white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums}
+.tab td.num.out{color:var(--danger)}.tab td.num.in{color:var(--ok)}
+.tab .d{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600}
+.tab .mu{color:var(--muted);font-size:13px}
+.painel{background:var(--bg2);border-radius:18px;border:1px solid var(--line);min-height:300px}
+.painel .full{position:static;background:transparent;overflow:visible}
+.painel .vazio{padding:60px 20px}
+/* explicacao */
+.dec{margin-top:16px;border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--muted)}
+.dec b{color:var(--fg);font-weight:600}
+.dec ul{margin:6px 0 10px;padding-left:18px}
+@media (max-width:1159px){.desk{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<!-- menu-app:inicio (padrao do menu do app; igual em todas as demos. Celular e janela < 1160 px: menu ⋮. Janela larga ou "Computador": abas em botoes, como hoje) -->
+<style>
+.mn{position:sticky;top:env(safe-area-inset-top,0px);z-index:60;margin-inline:-16px;padding:0 16px 8px;background:var(--bg);border-bottom:1px solid var(--line,var(--border));margin-bottom:12px}
+.mn *{box-sizing:border-box}
+.mn .mn-pills{display:none}
+.mn .mn-t{font-size:18px;font-weight:700;margin:10px 0 8px}
+.mn .mn-pills{gap:6px;overflow-x:auto;padding-bottom:2px}
+.mn .mn-pills button{border:1px solid var(--line,var(--border));background:var(--card);color:var(--fg,var(--text));padding:7px 12px;border-radius:20px;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
+.mn .mn-pills button.on{background:var(--accent);color:var(--onaccent,#fff);border-color:var(--accent)}
+.mn .mn-bar{display:flex;align-items:center;gap:8px;min-height:52px}
+.mn .mn-nome{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.mn .mn-app{font-size:11px;color:var(--muted)}
+.mn .mn-tela{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mn .mn-ib{width:48px;height:48px;border:0;background:transparent;color:var(--fg,var(--text));border-radius:50%;cursor:pointer;display:grid;place-items:center;flex:none;padding:0}
+.mn .mn-ib[aria-expanded="true"]{background:var(--accent-bg,rgba(95,185,138,.2))}
+.mn .mn-ib svg{width:24px;height:24px}
+.mn .mn-shade{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:61}
+.mn .mn-drop{position:absolute;top:52px;right:10px;width:240px;max-width:calc(100vw - 20px);background:var(--card);color:var(--fg,var(--text));border:1px solid var(--line,var(--border));border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:6px;z-index:62}
+.mn .mn-grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px}
+.mn .mn-grp:first-child{padding-top:6px}
+.mn .mn-it{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;border:0;background:transparent;color:inherit;font:inherit;font-size:15px;text-align:left;padding:0 10px;border-radius:10px;cursor:pointer}
+.mn .mn-it:hover,.mn .mn-it.on{background:var(--accent-bg,rgba(95,185,138,.2))}
+.mn .mn-it.on{font-weight:600}
+.mn .mn-ic{width:22px;text-align:center;font-size:17px;flex:none}
+.mn .mn-ck{margin-left:auto;color:var(--accent);font-weight:700}
+.mn hr{border:0;border-top:1px solid var(--line,var(--border));margin:4px 6px}
+.mn .mn-nota{font-size:11px;color:var(--muted);padding:6px 10px 4px;line-height:1.35}
+.mn[hidden],.mn [hidden]{display:none!important}
+@media (min-width:1160px){.mn.mn-auto .mn-bar{display:none}.mn.mn-auto .mn-pills{display:flex}}
+.mn.mn-largo .mn-bar{display:none}.mn.mn-largo .mn-pills{display:flex}
+</style>
+<header class="mn mn-auto" id="mn" data-tela="versoes"></header>
+<script>
+(function(){
+  var el=document.getElementById('mn'); if(!el) return;
+  var T=[['lancar','Lançar','✏️','Dia a dia'],['historico','Histórico','🕘','Dia a dia'],['futuros','Futuros','📅','Dia a dia'],
+         ['cartao','Cartão','💳','Acompanhar'],['saldos','Saldos','🏦','Acompanhar'],['tendencias','Tendências','📈','Acompanhar'],
+         ['listas','Listas','🏷️','Configurar'],['versoes','Histórico de versões','🧾','Configurar'],['importar','Importar','📥','Configurar']];
+  var atual=el.getAttribute('data-tela')||'lancar';
+  var MAIS='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+  function nome(){for(var i=0;i<T.length;i++)if(T[i][0]===atual)return T[i][1];return '';}
+  function fechar(){var d=el.querySelector('.mn-drop'),s=el.querySelector('.mn-shade'),b=el.querySelector('.mn-ib');
+    if(d)d.hidden=true;if(s)s.hidden=true;if(b)b.setAttribute('aria-expanded','false');}
+  function montar(){
+    var g='',m='';
+    T.forEach(function(t){
+      if(t[3]!==g){if(g)m+='<hr>';m+='<div class="mn-grp">'+t[3]+'</div>';g=t[3];}
+      var on=t[0]===atual;
+      m+='<button type="button" class="mn-it'+(on?' on':'')+'" role="menuitem" data-id="'+t[0]+'"><span class="mn-ic">'+t[2]+'</span>'+t[1]+(on?'<span class="mn-ck">✓</span>':'')+'</button>';
+    });
+    el.innerHTML=
+      '<div class="mn-t">💰 Finanças da Família</div>'+
+      '<div class="mn-pills">'+T.map(function(t){return '<button type="button" data-id="'+t[0]+'" class="'+(t[0]===atual?'on':'')+'">'+t[1]+'</button>';}).join('')+'</div>'+
+      '<div class="mn-bar"><div class="mn-nome"><span class="mn-app">💰 Finanças da Família</span><span class="mn-tela">'+nome()+'</span></div>'+
+      '<button type="button" class="mn-ib" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">'+MAIS+'</button></div>'+
+      '<div class="mn-shade" hidden></div>'+
+      '<div class="mn-drop" role="menu" aria-label="Telas do app" hidden>'+m+'<div class="mn-nota">Na demo, trocar de tela só muda o destaque do menu.</div></div>';
+    el.querySelector('.mn-t').style.display='';
+    var ib=el.querySelector('.mn-ib'),d=el.querySelector('.mn-drop'),s=el.querySelector('.mn-shade');
+    ib.onclick=function(){var abrir=d.hidden;fechar();if(abrir){d.hidden=false;s.hidden=false;ib.setAttribute('aria-expanded','true');}};
+    s.onclick=fechar;
+    el.querySelectorAll('[data-id]').forEach(function(b){b.onclick=function(){atual=b.getAttribute('data-id');montar();};});
+  }
+  function largo(){el.classList.toggle('mn-largo',document.body.classList.contains('wide'));}
+  new MutationObserver(largo).observe(document.body,{attributes:true,attributeFilter:['class']});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')fechar();});
+  montar();largo();
+})();
+</script>
+<style>.mn .mn-t{display:none}@media (min-width:1160px){.mn.mn-auto .mn-t{display:block}}.mn.mn-largo .mn-t{display:block}</style>
+<!-- menu-app:fim -->
+<h1>Histórico de versões</h1>
+<p class="sub">Demonstração com dados de exemplo. Escolha um mês, toque num lançamento e restaure uma versão. Nada é salvo no app.</p>
+<div class="ctl">
+  <span>Tela:</span><span class="seg" id="segTela"><button type="button" data-v="cel" class="on">Celular</button><button type="button" data-v="pc">Computador</button></span>
+  <span>Ver como:</span><span class="seg" id="segPapel"><button type="button" data-v="dono" class="on">Dono (Ana)</button><button type="button" data-v="membro">Membro (Carla)</button></span>
+  <button type="button" id="reset" class="seg" style="padding:8px 12px;cursor:pointer;font-size:13px">Restaurar os dados da demonstração</button>
+</div>
+<div id="app"></div>
+<div class="dec" id="notas"><b>Como funciona, para você confirmar</b>
+<ul>
+<li><b>Onde fica:</b> Configurar → Histórico de versões (menu ⋮ no celular, aba no computador). O nome "Histórico" continua sendo a lista de lançamentos de sempre.</li>
+<li><b>O mês é o da alteração, não o da data do lançamento.</b> Um lançamento de setembro editado hoje aparece em outubro. Para ver outro mês, troque o mês (setas ou o seletor nativo do celular). O padrão é o mês atual. A busca procura na descrição e na nota de qualquer versão do mês, então o nome antigo também acha o lançamento.</li>
+<li><b>Uma linha por lançamento</b>, com a última alteração do mês: o que foi (Criado, Alterado, Excluído ou Restaurado), quem e quando. Tocar abre as versões em tela cheia, com a seta ← para voltar; no computador, num painel ao lado.</li>
+<li><b>Cada versão mostra só o que mudou</b> (valor antes → depois). A primeira versão de um lançamento antigo mostra "autor desconhecido".</li>
+<li><b>Restaurar</b> pede confirmação e grava uma <b>versão nova</b>; as antigas continuam. Se o lançamento estava excluído, ele volta para as listas. Quem decide se pode restaurar é o servidor: o botão fica desabilitado com o motivo. Motivos: a versão é a própria exclusão; o lançamento já está nessa versão; mês conferido (veja <b>Salário setembro</b>); só o dono restaura um excluído (veja o papel Membro).</li>
+<li><b>Membro</b> só vê, e só restaura, o que ele mesmo criou.</li>
+<li><b>Busca grande:</b> a tela lê no máximo 5.000 versões por vez. Passou disso, aparece o aviso para refinar a busca (veja <b>julho/2026</b>).</li>
+<li>Mês sem alteração mostra o estado vazio (veja <b>agosto/2026</b>).</li>
+</ul>
+<b>O que esta proposta faz perder</b>
+<ul>
+<li>Só aparece o <b>mês escolhido</b>: para achar algo, a pessoa precisa saber mais ou menos quando mudou, ou buscar pelo nome em cada mês. Uma visão de "tudo" pede um índice por data (fica para depois, sem mudar a tela).</li>
+<li><b>Restaurar em mês conferido não deixa</b>, nem para o dono: é preciso reabrir o mês na aba Saldos antes. A trava por data do mês anterior (sem conferência) é o item 38 do BACKLOG, depois do histórico.</li>
+<li>Não há atalho "Ver versões" dentro do lançamento, de propósito: o histórico mora só aqui.</li>
+<li>A exclusão continua como hoje (confirmação e Desfazer de 6 segundos). Excluir na hora e Desfazer por restauração é o item 38.</li>
+</ul></div>
+<script>
+(function(){
+  // ---------- dados de exemplo ----------
+  var PESSOAS={ana:'Ana',carla:'Carla','':''};
+  function r(d,v,data,banco,tipo,excl){return {d:d,v:v,data:data,banco:banco,tipo:tipo||'saida',excl:excl||null};}
+  function ver(n,acao,por,em,reg,de){return {n:n,acao:acao,por:por,em:em,reg:reg,de:de||0};}
+  function itens(){return [
+    {id:'m1',criado:'ana',banco:'NUBANK',conf:false,vers:[
+      ver(1,'insert','ana','2026-10-10T15:05:00.000Z',r('Mercado do bairro',180,'2026-10-10','NUBANK')),
+      ver(2,'update','ana','2026-10-14T16:02:00.000Z',r('Mercado do bairro',187.5,'2026-10-10','NUBANK')),
+      ver(3,'delete','ana','2026-10-14T18:40:00.000Z',r('Mercado do bairro',187.5,'2026-10-10','NUBANK','saida','2026-10-14T18:40:00.000Z')),
+      ver(4,'restore','ana','2026-10-15T12:00:00.000Z',r('Mercado do bairro',187.5,'2026-10-10','NUBANK'),2)]},
+    {id:'i1',criado:'ana',banco:'ITAU',conf:false,vers:[
+      ver(1,'insert','ana','2026-10-05T21:00:00.000Z',r('Ingresso show',99.9,'2026-10-04','ITAU')),
+      ver(2,'update','ana','2026-10-12T15:00:00.000Z',r('Ingresso cancelado',89.9,'2026-10-04','ITAU')),
+      ver(3,'delete','ana','2026-10-12T16:15:00.000Z',r('Ingresso cancelado',89.9,'2026-10-04','ITAU','saida','2026-10-12T16:15:00.000Z'))]},
+    {id:'s1',criado:'carla',banco:'ITAU',conf:false,vers:[
+      ver(1,'insert','carla','2026-10-03T15:00:00.000Z',r('Seguro auto',230.5,'2026-10-03','ITAU')),
+      ver(2,'update','carla','2026-10-08T17:00:00.000Z',r('Seguro auto parcela 3/10 com descrição bem longa para testar duas linhas no celular',230.5,'2026-10-03','ITAU'))]},
+    {id:'l1',criado:'ana',banco:'ITAU',conf:true,vers:[
+      ver(1,'insert','','2026-09-22T16:00:00.000Z',r('Salário setembro',5000,'2026-09-05','ITAU','entrada')),
+      ver(2,'update','ana','2026-09-22T16:00:00.000Z',r('Salário setembro',5200,'2026-09-05','ITAU','entrada'))]},
+    {id:'f1',criado:'carla',banco:'NUBANK',conf:false,vers:[
+      ver(1,'insert','carla','2026-09-12T17:00:00.000Z',r('Farmácia',48.9,'2026-09-12','NUBANK')),
+      ver(2,'update','carla','2026-09-13T13:00:00.000Z',r('Farmácia',52.4,'2026-09-12','NUBANK')),
+      ver(3,'delete','ana','2026-10-09T17:00:00.000Z',r('Farmácia',52.4,'2026-09-12','NUBANK','saida','2026-10-09T17:00:00.000Z'))]},
+    {id:'j1',criado:'ana',banco:'ITAU',conf:false,vers:[ver(1,'insert','ana','2026-07-04T15:00:00.000Z',r('Aluguel',1800,'2026-07-04','ITAU'))]},
+    {id:'j2',criado:'ana',banco:'ITAU',conf:false,vers:[ver(1,'insert','ana','2026-07-08T15:00:00.000Z',r('Conta de luz',212.3,'2026-07-08','ITAU')),ver(2,'update','ana','2026-07-09T15:00:00.000Z',r('Conta de luz',219.8,'2026-07-08','ITAU'))]},
+    {id:'j3',criado:'ana',banco:'NUBANK',conf:false,vers:[ver(1,'insert','ana','2026-07-10T15:00:00.000Z',r('Internet',119.9,'2026-07-10','NUBANK')),ver(2,'delete','ana','2026-07-11T15:00:00.000Z',r('Internet',119.9,'2026-07-10','NUBANK','saida','2026-07-11T15:00:00.000Z'))]}
+  ];}
+  var HOJE_EM='2026-10-16T13:00:00.000Z', MES_ATUAL='2026-10', TRUNCADO={'2026-07':true};
+  var ITENS, mes, busca, aberto, modal, toast, papel='dono', tela='cel', tt=null;
+
+  // ---------- regras que o servidor decide (a demo so imita para desenhar) ----------
+  function brl(n){return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+  function dmy(iso){var p=iso.slice(0,10).split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+  function hm(iso){var d=new Date(new Date(iso).getTime()-3*3600*1000);return d.toISOString().slice(11,16);}
+  function quando(iso){var d=new Date(new Date(iso).getTime()-3*3600*1000).toISOString();return dmy(d)+' '+d.slice(11,16);}
+  function mesDe(iso){return new Date(new Date(iso).getTime()-3*3600*1000).toISOString().slice(0,7);}
+  function rotuloMes(m){var n=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];return n[+m.slice(5)-1]+'/'+m.slice(0,4);}
+  function ultima(it){return it.vers[it.vers.length-1];}
+  function igual(a,b){return a.d===b.d&&a.v===b.v&&a.data===b.data&&a.banco===b.banco&&a.tipo===b.tipo;}
+  function atual(it){return ultima(it).reg;}
+  function bloqueio(it,v){
+    if(v.reg.excl)return {t:'Esta versão é a exclusão. Restaure uma versão anterior.',dg:false};
+    var cur=atual(it),exc=!!cur.excl;
+    if(papel==='membro'&&exc)return {t:'Só o dono pode restaurar um lançamento excluído.',dg:false};
+    if(!exc&&igual(cur,v.reg))return {t:'O lançamento já está nessa versão.',dg:false};
+    if(it.conf&&(exc||cur.v!==v.reg.v))return {t:'O mês 2026-09 do banco '+it.banco+' está conferido (até 2026-09) e travado: reabra o mês na aba Saldos para alterar.',dg:true};
+    return null;
+  }
+  function diff(a,b){
+    var c=[['d','Descrição'],['v','Valor'],['tipo','Tipo'],['banco','Banco'],['data','Data'],['excl','Excluído em']],o=[];
+    c.forEach(function(k){
+      var x=a[k[0]],y=b[k[0]];if(x===y)return;
+      var f=function(z){if(z===null||z===undefined)return '—';if(k[0]==='v')return brl(z);if(k[0]==='data')return dmy(z);if(k[0]==='excl')return quando(z);return String(z);};
+      o.push('<li><span class="n">'+k[1]+':</span> <s>'+esc(f(x))+'</s> → '+esc(f(y))+'</li>');
+    });
+    return o;
+  }
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function rotuloAcao(v){return {insert:'Criado',update:'Alterado',delete:'Excluído',restore:'Restaurado'}[v.acao];}
+  function pilula(v){return '<span class="pill'+(v.acao==='delete'?' ex':v.acao==='restore'?' rs':'')+'">'+rotuloAcao(v)+'</span>';}
+  function quem(v){return v.por?PESSOAS[v.por]:'autor desconhecido';}
+
+  // ---------- a busca do mes (GET /historico) ----------
+  function busca1(){
+    var q=busca.trim().toLowerCase(),lista=[];
+    ITENS.forEach(function(it){
+      if(papel==='membro'&&it.criado!=='carla')return;
+      var dm=it.vers.filter(function(v){return mesDe(v.em)===mes;});
+      if(!dm.length)return;
+      if(q&&!dm.some(function(v){return (v.reg.d).toLowerCase().indexOf(q)>=0;}))return;
+      lista.push({it:it,v:dm[dm.length-1]});
+    });
+    lista.sort(function(a,b){return a.v.em<b.v.em?1:a.v.em>b.v.em?-1:0;});
+    return lista;
+  }
+
+  // ---------- pecas ----------
+  function barra(){
+    return '<div class="mes"><button class="nv" type="button" data-a="ant" aria-label="Mês anterior">‹</button>'+
+      '<input type="month" id="mesIn" value="'+mes+'" max="'+MES_ATUAL+'" aria-label="Mês da alteração">'+
+      '<button class="nv" type="button" data-a="prox" aria-label="Próximo mês">›</button></div>'+
+      '<div class="busca"><input type="search" id="qIn" placeholder="Buscar na descrição ou nota" value="'+esc(busca)+'" aria-label="Buscar"><button type="button" data-a="buscar">Buscar</button></div>';
+  }
+  function resumo(l){return '<div class="cont"><span>'+(l.length===1?'1 lançamento mudou':l.length+' lançamentos mudaram')+' em '+rotuloMes(mes)+(papel==='membro'?' (só os seus)':'')+'</span></div>';}
+  function avisoTrunc(){return TRUNCADO[mes]?'<div class="aviso" role="status">Há mais versões do que a tela mostra. Refine a busca ou escolha outro mês.</div>':'';}
+  function linha(x){
+    var v=x.v,cur=v.reg;
+    return '<button class="li'+(aberto===x.it.id?' sel':'')+'" type="button" data-a="abrir" data-id="'+x.it.id+'"><span class="t"><b>'+esc(cur.d)+'</b>'+
+      '<span class="s">'+dmy(cur.data)+' · '+x.it.banco+'</span>'+
+      '<span class="s">'+pilula(v)+esc(quem(v))+' · '+quando(v.em)+'</span></span>'+
+      '<span class="r"><span class="v '+(cur.tipo==='entrada'?'in':'out')+'">'+(cur.tipo==='entrada'?'+':'-')+brl(cur.v)+'</span><span class="vs">versão '+v.n+'</span></span></button>';
+  }
+  function listaCel(){
+    var l=busca1();
+    if(!l.length)return resumo(l)+'<div class="card"><div class="vazio">Nenhuma alteração em '+rotuloMes(mes)+(busca?' para essa busca':'')+'.</div></div>';
+    return resumo(l)+avisoTrunc()+'<div class="card">'+l.map(linha).join('')+'</div>';
+  }
+  function versoesHtml(it){
+    var cur=atual(it),exc=!!cur.excl,fim=ultima(it).n;
+    var cab='<div class="ctx"><b>'+esc(cur.d)+'</b> · '+brl(cur.v)+' · '+dmy(cur.data)+' · '+it.banco+(exc?' <span class="pill ex">Excluído</span>':'')+'</div>';
+    var vs=it.vers.slice().reverse().map(function(v,i){
+      var ant=it.vers[it.vers.indexOf(v)-1],corpo;
+      if(v.acao==='insert'&&!v.por)corpo='<li>Estado antes da primeira alteração registrada.</li>';
+      else if(v.acao==='insert')corpo='<li>Criado: '+esc(v.reg.d)+' · '+brl(v.reg.v)+'</li>';
+      else if(v.acao==='delete')corpo='<li>Excluído em '+quando(v.reg.excl)+'</li>';
+      else{var d=ant?diff(ant.reg,v.reg):[];corpo=d.length?d.join(''):'<li>Sem mudança nos campos.</li>';}
+      var q='Versão '+v.n+(v.acao==='restore'?' · restaurada da versão '+v.de:'');
+      var b=bloqueio(it,v);
+      var rodape=b?'<button class="rb" type="button" disabled>Restaurar esta versão</button><div class="mt'+(b.dg?' dg':'')+'">'+esc(b.t)+'</div>':
+        '<button class="rb" type="button" data-a="rest" data-id="'+it.id+'" data-n="'+v.n+'">Restaurar esta versão</button>';
+      return '<div class="ver"><div class="h"><b>'+pilula(v)+esc(quem(v))+'</b><span class="mt" style="margin:0">'+quando(v.em)+'</span></div><div class="q">'+q+'</div><ul>'+corpo+'</ul>'+rodape+'</div>';
+    }).join('');
+    return cab+'<div class="corpo">'+vs+'</div>';
+  }
+  function telaCheia(){
+    var it=ITENS.filter(function(x){return x.id===aberto;})[0];
+    return '<div class="full" role="dialog" aria-label="Versões do lançamento"><div class="top"><button type="button" data-a="voltar" aria-label="Voltar">←</button><b>Versões</b></div>'+versoesHtml(it)+'</div>';
+  }
+  function modalHtml(){
+    if(!modal)return '';
+    var it=ITENS.filter(function(x){return x.id===modal.id;})[0],v=it.vers.filter(function(x){return x.n===modal.n;})[0],cur=atual(it);
+    var mudancas=diff(cur,v.reg);
+    var m=esc(v.reg.d)+': o lançamento volta para a versão '+v.n+(cur.excl?' e <b>reaparece nas listas</b>':'')+'.'+(mudancas.length?'<ul style="margin:6px 0;padding-left:18px">'+mudancas.join('')+'</ul>':'')+' Será gravada uma versão nova; as anteriores continuam.';
+    return '<div class="mov"><div class="modal" role="alertdialog" aria-label="Restaurar versão"><p>Restaurar a versão '+v.n+'?</p><div class="m">'+m+'</div><div class="btns"><button class="no" type="button" data-a="mno">Cancelar</button><button class="ok" type="button" data-a="mok">Restaurar</button></div></div></div>';
+  }
+  function toastHtml(){return toast?'<div class="toast" role="status">'+toast.t+'<s>'+toast.s+'</s></div>':'';}
+
+  // ---------- telas ----------
+  function render(){
+    var app=document.getElementById('app');
+    document.body.classList.toggle('wide',tela==='pc');
+    if(tela==='cel'){
+      app.innerHTML='<div class="frame phone"><div class="scr">'+barra()+listaCel()+'</div>'+(aberto?telaCheia():'')+modalHtml()+toastHtml()+'</div>';
+    }else{
+      var l=busca1();
+      var tab=l.length?avisoTrunc()+'<table class="tab"><thead><tr><th>Alterado em</th><th>Lançamento</th><th>O que houve</th><th>Quem</th><th style="text-align:right">Valor</th></tr></thead><tbody>'+
+        l.map(function(x){var cur=x.v.reg;return '<tr class="'+(aberto===x.it.id?'sel':'')+'" tabindex="0" data-a="abrir" data-id="'+x.it.id+'"><td>'+quando(x.v.em)+'<div class="mu">versão '+x.v.n+'</div></td><td><div class="d">'+esc(cur.d)+'</div><div class="mu">'+dmy(cur.data)+' · '+x.it.banco+'</div></td><td>'+pilula(x.v)+'</td><td>'+esc(quem(x.v))+'</td><td class="num '+(cur.tipo==='entrada'?'in':'out')+'">'+(cur.tipo==='entrada'?'+':'-')+brl(cur.v)+'</td></tr>';}).join('')+'</tbody></table>':
+        '<div class="card"><div class="vazio">Nenhuma alteração em '+rotuloMes(mes)+(busca?' para essa busca':'')+'.</div></div>';
+      var painel=aberto?'<div class="painel"><div class="full"><div class="top" style="position:static"><b style="padding-left:10px">Versões</b></div>'+versoesHtml(ITENS.filter(function(x){return x.id===aberto;})[0])+'</div></div>':
+        '<div class="painel"><div class="vazio">Escolha um lançamento para ver as versões.</div></div>';
+      app.innerHTML='<div class="frame deskframe">'+barra()+resumo(l)+'<div class="desk"><div>'+tab+'</div>'+painel+'</div>'+modalHtml()+toastHtml()+'</div>';
+    }
+  }
+  function aviso(t,s){toast={t:t,s:s};clearTimeout(tt);tt=setTimeout(function(){toast=null;render();},2600);render();}
+  function restaurar(id,n){
+    var it=ITENS.filter(function(x){return x.id===id;})[0],v=it.vers.filter(function(x){return x.n===n;})[0];
+    var reg=Object.assign({},v.reg,{excl:null});
+    it.vers.push(ver(ultima(it).n+1,'restore',papel==='dono'?'ana':'carla',HOJE_EM,reg,n));
+    aviso('Restaurado da versão '+n,'Versão '+ultima(it).n+' gravada. Aparece em '+rotuloMes(MES_ATUAL)+', o mês da alteração.');
+  }
+  function reset(){ITENS=itens();mes=MES_ATUAL;busca='';aberto=null;modal=null;toast=null;clearTimeout(tt);render();}
+  function deslocar(d){var a=+mes.slice(0,4),m=+mes.slice(5)-1+d;a+=Math.floor(m/12);m=((m%12)+12)%12;var n=a+'-'+('0'+(m+1)).slice(-2);if(n>MES_ATUAL)return;mes=n;aberto=null;render();}
+
+  document.getElementById('app').addEventListener('click',function(e){
+    var b=e.target.closest('[data-a]');if(!b)return;
+    var a=b.dataset.a;
+    if(a==='ant')return deslocar(-1);
+    if(a==='prox')return deslocar(1);
+    if(a==='buscar'){busca=document.getElementById('qIn').value;aberto=null;return render();}
+    if(a==='abrir'){aberto=b.dataset.id;return render();}
+    if(a==='voltar'){aberto=null;return render();}
+    if(a==='rest'){modal={id:b.dataset.id,n:+b.dataset.n};return render();}
+    if(a==='mno'){modal=null;return render();}
+    if(a==='mok'){var m=modal;modal=null;restaurar(m.id,m.n);return;}
+  });
+  document.getElementById('app').addEventListener('change',function(e){
+    if(e.target.id==='mesIn'&&/^\d{4}-\d{2}$/.test(e.target.value)&&e.target.value<=MES_ATUAL){mes=e.target.value;aberto=null;render();}
+  });
+  document.getElementById('app').addEventListener('keydown',function(e){
+    if(e.key==='Enter'&&e.target.id==='qIn'){busca=e.target.value;aberto=null;render();}
+    if(e.key==='Enter'&&e.target.matches&&e.target.matches('tr[data-a]')){aberto=e.target.dataset.id;render();}
+  });
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){if(modal){modal=null;render();}else if(aberto&&tela==='cel'){aberto=null;render();}}});
+  function seg(id,fn){document.getElementById(id).addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;
+    this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});fn(b.dataset.v);});}
+  seg('segTela',function(v){tela=v;render();});
+  seg('segPapel',function(v){papel=v;aberto=null;render();});
+  document.getElementById('reset').addEventListener('click',reset);
+  reset();
+})();
+</script>
+</body>
+</html>

@@ -4,8 +4,8 @@ Primeira feature da nova arquitetura ([`arquitetura.md`](../../arquitetura.md), 
 documento diz **o quê e por quê**; o como (`plan.md`) e o roteiro (`spec.md`) vêm depois, depois de o dono aprovar o
 intent.
 
-**Estado:** decisões fechadas com o dono (2026-10-13), falta aprovação final do texto. Nada foi implementado e nenhuma
-chave foi criada.
+**Estado:** aprovado pelo dono (decisões fechadas em 2026-10-13 e ajustadas em 2026-10-15; veja `plan.md` e `spec.md`).
+As fases 0 a 2 estão implementadas e verificadas em dev; a 3 (tela) está implementada e falta conferir no app de dev.
 
 ## Por quê
 
