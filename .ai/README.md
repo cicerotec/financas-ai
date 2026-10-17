@@ -24,6 +24,7 @@ feito e ideias).
 | [`specs/historico/spec.md`](specs/historico/spec.md) | Spec do histórico: dados, regras, contratos de API e testes por fase (rascunho) |
 | [`demos/demo-historico-versoes.html`](demos/demo-historico-versoes.html) | Demo aprovada da tela Histórico de versões (seção "Histórico de versões (tela)" de `padrao-de-telas.md`) |
 | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | Demo aprovada do Desfazer depois de excluir ou editar (padrão 11b de `padrao-de-telas.md`; provisório até o histórico) |
+| [`specs/fechamento-automatico/`](specs/fechamento-automatico/intent.md) | Intent, plan e spec do item 38: o mês anterior fecha sozinho e mexer no passado exige confirmação (rascunho) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
