@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -85,4 +84,3 @@ func enviarTelegram(ctx context.Context, chatID, texto string) error {
 }
 
 // chat id do Telegram: numero (negativo em grupos). Vazio remove o vinculo.
-var reChatID = regexp.MustCompile(`^-?[0-9]{5,20}$`)
