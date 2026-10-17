@@ -55,8 +55,9 @@ backend/
                  perfil.go (apelido e chat id no vínculo) e saldos.go (fechamento mensal por banco). É o único lugar com PK, SK e expressões
   service/       regra de uso. Declara as interfaces de que precisa (Repositorio, Efeitos); não importa AWS nem HTTP
   controller/    HTTP: recebe o request, chama o service e traduz o erro em resposta. Não toca o banco
-  utils/         utilitários sem regra nem banco, um pacote por assunto. Hoje: utils/relogio (adaptadores Real e Fixo; o
-                 service declara a interface Relogio e nunca chama time.Now)
+  adapter/       adaptadores para o que não é banco, um pacote por assunto. Hoje: adapter/relogio (Real e Fixo; o service
+                 declara a interface Relogio e nunca chama time.Now). Na fatia 4 entra adapter/notificacao (Telegram e,
+                 depois, e-mail e WhatsApp). O banco continua em repository/
   (raiz)         store.go (só helpers), avisos.go, telegram.go e postAvisoTeste (perfil.go): ainda não migraram
 ```
 

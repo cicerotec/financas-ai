@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"financas/utils/relogio"
+	"financas/adapter/relogio"
 )
 
 // relogioTeste e o relogio de todos os cenarios: um relogio.Fixo compartilhado com o Servidor montado em cenario().
