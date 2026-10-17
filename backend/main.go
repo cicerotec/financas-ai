@@ -3,22 +3,18 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"financas/auth"
 	"financas/controller"
+	"financas/repository"
 )
 
 type resp = events.LambdaFunctionURLResponse
@@ -89,13 +85,13 @@ func (s *Servidor) processar(ctx context.Context, u *user, m string, p []string,
 	case auth.AcaoRestaurar:
 		return s.lanc.PostRestaurar(ctx, sid, p[3], p[5], u.Sub, dec == auth.SoDono, confirma)
 	case auth.AcaoLerCfg:
-		return getCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]))
+		return s.cfg.GetCfg(ctx, sid, p[3])
 	case auth.AcaoEscreverCfg:
-		return putCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]), body)
+		return s.cfg.PutCfg(ctx, sid, p[3], body)
 	case auth.AcaoAdicionarTags:
-		return postTags(ctx, sid, body)
+		return s.cfg.PostTags(ctx, sid, body)
 	case auth.AcaoLerSeq:
-		return getSeq(ctx, sid)
+		return s.cfg.GetSeq(ctx, sid)
 	case auth.AcaoLerFech:
 		return getFechamentos(ctx, sid)
 	case auth.AcaoEscreverFech:
@@ -105,89 +101,21 @@ func (s *Servidor) processar(ctx context.Context, u *user, m string, p []string,
 	case auth.AcaoReabrirMes:
 		return reabrirMes(ctx, sid, body)
 	case auth.AcaoLerAparencia:
-		return getCfg(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA")
+		return s.cfg.GetAparencia(ctx, sid, u.Sub)
 	case auth.AcaoEditarPerfil:
-		return putPerfil(ctx, sid, u, body)
+		return s.perfil.PutPerfil(ctx, sid, u.Sub, body)
 	case auth.AcaoTestarAviso:
 		return postAvisoTeste(ctx, sid, u)
 	case auth.AcaoEscreverAparenc:
-		return putAparencia(ctx, spacePK(sid), "USER#"+u.Sub+"#CFG#APARENCIA", body)
+		return s.cfg.PutAparencia(ctx, sid, u.Sub, body)
 	}
 	return erro(http.StatusNotFound, "rota inexistente")
 }
 
-func getCfg(ctx context.Context, pk, sk string) (resp, error) {
-	d, err := getItem(ctx, pk, sk)
-	if err != nil {
-		return erro(500, "erro interno")
-	}
-	if d == nil {
-		return out(200, doc{"version": 0})
-	}
-	return out(200, publico(d))
-}
-
-// Configuracao compartilhada: controle otimista. O cliente manda o "version" que leu;
-// se alguem gravou antes, responde 409 com o estado atual para o cliente mesclar.
-var (
-	errConflito = errors.New("alterado por outra pessoa")
-	errDados    = errors.New("dados invalidos")
-)
-
-// salvarCfg grava com controle otimista: so grava se a versao no banco ainda e a que o cliente leu.
+// salvarCfg e a ponte do fechamento (fechamento.go grava os itens SALDO#<banco> com o mesmo controle otimista) ate a fatia 3
+// do item 32; a logica mora em repository.Config.
 func salvarCfg(ctx context.Context, pk, sk string, body doc, esperada float64) (doc, error) {
-	body["PK"], body["SK"], body["version"] = pk, sk, esperada+1
-	item, err := marshal(body)
-	if err != nil {
-		return nil, errDados
-	}
-	in := &dynamodb.PutItemInput{TableName: &table, Item: item}
-	if esperada == 0 {
-		in.ConditionExpression = aws.String("attribute_not_exists(PK) OR attribute_not_exists(version)")
-	} else {
-		in.ConditionExpression = aws.String("version = :v")
-		in.ExpressionAttributeValues = map[string]types.AttributeValue{":v": &types.AttributeValueMemberN{Value: strconv.FormatFloat(esperada, 'f', -1, 64)}}
-	}
-	if _, err := db.PutItem(ctx, in); err != nil {
-		var cf *types.ConditionalCheckFailedException
-		if errors.As(err, &cf) {
-			return nil, errConflito
-		}
-		return nil, err
-	}
-	return publico(body), nil
-}
-
-func putCfg(ctx context.Context, pk, sk string, body doc) (resp, error) {
-	esperada, _ := body["version"].(float64)
-	delete(body, "version")
-	protegidos(body)
-	res, err := salvarCfg(ctx, pk, sk, body, esperada)
-	switch {
-	case errors.Is(err, errDados):
-		return erro(400, "dados invalidos")
-	case errors.Is(err, errConflito):
-		atual, _ := getItem(ctx, pk, sk)
-		return out(http.StatusConflict, doc{"erro": "alterado por outra pessoa", "atual": publico(atual)})
-	case err != nil:
-		log.Println("put cfg:", err)
-		return erro(500, "erro ao salvar")
-	}
-	return out(200, res)
-}
-
-func putAparencia(ctx context.Context, pk, sk string, body doc) (resp, error) {
-	protegidos(body)
-	body["PK"], body["SK"] = pk, sk
-	item, err := marshal(body)
-	if err != nil {
-		return erro(400, "dados invalidos")
-	}
-	if _, err := db.PutItem(ctx, &dynamodb.PutItemInput{TableName: &table, Item: item}); err != nil {
-		log.Println("put aparencia:", err)
-		return erro(500, "erro ao salvar")
-	}
-	return out(200, publico(body))
+	return repository.NewConfig(db, table).SalvarItem(ctx, pk, sk, body, esperada)
 }
 
 // entrada separa os dois tipos de evento que a Lambda recebe: a chamada HTTP da Function URL e o agendamento diario

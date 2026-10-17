@@ -25,6 +25,11 @@ type bancoFake struct {
 	falharTransacao  error
 	// falharLeitura faz GetItem e Query falharem (a leitura de papel, espacos e lancamentos).
 	falharLeitura error
+	// fatia 2: falharPut faz o proximo PutItem falhar; falharContador faz o ADD seq falhar; antesDoPut roda no comeco de
+	// PutItem (simula outra pessoa gravando a mesma configuracao antes).
+	falharPut       error
+	falharContador  error
+	antesDoPut      func(*dynamodb.PutItemInput)
 }
 
 func novoBancoFake() *bancoFake {
@@ -45,6 +50,12 @@ func (f *bancoFake) GetItem(_ context.Context, in *dynamodb.GetItemInput, _ ...f
 	return &dynamodb.GetItemOutput{Item: it}, nil
 }
 func (f *bancoFake) PutItem(_ context.Context, in *dynamodb.PutItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
+	if f.falharPut != nil {
+		return nil, f.falharPut
+	}
+	if f.antesDoPut != nil {
+		f.antesDoPut(in)
+	}
 	k := chave(sv(in.Item["PK"]), sv(in.Item["SK"]))
 	atual, existe := f.itens[k]
 	switch aws.ToString(in.ConditionExpression) {
@@ -130,6 +141,9 @@ func (f *bancoFake) BatchWriteItem(_ context.Context, in *dynamodb.BatchWriteIte
 func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
 	k := chave(sv(in.Key["PK"]), sv(in.Key["SK"]))
 	if aws.ToString(in.UpdateExpression) == "ADD seq :um" { // contador do espaco: cria o item se nao existir
+		if f.falharContador != nil {
+			return nil, f.falharContador
+		}
 		it, ok := f.itens[k]
 		if !ok {
 			it = map[string]types.AttributeValue{"PK": in.Key["PK"], "SK": in.Key["SK"]}

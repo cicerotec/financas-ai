@@ -100,7 +100,7 @@ DynamoDB sem discutir com o dono.**
   `controller/`), com a regra de dependência testada em `arquitetura_test.go`; lançamentos e `auth` já migraram. Falta
   o resto da raiz (`fechamento`, `tags`, `perfil`, `seq`, `cfg`, avisos e Telegram), em quatro fatias (plano em
   [`.ai/specs/arquitetura-camadas/`](.ai/specs/arquitetura-camadas/plan.md)). **Fatia 1 (espaços e leitura de lançamentos)
-  implementada**, falta conferir em dev. O despachante de avisos vive no `service` e os canais em `notificacao/` (item 34).
+  no ar; fatia 2 (configurações, tags, contador e perfil) implementada**, falta conferir em dev. O despachante de avisos vive no `service` e os canais em `notificacao/` (item 34).
   Achado para outra entrega: cursor inválido em `GET /tx` devolve `500`; o certo seria `400`.
 - 38. [x] <a id="item-38"></a>**[Próximo] Fechamento automático do mês anterior (confirmação explícita para mexer no passado):**
   decisões do dono (2026-10-16). O **conferido manual** da aba Saldos é herança da planilha e fica **opcional** (trava

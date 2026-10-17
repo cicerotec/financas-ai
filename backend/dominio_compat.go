@@ -20,4 +20,5 @@ var (
 	protegidos   = domain.Protegidos
 	publico      = domain.Publico
 	mesDe        = domain.MesDe
+	errConflito  = domain.ErrConflitoConfig
 )
