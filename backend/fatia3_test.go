@@ -157,7 +157,7 @@ func TestF3RaizSemOFechamento(t *testing.T) {
 	if _, err := os.Stat("fechamento.go"); err == nil {
 		t.Error("fechamento.go ainda existe na raiz: migrou para service/, repository/ e controller/")
 	}
-	for _, nome := range []string{"main.go", "efeitos.go", "dominio_compat.go"} {
+	for _, nome := range []string{"main.go", "roteador.go", "efeitos.go", "dominio_compat.go"} {
 		b, _ := os.ReadFile(nome)
 		for _, p := range []string{"salvarCfg", "novasTravas", "invalidarSaldos", "errConflito", "lerSaldo"} {
 			if strings.Contains(string(b), p) {

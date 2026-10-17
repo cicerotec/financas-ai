@@ -194,7 +194,7 @@ func TestF2RaizSemOsAssuntosMigrados(t *testing.T) {
 	}
 	proibidos := []string{"func getCfg(", "func putCfg(", "func putAparencia(", "func putPerfil(", "func normalizarApelido(",
 		"UpdateItemInput", "dynamodb.PutItemInput"}
-	for _, nome := range []string{"main.go", "perfil.go"} {
+	for _, nome := range []string{"main.go", "roteador.go", "perfil.go"} {
 		fonte := ler(nome)
 		for _, p := range proibidos {
 			if strings.Contains(fonte, p) {
@@ -203,7 +203,7 @@ func TestF2RaizSemOsAssuntosMigrados(t *testing.T) {
 		}
 	}
 	// a ponte salvarCfg do fechamento sumiu na fatia 3
-	if strings.Contains(ler("main.go"), "func salvarCfg(") {
+	if strings.Contains(ler("main.go")+ler("roteador.go"), "func salvarCfg(") {
 		t.Error("salvarCfg era a ponte do fechamento e saiu na fatia 3")
 	}
 }

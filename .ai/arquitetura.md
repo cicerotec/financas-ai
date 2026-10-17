@@ -45,8 +45,10 @@ Cada camada é uma pasta, que em Go é um pacote. O `main.go` fica na raiz de `b
 
 ```
 backend/
-  main.go        cria os clients e o Servidor (servidor.go, montado uma vez) e roteia
-  servidor.go    liga repository, service e controller dos assuntos já migrados (novoServidor)
+  main.go        só liga e parte: cria o relógio e o Servidor e entrega a entrada à Lambda (ou ao modo local)
+  servidor.go    liga repository, service e controller dos assuntos já migrados (novoServidor, uma vez)
+  roteador.go    recebe o evento (HTTP ou agendamento), autentica, classifica a rota, confere o papel e chama o controller
+  local.go       modo HTTP local para depuração (só AMBIENTE=dev)
   domain/        tipos e regras puras (Doc, Lancamento, Mudanca, ValidarTx, AlvoDe, MudaSaldo, tags, aviso, série,
                  ErroMesConferido). Não importa nada do projeto nem a AWS
   auth/          token do Cognito (token.go) e permissões por papel (authz.go)
@@ -54,9 +56,11 @@ backend/
                  espacos.go (papel e espaços da pessoa), config.go (configurações e aparência), contador.go (o _seq),
                  perfil.go (apelido e chat id no vínculo) e saldos.go (fechamento mensal por banco). É o único lugar com PK, SK e expressões
   service/       regra de uso. Declara as interfaces de que precisa (Repositorio, Efeitos); não importa AWS nem HTTP
-  controller/    HTTP: recebe o request, chama o service e traduz o erro em resposta. Não toca o banco
-  utils/         utilitários sem regra nem banco, um pacote por assunto. Hoje: utils/relogio (adaptadores Real e Fixo; o
-                 service declara a interface Relogio e nunca chama time.Now)
+  controller/    um controller por assunto: chama o service e traduz o erro em resposta. resposta.go tem o tipo Resp,
+                 Out, Erro e a tradução dos erros do service em status HTTP. Não toca o banco
+  adapter/       adaptadores para o que não é banco, um pacote por assunto. Hoje: adapter/relogio (Real e Fixo; o service
+                 declara a interface Relogio e nunca chama time.Now). Na fatia 4 entra adapter/notificacao (Telegram e,
+                 depois, e-mail e WhatsApp). O banco continua em repository/
   (raiz)         store.go (só helpers), avisos.go, telegram.go e postAvisoTeste (perfil.go): ainda não migraram
 ```
 
