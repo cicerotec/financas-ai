@@ -14,7 +14,7 @@ além do que migra, as garantias que os testes já existentes dão e os que entr
 | `fechamento.go` | `lerSaldo`, `atualizarSaldo` (ler, aplicar, gravar com até 5 tentativas), `skSaldo`, `ultimoConferido`, `versaoDe` | `repository/saldos.go` (acesso) e `domain/saldo.go` (`UltimoConferido`, `MesDeInicio`, `MesValido`) |
 | `fechamento.go` | `travas` (`checar`, `mesDeInicio`, `anteriorAoInicio`) e `invalidarSaldos` | `service/fechamento.go` (`Fechamento.Travas` e `Fechamento.InvalidarSaldos`) |
 | `fechamento.go` | `getFechamentos`, `putFechamentos`, `conferirMes`, `reabrirMes`, `conflitoVersao` e as validações | `service.Fechamento` (`Listar`, `SalvarCaches`, `Conferir`, `Reabrir`) e `controller/fechamento.go` |
-| `fechamento.go`, `efeitos.go` | a variável `agora` e a função `mesAtual()` | interface `service.Relogio` e o pacote `relogio/` (`Real` e `Fixo`) |
+| `fechamento.go`, `efeitos.go` | a variável `agora` e a função `mesAtual()` | interface `service.Relogio` e o pacote `adapter/relogio/` (`Real` e `Fixo`) |
 | `main.go` | a ponte `salvarCfg` e `errConflito` (dominio_compat) | somem: o fechamento passa a usar `repository.Config.SalvarItem` direto |
 | `efeitos.go` | `Travas` e `InvalidarSaldos` chamavam a raiz | passam a chamar `service.Fechamento`, injetado em `efeitosRaiz` |
 
@@ -76,7 +76,7 @@ fechado por data, com a isenção do que é anterior ao início do controle (`da
 
 ## Desenho
 
-- `relogio/relogio.go` (pacote novo, não importa nada do projeto): `Real{}` (`Agora()` = `time.Now()`) e `Fixo` com `Em time.Time`
+- `adapter/relogio/relogio.go` (pacote novo dentro de `adapter/`, a pasta dos adaptadores que não são banco; não importa nada do projeto): `Real{}` (`Agora()` = `time.Now()`) e `Fixo` com `Em time.Time`
   e `Definir(time.Time)` para os testes. É um adaptador, no mesmo papel de `repository/`.
 - `service.Relogio`: `interface { Agora() time.Time }`, declarada em `service/fechamento.go`.
 - `domain/saldo.go`: `MesValido(string) bool` (o `reMes`), `MesAtual(agora time.Time) string` (fuso de São Paulo),
@@ -98,7 +98,7 @@ fechado por data, com a isenção do que é anterior ao início do controle (`da
   `409` de `ErroOrdemFechamento` e o `404` de `ErrMesNaoConferido`.
 - `servidor.go`: `novoServidor(db, table, rel service.Relogio)` cria o `Saldos`, o `Fechamento` e os injeta no controller e em
   `efeitosRaiz` (que deixa de chamar a raiz para travas e saldos). `main` passa `relogio.Real{}`.
-- `arquitetura_test.go`: ganha o pacote `relogio` (não importa `financas/` nem AWS), e `service/fechamento.go` continua sem importar
+- `arquitetura_test.go`: ganha o pacote `adapter/relogio` (não importa `financas/` nem AWS), e `service/fechamento.go` continua sem importar
   `time.Now` (o teste procura a chamada `time.Now(` em `service/`).
 
 ## Testes
@@ -134,7 +134,7 @@ fechado por data, com a isenção do que é anterior ao início do controle (`da
 
 ## Decisões para o dono (recomendação em negrito)
 
-1. **O `Relogio` mora em `relogio/` (adaptadores `Real` e `Fixo`) e a interface em `service/`.** Alternativa: os dois dentro de `service/`.
+1. **O `Relogio` mora em `adapter/relogio/` (adaptadores `Real` e `Fixo`) e a interface em `service/`.** (Ajustado pelo dono em 2026-10-17: os adaptadores que não são banco ficam em `adapter/`; o banco continua em `repository/`.)
 2. **A global `agora` e as pontes `salvarCfg`/`errConflito` somem já nesta fatia.** O `entrada` mantém `time.Now()` para os avisos até
    a fatia 4, quando o `Relogio` chega neles.
 3. **A trava continua sendo um objeto por chamada** (cache de banco e de `CFG#SALDOS` dentro da requisição), em vez de um serviço

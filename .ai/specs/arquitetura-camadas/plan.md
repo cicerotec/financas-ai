@@ -29,7 +29,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
   trava), `Avisos`. Cada um declara as interfaces de que precisa (`Repositorio…`, `Relogio`, `Notificador`).
 - **Controllers** em `controller/` traduzem requests e erros, como o dos lançamentos. O roteador deixa de ter `case` com
   lógica: cada rota chama um método.
-- **Os canais de envio** moram em `notificacao/`, um arquivo por canal (`telegram.go` agora; `email.go` e `whatsapp.go` quando
+- **Os canais de envio** moram em `adapter/notificacao/`, um arquivo por canal (`telegram.go` agora; `email.go` e `whatsapp.go` quando
   existirem), como `repository/` tem um arquivo por assunto. Cada um implementa `service.Notificador` e recebe o que precisa
   (cliente SSM, HTTP) por construtor. **O despachante** (quem recebe, o quê, por qual canal) é regra e vive no `service`, no item 34;
   por isso a pasta `dispatcher/` do `arquitetura.md` deixa de ser necessária e esse documento é ajustado quando o 34 começar.
@@ -45,7 +45,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 | 1 | **Espaços e leitura de lançamentos** | `store.go` (`papel`, `getItem` dos espaços, `listarTx`, cursor), `getMe`, `getTxs` | `repository/espacos.go`, `service.Espacos`, `Lancamentos.Listar`; o montador único (`Servidor`, montado uma vez em `main`) nasce aqui; `db` e `table` seguem globais para o resto da raiz até a fatia 4 |
 | 2 | **Configurações, tags, contador e perfil** | `getCfg`, `putCfg`, `putAparencia`, `salvarCfg`, `tags.go`, `seq.go`, `perfil.go` | `repository/config.go`, `service.Config` e `service.Perfil`; some a ponte `GarantirTags` e `ComSeq` do `efeitos.go` |
 | 3 | **Fechamento e saldos** | `fechamento.go` (saldos, conferir, reabrir, `travas`, `invalidarSaldos`) | `Relogio` (interface e adaptadores real e fixo), `repository/saldos.go`, `service.Fechamento`; a trava passa a ser do service (some a ponte `Travas` e `InvalidarSaldos`) |
-| 4 | **Avisos e Telegram** | `avisos.go`, `telegram.go`, `enviarMensagem` | `repository/avisos.go`, `service.Avisos`, adaptador `notificacao/telegram.go`; **sem** despachante (item 34); somem as últimas globais e `efeitos.go`/`dominio_compat.go` |
+| 4 | **Avisos e Telegram** | `avisos.go`, `telegram.go`, `enviarMensagem` | `repository/avisos.go`, `service.Avisos`, adaptador `adapter/notificacao/telegram.go`; **sem** despachante (item 34); somem as últimas globais e `efeitos.go`/`dominio_compat.go` |
 
 Depois da 4, `main.go` só liga, e o item 34 constrói o despachante em cima de `service.Avisos`.
 
@@ -68,4 +68,4 @@ fundação já provada; o `Relogio` nasce na 3 (onde `agora` é usado de fato); 
 2. **Avisos e Telegram:** migram na fatia 4, só com injeção; o despachante fica para o item 34.
 3. **Relógio:** interface `Relogio` no service, com adaptador real e fixo.
 4. **Um PR por fatia**, com release entre elas.
-5. **Pasta dos canais:** `notificacao/`, com um arquivo por canal (telegram, e-mail, WhatsApp). O despachante vive no `service`.
+5. **Pasta dos canais:** `adapter/notificacao/`, com um arquivo por canal (telegram, e-mail, WhatsApp). O despachante vive no `service`.
