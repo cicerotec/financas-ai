@@ -3,8 +3,10 @@
 Como construir o que o [`intent.md`](intent.md) pede. O intent diz **o quê e por quê**; este documento diz **como** e em
 que ordem. O roteiro verificável (`spec.md`) vem depois de o dono aprovar este plan.
 
-**Estado:** rascunho de 2026-10-15, escrito a partir do código de `backend/` (`main.go`, `store.go`, `fechamento.go`,
-`authz.go`, `handler_test.go`) e do `template.yaml`. Nada foi implementado e nenhuma chave foi criada.
+**Estado:** aprovado pelo dono (decisões fechadas em 2026-10-15). As fases 0 a 2 estão implementadas e verificadas em dev; a 3
+(tela) está implementada e falta conferir no app de dev. O texto foi escrito a partir do código de `backend/` e do `template.yaml`
+**antes** da implementação: a tabela "Onde o código está hoje" descreve o código daquela época (arquivos soltos na raiz, escrita
+sem versão), não o de agora.
 
 ## Onde o código está hoje (o que o plan precisa respeitar)
 

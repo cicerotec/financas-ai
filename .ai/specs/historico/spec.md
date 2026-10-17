@@ -4,7 +4,8 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
 cada teste tem um id (`F<fase>-T<n>`), para o PR dizer exatamente o que cobriu. Quando um texto daqui e o do intent
 divergirem, vale o plan, que registra as decisões do dono de 2026-10-15.
 
-**Estado:** rascunho de 2026-10-16, aguardando o ok do dono. Nada foi implementado nem criado no DynamoDB.
+**Estado:** aprovado pelo dono. Fases 0 a 2 implementadas e verificadas em dev (PRs #100, #102 e #106); a 3 (tela) implementada
+(PR #111), falta conferir no app de dev.
 
 **Como usar:** uma fase por PR, na ordem. Cada fase só termina quando todos os seus testes passam e o "Pronto quando"
 está marcado. Teste de regra de negócio é teste de backend (`go test ./...` em `backend/`); o front não decide nada.
@@ -366,7 +367,8 @@ Entrega: `HIST#`, R2 a R11, `excluidoEm`, `Deny` no `template.yaml`. Capacidade 
 
 ### Fase 2: busca por mês, diff e restauração (API)
 
-Estado: **implementada** (branch `feature/historico-fase-2`). Os textos de erro e de `motivo` seguem o resto da API, em
+Estado: **implementada e verificada em dev** (PR #106, 2026-10-16): busca por mês, versões, restaurar e os casos de erro, pelo
+Postman. Os textos de erro e de `motivo` seguem o resto da API, em
 português sem acento (ex.: "o lancamento ja esta nessa versao"). `POST .../restaurar` não lê corpo; `n` que não é inteiro
 maior que zero responde `400`; versão inexistente, `404`.
 
