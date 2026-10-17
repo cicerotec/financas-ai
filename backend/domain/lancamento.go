@@ -26,6 +26,7 @@ const (
 
 // Versao e um ponto do historico de um lancamento. O Registro e o lancamento inteiro (sem chaves do banco).
 type Versao struct {
+	ID       string // id do lancamento a que a versao pertence
 	Numero   int
 	Acao     Acao
 	PorSub   string // sub de quem agiu; vazio na versao 1 preguicosa (autor desconhecido)

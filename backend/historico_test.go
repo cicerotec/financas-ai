@@ -371,7 +371,7 @@ func TestNaoExisteMetodoParaEditarOuApagarVersao(t *testing.T) {
 		sort.Strings(ns)
 		return ns
 	}
-	quer := []string{"Buscar", "Salvar", "SalvarLote", "UltimaVersao"}
+	quer := []string{"Buscar", "Salvar", "SalvarLote", "UltimaVersao", "Versoes", "VersoesDoEspaco"}
 	if got := nomes(reflect.TypeOf((*service.Repositorio)(nil)).Elem()); !reflect.DeepEqual(got, quer) {
 		t.Errorf("service.Repositorio = %v, esperado %v", got, quer)
 	}

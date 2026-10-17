@@ -27,6 +27,8 @@ func TestMatrizDePermissoes(t *testing.T) {
 		{PapelOwner, AcaoEscreverFech, Liberado},
 		{PapelOwner, AcaoConferirMes, Liberado},
 		{PapelOwner, AcaoReabrirMes, Liberado},
+		{PapelOwner, AcaoLerHistorico, Liberado},
+		{PapelOwner, AcaoRestaurar, Liberado},
 		// member: ler, criar, tags novas e a propria aparencia; editar so o que criou
 		{PapelMember, AcaoLerTx, Liberado},
 		{PapelMember, AcaoCriarTx, Liberado},
@@ -44,6 +46,8 @@ func TestMatrizDePermissoes(t *testing.T) {
 		{PapelMember, AcaoEscreverFech, Negado},
 		{PapelMember, AcaoConferirMes, Negado},
 		{PapelMember, AcaoReabrirMes, Negado},
+		{PapelMember, AcaoLerHistorico, SoDono},
+		{PapelMember, AcaoRestaurar, SoDono},
 	}
 	for _, c := range casos {
 		if got := Permitido(c.papel, c.a); got != c.quer {
@@ -55,7 +59,7 @@ func TestMatrizDePermissoes(t *testing.T) {
 func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 	todas := []Acao{AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 		AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-		AcaoLerFech, AcaoEscreverFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq}
+		AcaoLerFech, AcaoEscreverFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar}
 	for _, a := range todas {
 		if Permitido(PapelOwner, a) != Liberado {
 			t.Errorf("owner deveria poder %q", a)
@@ -75,7 +79,8 @@ func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 		{"GET", []string{"cfg", "listas"}}, {"PUT", []string{"cfg", "listas"}},
 		{"POST", []string{"tags"}}, {"GET", []string{"aparencia"}}, {"PUT", []string{"aparencia"}},
 		{"PUT", []string{"perfil"}},
-		{"GET", []string{"seq"}},
+		{"GET", []string{"seq"}}, {"GET", []string{"historico"}},
+		{"GET", []string{"tx", "abc", "versoes"}}, {"POST", []string{"tx", "abc", "versoes", "2", "restaurar"}},
 		{"GET", []string{"fechamentos"}}, {"PUT", []string{"fechamentos"}},
 		{"POST", []string{"fechamentos", "conferir"}}, {"POST", []string{"fechamentos", "reabrir"}},
 	}
@@ -95,7 +100,7 @@ func TestPapelDesconhecidoOuVazioNaoPodeNada(t *testing.T) {
 	for _, papel := range []string{"", "viewer", "OWNER", "Member", "admin"} {
 		for _, a := range []Acao{AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-			AcaoLerFech, AcaoEscreverFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, "inexistente"} {
+			AcaoLerFech, AcaoEscreverFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, "inexistente"} {
 			if got := Permitido(papel, a); got != Negado {
 				t.Errorf("papel %q, Acao %q: esperado Negado, veio %v", papel, a, got)
 			}
@@ -132,6 +137,22 @@ func TestRotaParaAcao(t *testing.T) {
 		{"POST", []string{"fechamentos", "conferir"}, AcaoConferirMes, true},
 		{"POST", []string{"fechamentos", "reabrir"}, AcaoReabrirMes, true},
 		{"DELETE", []string{"fechamentos"}, "", false},
+		{"GET", []string{"historico"}, AcaoLerHistorico, true},
+		{"GET", []string{"tx", "abc123", "versoes"}, AcaoLerHistorico, true},
+		{"POST", []string{"tx", "abc123", "versoes", "2", "restaurar"}, AcaoRestaurar, true},
+		// historico: metodo errado ou caminho extra nao existe
+		{"POST", []string{"historico"}, "", false},
+		{"PUT", []string{"historico"}, "", false},
+		{"DELETE", []string{"historico"}, "", false},
+		{"GET", []string{"historico", "x"}, "", false},
+		{"POST", []string{"tx", "abc123", "versoes"}, "", false},
+		{"PUT", []string{"tx", "abc123", "versoes"}, "", false},
+		{"DELETE", []string{"tx", "abc123", "versoes"}, "", false},
+		{"GET", []string{"tx", "abc123", "versoes", "2"}, "", false},
+		{"GET", []string{"tx", "abc123", "versoes", "2", "restaurar"}, "", false},
+		{"PUT", []string{"tx", "abc123", "versoes", "2", "restaurar"}, "", false},
+		{"POST", []string{"tx", "abc123", "versoes", "2", "restaurar", "x"}, "", false},
+		{"POST", []string{"tx", "abc123", "outra", "2", "restaurar"}, "", false},
 		// nao existem
 		{"GET", []string{"perfil"}, "", false},
 		{"POST", []string{"perfil"}, "", false},
