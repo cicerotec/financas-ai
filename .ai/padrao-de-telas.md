@@ -17,6 +17,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Total do Histórico | [`demos/demo-historico-total.html`](demos/demo-historico-total.html) | a soma da lista (renda menos gasto) à direita da linha do contador, na busca por texto e no mês aberto |
 | Atalhos no cabeçalho | [`demos/demo-atalho-saldos.html`](demos/demo-atalho-saldos.html) | Histórico e Saldos entre o nome da tela e o ⋮, em 320, 360 e 390 px, com o "como está hoje" (aprovado em 2026-10-15) |
 | Histórico de versões | [`demos/demo-historico-versoes.html`](demos/demo-historico-versoes.html) | busca por mês, lista de excluídos e alterados, versões com diff e Restaurar (desabilitado com o motivo), estados vazio e truncado, papéis dono e membro e a visão de computador (aprovado em 2026-10-16) |
+| Confirmação de mês fechado | [`demos/demo-confirmacao-mes-fechado.html`](demos/demo-confirmacao-mes-fechado.html) | segunda janela ao editar/lançar em mês fechado, restaurar com aviso no cartão, importar com uma pergunta no fim, mês conferido sem confirmação (aprovado em 2026-10-17) |
 | Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
 
 ## Princípios
@@ -106,6 +107,24 @@ Aprovado pelo dono em 2026-10-16 ([`demos/demo-historico-versoes.html`](demos/de
   no lugar da tela cheia.
 - **Custo:** só aparece o mês escolhido; restaurar em mês conferido não deixa, nem para o dono; não há atalho "Ver versões" dentro
   do lançamento. A exclusão imediata com Desfazer por restauração é o item 38 do BACKLOG, não desta tela.
+
+## Confirmação de mês fechado (aprovado em 2026-10-17)
+
+Demo: [`demos/demo-confirmacao-mes-fechado.html`](demos/demo-confirmacao-mes-fechado.html). Regra do item 38: a partir do dia 8 o mês
+anterior (e os mais antigos) fecha; mexer nele pede confirmação. **Quem decide é o servidor** (`409 mes_fechado`, `confirmavel: true`):
+a tela não calcula nada, só pergunta e reenvia com `?confirmaMesFechado=1` (query, nunca o corpo).
+
+- **Editar / Lançar / Excluir:** a janela de sempre vem primeiro; se o servidor recusar, uma segunda janela: "Este lançamento é de
+  agosto de 2026, que já fechou. Alterar mesmo assim?", botão "Alterar mesmo assim" (ou "Lançar…", "Excluir…"). Cancelar não grava
+  nada e mostra "Cancelado: nada foi alterado.". O **Desfazer** de uma edição já confirmada reenvia com a confirmação, sem perguntar
+  de novo (o `api.js` guarda só os ids confirmados na sessão).
+- **Restaurar:** o cartão da versão mostra "Mês fechado: vai pedir confirmação." (vem de `exigeConfirmacao` na API) e a janela de
+  confirmação é **uma só**, com o aviso do mês e o botão "Restaurar mesmo assim".
+- **Importar:** o arquivo vai sem confirmação; os de mês fechado voltam em `rejeitados` (`codigo: mes_fechado`) e, no fim, **uma**
+  pergunta ("N lançamento(s) são de meses já fechados… Importar esses mesmo assim?") reenvia só esses. Recusar deixa-os rejeitados.
+- **Mês conferido** continua sem confirmação possível: mensagem do servidor em vermelho.
+- **Custo:** ao editar são dois toques e uma ida e volta a mais ao servidor; numa série de repetições cada mês fechado pergunta
+  separadamente; a exclusão ainda pergunta só depois do aviso de 6 s (a exclusão imediata é a fase C). Teste: `web/confirmacao.test.js` (CI).
 
 ## Padrões do celular
 **1. Linha-resumo que abre tela cheia.** Cartão com título em negrito e, embaixo, o valor atual em `--muted`

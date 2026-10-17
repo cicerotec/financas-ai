@@ -31,7 +31,7 @@ const ctx = {
   esc: (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
   fmtMoeda: (v) => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ','),
   toast: (msg, erro) => toasts.push({ msg, erro: !!erro }),
-  confirmarModal: async (msg) => { chamadas.push({ confirmou: msg }); return ctx.__confirma; },
+  confirmarModal: async (msg, rotulo) => { chamadas.push({ confirmou: msg, rotulo }); return ctx.__confirma; },
   comBotaoOcupado: async (btn, rotulo, fn) => fn(),
   mesAtualApp: () => '2026-10',
   somaMes: (ym, n) => { const [y, m] = ym.split('-').map(Number); const t = y * 12 + (m - 1) + n; return Math.floor(t / 12) + '-' + String(t % 12 + 1).padStart(2, '0'); },
@@ -65,7 +65,7 @@ let respostaRestaurar = { status: 200, body: { id: ID, _seq: 9 } };
 ctx.db = {
   async historicoMes(mes, q) { chamadas.push({ historico: [mes, q] }); return mes === '2026-10' ? { mes, truncado: false, itens: itensOutubro } : { mes, truncado: mes === '2026-07', itens: [] }; },
   async versoesDoLancamento(id) { chamadas.push({ versoes: id }); return versoesDoItem; },
-  async restaurarVersao(id, n) { chamadas.push({ restaurar: [id, n] }); return respostaRestaurar; }
+  async restaurarVersao(id, n, confirma) { chamadas.push({ restaurar: [id, n], confirma }); return respostaRestaurar; }
 };
 
 const clique = (a, d) => escuta.sec.click({ target: { closest: () => ({ dataset: Object.assign({ vs: a }, d || {}) }) } });
@@ -107,6 +107,21 @@ const espera = () => new Promise((r) => setTimeout(r, 5));
   assert.deepStrictEqual(chamadas[1].restaurar, [ID, 1]);
   assert(toasts[0].msg.includes('Restaurado da versão 1') && !toasts[0].erro, 'aviso de sucesso');
   assert(chamadas.some((c) => c.versoes === ID) && chamadas.some((c) => c.historico), 'recarrega versoes e lista');
+
+  assert.strictEqual(chamadas[1].confirma, false, 'mes aberto: restaura sem confirmacao');
+  assert(!tela().includes('vai pedir confirmacao') && chamadas[0].rotulo === undefined, 'mes aberto: janela normal');
+
+  // mes fechado (o servidor avisa com exigeConfirmacao): aviso no cartao, uma janela so, restaura com a confirmacao
+  versoesDoItem.versoes[3].exigeConfirmacao = true;
+  await V.s.vsDados; chamadas.length = 0;
+  clique('abrir', { id: ID }); await espera();
+  assert(tela().includes('Mês fechado: vai pedir confirmação.'), 'aviso no cartao da versao');
+  cliqueDoc('restaurar', { n: '1' }); await espera(); await espera();
+  const jan = chamadas.find((c) => c.confirmou);
+  assert(jan.confirmou.includes('já fechou') && jan.rotulo === 'Restaurar mesmo assim', 'janela unica com o aviso');
+  assert.strictEqual(chamadas.filter((c) => c.confirmou).length, 1);
+  assert.strictEqual(chamadas.find((c) => c.restaurar).confirma, true, 'envia a confirmacao');
+  delete versoesDoItem.versoes[3].exigeConfirmacao;
 
   // cancelar a confirmacao nao chama a API
   chamadas.length = 0; ctx.__confirma = false;
