@@ -23,6 +23,8 @@ type bancoFake struct {
 	// que chega primeiro) e falharTransacao faz a proxima transacao falhar (nada e aplicado).
 	antesDaTransacao func()
 	falharTransacao  error
+	// falharLeitura faz GetItem e Query falharem (a leitura de papel, espacos e lancamentos).
+	falharLeitura error
 }
 
 func novoBancoFake() *bancoFake {
@@ -33,6 +35,9 @@ func sv(a types.AttributeValue) string { return a.(*types.AttributeValueMemberS)
 func chave(pk, sk string) string       { return pk + "|" + sk }
 
 func (f *bancoFake) GetItem(_ context.Context, in *dynamodb.GetItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+	if f.falharLeitura != nil {
+		return nil, f.falharLeitura
+	}
 	it, ok := f.itens[chave(sv(in.Key["PK"]), sv(in.Key["SK"]))]
 	if !ok {
 		return &dynamodb.GetItemOutput{}, nil
@@ -165,6 +170,9 @@ func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, 
 
 // Query: entende "PK = :pk AND SK BETWEEN :a AND :b" e "PK = :pk AND begins_with(SK, :s)".
 func (f *bancoFake) Query(_ context.Context, in *dynamodb.QueryInput, _ ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error) {
+	if f.falharLeitura != nil {
+		return nil, f.falharLeitura
+	}
 	pk := sv(in.ExpressionAttributeValues[":pk"])
 	var sks []string
 	for k, it := range f.itens {
@@ -240,9 +248,13 @@ const (
 	dePrefixoTx = "TX#"
 )
 
+// srvTeste e o Servidor do cenario atual: montado com o banco falso, como o main monta com o DynamoDB.
+var srvTeste *Servidor
+
 func cenario(t *testing.T) *bancoFake {
 	f := novoBancoFake()
-	db = f
+	db = f // a raiz ainda le a global nos assuntos que nao migraram (fatias 2 a 4 do item 32)
+	srvTeste = novoServidor(f, table)
 	f.colocar(t, doc{"PK": "USER#own", "SK": "SPACE#s1", "role": "owner"})
 	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member"})
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "META", "nome": "Familia"})
@@ -264,7 +276,7 @@ func cenario(t *testing.T) *bancoFake {
 
 func chamar(t *testing.T, sub, metodo, caminho string, qs map[string]string, corpo string) (int, doc) {
 	t.Helper()
-	r, _ := processar(context.Background(), &user{Sub: sub}, metodo, strings.Split(caminho, "/"), qs, corpo)
+	r, _ := srvTeste.processar(context.Background(), &user{Sub: sub}, metodo, strings.Split(caminho, "/"), qs, corpo)
 	var d doc
 	_ = json.Unmarshal([]byte(r.Body), &d)
 	return r.StatusCode, d

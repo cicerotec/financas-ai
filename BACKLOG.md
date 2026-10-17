@@ -98,7 +98,10 @@ DynamoDB sem discutir com o dono.**
   2026-10-15); `fechamento`, `tags`, `avisos`, `cfg` e `perfil` seguem como estão e migram nas fatias seguintes.
   **Feito (PR #100):** cada camada virou uma pasta em `backend/` (`domain/`, `auth/`, `repository/`, `service/`,
   `controller/`), com a regra de dependência testada em `arquitetura_test.go`; lançamentos e `auth` já migraram. Falta
-  o resto da raiz (`store`, `fechamento`, `tags`, `perfil`, `seq`, `cfg`) e a pasta `dispatcher/`, que nasce com o item 34.
+  o resto da raiz (`fechamento`, `tags`, `perfil`, `seq`, `cfg`, avisos e Telegram), em quatro fatias (plano em
+  [`.ai/specs/arquitetura-camadas/`](.ai/specs/arquitetura-camadas/plan.md)). **Fatia 1 (espaços e leitura de lançamentos)
+  implementada**, falta conferir em dev. O despachante de avisos vive no `service` e os canais em `notificacao/` (item 34).
+  Achado para outra entrega: cursor inválido em `GET /tx` devolve `500`; o certo seria `400`.
 - 38. [x] <a id="item-38"></a>**[Próximo] Fechamento automático do mês anterior (confirmação explícita para mexer no passado):**
   decisões do dono (2026-10-16). O **conferido manual** da aba Saldos é herança da planilha e fica **opcional** (trava
   absoluta, como hoje, sem ser removido); o sistema deve fluir sem ele. O mês **fecha sozinho**: um evento de mês anterior
