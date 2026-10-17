@@ -1,0 +1,26 @@
+{
+ "PK": "HIST#8c95812f-...",
+ "SK": "TX#ciu6jio9rsda4yz3wy07#00000004",
+ "acao": "update",
+ "confirmouMesFechado": true,
+ "em": "2025-01-20T09:30:00.000Z",
+ "porSub": "dados-ficticios",
+ "registro": {
+  "banco": "Bradesco",
+  "criadoEm": "2025-01-01T19:01:00.000Z",
+  "criadoPor": "dados-ficticios",
+  "dataEvento": "2025-01-01T20:28:00.000Z",
+  "descricao": "Eletronico",
+  "excluirDoTotal": false,
+  "id": "ciu6jio9rsda4yz3wy07",
+  "nota": "",
+  "status": "PAGO",
+  "tags": [
+   "compras-casa",
+   "compras-pet"
+  ],
+  "tipo": "saida",
+  "valor": 320.5
+ },
+ "versao": 4
+}

@@ -74,25 +74,26 @@ func processar(ctx context.Context, u *user, m string, p []string, qs map[string
 		}
 	}
 	// a ligacao das pecas fica aqui ate o main montar tudo uma vez so (item 32 do BACKLOG)
+	confirma := qs["confirmaMesFechado"] == "1" // a pessoa confirmou mexer em mes fechado por data (spec do item 38)
 	lanc := controller.NewLancamentos(service.NewLancamentos(repository.NewLancamentos(db, table), efeitosRaiz{}, repository.NewPessoas(db, table)))
 	switch acaoReq {
 	case auth.AcaoLerTx:
 		return getTxs(ctx, sid, qs)
 	case auth.AcaoCriarTx:
-		return lanc.PostTx(ctx, sid, u.Sub, body)
+		return lanc.PostTx(ctx, sid, u.Sub, body, confirma)
 	case auth.AcaoImportarTx:
-		return lanc.PostTxBatch(ctx, sid, u.Sub, body)
+		return lanc.PostTxBatch(ctx, sid, u.Sub, body, confirma)
 	case auth.AcaoEditarTx:
-		return lanc.PutTx(ctx, sid, p[3], qs["de"], body, u.Sub, dec == auth.SoDono)
+		return lanc.PutTx(ctx, sid, p[3], qs["de"], body, u.Sub, dec == auth.SoDono, confirma)
 	case auth.AcaoExcluirTx:
-		return lanc.DelTx(ctx, sid, p[3], qs["de"], u.Sub)
+		return lanc.DelTx(ctx, sid, p[3], qs["de"], u.Sub, confirma)
 	case auth.AcaoLerHistorico:
 		if p[2] == "historico" {
 			return lanc.GetHistorico(ctx, sid, qs["mes"], qs["q"], u.Sub, dec == auth.SoDono)
 		}
 		return lanc.GetVersoes(ctx, sid, p[3], qs["de"], u.Sub, dec == auth.SoDono)
 	case auth.AcaoRestaurar:
-		return lanc.PostRestaurar(ctx, sid, p[3], p[5], u.Sub, dec == auth.SoDono)
+		return lanc.PostRestaurar(ctx, sid, p[3], p[5], u.Sub, dec == auth.SoDono, confirma)
 	case auth.AcaoLerCfg:
 		return getCfg(ctx, spacePK(sid), "CFG#"+strings.ToUpper(p[3]))
 	case auth.AcaoEscreverCfg:

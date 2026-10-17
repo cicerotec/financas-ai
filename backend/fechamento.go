@@ -129,27 +129,40 @@ func (t *travas) anteriorAoInicio(a domain.Alvo) (bool, error) {
 	return ini != "" && a.Mes < ini, err
 }
 
-// checar devolve *domain.ErroMesConferido se o mes do alvo esta travado.
-func (t *travas) checar(a domain.Alvo) error {
+// checar decide se uma escrita no alvo pode seguir, na ordem: (1) mes conferido com o extrato, absoluto, devolve
+// *domain.ErroMesConferido e a confirmacao nao o destrava; (2) mes fechado por data (domain.MesFechadoPorData no instante
+// "agora"), que devolve *domain.ErroMesFechado se a pessoa nao confirmou. O que e anterior ao inicio do controle do banco
+// nao entra no saldo e e livre nos dois casos. exigiu = a confirmacao era necessaria e foi dada.
+func (t *travas) checar(a domain.Alvo, confirmado bool, agora time.Time) (exigiu bool, err error) {
 	ate, ok := t.ate[a.Banco]
 	if !ok {
 		d, err := lerSaldo(t.ctx, t.sid, a.Banco)
 		if err != nil {
-			return err
+			return false, err
 		}
 		ate = ultimoConferido(d)
 		t.ate[a.Banco] = ate
 	}
-	if ate != "" && a.Mes <= ate {
+	fechadoPorData := domain.MesFechadoPorData(a.Mes, agora)
+	if (ate != "" && a.Mes <= ate) || fechadoPorData {
 		antes, err := t.anteriorAoInicio(a)
 		if err != nil {
-			return err
+			return false, err
 		}
-		if !antes {
-			return &domain.ErroMesConferido{Banco: a.Banco, Mes: a.Mes, Ate: ate}
+		if antes {
+			return false, nil
 		}
 	}
-	return nil
+	if ate != "" && a.Mes <= ate {
+		return false, &domain.ErroMesConferido{Banco: a.Banco, Mes: a.Mes, Ate: ate}
+	}
+	if fechadoPorData {
+		if !confirmado {
+			return false, &domain.ErroMesFechado{Banco: a.Banco, Mes: a.Mes}
+		}
+		return true, nil
+	}
+	return false, nil
 }
 
 // invalidarSaldos marca que os caches do banco deixaram de valer a partir do mes do alvo

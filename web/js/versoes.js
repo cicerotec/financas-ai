@@ -71,7 +71,7 @@ function vsVersaoHtml(v){
   else corpo = vsDiffHtml(v.diff) || '<li>Sem mudança nos campos.</li>';
   const q = 'Versão ' + v.versao + (v.acao === 'restore' && v.deVersao ? ' · restaurada da versão ' + v.deVersao : '');
   const rodape = v.restauravel
-    ? `<button type="button" class="vs-rb" data-vs="restaurar" data-n="${esc(v.versao)}">Restaurar esta versão</button>`
+    ? `<button type="button" class="vs-rb" data-vs="restaurar" data-n="${esc(v.versao)}">Restaurar esta versão</button>${v.exigeConfirmacao ? '<div class="vs-mt">Mês fechado: vai pedir confirmação.</div>' : ''}`
     : `<button type="button" class="vs-rb" disabled>Restaurar esta versão</button><div class="vs-mt">${esc(vsMotivo(v.motivo))}</div>`;
   return `<div class="vs-ver"><div class="h"><b>${vsPilula(v.acao)}${esc(vsQuem(v))}</b><span class="vs-mt">${esc(vsQuando(v.em))}</span></div>
     <div class="q">${esc(q)}</div><ul>${corpo}</ul>${rodape}</div>`;
@@ -160,13 +160,14 @@ function vsFechar(){ vsAberto = ''; vsDados = null; vsErroVersoes = ''; vsRender
 async function vsRestaurar(n, btn){
   const v = ((vsDados && vsDados.versoes) || []).find(x=>x.versao === n);
   if(!v) return;
+  const id = vsAberto; // guardado antes da janela: se a tela cheia fechar enquanto a pessoa decide, o id nao se perde
   const reg = v.registro || {};
-  const ok = await confirmarModal(`Restaurar a versão ${n} de "${reg.descricao || ''}"? O lançamento volta para o conteúdo dessa versão (${fmtMoeda(reg.valor)} · ${vsData(reg.dataEvento)})${vsDados.excluido ? ' e reaparece nas listas' : ''}. Será gravada uma versão nova; as anteriores continuam.`);
+  const exige = !!v.exigeConfirmacao; // o servidor avisa; a confirmacao e esta mesma janela
+  const ok = await confirmarModal(`Restaurar a versão ${n} de "${reg.descricao || ''}"? O lançamento volta para o conteúdo dessa versão (${fmtMoeda(reg.valor)} · ${vsData(reg.dataEvento)})${vsDados.excluido ? ' e reaparece nas listas' : ''}.${exige ? ' O mês desse lançamento já fechou: restaurar muda o saldo dele.' : ''} Será gravada uma versão nova; as anteriores continuam.`, exige ? 'Restaurar mesmo assim' : undefined);
   if(!ok) return;
-  const id = vsAberto;
   await comBotaoOcupado(btn, 'Restaurando…', async ()=>{
     try{
-      const r = await db.restaurarVersao(id, n);
+      const r = await db.restaurarVersao(id, n, exige);
       if(r.status !== 200){ toast((r.body && r.body.erro) || 'Não foi possível restaurar.', true); return; }
       toast(`Restaurado da versão ${n}. Uma versão nova foi gravada.`);
       await vsCarregarVersoes();

@@ -22,10 +22,8 @@ Só o que ainda não foi feito, na ordem de prioridade (**[Agora]**, depois **[P
 com o salto para o registro real. **Ao concluir um item, marque `[x]` no registro e tire a linha daqui.** Bugs
 pendentes: nenhum.
 
-- [\[Backend\] - **\[Agora\] Histórico imutável e versionado:**](#item-31)
 - [\[Backend\] - **\[Agora\] Arquitetura em camadas:**](#item-32)
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
-- [\[Backend\] - **\[Próximo\] Fechamento automático do mês anterior:**](#item-38)
 - [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe:**](#item-33)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
@@ -77,7 +75,7 @@ pendentes: nenhum.
 Os itens 31 a 34 vêm das decisões de 2026-10-10 (erro grave: uma edição sobrescreveu um registro e o dado se perdeu).
 O documento de referência é [`.ai/arquitetura.md`](.ai/arquitetura.md); leia antes de mexer. **Nenhuma chave nova no
 DynamoDB sem discutir com o dono.**
-- 31. [ ] <a id="item-31"></a>**[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
+- 31. [x] <a id="item-31"></a>**[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
   criação, edição, ocultação e exclusão gera uma versão (quem, quando, o registro completo), gravada na mesma transação
   do registro atual (`TransactWriteItems`) e com checagem de versão contra edição concorrente. Excluir passa a ser
   lógico, com o campo `excluidoEm` só nos excluídos; restaurar cria versão nova; o histórico nunca é editado nem
@@ -89,7 +87,7 @@ DynamoDB sem discutir com o dono.**
   fica para depois da refatoração. Fases: 0 (um caminho de escrita), 1 (versões e exclusão lógica), 2 (busca, diff e
   restauração na API), 3 (tela, com demo antes). **Fases 0 e 1 implementadas e verificadas em dev** (a 1 grava as
   versões e exclui logicamente, com o `Deny` de IAM conferido); **a 2 (busca por mês, diff e restauração na API) está
-  implementada e verificada em dev**; **a 3 (tela Histórico de versões) está implementada**, falta conferir no app de dev. O item 38 (fechamento automático do mês anterior) fica para
+  implementada e verificada em dev**; **a 3 (tela Histórico de versões) está implementada e verificada em dev**. O item 38 (fechamento automático do mês anterior) fica para
   depois do histórico: a restauração da Fase 2 respeita a trava do mês conferido, como as outras escritas. Detalhes em
   [`.ai/specs/historico/`](.ai/specs/historico/) (`intent.md`, `plan.md` e `spec.md`).
 - 32. [ ] <a id="item-32"></a>**[Agora] Arquitetura em camadas:** `main` só liga as peças; `controller` recebe o request; `service` decide o
@@ -101,7 +99,7 @@ DynamoDB sem discutir com o dono.**
   **Feito (PR #100):** cada camada virou uma pasta em `backend/` (`domain/`, `auth/`, `repository/`, `service/`,
   `controller/`), com a regra de dependência testada em `arquitetura_test.go`; lançamentos e `auth` já migraram. Falta
   o resto da raiz (`store`, `fechamento`, `tags`, `perfil`, `seq`, `cfg`) e a pasta `dispatcher/`, que nasce com o item 34.
-- 38. [ ] <a id="item-38"></a>**[Próximo] Fechamento automático do mês anterior (confirmação explícita para mexer no passado):**
+- 38. [x] <a id="item-38"></a>**[Próximo] Fechamento automático do mês anterior (confirmação explícita para mexer no passado):**
   decisões do dono (2026-10-16). O **conferido manual** da aba Saldos é herança da planilha e fica **opcional** (trava
   absoluta, como hoje, sem ser removido); o sistema deve fluir sem ele. O mês **fecha sozinho**: um evento de mês anterior
   só pode ser alterado com **confirmação explícita**. O mês anterior fica livre até o dia 7 do mês seguinte; **a partir do
@@ -117,7 +115,8 @@ DynamoDB sem discutir com o dono.**
   **Ordem (decidida em 2026-10-16):** vem **depois** do histórico (item 31, fases 2 e 3). A
   restauração da Fase 2 passa pelo mesmo ponto de trava das outras escritas, então este item entra num lugar só e vale
   para criar, editar, excluir, importar e restaurar. A mudança de tela (exclusão imediata, Desfazer por restauração) é
-  deste item, não da Fase 3 do histórico. **Custo:** um toque a mais ao editar o passado. Depende do item 31.
+  deste item, não da Fase 3 do histórico. **Custo:** um toque a mais ao editar o passado. Depende do item 31. **Concluído em 2026-10-17:** as fases A (backend), B (tela da
+  confirmação) e C (excluir imediato, Desfazer por restauração) estão implementadas e verificadas em dev.
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
