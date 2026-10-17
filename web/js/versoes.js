@@ -160,11 +160,11 @@ function vsFechar(){ vsAberto = ''; vsDados = null; vsErroVersoes = ''; vsRender
 async function vsRestaurar(n, btn){
   const v = ((vsDados && vsDados.versoes) || []).find(x=>x.versao === n);
   if(!v) return;
+  const id = vsAberto; // guardado antes da janela: se a tela cheia fechar enquanto a pessoa decide, o id nao se perde
   const reg = v.registro || {};
   const exige = !!v.exigeConfirmacao; // o servidor avisa; a confirmacao e esta mesma janela
   const ok = await confirmarModal(`Restaurar a versão ${n} de "${reg.descricao || ''}"? O lançamento volta para o conteúdo dessa versão (${fmtMoeda(reg.valor)} · ${vsData(reg.dataEvento)})${vsDados.excluido ? ' e reaparece nas listas' : ''}.${exige ? ' O mês desse lançamento já fechou: restaurar muda o saldo dele.' : ''} Será gravada uma versão nova; as anteriores continuam.`, exige ? 'Restaurar mesmo assim' : undefined);
   if(!ok) return;
-  const id = vsAberto;
   await comBotaoOcupado(btn, 'Restaurando…', async ()=>{
     try{
       const r = await db.restaurarVersao(id, n, exige);
