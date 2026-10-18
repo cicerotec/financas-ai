@@ -25,6 +25,7 @@ feito e ideias).
 | [`demos/demo-historico-versoes.html`](demos/demo-historico-versoes.html) | Demo aprovada da tela Histórico de versões (seção "Histórico de versões (tela)" de `padrao-de-telas.md`) |
 | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | Demo aprovada do Desfazer depois de excluir ou editar (padrão 11b de `padrao-de-telas.md`; provisório até o histórico) |
 | [`specs/fechamento-automatico/`](specs/fechamento-automatico/intent.md) | Intent, plan e spec do item 38: o mês anterior fecha sozinho e mexer no passado exige confirmação (rascunho) |
+| [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html) | Demo (em avaliação, ainda sem aprovação) da aba Tendências: grupos com E, OU e NÃO, modo avançado de expressão livre e aviso de outras tags no gráfico |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
