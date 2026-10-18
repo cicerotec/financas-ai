@@ -668,6 +668,7 @@ async function init(){
   document.body.classList.toggle('papel-member', papelAtual !== 'owner');
   if(window.claude && claude.definirApelido){
     document.getElementById('perfilNome').value = (claude.apelido && claude.apelido()) || '';
+    usAtualizar();
     document.getElementById('telegramChatId').value = (claude.telegramChatId && claude.telegramChatId()) || '';
   } else {
     document.getElementById('perfilCard').classList.add('hidden'); // ambiente sem perfil (artifact do Claude)
@@ -778,10 +779,11 @@ function fecharMenuApp(voltarFoco){
 function abrirMenuApp(){
   const atual = abaAtual();
   const nomeDe = t=>{ const b = document.querySelector(`nav button[data-tab="${t}"]`); return b ? b.textContent : t; };
-  document.getElementById('mnDrop').innerHTML = MENU_APP.map(([grupo, itens], i)=>
+  // topo: a conta (nome, espaco); meio: as telas; fim: Sair (usuario.js)
+  document.getElementById('mnDrop').innerHTML = htmlContaTopo() + MENU_APP.map(([grupo, itens], i)=>
     (i ? '<hr class="mn-sep">' : '') + `<div class="mn-grp">${grupo}</div>` +
     itens.map(([t, ic])=>`<button type="button" class="mn-it${t===atual?' on':''}" role="menuitem" data-tab="${t}"><span class="mn-ic">${ic}</span>${esc(nomeDe(t))}${t===atual?'<span class="mn-ck">✓</span>':''}</button>`).join('')
-  ).join('');
+  ).join('') + htmlContaFim();
   document.getElementById('mnDrop').hidden = false;
   document.getElementById('mnShade').hidden = false;
   document.getElementById('mnBtn').setAttribute('aria-expanded', 'true');
@@ -794,7 +796,7 @@ function setupMenuApp(){
   document.querySelectorAll('.mn-at').forEach(a=>a.addEventListener('click', ()=>irParaAba(a.dataset.atalho)));
   document.getElementById('mnShade').addEventListener('click', ()=>fecharMenuApp(false));
   drop.addEventListener('click', e=>{
-    const it = e.target.closest('.mn-it'); if(!it) return;
+    const it = e.target.closest('.mn-it[data-tab]'); if(!it) return; // Sair e o bloco da conta (usuario.js) tem os seus
     fecharMenuApp(false);
     irParaAba(it.dataset.tab);
   });
@@ -3609,6 +3611,7 @@ async function salvarNomePerfil(){
   try{
     const nome = await claude.definirApelido(inp.value);
     inp.value = nome;
+    usAtualizar();
     msg.textContent = nome ? 'Salvo ✓' : 'Nome removido ✓';
   }catch(e){
     msg.textContent = '⚠️ ' + ((e && e.message) || e);
