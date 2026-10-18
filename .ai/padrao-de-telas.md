@@ -19,7 +19,8 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Histórico de versões | [`demos/demo-historico-versoes.html`](demos/demo-historico-versoes.html) | busca por mês, lista de excluídos e alterados, versões com diff e Restaurar (desabilitado com o motivo), estados vazio e truncado, papéis dono e membro e a visão de computador (aprovado em 2026-10-16) |
 | Confirmação de mês fechado | [`demos/demo-confirmacao-mes-fechado.html`](demos/demo-confirmacao-mes-fechado.html) | segunda janela ao editar/lançar em mês fechado, restaurar com aviso no cartão, importar com uma pergunta no fim, mês conferido sem confirmação (aprovado em 2026-10-17) |
 | Excluir na hora | [`demos/demo-exclusao-imediata.html`](demos/demo-exclusao-imediata.html) | DELETE imediato com o item na lista até a resposta, recusas antes de sumir (conferido, mês fechado, rede), Desfazer por restauração e seu erro (aprovado em 2026-10-17) |
-| Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
+| Tendências por tags | [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html) | **em avaliação, não aprovada**: grupos com E/NÃO e OU entre eles (padrão), "Modo avançado" com expressão livre (parênteses, E, OU, NÃO), barra do mês em duas partes e lista de outras tags com "Tirar (NÃO)". Só desenha: nada vai para o código antes da aprovação |
+| Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html)(demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
 
 ## Princípios
 1. **Celular primeiro.** O dono usa o app no Android. Desenhe a largura de 360 a 400 px e só depois amplie.

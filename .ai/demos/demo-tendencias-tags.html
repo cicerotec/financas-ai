@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Tendências por tags</title>
+<style>
+/* Tokens do app (web/index.html). Layout: um quadro de celular com o montador de grupos e o gráfico mensal. */
+:root{
+  --bg:#f7f7f5; --card:#fff; --text:#1a1a1a; --muted:#6b6b6b; --border:#e3e2de;
+  --accent:#2f6f4f; --onaccent:#fff; --accent-bg:#dcefe5; --danger:#b3413a; --danger-bg:#f8e6e2;
+  --income:#2f6f4f; --faint:#8c938d; --ck:#d3d6d2; --frame:#e9e8e3;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
+  --accent:#5fb98a; --onaccent:#08231a; --accent-bg:#1c3a2e; --danger:#e08a83; --danger-bg:#3a1f1a;
+  --income:#5fb98a; --faint:#7b827c; --ck:#3b413d; --frame:#0f0f0e; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
+  --accent:#5fb98a; --onaccent:#08231a; --accent-bg:#1c3a2e; --danger:#e08a83; --danger-bg:#3a1f1a;
+  --income:#5fb98a; --faint:#7b827c; --ck:#3b413d; --frame:#0f0f0e; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 60px;}
+.wrap{max-width:560px;margin:0 auto;}
+h1{font-size:17px;margin:0 0 4px;}
+.nota{color:var(--muted);font-size:13px;line-height:1.45;margin:0 0 14px;max-width:60ch;}
+.tela{background:var(--frame);border-radius:20px;padding:12px;min-width:0;}
+.card{background:var(--card);border-radius:16px;padding:12px;margin:0 0 10px;}
+.card > .tit{font-size:13px;color:var(--muted);margin:0 0 8px;}
+button{font:inherit;color:inherit;cursor:pointer;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* exemplos */
+.ex{display:flex;flex-wrap:wrap;gap:6px;}
+.ex button{border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:8px 10px;font-size:13px;min-height:40px;text-align:left;}
+.ex button.on{border-color:var(--accent);background:var(--accent-bg);}
+
+/* frase da consulta */
+.frase{font-size:15px;line-height:1.7;overflow-wrap:anywhere;}
+.frase .op{font-size:11px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:6px;margin:0 2px;vertical-align:1px;}
+.frase .op.e{background:var(--accent-bg);color:var(--accent);}
+.frase .op.nao{background:var(--danger-bg);color:var(--danger);}
+.frase .op.ou{background:var(--ck);color:var(--text);}
+.frase .vazio{color:var(--muted);}
+
+/* grupo */
+.grupo{background:var(--card);border-radius:16px;padding:12px;margin:0 0 6px;}
+.gtop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;}
+.gtop b{font-size:14px;}
+.gtop .rm{border:0;background:transparent;color:var(--muted);width:44px;height:44px;margin:-8px -8px -8px 0;font-size:18px;border-radius:50%;}
+.lin{margin:0 0 8px;}
+.lin:last-child{margin-bottom:0;}
+.lin .rot{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);margin:0 0 6px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent);background:var(--accent-bg);color:var(--text);border-radius:999px;padding:0 6px 0 12px;min-height:40px;font-size:14px;}
+.chip.nao{border-color:var(--danger);background:var(--danger-bg);}
+.chip .x{color:var(--muted);font-size:16px;width:28px;height:28px;display:grid;place-items:center;}
+.add{display:inline-flex;align-items:center;border:1px dashed var(--faint);background:transparent;color:var(--muted);border-radius:999px;padding:0 14px;min-height:40px;font-size:14px;}
+.ou{display:flex;align-items:center;gap:10px;margin:0 0 6px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.06em;}
+.ou::before,.ou::after{content:"";flex:1;border-top:1px solid var(--border);}
+.novo{width:100%;min-height:56px;border:1px dashed var(--faint);background:transparent;border-radius:16px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;margin:0 0 10px;}
+.novo .sub{font-size:12.5px;color:var(--muted);}
+.novo.lim{border-style:solid;border-color:var(--border);cursor:default;}
+.novo.lim .sub{color:var(--danger);}
+
+/* resultado */
+.rtop{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 10px;}
+.rtop .tx{font-size:13px;color:var(--muted);min-width:0;}
+.rtop .tot{flex:none;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--danger);}
+.graf{display:flex;align-items:flex-end;gap:6px;height:170px;padding-top:4px;}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+.col .v{font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);margin-bottom:3px;}
+.col .b{width:100%;max-width:44px;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px;transition:height .15s;}
+.col .m{font-size:11.5px;color:var(--muted);margin-top:5px;}
+.eixo{border-top:1px solid var(--border);}
+@media (prefers-reduced-motion:reduce){.col .b{transition:none;}}
+.vazio-g{padding:22px 8px;text-align:center;color:var(--muted);font-size:13px;}
+.hoje{margin:8px 4px 0;font-size:12px;color:var(--faint);line-height:1.45;}
+
+/* janela de baixo */
+.veu{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80;display:flex;align-items:flex-end;justify-content:center;}
+.veu[hidden]{display:none;}
+.jan{background:var(--card);width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:14px 16px max(16px,env(safe-area-inset-bottom,0px));max-height:82vh;display:flex;flex-direction:column;}
+.jan h2{font-size:16px;margin:0 0 2px;}
+.jan .sub{font-size:13px;color:var(--muted);margin:0 0 10px;}
+.jan input[type=search]{width:100%;border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;background:var(--bg);color:var(--text);margin:0 0 6px;}
+.jan .lista{overflow:auto;flex:1;min-height:0;}
+.jan .li{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:56px;padding:8px 4px;border-top:1px solid var(--border);width:100%;border-left:0;border-right:0;border-bottom:0;background:transparent;text-align:left;}
+.jan .li:first-child{border-top:0;}
+.jan .li .n{min-width:0;overflow-wrap:anywhere;}
+.jan .li .o{display:block;font-size:12px;color:var(--faint);}
+.ck{flex:none;width:28px;height:28px;border-radius:50%;background:var(--ck);display:grid;place-items:center;color:var(--onaccent);font-weight:700;font-size:15px;}
+.li[aria-checked="true"] .ck{background:var(--accent);}
+.li.nao[aria-checked="true"] .ck{background:var(--danger);}
+.jan .ok{margin-top:10px;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--onaccent);font-weight:600;font-size:15px;}
+.jan .cnt{font-size:12.5px;color:var(--muted);margin:4px 0 0;}
+
+.perde{margin:20px 0 0;font-size:13px;color:var(--muted);line-height:1.5;max-width:70ch;}
+.perde b{color:var(--text);}
+.perde ul{margin:6px 0 0;padding-left:18px;}
+</style>
+</head>
+<body>
+<!-- menu-app:inicio (padrao do menu do app; igual em todas as demos. Celular e janela < 1160 px: menu ⋮. Janela larga ou "Computador": abas em botoes, como hoje) -->
+<style>
+.mn{position:sticky;top:0;z-index:60;margin-inline:-16px;padding:0 16px 8px;background:var(--bg);border-bottom:1px solid var(--line,var(--border));margin-bottom:12px}
+.mn *{box-sizing:border-box}
+.mn .mn-pills{display:none}
+.mn .mn-t{font-size:18px;font-weight:700;margin:10px 0 8px}
+.mn .mn-pills{gap:6px;overflow-x:auto;padding-bottom:2px}
+.mn .mn-pills button{border:1px solid var(--line,var(--border));background:var(--card);color:var(--fg,var(--text));padding:7px 12px;border-radius:20px;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
+.mn .mn-pills button.on{background:var(--accent);color:var(--onaccent,#fff);border-color:var(--accent)}
+.mn .mn-bar{display:flex;align-items:center;gap:8px;min-height:52px}
+.mn .mn-nome{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.mn .mn-app{font-size:11px;color:var(--muted)}
+.mn .mn-tela{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mn .mn-ib{width:48px;height:48px;border:0;background:transparent;color:var(--fg,var(--text));border-radius:50%;cursor:pointer;display:grid;place-items:center;flex:none;padding:0}
+.mn .mn-ib[aria-expanded="true"]{background:var(--accent-bg,rgba(95,185,138,.2))}
+.mn .mn-ib svg{width:24px;height:24px}
+.mn .mn-shade{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:61}
+.mn .mn-drop{position:absolute;top:52px;right:10px;width:240px;max-width:calc(100vw - 20px);background:var(--card);color:var(--fg,var(--text));border:1px solid var(--line,var(--border));border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:6px;z-index:62}
+.mn .mn-grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px}
+.mn .mn-grp:first-child{padding-top:6px}
+.mn .mn-it{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;border:0;background:transparent;color:inherit;font:inherit;font-size:15px;text-align:left;padding:0 10px;border-radius:10px;cursor:pointer}
+.mn .mn-it:hover,.mn .mn-it.on{background:var(--accent-bg,rgba(95,185,138,.2))}
+.mn .mn-it.on{font-weight:600}
+.mn .mn-ic{width:22px;text-align:center;font-size:17px;flex:none}
+.mn .mn-ck{margin-left:auto;color:var(--accent);font-weight:700}
+.mn hr{border:0;border-top:1px solid var(--line,var(--border));margin:4px 6px}
+.mn .mn-nota{font-size:11px;color:var(--muted);padding:6px 10px 4px;line-height:1.35}
+.mn[hidden],.mn [hidden]{display:none!important}
+/* largura da janela de computador: abas em botoes, sem o menu */
+@media (min-width:1160px){.mn.mn-auto .mn-bar{display:none}.mn.mn-auto .mn-pills{display:flex}}
+.mn.mn-largo .mn-bar{display:none}.mn.mn-largo .mn-pills{display:flex}
+</style>
+<header class="mn mn-auto" id="mn" data-tela="tendencias"></header>
+<script>
+(function(){
+  var el=document.getElementById('mn'); if(!el) return;
+  var T=[['lancar','Lançar','✏️','Dia a dia'],['historico','Histórico','🕘','Dia a dia'],['futuros','Futuros','📅','Dia a dia'],
+         ['cartao','Cartão','💳','Acompanhar'],['saldos','Saldos','🏦','Acompanhar'],['tendencias','Tendências','📈','Acompanhar'],
+         ['listas','Listas','🏷️','Configurar'],['importar','Importar','📥','Configurar']];
+  var atual=el.getAttribute('data-tela')||'lancar';
+  var MAIS='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+  function nome(){for(var i=0;i<T.length;i++)if(T[i][0]===atual)return T[i][1];return '';}
+  function fechar(){var d=el.querySelector('.mn-drop'),s=el.querySelector('.mn-shade'),b=el.querySelector('.mn-ib');
+    if(d)d.hidden=true;if(s)s.hidden=true;if(b)b.setAttribute('aria-expanded','false');}
+  function montar(){
+    var g='',m='';
+    T.forEach(function(t){
+      if(t[3]!==g){if(g)m+='<hr>';m+='<div class="mn-grp">'+t[3]+'</div>';g=t[3];}
+      var on=t[0]===atual;
+      m+='<button type="button" class="mn-it'+(on?' on':'')+'" role="menuitem" data-id="'+t[0]+'"><span class="mn-ic">'+t[2]+'</span>'+t[1]+(on?'<span class="mn-ck">✓</span>':'')+'</button>';
+    });
+    el.innerHTML=
+      '<div class="mn-t">💰 Finanças da Família</div>'+
+      '<div class="mn-pills">'+T.map(function(t){return '<button type="button" data-id="'+t[0]+'" class="'+(t[0]===atual?'on':'')+'">'+t[1]+'</button>';}).join('')+'</div>'+
+      '<div class="mn-bar"><div class="mn-nome"><span class="mn-app">💰 Finanças da Família</span><span class="mn-tela">'+nome()+'</span></div>'+
+      '<button type="button" class="mn-ib" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">'+MAIS+'</button></div>'+
+      '<div class="mn-shade" hidden></div>'+
+      '<div class="mn-drop" role="menu" aria-label="Telas do app" hidden>'+m+'<div class="mn-nota">Na demo, trocar de tela só muda o destaque do menu.</div></div>';
+    el.querySelector('.mn-t').style.display='';
+    var ib=el.querySelector('.mn-ib'),d=el.querySelector('.mn-drop'),s=el.querySelector('.mn-shade');
+    ib.onclick=function(){var abrir=d.hidden;fechar();if(abrir){d.hidden=false;s.hidden=false;ib.setAttribute('aria-expanded','true');}};
+    s.onclick=fechar;
+    el.querySelectorAll('[data-id]').forEach(function(b){b.onclick=function(){atual=b.getAttribute('data-id');montar();};});
+  }
+  // o "Computador" das demos liga body.wide: nessa visao valem as abas em botoes mesmo numa janela estreita
+  function largo(){el.classList.toggle('mn-largo',document.body.classList.contains('wide'));}
+  new MutationObserver(largo).observe(document.body,{attributes:true,attributeFilter:['class']});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')fechar();});
+  montar();largo();
+})();
+</script>
+<style>.mn .mn-t{display:none}@media (min-width:1160px){.mn.mn-auto .mn-t{display:block}}.mn.mn-largo .mn-t{display:block}</style>
+<!-- menu-app:fim -->
+<style>
+/* Modo avançado: expressão livre */
+.expr{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:76px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--bg);}
+.expr.erro{border-color:var(--danger);}
+.expr .vaz{color:var(--faint);font-size:14px;}
+.tk{border:1px solid transparent;border-radius:999px;min-height:40px;padding:0 12px;font-size:14px;background:var(--accent-bg);color:var(--text);display:inline-flex;align-items:center;}
+.tk.op{border-radius:8px;padding:0 10px;font-size:12.5px;font-weight:700;letter-spacing:.04em;}
+.tk.e{background:transparent;color:var(--accent);border-color:var(--accent);}
+.tk.ou{background:var(--ck);color:var(--text);}
+.tk.nao{background:var(--danger-bg);color:var(--danger);border-color:var(--danger);}
+.tk.par{background:transparent;font-size:22px;font-weight:300;padding:0 6px;min-width:26px;justify-content:center;color:var(--text);}
+.cur{width:3px;height:30px;border-radius:2px;background:var(--accent);animation:pisca 1s steps(2,start) infinite;flex:none;}
+@keyframes pisca{to{visibility:hidden}}
+@media (prefers-reduced-motion:reduce){.cur{animation:none}}
+.msg{font-size:13px;margin:8px 2px 0;line-height:1.4;}
+.msg.ok{color:var(--muted);}
+.msg.bad{color:var(--danger);}
+.lido{font-size:12.5px;color:var(--muted);margin:6px 2px 0;overflow-wrap:anywhere;line-height:1.5;}
+.lido b{color:var(--text);font-weight:600;}
+.teclas{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px;}
+.teclas.l2{grid-template-columns:repeat(4,1fr);}
+.teclas button{min-height:48px;border:1px solid var(--border);border-radius:12px;background:var(--card);font-size:15px;font-weight:600;}
+.teclas button:active{background:var(--accent-bg);}
+.teclas .k-e{color:var(--accent);}
+.teclas .k-nao{color:var(--danger);}
+.teclas .k-par{font-size:22px;font-weight:300;}
+.teclas .k-x{font-weight:500;color:var(--muted);font-size:14px;}
+.tagbusca{width:100%;border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;background:var(--bg);color:var(--text);margin:12px 0 8px;}
+.tgs{display:flex;flex-wrap:wrap;gap:6px;}
+.tgs button{border:1px solid var(--border);background:var(--card);border-radius:999px;min-height:40px;padding:0 14px;font-size:14px;}
+.tgs button:active{background:var(--accent-bg);}
+.sem{font-size:12px;color:var(--faint);margin:6px 2px 0;}
+
+/* alternar entre os modos */
+.avanc{width:100%;min-height:56px;border:1px solid var(--border);background:var(--card);border-radius:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 16px;margin:0 0 10px;text-align:left;}
+.avanc .sub{font-size:12.5px;color:var(--muted);display:block;}
+.avanc .seta{color:var(--muted);flex:none;transition:transform .15s;}
+.avanc[aria-expanded="true"] .seta{transform:rotate(90deg);}
+@media (prefers-reduced-motion:reduce){.avanc .seta{transition:none}}
+.volta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;}
+.volta button{border:1px solid var(--border);background:transparent;border-radius:10px;min-height:44px;padding:0 12px;font-size:14px;}
+.volta span{font-size:12.5px;color:var(--muted);}
+
+/* gráfico: barra empilhada = só as tags da consulta + com outras tags */
+.col .b{display:flex;flex-direction:column;justify-content:flex-end;background:transparent;border-radius:4px 4px 0 0;overflow:hidden;min-height:2px;}
+.col .b .bx{background:repeating-linear-gradient(135deg,var(--accent) 0 2px,transparent 2px 5px);border:1.5px solid var(--accent);border-bottom:0;border-radius:4px 4px 0 0;flex:none;}
+.col .b .bs{background:var(--accent);flex:none;}
+.col .b .bx:only-child{border-bottom:1.5px solid var(--accent);}
+.graf.velho{opacity:.45;}
+.leg{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 2px 0;font-size:12.5px;color:var(--muted);}
+.leg span{display:inline-flex;align-items:center;gap:6px;}
+.leg i{width:14px;height:14px;border-radius:3px;border:1.5px solid var(--accent);flex:none;}
+.leg i.s{background:var(--accent);}
+.leg i.x{background:repeating-linear-gradient(135deg,var(--accent) 0 2px,transparent 2px 5px);}
+.alerta{margin:10px 0 0;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.4;background:var(--danger-bg);color:var(--text);}
+.alerta b{color:var(--danger);}
+.alerta.ok{background:var(--accent-bg);}
+.alerta.ok b{color:var(--accent);}
+
+/* outras tags */
+.cot{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 0;border-top:1px solid var(--border);}
+.cot:first-of-type{border-top:0;}
+.cot .info{flex:1;min-width:0;}
+.cot .nm{display:flex;justify-content:space-between;gap:8px;font-size:14px;}
+.cot .nm b{overflow-wrap:anywhere;font-weight:600;}
+.cot .nm span{flex:none;font-variant-numeric:tabular-nums;color:var(--muted);}
+.cot .trilho{height:6px;border-radius:3px;background:var(--ck);margin-top:6px;overflow:hidden;}
+.cot .trilho i{display:block;height:100%;background:var(--danger);border-radius:3px;}
+.cot button{flex:none;min-height:44px;border:1px solid var(--danger);color:var(--danger);background:transparent;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;}
+.aviso{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 0;font-size:13px;color:var(--muted);}
+.aviso button{border:0;background:transparent;color:var(--accent);font-weight:600;min-height:44px;padding:0 6px;}
+.aviso.bad{color:var(--danger);}
+</style>
+<div class="wrap">
+  <h1>Tendências: grupos e expressão livre</h1>
+  <p class="nota">Demonstração com dados de exemplo. O modo padrão são os <b>grupos</b>; a <b>expressão livre</b> abre sob demanda. O gráfico agora mostra quanto do valor tem <b>outras tags</b> além das da consulta, e a lista abaixo diz quais são.</p>
+
+  <div class="tela">
+    <div class="card">
+      <div class="tit">Exemplos</div>
+      <div class="ex" id="ex"></div>
+    </div>
+
+    <!-- modo grupos (padrão) -->
+    <div id="pgrupos">
+      <div class="card">
+        <div class="tit">Sua consulta</div>
+        <div class="frase" id="frase"></div>
+      </div>
+      <div id="grupos"></div>
+      <button class="novo" id="novo" type="button"></button>
+      <button class="avanc" id="btnAvanc" type="button" aria-expanded="false" aria-controls="pavanc">
+        <span><b>Modo avançado</b><span class="sub">Escrever a expressão com parênteses, E, OU e NÃO</span></span><span class="seta" aria-hidden="true">›</span>
+      </button>
+    </div>
+
+    <!-- modo avançado (fechado até o toque) -->
+    <div id="pavanc" hidden>
+      <div class="volta"><button type="button" id="btnVoltar">‹ Voltar aos grupos</button><span>Descarta a expressão</span></div>
+      <div class="card">
+        <div class="tit">Gasto por mês de (expressão)</div>
+        <div class="expr" id="expr" role="group" aria-label="Expressão"></div>
+        <div class="msg ok" id="msg" role="status"></div>
+        <div class="lido" id="lido"></div>
+        <div class="teclas">
+          <button type="button" class="k-par" data-k="(" aria-label="Abre parêntese">(</button>
+          <button type="button" class="k-par" data-k=")" aria-label="Fecha parêntese">)</button>
+          <button type="button" class="k-e" data-k="E">E</button>
+          <button type="button" data-k="OU">OU</button>
+          <button type="button" class="k-nao" data-k="NAO">NÃO</button>
+        </div>
+        <div class="teclas l2">
+          <button type="button" class="k-x" data-k="esq" aria-label="Cursor para a esquerda">◀</button>
+          <button type="button" class="k-x" data-k="dir" aria-label="Cursor para a direita">▶</button>
+          <button type="button" class="k-x" data-k="apagar" aria-label="Apagar a ficha antes do cursor">⌫ Apagar</button>
+          <button type="button" class="k-x" data-k="limpar">Limpar</button>
+        </div>
+        <p class="sem" id="cont"></p>
+        <input type="search" class="tagbusca" id="tb" placeholder="Buscar tag..." aria-label="Buscar tag">
+        <div class="tgs" id="tgs"></div>
+      </div>
+    </div>
+
+    <!-- resultado -->
+    <div class="card">
+      <div class="rtop"><span class="tx" id="rtx"></span><span class="tot" id="rtot"></span></div>
+      <div class="graf eixo" id="graf" role="img"></div>
+      <div class="leg" id="leg"></div>
+      <div class="alerta" id="alerta"></div>
+    </div>
+
+    <div class="card" id="cardOutras">
+      <div class="tit">Outras tags nesses lançamentos</div>
+      <div id="outras"></div>
+      <div class="aviso" id="aviso" hidden></div>
+    </div>
+  </div>
+
+  <div class="perde">
+    <b>O que é novo nesta demo</b>
+    <ul>
+      <li><b>Grupos primeiro, expressão sob demanda.</b> O botão "Modo avançado" abre o editor já com a consulta dos grupos traduzida em expressão. "Voltar aos grupos" fecha o editor e descarta o que você escreveu à mão.</li>
+      <li><b>Barra do mês em duas partes:</b> cheia = lançamentos cujas tags estão <i>todas</i> na consulta; listrada = lançamentos que têm <i>outras</i> tags além das da consulta. As duas partes somam o total do mês, e é isso que o número no topo da barra mostra.</li>
+      <li><b>Faixa abaixo do gráfico</b> diz, em porcentagem do valor, quanto tem outras tags. Fica vermelha quando é mais que nada, para chamar atenção.</li>
+      <li><b>Lista "Outras tags":</b> cada tag que aparece junto, com a porcentagem do valor dos lançamentos da consulta em que ela está. As porcentagens <b>se sobrepõem</b> (uma compra com 5 tags conta nas 5), então não somam 100%. "Tirar" põe NÃO naquela tag (em todos os grupos, ou na expressão toda) e tem "Desfazer".</li>
+    </ul>
+    <b style="display:block;margin-top:12px;">O que se perde</b>
+    <ul>
+      <li>A barra mostra <i>presença</i> de outras tags, não quanto do valor pertence a cada tag. Não dá para dividir o valor de uma compra mista entre as tags dela.</li>
+      <li>"Tirar" tira o lançamento inteiro da conta, não só a parte daquela tag: o total fica "puro", mas deixa de ser o total real.</li>
+      <li>Duas formas de montar a mesma consulta é mais coisa para entender; a expressão livre é mais curta para quem sabe lógica, mas pede mais toques.</li>
+      <li>Lista limitada às 6 tags mais pesadas; as demais viram "e mais N tags".</li>
+      <li>Limites à vista (proposta): 4 grupos, 8 tags por lista, 60 fichas na expressão.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="veu" id="veu" hidden>
+  <div class="jan" role="dialog" aria-modal="true" aria-labelledby="jt">
+    <h2 id="jt"></h2>
+    <p class="sub" id="js"></p>
+    <input type="search" id="jb" placeholder="Buscar tag..." aria-label="Buscar tag">
+    <div class="lista" id="jl" role="group"></div>
+    <p class="cnt" id="jc"></p>
+    <button class="ok" id="jok" type="button">Pronto</button>
+  </div>
+</div>
+
+<script>
+const MAX_G = 4, MAX_T = 8, MAX_TK = 60, MAX_COT = 6;
+const brl0 = n => n.toLocaleString('pt-BR',{maximumFractionDigits:0});
+const brl = n => n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clone = x => JSON.parse(JSON.stringify(x));
+
+// dados de exemplo: [mês, valor, tags]
+const L = [];
+const add = (m, v, t) => L.push({m, v, t: t.split(',')});
+const LVC='Lazer,Comida,Variavel', MER='Mercado,Essencial,Variavel,Comida';
+add('2026-05',62,LVC); add('2026-05',95,LVC); add('2026-05',140,LVC+',Presente'); add('2026-05',480,MER); add('2026-05',2400,'Moradia,Essencial,Fixo'); add('2026-05',300,'Transporte,Variavel');
+add('2026-06',58,LVC); add('2026-06',34,LVC); add('2026-06',180,LVC+',Presente'); add('2026-06',520,MER); add('2026-06',120,'Transporte,Essencial,Fixo'); add('2026-06',290,'Transporte,Variavel');
+add('2026-07',70,LVC); add('2026-07',88,LVC); add('2026-07',210,LVC+',Presente'); add('2026-07',1350,'Essencial,Variavel,Moradia,Cozinha,Limpeza,Lazer,Comida'); add('2026-07',450,MER); add('2026-07',310,'Transporte,Variavel');
+add('2026-08',66,LVC); add('2026-08',40,LVC); add('2026-08',260,LVC); add('2026-08',470,MER); add('2026-08',280,'Transporte,Variavel');
+add('2026-09',61,LVC); add('2026-09',74,LVC); add('2026-09',310,'Moradia,Limpeza,Lazer,Comida,Variavel'); add('2026-09',500,MER); add('2026-09',320,'Transporte,Variavel');
+add('2026-10',69,LVC); add('2026-10',31,LVC); add('2026-10',55,LVC); add('2026-10',230,LVC+',Presente'); add('2026-10',490,MER); add('2026-10',300,'Transporte,Variavel');
+const MESES = ['2026-05','2026-06','2026-07','2026-08','2026-09','2026-10'];
+const TAGS = [...new Set(L.flatMap(l=>l.t))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+
+// estado
+let modo = 'grupos';                       // 'grupos' | 'avancado'
+let grupos = [{tem:['Lazer','Comida'],nao:[]}];
+let f = [], pos = 0;                        // expressão: fichas e cursor
+let jan = null;                             // janela de tags dos grupos {g, campo}
+let ultimo = null;                          // última análise válida
+let desf = null;                            // para o Desfazer do "Tirar"
+let avisoTxt = '', avisoRuim = false;
+
+const T = (...a) => a.map(x => x==='E'||x==='OU'||x==='NAO' ? {k:'op',v:x} : x==='('||x===')' ? {k:x} : {k:'tag',v:x});
+const EX_G = [
+  {nome:'Lazer E Comida', g:[{tem:['Lazer','Comida'],nao:[]}]},
+  {nome:'Lazer E Comida E Variavel NÃO Moradia', g:[{tem:['Lazer','Comida','Variavel'],nao:['Moradia']}]},
+  {nome:'(Lazer E Comida) OU Variavel', g:[{tem:['Lazer','Comida'],nao:[]},{tem:['Variavel'],nao:[]}]},
+];
+const EX_F = [
+  {nome:'Lazer E Comida NÃO Presente', f:T('Lazer','E','Comida','E','NAO','Presente')},
+  {nome:'Lazer E (Comida OU Presente)', f:T('Lazer','E','(','Comida','OU','Presente',')')},
+  {nome:'Lazer E Comida E NÃO (Moradia OU Limpeza)', f:T('Lazer','E','Comida','E','NAO','(','Moradia','OU','Limpeza',')')},
+];
+
+// ---------- lógica da consulta ----------
+const preenchido = g => g.tem.length || g.nao.length;
+const casa = (g, l) => g.tem.every(t=>l.t.includes(t)) && !g.nao.some(t=>l.t.includes(t));
+const nomeFicha = x => x.k==='tag' ? x.v : x.k==='op' ? (x.v==='NAO'?'NÃO':x.v) : x.k;
+
+function analisar(fs){                      // NÃO > E > OU
+  let i = 0;
+  const fim = () => i >= fs.length, ant = () => i>0 ? fs[i-1] : null;
+  const falha = msg => { const e = new Error(msg); e.msg = msg; throw e; };
+  function operando(){
+    if(fim()){ const a = ant(); falha(a ? `Falta uma tag depois de "${nomeFicha(a)}".` : 'A expressão está vazia.'); }
+    const x = fs[i];
+    if(x.k==='tag'){ i++; return {t:'tag',v:x.v}; }
+    if(x.k==='op' && x.v==='NAO'){ i++; return {t:'nao',a:operando()}; }
+    if(x.k==='('){
+      i++;
+      if(!fim() && fs[i].k===')') falha('Parêntese vazio: coloque tags dentro dele.');
+      const e = ou();
+      if(fim() || fs[i].k!==')') falha('Falta fechar um parêntese.');
+      i++; return e;
+    }
+    if(x.k===')'){ const a = ant(); falha(a ? `Falta uma tag depois de "${nomeFicha(a)}".` : 'Tem ")" sem "(" antes.'); }
+    falha(`Falta uma tag antes de "${nomeFicha(x)}".`);
+  }
+  function e_(){ const xs=[operando()]; while(!fim() && fs[i].k==='op' && fs[i].v==='E'){ i++; xs.push(operando()); } return xs.length===1?xs[0]:{t:'e',xs}; }
+  function ou(){ const xs=[e_()]; while(!fim() && fs[i].k==='op' && fs[i].v==='OU'){ i++; xs.push(e_()); } return xs.length===1?xs[0]:{t:'ou',xs}; }
+  const r = ou();
+  if(!fim()){
+    const x = fs[i], a = ant();
+    if(x.k===')') falha('Tem ")" sem "(" antes.');
+    falha(`Falta E ou OU entre "${nomeFicha(a)}" e "${nomeFicha(x)}".`);
+  }
+  return r;
+}
+const avalia = (n, tags) => n.t==='tag' ? tags.includes(n.v) : n.t==='nao' ? !avalia(n.a,tags)
+  : n.t==='e' ? n.xs.every(x=>avalia(x,tags)) : n.xs.some(x=>avalia(x,tags));
+const texto = (n, topo=true) => {
+  if(n.t==='tag') return `<b>${esc(n.v)}</b>`;
+  if(n.t==='nao') return `NÃO ${texto(n.a,false)}`;
+  const s = n.xs.map(x=>texto(x,false)).join(n.t==='e' ? ' E ' : ' OU ');
+  return topo && n.t==='ou' ? s : `(${s})`;
+};
+
+// a consulta ativa, em qualquer dos modos
+function consulta(){
+  if(modo==='grupos'){
+    const a = grupos.filter(preenchido);
+    return {valida:true, vazia:!a.length, pred:l=>!a.length || a.some(g=>casa(g,l)),
+      mencionadas:new Set(a.flatMap(g=>[...g.tem,...g.nao]))};
+  }
+  if(!f.length) return {valida:true, vazia:true, pred:()=>true, mencionadas:new Set()};
+  try{
+    const n = analisar(f);
+    return {valida:true, vazia:false, pred:l=>avalia(n,l.t), n,
+      mencionadas:new Set(f.filter(x=>x.k==='tag').map(x=>x.v))};
+  }catch(e){ return {valida:false, msg:e.msg}; }
+}
+function analise(q){
+  const por={}, ext={}, co={};
+  MESES.forEach(m=>{ por[m]=0; ext[m]=0; });
+  let n=0, total=0, totExt=0;
+  L.forEach(l=>{
+    if(!q.pred(l)) return;
+    n++; por[l.m]+=l.v; total+=l.v;
+    const outras = l.t.filter(t=>!q.mencionadas.has(t));
+    if(outras.length){ ext[l.m]+=l.v; totExt+=l.v; }
+    outras.forEach(t=>{ co[t]=(co[t]||0)+l.v; });
+  });
+  const cot = Object.entries(co).map(([t,v])=>({t,v})).sort((a,b)=>b.v-a.v || a.t.localeCompare(b.t,'pt-BR'));
+  return {por, ext, n, total, totExt, cot, vazia:q.vazia};
+}
+
+// ---------- modo grupos ----------
+function fraseGrupo(g){
+  let h = g.tem.map(esc).join(' <span class="op e">E</span> ');
+  if(g.nao.length) h += (g.tem.length?' ':'') + g.nao.map(t=>'<span class="op nao">NÃO</span> '+esc(t)).join(' ');
+  return h;
+}
+function renderFrase(){
+  const a = grupos.filter(preenchido);
+  $('frase').innerHTML = !a.length ? '<span class="vazio">Nenhuma tag escolhida: mostra tudo.</span>'
+    : a.length===1 ? fraseGrupo(a[0]) : a.map(g=>'('+fraseGrupo(g)+')').join(' <span class="op ou">OU</span> ');
+}
+function chips(g, i, campo){
+  const arr = g[campo], cls = campo==='nao' ? ' nao' : '';
+  let h = arr.map((t,k)=>`<span class="chip${cls}">${esc(t)}<button class="x" type="button" data-rm="${i}:${campo}:${k}" aria-label="Tirar ${esc(t)}">✕</button></span>`).join('');
+  h += arr.length < MAX_T ? `<button class="add" type="button" data-add="${i}:${campo}">+ tag</button>`
+    : `<span class="rot" style="color:var(--danger)">Limite de ${MAX_T} tags.</span>`;
+  return h;
+}
+function renderGrupos(){
+  $('grupos').innerHTML = grupos.map((g,i)=>
+    (i ? '<div class="ou">OU</div>' : '') +
+    `<div class="grupo"><div class="gtop"><b>Grupo ${i+1}</b>${grupos.length>1?`<button class="rm" type="button" data-del="${i}" aria-label="Remover grupo ${i+1}">✕</button>`:''}</div>
+      <div class="lin"><div class="rot"><span style="font-weight:700;color:var(--accent)">E</span> Precisa ter todas (${g.tem.length} de ${MAX_T})</div><div class="chips">${chips(g,i,'tem')}</div></div>
+      <div class="lin"><div class="rot"><span style="font-weight:700;color:var(--danger)">NÃO</span> Não pode ter nenhuma (${g.nao.length} de ${MAX_T})</div><div class="chips">${chips(g,i,'nao')}</div></div>
+    </div>`).join('');
+  const cheio = grupos.length>=MAX_G, b = $('novo');
+  b.className = 'novo' + (cheio?' lim':'');
+  b.innerHTML = `<span>+ Outro grupo (OU)</span><span class="sub">${cheio?`Limite de ${MAX_G} grupos. Remova um para adicionar outro.`:`${grupos.length} de ${MAX_G} grupos`}</span>`;
+}
+
+// janela de tags (grupos)
+function abrirJanela(g, campo){
+  jan = {g, campo}; $('jb').value = '';
+  $('jt').textContent = campo==='tem' ? 'Tags que o lançamento tem' : 'Tags que ele não pode ter';
+  $('js').textContent = `Grupo ${g+1}. ` + (campo==='tem' ? 'Precisa ter todas as marcadas.' : 'Fica de fora se tiver qualquer uma das marcadas.');
+  $('veu').hidden = false; renderJanela(); $('jb').focus();
+}
+function renderJanela(){
+  const g = grupos[jan.g], arr = g[jan.campo], outro = g[jan.campo==='tem'?'nao':'tem'];
+  const q = $('jb').value.trim().toLowerCase();
+  $('jl').innerHTML = TAGS.filter(t=>!q || t.toLowerCase().includes(q)).map(t=>{
+    const on = arr.includes(t), bloq = outro.includes(t);
+    return `<button class="li ${jan.campo==='nao'?'nao':''}" type="button" role="checkbox" aria-checked="${on}" data-t="${esc(t)}" ${bloq?'disabled style="opacity:.5"':''}>
+      <span class="n">${esc(t)}${bloq?`<span class="o">Já está em "${jan.campo==='tem'?'Não pode ter':'Precisa ter'}" deste grupo</span>`:''}</span><span class="ck">${on?'✓':''}</span></button>`;
+  }).join('') || '<p class="vazio-g">Nenhuma tag encontrada.</p>';
+  $('jc').textContent = `${arr.length} de ${MAX_T} tags` + (arr.length>=MAX_T ? ' (limite atingido: desmarque uma para trocar)' : '');
+}
+function fecharJanela(){ $('veu').hidden = true; jan = null; tudo(); }
+
+// ---------- modo avançado ----------
+function gruposParaFichas(){
+  const a = grupos.filter(preenchido), out = [];
+  a.forEach((g,i)=>{
+    const p = [];
+    g.tem.forEach(t=>{ if(p.length) p.push({k:'op',v:'E'}); p.push({k:'tag',v:t}); });
+    g.nao.forEach(t=>{ if(p.length) p.push({k:'op',v:'E'}); p.push({k:'op',v:'NAO'}, {k:'tag',v:t}); });
+    if(i) out.push({k:'op',v:'OU'});
+    if(a.length>1 && p.length>1) out.push({k:'('}, ...p, {k:')'}); else out.push(...p);
+  });
+  return out.slice(0, MAX_TK);
+}
+function renderFichas(){
+  const cur = '<span class="cur" aria-hidden="true"></span>';
+  let h = '';
+  if(!f.length) h = cur + '<span class="vaz">Toque numa tag abaixo para começar</span>';
+  else {
+    f.forEach((x,i)=>{
+      if(i===pos) h += cur;
+      const cls = x.k==='tag' ? '' : x.k==='op' ? ' op '+(x.v==='E'?'e':x.v==='OU'?'ou':'nao') : ' par';
+      h += `<button type="button" class="tk${cls}" data-i="${i}" aria-label="${esc(nomeFicha(x))}, toque para pôr o cursor depois">${esc(nomeFicha(x))}</button>`;
+    });
+    if(pos===f.length) h += cur;
+  }
+  $('expr').innerHTML = h;
+}
+function renderMsgExpr(q){
+  $('expr').classList.toggle('erro', !q.valida);
+  $('msg').className = 'msg ' + (q.valida?'ok':'bad');
+  $('msg').textContent = !q.valida ? q.msg : q.vazia ? 'Sem expressão: mostra todos os lançamentos.' : 'Expressão válida.';
+  $('lido').innerHTML = q.valida && q.n ? 'Lido como: ' + texto(q.n) : '';
+  $('cont').textContent = `${f.length} de ${MAX_TK} fichas` + (f.length>=MAX_TK ? ' (limite atingido: apague uma para inserir outra)' : '');
+}
+function renderTags(){
+  const q = $('tb').value.trim().toLowerCase();
+  $('tgs').innerHTML = TAGS.filter(t=>!q||t.toLowerCase().includes(q)).map(t=>`<button type="button" data-tag="${esc(t)}">${esc(t)}</button>`).join('')
+    || '<span style="color:var(--muted);font-size:13px">Nenhuma tag encontrada.</span>';
+}
+function inserir(x){
+  if(f.length>=MAX_TK) return;
+  const antes = pos>0 ? f[pos-1] : null;
+  const fecha = antes && (antes.k==='tag' || antes.k===')');
+  const abre = x.k==='tag' || x.k==='(' || (x.k==='op' && x.v==='NAO');
+  const novos = (fecha && abre && f.length+2<=MAX_TK) ? [{k:'op',v:'E'}, x] : [x];
+  f.splice(pos, 0, ...novos); pos += novos.length; tudo();
+}
+
+// ---------- resultado e outras tags ----------
+function renderResultado(valida){
+  const a = ultimo;
+  const max = Math.max(...MESES.map(m=>a.por[m]), 1);
+  $('rtx').textContent = `${a.n} lançamento(s) em 6 meses` + (valida?'':' (último resultado válido)');
+  $('rtot').textContent = '-' + brl(a.total);
+  const g = $('graf');
+  g.classList.toggle('velho', !valida);
+  g.setAttribute('aria-label','Gasto por mês: '+MESES.map(m=>m.slice(5)+'/'+m.slice(2,4)+' '+brl(a.por[m])+(a.ext[m]?`, sendo ${brl(a.ext[m])} com outras tags`:'')).join('; '));
+  g.innerHTML = a.n ? MESES.map(m=>{
+    const h = a.por[m]/max*118, hx = a.ext[m]/max*118;
+    return `<div class="col"><span class="v">${brl0(a.por[m])}</span><div class="b" style="height:${h}px"><div class="bx" style="height:${hx}px"></div><div class="bs" style="height:${Math.max(h-hx,0)}px"></div></div><span class="m">${m.slice(5)}/${m.slice(2,4)}</span></div>`;
+  }).join('') : '<div class="vazio-g" style="width:100%;align-self:center">Nenhum lançamento com essa consulta.</div>';
+
+  $('leg').innerHTML = a.vazia || !a.n ? '' :
+    '<span><i class="s"></i>Só as tags da consulta</span><span><i class="x"></i>Tem outras tags além das da consulta</span>';
+  const al = $('alerta');
+  if(a.vazia){ al.className = 'alerta ok'; al.innerHTML = 'Sem filtro: todos os lançamentos, com todas as tags.'; }
+  else if(!a.n){ al.className = 'alerta ok'; al.innerHTML = 'Nenhum lançamento encontrado.'; }
+  else if(!a.totExt){ al.className = 'alerta ok'; al.innerHTML = '<b>Total puro:</b> nenhum lançamento tem outras tags além das da consulta.'; }
+  else {
+    const pct = Math.round(a.totExt/a.total*100);
+    al.className = 'alerta';
+    al.innerHTML = `<b>${pct}% do valor (${brl(a.totExt)})</b> está em lançamentos que têm <b>outras tags</b> além das da consulta. O total pode estar misturando assuntos.`;
+  }
+}
+function renderOutras(){
+  const a = ultimo, el = $('outras');
+  if(a.vazia){ el.innerHTML = '<p class="vazio-g">Escolha tags na consulta para ver o que mais aparece junto com elas.</p>'; }
+  else if(!a.cot.length){ el.innerHTML = '<p class="vazio-g">Nenhuma outra tag nos lançamentos desta consulta.</p>'; }
+  else {
+    const top = a.cot.slice(0, MAX_COT), resto = a.cot.length - top.length;
+    el.innerHTML =
+      '<p class="muted" style="font-size:12.5px;color:var(--muted);margin:0 0 4px;line-height:1.4">Porcentagem do valor da consulta que está em lançamentos com a tag. Um lançamento com várias tags conta em cada uma, então não soma 100%.</p>' +
+      top.map(c=>{ const p = Math.round(c.v/a.total*100);
+        return `<div class="cot"><div class="info"><div class="nm"><b>${esc(c.t)}</b><span>${p}%</span></div><div class="trilho"><i style="width:${p}%"></i></div></div>
+          <button type="button" data-cot="${esc(c.t)}" aria-label="Tirar da consulta os lançamentos com ${esc(c.t)}">Tirar (NÃO)</button></div>`; }).join('') +
+      (resto>0 ? `<p class="sem">e mais ${resto} tag${resto>1?'s':''} com peso menor.</p>` : '');
+  }
+  const av = $('aviso');
+  av.hidden = !avisoTxt;
+  av.className = 'aviso' + (avisoRuim?' bad':'');
+  av.innerHTML = avisoTxt ? `<span>${avisoTxt}</span>${desf && !avisoRuim ? '<button type="button" id="btnDesf">Desfazer</button>' : ''}` : '';
+}
+function tirar(t){
+  if(modo==='avancado' && !consulta().valida){ avisoTxt = 'Corrija a expressão antes de tirar uma tag.'; avisoRuim = true; desf = null; return renderOutras(); }
+  const antes = {modo, grupos:clone(grupos), f:clone(f), pos};
+  if(modo==='grupos'){
+    let cheio = false;
+    grupos.filter(preenchido).forEach(g=>{ if(g.nao.includes(t)) return; if(g.nao.length>=MAX_T){ cheio = true; return; } g.nao.push(t); });
+    if(cheio){ avisoTxt = `Algum grupo já tem ${MAX_T} tags em "Não pode ter". Libere uma vaga primeiro.`; avisoRuim = true; desf = null; grupos = antes.grupos; return tudo(); }
+  } else {
+    const env = f.length>1;
+    if(f.length + (env?2:0) + 3 > MAX_TK){ avisoTxt = `A expressão passaria de ${MAX_TK} fichas.`; avisoRuim = true; desf = null; return renderOutras(); }
+    f = [...(env?[{k:'('}]:[]), ...f, ...(env?[{k:')'}]:[]), {k:'op',v:'E'}, {k:'op',v:'NAO'}, {k:'tag',v:t}];
+    pos = f.length;
+  }
+  desf = antes; avisoTxt = `Adicionado: NÃO ${esc(t)}.`; avisoRuim = false; tudo();
+}
+function renderEx(){
+  const l = modo==='grupos' ? EX_G : EX_F;
+  $('ex').innerHTML = l.map((e,i)=>`<button type="button" data-ex="${i}">${esc(e.nome)}</button>`).join('');
+}
+function renderModo(q){
+  $('pgrupos').hidden = modo!=='grupos';
+  $('pavanc').hidden = modo!=='avancado';
+  $('btnAvanc').setAttribute('aria-expanded', modo==='avancado');
+  if(modo==='grupos'){ renderFrase(); renderGrupos(); } else { renderFichas(); renderMsgExpr(q); }
+}
+function tudo(){
+  const q = consulta();
+  if(q.valida) ultimo = analise(q);
+  renderEx(); renderModo(q); renderResultado(q.valida); renderOutras();
+}
+
+document.addEventListener('click', e=>{
+  const t = e.target.closest('[data-ex],[data-add],[data-rm],[data-del],#novo,[data-t],#jok,[data-i],[data-k],[data-tag],#btnAvanc,#btnVoltar,[data-cot],#btnDesf');
+  if(!t){ if(e.target===$('veu')) fecharJanela(); return; }
+  const novoAviso = () => { avisoTxt=''; desf=null; };
+  if(t.id==='btnAvanc'){ novoAviso(); f = gruposParaFichas(); pos = f.length; modo = 'avancado'; return tudo(); }
+  if(t.id==='btnVoltar'){ novoAviso(); modo = 'grupos'; return tudo(); }
+  if(t.id==='btnDesf'){ if(desf){ modo=desf.modo; grupos=desf.grupos; f=desf.f; pos=desf.pos; } novoAviso(); return tudo(); }
+  if(t.dataset.cot) return tirar(t.dataset.cot);
+  if(t.dataset.ex!==undefined){ novoAviso();
+    if(modo==='grupos') grupos = clone(EX_G[+t.dataset.ex].g); else { f = clone(EX_F[+t.dataset.ex].f); pos = f.length; }
+    return tudo(); }
+  if(t.dataset.add){ const [i,c] = t.dataset.add.split(':'); return abrirJanela(+i,c); }
+  if(t.dataset.rm){ novoAviso(); const [i,c,k] = t.dataset.rm.split(':'); grupos[+i][c].splice(+k,1); return tudo(); }
+  if(t.dataset.del){ novoAviso(); grupos.splice(+t.dataset.del,1); return tudo(); }
+  if(t.id==='novo'){ if(grupos.length<MAX_G){ novoAviso(); grupos.push({tem:[],nao:[]}); tudo(); abrirJanela(grupos.length-1,'tem'); } return; }
+  if(t.id==='jok') return fecharJanela();
+  if(t.dataset.t){
+    const arr = grupos[jan.g][jan.campo], tag = t.dataset.t, k = arr.indexOf(tag);
+    if(k>=0) arr.splice(k,1); else if(arr.length<MAX_T) arr.push(tag);
+    avisoTxt=''; desf=null; renderJanela(); renderFrase(); const q = consulta(); ultimo = analise(q); renderResultado(true); renderOutras(); return;
+  }
+  if(t.dataset.i!==undefined){ pos = +t.dataset.i + 1; return tudo(); }
+  if(t.dataset.tag!==undefined){ avisoTxt=''; desf=null; return inserir({k:'tag',v:t.dataset.tag}); }
+  const k = t.dataset.k;
+  if(k){ avisoTxt=''; desf=null; }
+  if(k==='(' || k===')') return inserir({k});
+  if(k==='E' || k==='OU' || k==='NAO') return inserir({k:'op',v:k});
+  if(k==='esq'){ pos = Math.max(0,pos-1); return tudo(); }
+  if(k==='dir'){ pos = Math.min(f.length,pos+1); return tudo(); }
+  if(k==='apagar'){ if(pos>0){ f.splice(pos-1,1); pos--; tudo(); } return; }
+  if(k==='limpar'){ f = []; pos = 0; tudo(); }
+});
+$('jb').addEventListener('input', ()=>jan && renderJanela());
+$('tb').addEventListener('input', renderTags);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && jan) fecharJanela(); });
+renderTags(); tudo();
+</script>
+</body>
+</html>
