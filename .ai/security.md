@@ -115,6 +115,8 @@ manual.
 | Sem MFA no login do app | Senha vazada basta para entrar | item 37 (prioridade alta) |
 | Histórico de versões só dos lançamentos, e sem tela de recuperação ainda (PITR só em prod, janela de 35 dias) | Configurações e fechamentos continuam sem versão; recuperar um lançamento ainda é pelo banco | item 31 (fases 2 e 3) |
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
+| **Saldo, cache de fechamento e conferência calculados no navegador e aceitos pelo servidor** (conferido no código em 2026-10-18): `SalvarCaches` grava qualquer número finito de mês passado e `Conferir` só compara `saldo` e `real`, ambos do cliente | Quem forja a requisição (owner) escolhe o saldo e trava o mês com esse valor; o número vira o ponto de partida da cascata. Fraude possível se houver mais de um dono ou usuários demais | item 40 (prioridade alta) |
+| `excluirDoTotal` e o status do ajuste de conferência montados pelo front a partir do nome do status | O servidor grava a decisão do cliente | itens 33 e 40 |
 | Campos opcionais do lançamento gravados como vêm (ex. `faturaAjuste` sem validação) | Valor inesperado persiste | item 33 (regras no backend) |
 | Resumo do Telegram acima de 4096 caracteres | Nenhum aviso chega naquele dia (disponibilidade, não vazamento) | item 28, item 34 |
 
@@ -124,6 +126,12 @@ manual.
 - **Não afrouxar a validação do token** (`algoritmo`, `iss`, `aud`, `exp`, `token_use`) nem passar a aceitar o access token
   sem decisão do dono.
 - **Toda escrita confere o papel no servidor**, mesmo que o front já esconda o botão.
+- **O cliente nunca manda número derivado como verdade** (decisão de 2026-10-18). Saldo, cache de fechamento, totais,
+  faturas, `excluirDoTotal` e qualquer resumo são calculados pelo servidor, que **rejeita** o campo se ele vier no corpo.
+  Todo endpoint novo que receba um valor calculável nasce com um teste que tenta forjá-lo. O que o cliente pode mandar é
+  dado de entrada (o saldo do extrato, a data escolhida, o valor digitado).
+- **O status é do backend:** mudar `status`, `statusReal`, `afetaSaldoBanco` ou `statusFuturo` pela API de configuração
+  é ignorado (e a tabela de ações acima passa a refletir isso quando a mudança for feita).
 - **Nunca logar** token, e-mail, corpo da requisição, descrição ou valor de lançamento.
 - **Dado novo que o member não deve ver** nasce filtrado na origem (backend), não escondido na tela.
 - **Permissão nova na infra** exige atualizar as roles do Actions antes do merge (veja o guardrails).

@@ -1,6 +1,6 @@
 # Backlog e roadmap
 
-Atualizado em 2026-10-10. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
+Atualizado em 2026-10-18. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
 ordem de prioridade e levam a etiqueta **[Agora]**, **[Próximo]** ou **[Depois]**. A numeração é fixa (não renumerar:
 outros trechos referenciam os números). Os detalhes de cada assunto ficam em `.ai/`. Marque `[x]` ao concluir e
 retire o item do índice "Seções".
@@ -23,6 +23,8 @@ com o salto para o registro real. **Ao concluir um item, marque `[x]` no registr
 pendentes: nenhum.
 
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
+- [\[Backend\] - **\[Próximo\] Saldo, fechamento e conferência calculados e validados no servidor (segurança):**](#item-40)
+- [\[Backend\] - **\[Próximo\] Futuros: marcador `previsto` e status do backend:**](#item-41)
 - [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe:**](#item-33)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
@@ -122,6 +124,32 @@ DynamoDB sem discutir com o dono.**
   para criar, editar, excluir, importar e restaurar. A mudança de tela (exclusão imediata, Desfazer por restauração) é
   deste item, não da Fase 3 do histórico. **Custo:** um toque a mais ao editar o passado. Depende do item 31. **Concluído em 2026-10-17:** as fases A (backend), B (tela da
   confirmação) e C (excluir imediato, Desfazer por restauração) estão implementadas e verificadas em dev.
+- 40. [ ] <a id="item-40"></a>**[Próximo] Saldo, fechamento e conferência calculados e validados no servidor (segurança):** decisão do
+  dono de 2026-10-18, depois de ver que o navegador calcula o saldo e o servidor grava o que ele manda. Hoje
+  `SalvarCaches` aceita qualquer número finito de um mês passado e `Conferir` só compara `saldo` e `real`, os dois vindos
+  do cliente, então quem forja a requisição trava um mês com o saldo que quiser (só o owner chama essas rotas, mas o
+  número vira o ponto de partida da cascata). Passa a valer: o servidor calcula a cascata, o fechamento, o total dos
+  bancos e os totais de Futuros e do Histórico (relógio e fuso dele); o cache é gravado só por ele; `Conferir` recebe só o
+  saldo do extrato e compara com o que o servidor calculou; campo derivado vindo do cliente é **rejeitado**. Cada
+  rejeição ganha um teste que tenta forjar o valor e que falha antes da mudança. Calcular no front só vale para exibir
+  (Tendências). Sugestão de ordem: (1) saldo por banco, total e fechamento, rodando o cálculo antigo e o novo lado a
+  lado com os dados fictícios; (2) totais de Histórico e Futuros (junto com o item 41); (3) faturas do cartão (item 33);
+  (4) conferência e o lançamento de ajuste, que o servidor passa a montar. Os passos 1, 3 e 4 não mudam a aparência das
+  telas; o 2 muda, e vale a regra da demo. Detalhes em [`.ai/arquitetura.md`](.ai/arquitetura.md) e
+  [`.ai/security.md`](.ai/security.md). Não cria campo no Dynamo por si; qualquer campo novo passa pelo dono. Absorve o
+  trecho de saldos do item 14.
+- 41. [ ] <a id="item-41"></a>**[Próximo] Futuros: marcador `previsto` e status do backend:** decisões do dono de 2026-10-18, só a
+  aba Futuros. Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` saem; o lançamento futuro nasce com o status real e um
+  marcador `previsto` (campo novo no Dynamo, **nome a aprovar**) que o tira do saldo e do total do Histórico até ser
+  confirmado. O servidor entrega Futuros e Histórico prontos (o Histórico pode trazer previstos vencidos, para o aviso
+  "N previstos fora do saldo"); atraso é o marcador ligado depois da data e só alimenta o aviso do Telegram; os status
+  viram do backend (`salvarListas` segue gravando bancos, cores, aparência e ordens e ignora mudança em status;
+  `statusFuturo` deixa de ir ao front). Lançamentos antigos com os três status contam como marcador ligado até serem
+  editados, sem migração em massa. Sai do front o que olha status ou soma: `ehFuturo`, `afetaSaldo`, `resumoFuturos`,
+  `gruposFuturos`, a soma do Histórico, a inclusão automática de `CREDITANDO` em Listas e o "Status das cópias" do Prever
+  (a decidir no spec). Fora daqui: desmembrar o `PAGO` (tipo e meio), o `CONTAS` e o `excluirDoTotal`, e o papel de
+  Admin. **Em aberto para o spec:** quem liga o marcador na criação, como os previstos vencidos aparecem no Histórico e o
+  gesto de confirmar (demo antes do código). Depende do item 40 para os totais.
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
@@ -129,7 +157,8 @@ DynamoDB sem discutir com o dono.**
 `gruposFuturos`, e o total da lista do Histórico, somado em `renderHistorico`, também passam a vir prontos; o
 `excluirDoTotal`, hoje gravado pelo front a partir
   do nome `CONTAS`/`TRANSFERINDO`, é outra decisão por etiqueta: a regra passa a ser do servidor, e o que fazer com o
-  campo gravado é discussão). Saem do front `ehCredito*`, `ajustePadrao`,
+  campo gravado é discussão). **Revisto em 2026-10-18:** a parte de futuro/real/afeta saldo passa pelos itens 40 e 41
+  (marcador `previsto`, catálogo de status do backend), e não mais pelas caixas de Listas. Saem do front `ehCredito*`, `ajustePadrao`,
   `faturaBase`, `ehFuturo`, `afetaSaldo`. Os status `CREDITO IN`/`EX` deixam de ser necessários; migração dos
   lançamentos antigos sem `faturaAjuste` fica a discutir. **O cartão vira entidade própria:** hoje `CFG#CARTOES` é
   `porBanco` e o lançamento de crédito liga ao cartão pelo campo `banco`, mas o cartão não é um banco (pode não ter
