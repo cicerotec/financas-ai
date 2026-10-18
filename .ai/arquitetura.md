@@ -12,6 +12,10 @@ Nada aqui foi implementado ainda. Cada decisão tem o estado **fechada** (o dono
    saldo, fatura, ajuste, o que é histórico) vive no backend e chega pronta pela API. Nenhuma decisão por **etiqueta**
    (o nome de um status ou de um banco).
 2. **O domínio é claro e todos o usam, sem exceção (fechada).** Nada de regra inventada fora dele.
+   **Corolário (fechada em 2026-10-18): o front não é fonte de número.** Ele exibe e, no máximo, calcula para mostrar
+   (como a aba Tendências), mas nunca envia o resultado como verdade. O servidor calcula saldo, fechamento, totais e
+   faturas por conta própria e **rejeita** qualquer campo derivado que venha do cliente. Hoje isso **não** é assim:
+   veja "Saldo e totais calculados no servidor" abaixo.
 3. **Nenhuma chave ou campo novo no DynamoDB sem discutir antes (fechada).** Cada campo carrega uma decisão de
    modelagem que não é óbvia lendo o código; `faturaAjuste` é o exemplo (veja "Domínio").
 4. **O histórico nunca apaga (fechada).** Todo dado que entra vai também para o histórico, inteiro; o que muda vira
@@ -165,7 +169,9 @@ O cartão tem **lógica, tela e conceitos próprios**; não é um banco com outr
   ser do SANTANDER e a fatura sair pelo NUBANK. O banco pagador é uma escolha, não algo presumido a partir do cartão.
 - **Cada valor conta uma vez.** O gasto conta quando nasce o `CREDITO`; o saldo muda quando a fatura é paga. O
   pagamento mexe no saldo do banco pagador e **fica fora do total de gastos**, para o mesmo gasto não ser contado duas
-  vezes. Hoje isso é feito pelo status `CONTAS` (afeta saldo) com `excluirDoTotal`.
+  vezes. Hoje isso é feito pelo status `CONTAS` (afeta saldo) com `excluirDoTotal`. O `CONTAS` também carrega a
+  **transferência entre bancos** (dois lançamentos com o mesmo `transferParId`). Seu destino fica para o desmembramento
+  do `PAGO` (ver "Futuros, status e saldo no servidor"); não entra na mudança de Futuros.
 - Cartão e banco compartilham **só a ideia** de ponto de partida verificado, descrita abaixo; o resto (período, total,
   conferência, pagamento) é de cada um.
 
@@ -179,7 +185,7 @@ início sempre.
 | Período | mês do calendário, fixo | **ciclo da operadora**; o fechamento varia por mês e é dado de entrada |
 | Ponto verificado | mês fechado e conferido com o extrato | fatura conferida |
 | Natureza | **acumulativa**: o saldo de um mês depende do anterior | **independente**: a fatura é a soma do seu período |
-| Hoje | cascata, cache, conferência e **trava** no backend (`fechamento.go`) | conferência só no front, sem validação nem trava no backend |
+| Hoje | a **trava** é do backend (`fechamento.go`), mas a **cascata e o cache são calculados no navegador** e o servidor grava o que ele manda (`SalvarCaches`; no `Conferir` o servidor só compara dois números do cliente entre si) | tudo no front, sem validação nem trava no backend |
 
 - O corte do início **não apaga nem altera dado**: o passado continua gravado e visível, só deixa de ser calculado ou
   conferido ("histórico"). A regra deve vir pronta pela API (`historico: true`), não de `ym < inicio` no front.
@@ -215,11 +221,57 @@ pagamento fica no banco pagador, ligado àquela fatura, com a diferença visíve
 no saldo do banco pagador e não conta de novo como gasto. Pagamento **mínimo ou parcial** não é usado pelo dono, mas é o comum entre os usuários:
 **fica no backlog** (item 35); isso transforma o vínculo em um-para-muitos.
 
+## Saldo e totais calculados no servidor (fechada em 2026-10-18; não implementada)
+
+**Achado.** O navegador calcula o saldo de cada banco (`calcularSaldoBanco`, cascata mensal), o total dos bancos, as
+faturas do cartão, o resumo e o saldo por mês de Futuros e a soma do Histórico. O servidor grava o que recebe:
+`SalvarCaches` aceita qualquer número finito para um mês passado e `Conferir` só confere se `saldo` e `real`, ambos do
+cliente, são iguais entre si. Quem forja a requisição escolhe o saldo, e esse número vira o ponto de partida da cascata.
+É uma brecha de segurança, não só de organização.
+
+**Decisão.**
+- O servidor calcula saldo, cascata, fechamento, total dos bancos, totais e saldo por mês de Futuros e do Histórico,
+  fatura e o que é "fora do total". Usa o relógio e o fuso do servidor, nunca o do computador de quem usa.
+- O cache dos meses encerrados passa a ser gravado só pelo servidor, a cada recálculo. `SalvarCaches` deixa de aceitar
+  valor do cliente.
+- `Conferir` recebe só o saldo do extrato (`real`). O servidor compara com o saldo que ele mesmo calculou; o cliente não
+  manda mais o `saldo`.
+- O servidor **rejeita** campo derivado vindo do cliente (saldo, cache, total, `excluirDoTotal`, o `previsto` calculado,
+  qualquer resumo). O código de erro e a lista exata saem do spec.
+- Um teste tenta forjar cada um desses campos e precisa falhar antes da mudança e passar depois.
+- Calcular no front só vale para **exibir** (Tendências, projeções) e nunca volta para a API.
+
+## Futuros, status e saldo no servidor (fechada em 2026-10-18; não implementada)
+
+Só a aba **Futuros** entra nesta rodada. Decisões:
+- **Marcador `previsto` no lançamento** substitui os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO`. O lançamento
+  futuro nasce com o **status real** (`PAGO`, `CREDITO`...) e o marcador ligado. O marcador é um **campo novo no DynamoDB**:
+  nome e tipo ainda dependem da aprovação do dono (princípio 3).
+- **Enquanto o marcador existir, o lançamento fica fora do saldo e fora do total do Histórico**, mesmo já estando no
+  Histórico (data chegada). Por isso o saldo só muda por escrita (confirmar, criar, editar), e o cache e a cascata do
+  fechamento continuam válidos; nada muda à meia-noite sem uma gravação.
+- **Cada aba recebe do servidor o que deve mostrar.** O front não olha status nem `statusFuturo`. Quando a data chega, o
+  lançamento sai de Futuros e passa ao Histórico, que mostra um aviso de que há previstos fora do saldo. Como a pessoa
+  confirma um previsto vencido (gesto e demo) fica para o spec.
+- **Atraso** é o marcador ainda ligado depois da data. É informação interna do backend e alimenta o aviso do Telegram;
+  o front não calcula "Atrasados".
+- **Status são do backend.** `status`, `statusReal`, `afetaSaldoBanco` e `statusFuturo` deixam de ser editáveis pelo app
+  e `statusFuturo` não vai mais ao front. `salvarListas` continua gravando o resto de `config/listas` (bancos, cores
+  e `statusCor`, `estiloCor`, aparência e ordem dos saldos) e o servidor ignora qualquer mudança nos campos de status.
+  O front só exibe o texto do status do lançamento.
+- **Lançamentos antigos** com `PREVISTO`, `TRANSFERINDO` ou `CREDITANDO` contam como marcador ligado até alguém editar
+  e escolher o status real. Não há migração em massa; o backend tem uma única função que responde "isto é futuro?".
+- **Fora desta rodada:** o desmembramento do `PAGO` por tipo e meio (recebimento, débito, pix, drex, cripto), o destino
+  do `CONTAS` e do `excluirDoTotal` como regra do servidor, e um papel de Admin (complemento ao dono).
+- Perguntas abertas para o spec: quem liga o marcador na criação (o servidor pela data, ou só o Prever); e se os
+  previstos vencidos aparecem como linhas no Histórico ou só no aviso.
+
 ## Ordem de execução proposta
 1. Histórico imutável de lançamentos, dentro da nova estrutura de camadas (item 31 sobre 32).
 2. Fatura do cartão calculada no backend, com a trava de fatura conferida (item 33).
-3. Regras de futuro, real e afeta saldo aplicadas pelo backend, usando as caixas que já existem em Listas (sem tipo
-   novo de status) (item 33).
+3. Regras de futuro, real e afeta saldo aplicadas pelo backend (item 33). **Revisto em 2026-10-18:** em vez das caixas de
+   Listas, o catálogo de status é do backend e o futuro é o marcador `previsto`. Antes disso vem o saldo calculado no
+   servidor, que fecha a brecha descrita acima (item 40); os dois andam juntos com o item 41.
 4. Avisos pelo despachante e canais (item 34).
 5. Pagar fatura com valor do boleto e vínculo (item 35).
 6. Remover `financas-app.html`, que só o README cita (item 36).

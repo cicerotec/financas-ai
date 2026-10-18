@@ -1,5 +1,11 @@
 # Eventos futuros
 
+> **Mudança decidida em 2026-10-18, ainda não implementada.** Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` serão
+> substituídos por um marcador `previsto` no lançamento, que passa a ter o status real; o servidor entrega Futuros e
+> Histórico prontos, sem o front olhar status. Este documento descreve o comportamento **atual** e continua valendo
+> até lá. Veja [`decisoes.md`](decisoes.md) e [`arquitetura.md`](arquitetura.md). O que o Prever faz com o "Status das
+> cópias" (hoje PREVISTO, CREDITANDO ou TRANSFERINDO) sai no spec.
+
 Conceito: status marcados como "evento futuro" (PREVISTO, TRANSFERINDO, CREDITANDO) ainda não aconteceram: não contam
 como reais, não mexem no saldo, saem do Histórico e aparecem na aba **Futuros**. O marcador manda por cima das caixas
 "conta como real" e "afeta saldo" sem apagar os valores guardados. A Parte A está feita (PR #4).
