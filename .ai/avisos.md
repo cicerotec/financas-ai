@@ -1,5 +1,10 @@
 # Avisos de lançamentos futuros (Telegram)
 
+> **Mudança decidida em 2026-10-18, ainda não implementada.** O gatilho "status ainda é de evento futuro" passa a ser
+> "marcador `previsto` ainda ligado" (e, depois da data, é isso que define o atraso). Mudar o status deixa de ser o gatilho do
+> aviso; o encerramento passa a seguir o marcador (os detalhes saem no spec). O texto abaixo descreve o comportamento
+> **atual**. Veja [`decisoes.md`](decisoes.md).
+
 Cada lançamento pode ter um **aviso**: o app manda uma mensagem no Telegram nos dias combinados antes do vencimento e,
 se marcado, **todo dia** depois dele até o lançamento deixar de ser evento futuro. Pensado para o `PREVISTO` com multa
 (boleto, fatura), mas vale para qualquer status de evento futuro (`PREVISTO`, `TRANSFERINDO`, `CREDITANDO`).

@@ -8,6 +8,14 @@ vez de obedecer. Se a especificação não cobre um caso, **pergunte** em vez de
 Referência: [`arquitetura.md`](arquitetura.md) (decisões de 2026-10-10).
 - **O front não decide.** Toda regra de negócio fica no backend e chega pronta pela API, nunca por etiqueta (nome de
   status ou de banco).
+- **O front só exibe e não é fonte de número (2026-10-18).** Saldo, fechamento, total, fatura, "é futuro", "afeta o
+  saldo" e "fora do total" são calculados e decididos pelo servidor. O front pode montar e até calcular **para mostrar**
+  (a aba Tendências, por exemplo), mas **nunca envia um valor calculado como verdade**: o backend rejeita campo derivado
+  que venha do cliente, e quem sabe forjar a requisição não ganha nada. Antes de aceitar um campo novo na API, pergunte
+  se o servidor consegue recalculá-lo; se sim, ele não entra no corpo. Detalhes e o que falta fazer em
+  [`arquitetura.md`](arquitetura.md) e [`security.md`](security.md).
+- **Status é do backend (2026-10-18).** O catálogo de status e o que cada um significa não são editáveis pelo app; a tela
+  só exibe o texto do status do lançamento. Ver [`decisoes.md`](decisoes.md).
 - Camadas `controller` → `service` → `domain`, adaptadores atrás de interfaces e dependências por construtor, sem
   globais. Em `backend/` cada camada é uma pasta (`controller/`, `service/`, `repository/`, `auth/`, `domain/`) e o
   teste `arquitetura_test.go` falha se um pacote importar o que não pode (por exemplo, `service` importando a AWS).
