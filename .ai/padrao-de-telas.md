@@ -71,8 +71,8 @@ literal num componente.
 
 ## Menu do app (navegação entre telas)
 Aprovado pelo dono em 2026-10-14. Presente no topo de todas as demos de `demos/` (bloco `menu-app:inicio` a `menu-app:fim`).
-- **Celular e janela abaixo de 1160 px:** cabeçalho de uma linha, com o nome do app pequeno, o **nome da tela atual** em
-  destaque e o botão **⋮** (alvo de 48 px). O ⋮ abre um menu suspenso com as telas agrupadas em **Dia a dia** (Lançar,
+- **Celular e janela abaixo de 1160 px:** cabeçalho de uma linha, com o **nome da tela atual** em destaque (sem o nome do
+  app: o app se chama só "Finanças", e isso aparece na aba do navegador e no ícone) e o botão **⋮** (alvo de 48 px). O ⋮ abre um menu suspenso com as telas agrupadas em **Dia a dia** (Lançar,
   Histórico, Futuros), **Acompanhar** (Cartão, Saldos, Tendências) e **Configurar** (Listas, Importar). A tela atual leva
   destaque e "✓". Toque fora do menu ou Esc fecha, e o foco volta ao ⋮.
 - **Atalhos Histórico e Saldos** (aprovado em 2026-10-15, `demos/demo-atalho-saldos.html`): dois botões de 56 × 52 px
@@ -80,12 +80,19 @@ Aprovado pelo dono em 2026-10-14. Presente no topo de todas as demos de `demos/`
   lugar**; o da tela atual ganha fundo `--accent-bg` e `aria-current="page"`. O título continua sendo a fonte da verdade
   sobre onde se está. Os dois também seguem dentro do ⋮. Cabeçalho de 56 px (era 52). Em 320 px sobram ~120 px para o
   nome da tela ("Tendências" cabe justo) e o nome do app, acima, ganha reticências.
-- **Janela larga (1160 px ou mais):** não muda nada: título e abas em botões, como sempre. O limite é o mesmo da tabela de
+- **Conta no menu** (aprovado em 2026-10-17, `demos/demo-menu-usuario.html`; `web/js/usuario.js`): o menu abre com um bloco da
+  conta no topo (inicial, **nome**, e embaixo o espaço e o papel, "Família Silva · dono"/"membro"), depois as telas, e termina
+  com **Sair**, separado por uma linha e em `--danger`. Com mais de um espaço, o bloco leva um **seletor nativo** "Espaço" no lugar
+  da linha do espaço (trocar recarrega). Enquanto não há apelido, uma faixa pequena "Defina seu nome em Listas" leva a Listas.
+  A antiga linha de cima (nome, espaço, dica e Sair) deixou de existir; quem monta o bloco é `window.claude.sessao()` (api.js).
+- **Janela larga (1160 px ou mais):** título "Finanças" (só o texto) e abas em botões, como sempre; o canto direito do
+  cabeçalho ganha um **botão da conta** (inicial e nome) que abre o mesmo bloco, com Sair. O limite é o mesmo da tabela de
   Futuros.
 - **No app**, as abas em botões (`nav`) continuam sendo a fonte das telas e dos nomes; o menu é montado a partir delas
   (`MENU_APP` em `web/js/app.js` só define a ordem, os grupos e os ícones). Membro não vê Importar, nem no menu. Configurar tem Listas,
   Histórico de versões e Importar.
-- **Custo:** trocar de tela passa a pedir dois toques (⋮ e a tela) em vez de um, **exceto Histórico e Saldos** (um toque).
+- **Custo:** trocar de tela passa a pedir dois toques (⋮ e a tela) em vez de um, **exceto Histórico e Saldos** (um toque). Sair
+  também pede dois (⋮ e Sair), e o nome só aparece com o menu aberto.
   Em troca, o cabeçalho cai de 2 linhas para 1. A barra inferior estilo C6 foi descartada: lá a barra some em toda tela
   empilhada, e o app é de navegação plana.
 

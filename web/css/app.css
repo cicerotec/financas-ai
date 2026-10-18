@@ -32,9 +32,7 @@ nav button.active{background:var(--accent);color:var(--accent-ink);border-color:
 header h1,header nav{display:none;}
 .mn-bar{display:flex;align-items:center;gap:2px;min-height:56px;}
 .mn-nome{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15;}
-.mn-app{font-size:11px;color:var(--muted);}
 .mn-tela{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mn-app{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .mn-at{width:56px;height:52px;border:0;border-radius:14px;background:transparent;color:var(--text);cursor:pointer;flex:none;padding:0;font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
 .mn-at-ic{font-size:20px;line-height:1;}
 .mn-at-lb{font-size:11px;line-height:1.1;color:var(--muted);}
@@ -54,9 +52,28 @@ header h1,header nav{display:none;}
 .mn-ic{width:22px;text-align:center;font-size:17px;flex:none;}
 .mn-ck{margin-left:auto;color:var(--accent);font-weight:700;}
 .mn-sep{border:0;border-top:1px solid var(--border);margin:4px 6px;}
+/* Conta de quem esta logado (nome, espaco e Sair): topo e fim do menu do celular e botao do computador. Demo: .ai/demos/demo-menu-usuario.html */
+.cta-eu{display:flex;gap:10px;align-items:center;padding:8px 10px 6px;}
+.cta-eu b{display:block;font-size:15px;line-height:1.2;overflow-wrap:anywhere;}
+.cta-eu small{display:block;color:var(--muted);font-size:12px;line-height:1.3;}
+.cta-av{width:38px;height:38px;border-radius:50%;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-weight:700;flex:none;}
+.cta-dica{display:block;width:calc(100% - 20px);margin:0 10px 6px;padding:7px 10px;border:0;border-radius:10px;background:var(--accent-bg);color:var(--text);font:inherit;font-size:12px;text-align:left;cursor:pointer;}
+.cta-esp{padding:2px 10px 6px;}
+.cta-esp label{display:block;font-size:11px;color:var(--muted);margin:0 0 3px;}
+.cta-esp select{height:44px;}
+.mn-sair{color:var(--danger);}
+.mn-sair:hover{background:var(--danger-bg);}
+.topo{display:none;position:relative;align-items:center;justify-content:space-between;gap:12px;}
+.usr-btn{display:flex;align-items:center;gap:8px;min-height:44px;padding:4px 12px 4px 4px;border:1px solid var(--border);border-radius:22px;background:var(--card);color:var(--text);font:inherit;cursor:pointer;}
+.usr-btn[hidden],.usr-drop[hidden]{display:none;}
+.usr-btn .cta-av{width:34px;height:34px;font-size:14px;}
+.usr-btn[aria-expanded="true"]{background:var(--accent-bg);}
+.usr-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+.usr-drop{position:absolute;right:0;top:52px;width:272px;max-height:calc(100vh - 90px);overflow-y:auto;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:6px;z-index:3;}
 body.papel-member .mn-it[data-tab="importar"]{display:none;}
 .mn-bar [hidden],.mn-shade[hidden],.mn-drop[hidden]{display:none;}
 @media (min-width:1160px){
+  .topo{display:flex;}
   header h1{display:block;}
   header nav{display:flex;}
   .mn-bar,.mn-shade,.mn-drop{display:none !important;}

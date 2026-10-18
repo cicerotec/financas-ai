@@ -110,6 +110,7 @@
   }
 
   let ESPACO = null;
+  let ESPACOS = [];
   let SUB = '';
   let EMAIL = '';
   async function espaco() {
@@ -121,62 +122,18 @@
     if (!lista.length) throw new Error('Sua conta ainda nao tem um espaco. Rode scripts/seed.sh.');
     const guardado = localStorage.getItem('financas.space');
     ESPACO = lista.find((e) => e.id === guardado) || lista[0];
-    mostrarSessao(body.email, lista);
+    ESPACOS = lista;
     return ESPACO;
-  }
-  function mostrarSessao(email, lista) {
-    const h = document.querySelector('header');
-    if (!h || document.getElementById('sessao')) return;
-    const d = document.createElement('div');
-    d.id = 'sessao';
-    d.className = 'muted';
-    d.style.cssText = 'margin:0 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;';
-    const t = document.createElement('span');
-    t.id = 'sessaoNome';
-    t.textContent = nomeExibicao() + ' · ';
-    d.appendChild(t);
-    if (lista.length > 1) {
-      const s = document.createElement('select');
-      s.style.cssText = 'width:auto;padding:2px 6px;font-size:12px;';
-      lista.forEach((e) => { const o = document.createElement('option'); o.value = e.id; o.textContent = e.nome; s.appendChild(o); });
-      s.value = ESPACO.id;
-      s.onchange = () => { localStorage.setItem('financas.space', s.value); location.reload(); };
-      d.appendChild(s);
-    } else {
-      const n = document.createElement('span');
-      n.textContent = ESPACO.nome + (ESPACO.role === 'member' ? ' · membro' : '');
-      d.appendChild(n);
-    }
-    const dica = document.createElement('span');
-    dica.id = 'sessaoDica';
-    dica.style.cssText = 'font-size:11px;';
-    dica.textContent = '(defina seu nome em Listas)';
-    dica.style.display = ESPACO && ESPACO.apelido ? 'none' : '';
-    d.appendChild(dica);
-    const b = document.createElement('button');
-    b.className = 'ghost';
-    b.style.cssText = 'padding:2px 8px;font-size:12px;';
-    b.textContent = 'Sair';
-    b.onclick = sair;
-    d.appendChild(b);
-    h.insertBefore(d, h.firstChild);
   }
   // Nome de exibição: o apelido da pessoa; enquanto não definir, a parte do e-mail antes do @.
   function nomeExibicao() {
     return (ESPACO && ESPACO.apelido) || (EMAIL ? EMAIL.split('@')[0] : '');
-  }
-  function atualizarSessao() {
-    const t = document.getElementById('sessaoNome');
-    if (t) t.textContent = nomeExibicao() + ' · ';
-    const d = document.getElementById('sessaoDica');
-    if (d) d.style.display = ESPACO && ESPACO.apelido ? 'none' : '';
   }
   const base = async () => '/spaces/' + (await espaco()).id;
   // Cada pessoa só altera o próprio nome (o servidor usa o sub do token). Vazio remove o apelido.
   async function definirApelido(nome) {
     const { body } = await api('PUT', (await base()) + '/perfil', { apelido: nome });
     ESPACO.apelido = body.apelido || '';
-    atualizarSessao();
     return ESPACO.apelido;
   }
 
@@ -526,6 +483,10 @@
     papel: () => (ESPACO ? ESPACO.role : null),
     sub: () => SUB,
     apelido: () => (ESPACO && ESPACO.apelido) || '',
+    // A conta de quem esta logado, para o menu (web/js/usuario.js): nome de exibicao, espaco atual e a lista de espacos.
+    sessao: () => (ESPACO ? { nome: nomeExibicao(), email: EMAIL, apelido: ESPACO.apelido || '', espaco: { id: ESPACO.id, nome: ESPACO.nome, role: ESPACO.role }, espacos: ESPACOS.map((e) => ({ id: e.id, nome: e.nome })) } : null),
+    trocarEspaco: (id) => { localStorage.setItem('financas.space', id); location.reload(); },
+    sair,
     definirApelido,
     telegramChatId: () => (ESPACO && ESPACO.telegramChatId) || '',
     definirTelegram,
