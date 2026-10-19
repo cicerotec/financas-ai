@@ -1,0 +1,175 @@
+// Logica pura da consulta por tags da aba Tendencias: grupos (E e NAO dentro do grupo, OU entre grupos) e expressao livre
+// (parenteses, E, OU, NAO). Sem DOM nem rede; testada em consulta-tags.test.js (node web/consulta-tags.test.js).
+// O front so desenha e soma o que ja esta na tela: nenhum numero daqui vai para a API.
+(function (raiz) {
+  const MAX_GRUPOS = 4;      // grupos ligados por OU
+  const MAX_TAGS = 8;        // tags em cada lista de um grupo ("precisa ter" e "nao pode ter")
+  const MAX_FICHAS = 60;     // fichas da expressao livre
+  const MAX_OUTRAS = 6;      // outras tags mostradas na lista
+
+  // Ficha da expressao: {k:'tag',v} | {k:'op',v:'E'|'OU'|'NAO'} | {k:'('} | {k:')'}
+  const nomeFicha = (x) => (x.k === 'tag' ? x.v : x.k === 'op' ? (x.v === 'NAO' ? 'NÃO' : x.v) : x.k);
+  const clonar = (x) => JSON.parse(JSON.stringify(x));
+  const grupoVazio = () => ({ tem: [], nao: [] });
+  const grupoPreenchido = (g) => g.tem.length > 0 || g.nao.length > 0;
+  const casaGrupo = (g, tags) => g.tem.every((t) => tags.includes(t)) && !g.nao.some((t) => tags.includes(t));
+
+  // Leitor da expressao: NAO antes de E, E antes de OU (como em SQL). Devolve a arvore; erro lancado tem .msg.
+  function analisar(fichas) {
+    let i = 0;
+    const fim = () => i >= fichas.length;
+    const ant = () => (i > 0 ? fichas[i - 1] : null);
+    const falha = (msg) => { const e = new Error(msg); e.msg = msg; throw e; };
+    function operando() {
+      if (fim()) { const a = ant(); falha(a ? 'Falta uma tag depois de "' + nomeFicha(a) + '".' : 'A expressão está vazia.'); }
+      const x = fichas[i];
+      if (x.k === 'tag') { i++; return { t: 'tag', v: x.v }; }
+      if (x.k === 'op' && x.v === 'NAO') { i++; return { t: 'nao', a: operando() }; }
+      if (x.k === '(') {
+        i++;
+        if (!fim() && fichas[i].k === ')') falha('Parêntese vazio: coloque tags dentro dele.');
+        const e = ou();
+        if (fim() || fichas[i].k !== ')') falha('Falta fechar um parêntese.');
+        i++;
+        return e;
+      }
+      if (x.k === ')') { const a = ant(); falha(a ? 'Falta uma tag depois de "' + nomeFicha(a) + '".' : 'Tem ")" sem "(" antes.'); }
+      return falha('Falta uma tag antes de "' + nomeFicha(x) + '".');
+    }
+    function e_() {
+      const xs = [operando()];
+      while (!fim() && fichas[i].k === 'op' && fichas[i].v === 'E') { i++; xs.push(operando()); }
+      return xs.length === 1 ? xs[0] : { t: 'e', xs };
+    }
+    function ou() {
+      const xs = [e_()];
+      while (!fim() && fichas[i].k === 'op' && fichas[i].v === 'OU') { i++; xs.push(e_()); }
+      return xs.length === 1 ? xs[0] : { t: 'ou', xs };
+    }
+    const r = ou();
+    if (!fim()) {
+      const x = fichas[i], a = ant();
+      if (x.k === ')') falha('Tem ")" sem "(" antes.');
+      falha('Falta E ou OU entre "' + nomeFicha(a) + '" e "' + nomeFicha(x) + '".');
+    }
+    return r;
+  }
+
+  const avalia = (n, tags) => (n.t === 'tag' ? tags.includes(n.v) : n.t === 'nao' ? !avalia(n.a, tags)
+    : n.t === 'e' ? n.xs.every((x) => avalia(x, tags)) : n.xs.some((x) => avalia(x, tags)));
+
+  // "Lido como": a expressao com todos os parenteses, para a pessoa conferir como a precedencia foi entendida.
+  function texto(n, topo) {
+    if (topo === undefined) topo = true;
+    if (n.t === 'tag') return n.v;
+    if (n.t === 'nao') return 'NÃO ' + texto(n.a, false);
+    const s = n.xs.map((x) => texto(x, false)).join(n.t === 'e' ? ' E ' : ' OU ');
+    return topo && n.t === 'ou' ? s : '(' + s + ')';
+  }
+
+  // Frase de um grupo ("Lazer E Comida NÃO Presente") e da consulta de grupos.
+  function fraseGrupo(g) {
+    let s = g.tem.join(' E ');
+    if (g.nao.length) s += (g.tem.length ? ' ' : '') + g.nao.map((t) => 'NÃO ' + t).join(' ');
+    return s;
+  }
+  function fraseGrupos(grupos) {
+    const a = grupos.filter(grupoPreenchido);
+    if (!a.length) return '';
+    return a.length === 1 ? fraseGrupo(a[0]) : a.map((g) => '(' + fraseGrupo(g) + ')').join(' OU ');
+  }
+
+  // A consulta de um estado {modo:'grupos'|'avancado', grupos, fichas}. Sem nada escolhido, tudo passa.
+  // valida=false so no modo avancado, com a mensagem do que falta.
+  function consulta(estado) {
+    if (estado.modo !== 'avancado') {
+      const a = estado.grupos.filter(grupoPreenchido);
+      return { valida: true, vazia: !a.length, pred: (tags) => !a.length || a.some((g) => casaGrupo(g, tags)),
+        mencionadas: new Set(a.flatMap((g) => g.tem.concat(g.nao))), no: null };
+    }
+    if (!estado.fichas.length) return { valida: true, vazia: true, pred: () => true, mencionadas: new Set(), no: null };
+    try {
+      const no = analisar(estado.fichas);
+      return { valida: true, vazia: false, pred: (tags) => avalia(no, tags), no,
+        mencionadas: new Set(estado.fichas.filter((x) => x.k === 'tag').map((x) => x.v)) };
+    } catch (e) {
+      if (!e.msg) throw e;
+      return { valida: false, msg: e.msg };
+    }
+  }
+
+  // Grupos -> fichas, ao abrir o modo avancado (a consulta aparece ja traduzida).
+  function gruposParaFichas(grupos) {
+    const a = grupos.filter(grupoPreenchido), out = [];
+    a.forEach((g, i) => {
+      const p = [];
+      g.tem.forEach((t) => { if (p.length) p.push({ k: 'op', v: 'E' }); p.push({ k: 'tag', v: t }); });
+      g.nao.forEach((t) => { if (p.length) p.push({ k: 'op', v: 'E' }); p.push({ k: 'op', v: 'NAO' }, { k: 'tag', v: t }); });
+      if (i) out.push({ k: 'op', v: 'OU' });
+      if (a.length > 1 && p.length > 1) out.push({ k: '(' }, ...p, { k: ')' }); else out.push(...p);
+    });
+    return out.slice(0, MAX_FICHAS);
+  }
+
+  // Insere uma ficha no cursor. Tag, "(" ou NAO logo depois de uma tag ou de ")" ganham um E implicito.
+  function inserirFicha(fichas, pos, x) {
+    if (fichas.length >= MAX_FICHAS) return { fichas, pos, cheio: true };
+    const antes = pos > 0 ? fichas[pos - 1] : null;
+    const fecha = antes && (antes.k === 'tag' || antes.k === ')');
+    const abre = x.k === 'tag' || x.k === '(' || (x.k === 'op' && x.v === 'NAO');
+    const novos = fecha && abre && fichas.length + 2 <= MAX_FICHAS ? [{ k: 'op', v: 'E' }, x] : [x];
+    const f = fichas.slice();
+    f.splice(pos, 0, ...novos);
+    return { fichas: f, pos: pos + novos.length, cheio: false };
+  }
+
+  // Resume os lancamentos da consulta. itens: [{mes, valor, tags}] (so os gastos que contam). Uma barra do mes se divide em
+  // "so as tags da consulta" e "tem outras tags": por lancamento, nunca por pedaco do valor.
+  // cot: as outras tags, com o valor dos lancamentos da consulta que a tem (se sobrepoem: uma compra com 5 tags conta nas 5).
+  function resumir(itens, q) {
+    const meses = new Map();
+    const co = new Map();
+    let n = 0, total = 0, totExt = 0;
+    itens.forEach((l) => {
+      const tags = l.tags || [];
+      if (!q.pred(tags)) return;
+      n++; total += l.valor;
+      const m = meses.get(l.mes) || { mes: l.mes, total: 0, ext: 0 };
+      m.total += l.valor;
+      const outras = q.vazia ? [] : tags.filter((t) => !q.mencionadas.has(t)); // sem filtro nao ha 'outras tags'
+      if (outras.length) { m.ext += l.valor; totExt += l.valor; }
+      outras.forEach((t) => co.set(t, (co.get(t) || 0) + l.valor));
+      meses.set(l.mes, m);
+    });
+    const cot = [...co.entries()].map(([t, v]) => ({ t, v }))
+      .sort((a, b) => b.v - a.v || a.t.localeCompare(b.t, 'pt-BR'));
+    return { meses: [...meses.values()].sort((a, b) => (a.mes < b.mes ? -1 : a.mes > b.mes ? 1 : 0)), n, total, totExt, cot, vazia: !!q.vazia };
+  }
+
+  // "Tirar (NAO)" numa outra tag: nos grupos, o NAO entra em todos os grupos preenchidos; na expressao, ela inteira vira
+  // "(expressao) E NAO tag". Devolve {ok, estado} ou {ok:false, erro} sem mexer no estado recebido.
+  function tirarTag(estado, tag) {
+    const e = clonar(estado);
+    if (e.modo !== 'avancado') {
+      let cheio = false;
+      e.grupos.filter(grupoPreenchido).forEach((g) => {
+        if (g.nao.includes(tag)) return;
+        if (g.nao.length >= MAX_TAGS) { cheio = true; return; }
+        g.nao.push(tag);
+      });
+      return cheio ? { ok: false, erro: 'Algum grupo já tem ' + MAX_TAGS + ' tags em "Não pode ter". Libere uma vaga primeiro.' } : { ok: true, estado: e };
+    }
+    if (!consulta(e).valida) return { ok: false, erro: 'Corrija a expressão antes de tirar uma tag.' };
+    const envolve = e.fichas.length > 1;
+    if (e.fichas.length + (envolve ? 2 : 0) + 3 > MAX_FICHAS) return { ok: false, erro: 'A expressão passaria de ' + MAX_FICHAS + ' fichas.' };
+    e.fichas = [].concat(envolve ? [{ k: '(' }] : [], e.fichas, envolve ? [{ k: ')' }] : [],
+      [{ k: 'op', v: 'E' }, { k: 'op', v: 'NAO' }, { k: 'tag', v: tag }]);
+    e.pos = e.fichas.length;
+    return { ok: true, estado: e };
+  }
+
+  const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, tirarTag };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else raiz.ConsultaTags = api;
+})(typeof window !== 'undefined' ? window : globalThis);

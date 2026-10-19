@@ -506,7 +506,7 @@ let filaCombos = Promise.resolve();
 let combosVisiveis = [];
 let tagBusca = '';
 let tagsTodasAbertas = false;
-let seletorHist = null, seletorTend = null;
+let seletorHist = null;
 let filStatusSelecionados = new Set();
 let filBancoSelecionados = new Set();
 let editandoId = null;
@@ -1045,7 +1045,6 @@ function renderTagPicker(){
   }
   document.getElementById('tagPicker').innerHTML = l;
   if(seletorHist) seletorHist.render();
-  if(seletorTend) seletorTend.render();
 }
 function renderCombosLista(){
   const el = document.getElementById('listaCombos');
@@ -1058,7 +1057,7 @@ function renderCombosLista(){
     salvarCombos(); renderCombosLista(); renderTagPicker();
   });
 }
-// Seletor de tags só para filtrar (Histórico e Tendências): mesmos combos e chips do Lançar, sem criar nada.
+// Seletor de tags só para filtrar o Histórico: mesmos combos e chips do Lançar, sem criar nada. (Tendências tem o seu em js/tendencias.js.)
 function criarSeletorFiltroTags(raiz, aoMudar){
   const S = {sel:new Set(), busca:'', abertas:false, modo:'todas', combos:[]};
   raiz.innerHTML = '<div data-p="combos"></div><div class="tags" data-p="marcadas"></div>' +
@@ -1129,11 +1128,7 @@ function renderTagFilter(){
   if(!seletorHist) seletorHist = criarSeletorFiltroTags(document.getElementById('histTags'), renderHistorico);
   else seletorHist.render();
 }
-function renderTagChartSelect(){
-  if(!seletorTend) seletorTend = criarSeletorFiltroTags(document.getElementById('tendTags'), desenharGrafico);
-  else seletorTend.render();
-  desenharGrafico();
-}
+function renderTagChartSelect(){ desenharGrafico(); }
 function renderGerenciarTags(){
   const el = document.getElementById('pillTags');
   if(!el) return;
@@ -2040,28 +2035,8 @@ document.getElementById('btnLimparBusca').addEventListener('click', limparBuscaT
 document.getElementById('filMostrarOcultos').addEventListener('change', renderHistorico);
 document.getElementById('filOrdenacao').addEventListener('change', renderHistorico);
 
-function desenharGrafico(){
-  const area = document.getElementById('chartArea');
-  if(!area || !seletorTend) return;
-  const casa = l=>seletorTend.casa(l);
-  const porMes = {};
-  lancamentosCache.filter(l=>casa(l) && l.tipo==='saida' && ehStatusReal(l.status)).forEach(l=>{
-    const d = new Date(l.dataEvento);
-    const chave = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    porMes[chave] = (porMes[chave]||0) + l.valor;
-  });
-  const chaves = Object.keys(porMes).sort();
-  if(!chaves.length){ area.innerHTML = '<p class="muted">Sem gastos com essa seleção ainda.</p>'; return; }
-  const max = Math.max(...chaves.map(k=>porMes[k]));
-  const w=560,h=180,bw=w/chaves.length;
-  let bars = chaves.map((k,i)=>{
-    const bh = max? (porMes[k]/max)*130 : 0;
-    return `<rect x="${i*bw+8}" y="${150-bh}" width="${bw-16}" height="${bh}" fill="var(--accent)" rx="3"></rect>
-      <text x="${i*bw+bw/2}" y="168" text-anchor="middle">${k.slice(5)}/${k.slice(2,4)}</text>
-      <text x="${i*bw+bw/2}" y="${142-bh}" text-anchor="middle">${fmtMoeda(porMes[k]).replace('R$','')}</text>`;
-  }).join('');
-  area.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;">${bars}</svg>`;
-}
+// O grafico de Tendencias e a consulta por tags vivem em js/tendencias.js (tendRender).
+function desenharGrafico(){ if(typeof tendRender==='function') tendRender(); }
 
 async function carregarSaldosConfig(){
   if(!db) return;
