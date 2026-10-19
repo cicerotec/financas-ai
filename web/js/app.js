@@ -375,6 +375,7 @@ function pvRender(topo){
   el.innerHTML = `<div class="tc-scr"><div class="tc-col">${tela}</div></div>${pv.tela==='main' ? pvBarra() : ''}${pvHtmlJanela()}`;
   el.querySelector('.tc-scr').scrollTop = y;
   pvMontarRodas();
+  Voltar.sync(); // as telas internas (Repetir, Avisar, Status) e a janela de rodas contam como camadas do botao voltar
 }
 function pvVoltar(){
   if(!pv || pv.ocupado) return;
@@ -737,6 +738,69 @@ async function init(){
   renderListas();
   setupTabs();
   setupHandlers();
+  ligarVoltar();
+}
+
+// ---------- botao voltar do navegador e do celular (web/js/voltar.js; padrao em .ai/padrao-de-telas.md) ----------
+// Camadas = janelas e telas cheias que o "←" ou o toque fora fecharia. Quem abre ou fecha continua sendo o codigo de sempre;
+// voltar.js so acompanha a contagem (MutationObserver nos atributos e nos filhos do body, e Voltar.sync() onde o DOM nao muda).
+function camadaVisivel(id){ const e = document.getElementById(id); return !!e && !e.hidden && !e.classList.contains('hidden'); }
+function camadasAbertas(){
+  let n = 0;
+  if(camadaVisivel('modalOverlay')) n++;
+  if(camadaVisivel('mnDrop')) n++;
+  if(camadaVisivel('tdVeu')) n++;
+  if(document.body.classList.contains('td-edit')){ n++; if(camadaVisivel('tdExpr') && window.matchMedia('(max-width:1159px)').matches) n++; }
+  if(pv) n += 1 + (pv.tela !== 'main' ? 1 : 0) + (pv.sheet ? 1 : 0);
+  if(document.getElementById('vsTc')) n++;
+  if(document.getElementById('futOv')) n++;
+  if(camadaVisivel('histFilOv')) n++;
+  if(document.getElementById('tagsCard').classList.contains('aberto')) n++;
+  return n;
+}
+function fecharCamadaTopo(){ // na ordem de cima para baixo; o que nao existe e pulado
+  const clicar = sel=>{ const e = document.querySelector(sel); if(e) e.click(); return !!e; };
+  if(camadaVisivel('modalOverlay')){ clicar('#modalCancelar') || clicar('#modalOk'); return; }
+  if(camadaVisivel('mnDrop')){ fecharMenuApp(false); return; }
+  if(camadaVisivel('tdVeu')){ clicar('#tdJok'); return; }
+  if(document.body.classList.contains('td-edit')){
+    if(camadaVisivel('tdExpr') && window.matchMedia('(max-width:1159px)').matches){ clicar('#tdVoltarCel') || clicar('#tdVoltar'); return; }
+    clicar('#tdFechar'); return;
+  }
+  if(pv){ pvVoltar(); return; }
+  if(document.getElementById('vsTc')){ vsFechar(); return; }
+  if(document.getElementById('futOv')){ fecharAcoesFuturo(); return; }
+  if(camadaVisivel('histFilOv')){ fecharFiltrosHist(); return; }
+  if(document.getElementById('tagsCard').classList.contains('aberto')) lancarTags(false);
+}
+// Edicao com texto digitado: o voltar pergunta antes de sair do formulario.
+let assinaturaEdicao = null;
+function assinaturaFormulario(){
+  const v = id=>document.getElementById(id).value;
+  return JSON.stringify([v('fTipo'), v('fValor'), v('fDesc'), v('fNota'), v('fData'), v('fBanco'), v('fStatus'), v('fFatura'),
+    document.getElementById('fEstimado').checked, [...tagsSelecionadas].sort()]);
+}
+function formularioSujo(){ return !!editandoId && assinaturaEdicao !== null && abaAtual() === 'lancar' && assinaturaFormulario() !== assinaturaEdicao; }
+async function perguntarDescartarEdicao(){
+  if(await confirmarModal('Descartar o que foi digitado? A alteração ainda não foi salva e será perdida.', 'Descartar')) cancelarEdicao();
+}
+function ligarVoltar(){
+  if(!Voltar || !window.history || !history.pushState) return;
+  Voltar.iniciar({
+    abaAtual,
+    abaValida: t=>{
+      const b = document.querySelector(`nav button[data-tab="${t}"]`);
+      return !!b && !b.hidden && !b.classList.contains('hidden') && b.style.display !== 'none' && !!document.getElementById('tab-'+t);
+    },
+    irParaAba,
+    contarAbertas: camadasAbertas,
+    fecharTopo: fecharCamadaTopo,
+    precisaConfirmar: formularioSujo,
+    perguntarSaida: perguntarDescartarEdicao
+  });
+  const ouvir = ()=>Voltar.sync();
+  new MutationObserver(ouvir).observe(document.body, {subtree:true, attributes:true, attributeFilter:['class','hidden']});
+  new MutationObserver(ouvir).observe(document.body, {childList:true});
 }
 
 let abaOrigemEdicao = null;
@@ -756,6 +820,7 @@ function irParaAba(t){
   if(t==='futuros') renderFuturos();
   if(t==='versoes') abrirVersoes();
   if(t==='tendencias' && typeof tendRender==='function') tendRender();
+  Voltar.sync();
 }
 function setupTabs(){
   document.querySelectorAll('nav button').forEach(b=>{
@@ -1253,7 +1318,7 @@ function setupHandlers(){
 
   document.getElementById('btnIA').onclick = preencherComIA;
   document.getElementById('btnSalvar').onclick = salvarLancamento;
-  document.getElementById('btnCancelarEdicao').onclick = cancelarEdicao;
+  document.getElementById('btnCancelarEdicao').onclick = ()=>{ if(formularioSujo()) perguntarDescartarEdicao(); else cancelarEdicao(); };
   document.getElementById('btnLimpar').onclick = limparFormulario;
   document.getElementById('btnTransferir').onclick = registrarTransferencia;
   document.getElementById('tData').value = nowLocalInput();
@@ -1815,13 +1880,14 @@ function iniciarEdicao(id){
   renderTagPicker();
   document.getElementById('btnSalvar').textContent = 'Salvar edição';
   document.getElementById('btnCancelarEdicao').classList.remove('hidden');
+  assinaturaEdicao = assinaturaFormulario();
   irParaAba('lancar');
 }
 
 function iniciarCopia(id){
   const l = acharLancamento(id);
   if(!l) return;
-  editandoId = null;
+  editandoId = null; assinaturaEdicao = null;
   document.getElementById('btnSalvar').textContent = 'Salvar lançamento';
   document.getElementById('btnCancelarEdicao').classList.add('hidden');
   document.getElementById('notaLivre').value = '';
@@ -1845,11 +1911,11 @@ function iniciarCopia(id){
 }
 
 function cancelarEdicao(){
-  editandoId = null;
+  editandoId = null; assinaturaEdicao = null;
   document.getElementById('btnSalvar').textContent = 'Salvar lançamento';
   document.getElementById('btnCancelarEdicao').classList.add('hidden');
   limparFormulario();
-  if(abaOrigemEdicao){ const t = abaOrigemEdicao; abaOrigemEdicao = null; irParaAba(t); } // volta para onde a edição começou
+  if(abaOrigemEdicao){ const t = abaOrigemEdicao; abaOrigemEdicao = null; Voltar.retornar(); irParaAba(t); } // volta para onde a edição começou (e desfaz a entrada do historico do navegador)
 }
 
 async function ocultarLancamento(id){
