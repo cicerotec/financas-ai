@@ -169,10 +169,19 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 /* Tags: janela de baixo no celular; no computador fica a direita, sempre a vista */
 .tags-veu{display:none;}
 .tags-card{display:none;}
-.tags-cab{display:flex;align-items:center;justify-content:space-between;margin:0 0 6px;}
-.tags-card.aberto{display:block;position:fixed;left:0;right:0;bottom:0;z-index:80;max-height:84vh;overflow-y:auto;margin:0;border:0;border-radius:22px 22px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));}
+.tags-card h2{font-size:16px;margin:0 0 2px;}
+.tags-sub{font-size:13px;color:var(--muted);margin:0 0 10px;}
+.tags-busca{margin:0 0 6px;min-height:44px;}
+.tags-lista{overflow:auto;min-height:0;max-height:46vh;padding:4px 0;}
+.tags-cnt{font-size:12.5px;color:var(--muted);margin:6px 0;}
+.tags-ok{width:100%;margin-top:10px;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:15px;cursor:pointer;}
+.tags-card.aberto{display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;z-index:80;max-height:82vh;margin:0;border:0;border-radius:22px 22px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));}
+.tags-card.aberto .tags-lista{flex:1;max-height:none;}
 .tags-veu.aberto{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:79;}
-.tags-card .tag{min-height:40px;display:inline-flex;align-items:center;padding:0 14px;border-radius:999px;font-size:14px;}
+#tagCombos .muted{margin:6px 0 2px;}
+.tags-card .tags{gap:8px;margin-top:4px;}
+.tags-card .tag{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:999px;font-size:15px;overflow-wrap:anywhere;background:var(--card);}
+.tags-card .tag.on{background:var(--accent-bg);color:var(--text);border-color:var(--accent);font-weight:600;}
 @media (min-width:900px){
   main:has(#tab-lancar:not(.hidden)){max-width:1100px;}
   #modoLancar{max-width:420px;}
@@ -180,8 +189,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .lan-form{grid-area:form;}
   .ia-card{grid-area:ia;}
   .tags-card{display:block;grid-area:tags;position:sticky;top:110px;}
-  .tags-card .tags-cab button{display:none;}
-  .tags-card.aberto{position:sticky;max-height:none;border:1px solid var(--border);border-radius:12px;padding:14px;margin:0 0 12px;z-index:auto;}
+  .tags-ok{display:none;}
+  .tags-card.aberto{display:block;position:sticky;max-height:none;border:1px solid var(--border);border-radius:12px;padding:14px;margin:0 0 12px;z-index:auto;}
+  .tags-card.aberto .tags-lista{max-height:46vh;}
   .tags-veu.aberto{display:none;}
   .lh.lh-tags,.lh.lh-mais{display:none;}
   .linhas{padding:12px 16px !important;display:grid;grid-template-columns:1fr 1fr;gap:12px;overflow:visible;}
