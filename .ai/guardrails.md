@@ -41,6 +41,7 @@ e para ajustes em telas que já existem.
     depois mostram um aviso de 6 s com Desfazer (padrão 11b, provisório até o histórico de versões).
   - **Lançar** (demo `demo-lancar-layout.html`): valor grande primeiro, Data/Banco/Status com seletor nativo, Tags em janela de baixo e Salvar fixo no celular; IA e Tags à direita no computador; Transferência é um modo no topo.
   - **Histórico** (demo `demo-historico-layout.html`): mês e busca no topo, Filtros numa janela com fichas, linha como a de Futuros agrupada por dia (por mês, com soma, na busca), nota só em ícone e tags em uma linha; tabela por mês no computador.
+  - **Botão voltar** (demo `demo-voltar-navegador.html`): troca de aba e cada janela ou tela cheia é uma entrada do histórico do navegador (`web/js/voltar.js`); o voltar fecha a camada de cima, o aviso de Desfazer fica fora da pilha, o formulário de edição com texto digitado pergunta antes de descartar. **Janela ou tela cheia nova entra em `camadasAbertas()` e `fecharCamadaTopo()` de `web/js/app.js`.**
   - **Computador:** a mesma tela vira uma tabela de largura total (colunas alinhadas, mínimo de 1120 px a partir de
     1160 px de janela, container de até 1200 px) com as ações na própria linha, apagadas até o mouse passar ou o foco
     entrar. Mesmos dados e mesmas regras; só o desenho muda com a largura da janela.
@@ -86,7 +87,7 @@ e para ajustes em telas que já existem.
 - **Dado real nunca no git** (o repositório é público): exemplos e fixtures só com dados fictícios.
 
 ## Testes e deploy
-- **Testes:** rode `go test ./...` em `backend/` e `node web/recorrencia.test.js` antes de commitar. Quebre o código de
+- **Testes:** rode `go test ./...` em `backend/` e os `node web/*.test.js` (`recorrencia`, `versoes`, `confirmacao`, `usuario`, `consulta-tags`, `voltar`) antes de commitar. Quebre o código de
   propósito uma vez para ver o teste falhar. Teste não pode depender de variável de ambiente do CI (o deploy roda com
   `AMBIENTE=dev`).
 - **Deploy:** o job verde não basta: confira o changeset e o status final da stack. Permissão nova na infra exige
