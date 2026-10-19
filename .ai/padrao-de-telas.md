@@ -20,6 +20,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Confirmação de mês fechado | [`demos/demo-confirmacao-mes-fechado.html`](demos/demo-confirmacao-mes-fechado.html) | segunda janela ao editar/lançar em mês fechado, restaurar com aviso no cartão, importar com uma pergunta no fim, mês conferido sem confirmação (aprovado em 2026-10-17) |
 | Excluir na hora | [`demos/demo-exclusao-imediata.html`](demos/demo-exclusao-imediata.html) | DELETE imediato com o item na lista até a resposta, recusas antes de sumir (conferido, mês fechado, rede), Desfazer por restauração e seu erro (aprovado em 2026-10-17) |
 | Tendências por tags | [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html) | grupos com E/NÃO e OU entre eles (padrão), "Modo avançado" com expressão livre (parênteses, E, OU, NÃO), barra do mês em duas partes e lista de outras tags com "Tirar (NÃO)" (implementada em 2026-10-18) |
+| Tendências, layout | [`demos/demo-tendencias-layout.html`](demos/demo-tendencias-layout.html) | **vale sobre a demo acima onde diferirem (layout)**: computador com resultado à esquerda e escolhas à direita, celular com "Editar consulta" em tela cheia, modo avançado por cima, barra de resumo e tags em botões (implementada em 2026-10-18) |
 | Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html)(demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
 
 ## Princípios
@@ -136,6 +137,10 @@ a tela não calcula nada, só pergunta e reenvia com `?confirmaMesFechado=1` (qu
   separadamente. Teste: `web/confirmacao.test.js` (CI).
 
 ## Tendências (tela)
+**Layout** (demo [`demos/demo-tendencias-layout.html`](demos/demo-tendencias-layout.html)): no **computador** (1160 px ou mais, `main` até 1200 px) o **resultado fica à esquerda**
+(Sua consulta, gráfico, Outras tags; a coluna acompanha a rolagem) e as **escolhas à direita** (Combos, Grupos, Modo avançado, 430 px). No **celular** o resultado vem
+primeiro e "Editar consulta" abre as escolhas em **tela cheia**; o modo avançado abre por cima em outra tela cheia, e uma barra fixa embaixo mostra o resumo ao vivo
+(lançamentos, total, % com outras tags) com o botão "Pronto". **Nada de lista de tags ou de combos solta na página:** tudo abre em janela, com as tags em **botões que quebram em várias linhas**: o "+ tag" dos grupos, a linha "Combos" (mostra o combo em uso; escolher um fecha a janela) e o botão "+ Tag" do modo avançado (a tag entra no cursor e a janela fecha). As colunas do computador **não têm barras de rolagem próprias**: a página rola e a da esquerda acompanha.
 Demo [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html); implementação em `web/js/tendencias.js` (tela) e `web/consulta-tags.js` (lógica pura, com
 `web/consulta-tags.test.js` no CI). Só desenha e soma o que já está na tela (`lancamentosCache`): nenhum número vai para a API.
 - **Grupos (padrão):** cada grupo tem "Precisa ter todas" (E) e "Não pode ter nenhuma" (NÃO); os grupos se ligam por **OU** e o lançamento
@@ -150,8 +155,9 @@ Demo [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html); imple
   Meses em fila que rola na horizontal (46 px por mês), começando pelos mais recentes.
 - **Outras tags:** as 6 mais pesadas, com a porcentagem do valor da consulta em lançamentos com a tag (**se sobrepõem**, não somam 100%) e
   "Tirar (NÃO)", que põe NÃO em todos os grupos (ou "(expressão) E NÃO tag") com "Desfazer". Sem filtro não há "outras tags".
-- **Custo:** "Tirar" tira o lançamento inteiro da conta (o total fica "puro", não "real"); não há divisão do valor entre tags; escolher tags nos
-  grupos é por janela (um toque a mais que a lista de antes); a consulta não é guardada ao sair do app.
+- **Custo:** "Tirar" tira o lançamento inteiro da conta (o total fica "puro", não "real"); não há divisão do valor entre tags; no celular não se vê o gráfico
+  mudar enquanto se edita (a barra de baixo resume) e editar custa um toque a mais ("Editar consulta"), o modo avançado outro; botões de tag ocupam mais
+  altura que uma lista com centenas de tags (a busca fica no topo da janela); montar uma expressão custa um toque a mais por tag; a consulta não é guardada ao sair do app.
 
 ## Padrões do celular
 **1. Linha-resumo que abre tela cheia.** Cartão com título em negrito e, embaixo, o valor atual em `--muted`
