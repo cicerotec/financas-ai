@@ -41,5 +41,7 @@ jobs:
         run: node web/confirmacao.test.js
       - name: Testes do front (conta no menu)
         run: node web/usuario.test.js
+      - name: Testes do front (consulta por tags de Tendencias)
+        run: node web/consulta-tags.test.js
       - name: sam validate --lint
         run: sam validate --lint --region sa-east-1

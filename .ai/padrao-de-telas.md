@@ -19,7 +19,8 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Histórico de versões | [`demos/demo-historico-versoes.html`](demos/demo-historico-versoes.html) | busca por mês, lista de excluídos e alterados, versões com diff e Restaurar (desabilitado com o motivo), estados vazio e truncado, papéis dono e membro e a visão de computador (aprovado em 2026-10-16) |
 | Confirmação de mês fechado | [`demos/demo-confirmacao-mes-fechado.html`](demos/demo-confirmacao-mes-fechado.html) | segunda janela ao editar/lançar em mês fechado, restaurar com aviso no cartão, importar com uma pergunta no fim, mês conferido sem confirmação (aprovado em 2026-10-17) |
 | Excluir na hora | [`demos/demo-exclusao-imediata.html`](demos/demo-exclusao-imediata.html) | DELETE imediato com o item na lista até a resposta, recusas antes de sumir (conferido, mês fechado, rede), Desfazer por restauração e seu erro (aprovado em 2026-10-17) |
-| Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
+| Tendências por tags | [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html) | grupos com E/NÃO e OU entre eles (padrão), "Modo avançado" com expressão livre (parênteses, E, OU, NÃO), barra do mês em duas partes e lista de outras tags com "Tirar (NÃO)" (implementada em 2026-10-18) |
+| Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html)(demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
 
 ## Princípios
 1. **Celular primeiro.** O dono usa o app no Android. Desenhe a largura de 360 a 400 px e só depois amplie.
@@ -133,6 +134,24 @@ a tela não calcula nada, só pergunta e reenvia com `?confirmaMesFechado=1` (qu
 - **Mês conferido** continua sem confirmação possível: mensagem do servidor em vermelho.
 - **Custo:** ao editar são dois toques e uma ida e volta a mais ao servidor; numa série de repetições cada mês fechado pergunta
   separadamente. Teste: `web/confirmacao.test.js` (CI).
+
+## Tendências (tela)
+Demo [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html); implementação em `web/js/tendencias.js` (tela) e `web/consulta-tags.js` (lógica pura, com
+`web/consulta-tags.test.js` no CI). Só desenha e soma o que já está na tela (`lancamentosCache`): nenhum número vai para a API.
+- **Grupos (padrão):** cada grupo tem "Precisa ter todas" (E) e "Não pode ter nenhuma" (NÃO); os grupos se ligam por **OU** e o lançamento
+  que cai em dois conta uma vez. Tags escolhidas numa **janela de baixo** (lista que acumula com check redondo e busca). Limites à vista:
+  4 grupos, 8 tags por lista. Grupo só com NÃO é "tudo, menos estas"; grupo vazio é ignorado; sem nada escolhido mostra tudo.
+  Os **combos** (salvos e sugeridos) continuam no topo e carregam um grupo.
+- **Modo avançado** (fechado até o toque): expressão livre em fichas com cursor, teclado `( ) E OU NÃO`, lista de tags com busca, E implícito
+  depois de tag ou ")", erro em vermelho na própria tela e "Lido como" com todos os parênteses. Abre já com os grupos traduzidos;
+  "Voltar aos grupos" descarta a expressão. Limite de 60 fichas.
+- **Gráfico:** barra do mês dividida em "só as tags da consulta" (cheia) e "tem outras tags além das da consulta" (listrada), que somam o total
+  do mês; faixa com a porcentagem do valor com outras tags; com erro na expressão o gráfico fica esmaecido com o último resultado válido.
+  Meses em fila que rola na horizontal (46 px por mês), começando pelos mais recentes.
+- **Outras tags:** as 6 mais pesadas, com a porcentagem do valor da consulta em lançamentos com a tag (**se sobrepõem**, não somam 100%) e
+  "Tirar (NÃO)", que põe NÃO em todos os grupos (ou "(expressão) E NÃO tag") com "Desfazer". Sem filtro não há "outras tags".
+- **Custo:** "Tirar" tira o lançamento inteiro da conta (o total fica "puro", não "real"); não há divisão do valor entre tags; escolher tags nos
+  grupos é por janela (um toque a mais que a lista de antes); a consulta não é guardada ao sair do app.
 
 ## Padrões do celular
 **1. Linha-resumo que abre tela cheia.** Cartão com título em negrito e, embaixo, o valor atual em `--muted`
@@ -340,4 +359,6 @@ ações), e tire uma captura para olhar.
   Use o mesmo id na regra (`#futMetricaAtras.sem-atraso`). Sempre confira por `getComputedStyle(...).display`.
 - `scrollWidth` não acusa estouro para a **esquerda** em linha com `justify-content:flex-end` (as ações da tabela). Meça
   as extremidades com `getBoundingClientRect()` da coluna e do primeiro e do último botão.
+- Gráfico que rola na horizontal desenhado com a aba **escondida** (`hidden`) tem `scrollWidth` 0: o "rolar até o fim" não pega. Em Tendências um
+  `ResizeObserver` rola até os meses recentes quando o gráfico ganha largura.
 - `\n` dentro de heredoc do shell no Windows se corrompe: edite arquivos com a ferramenta de edição.
