@@ -21,12 +21,13 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Excluir na hora | [`demos/demo-exclusao-imediata.html`](demos/demo-exclusao-imediata.html) | DELETE imediato com o item na lista até a resposta, recusas antes de sumir (conferido, mês fechado, rede), Desfazer por restauração e seu erro (aprovado em 2026-10-17) |
 | Tendências por tags | [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html) | grupos com E/NÃO e OU entre eles (padrão), "Modo avançado" com expressão livre (parênteses, E, OU, NÃO), barra do mês em duas partes e lista de outras tags com "Tirar (NÃO)" (implementada em 2026-10-18) |
 | Tendências, layout | [`demos/demo-tendencias-layout.html`](demos/demo-tendencias-layout.html) | **vale sobre a demo acima onde diferirem (layout)**: computador com resultado à esquerda e escolhas à direita, celular com "Editar consulta" em tela cheia, modo avançado por cima, barra de resumo e tags em botões (implementada em 2026-10-18) |
+| Lançar, layout | [`demos/demo-lancar-layout.html`](demos/demo-lancar-layout.html) | Lançamento e Transferência como modos no topo, valor grande, Data/Banco/Status em linhas com seletor nativo, Tags em janela de baixo (celular) ou na coluna da direita (computador), "Mais" para nota, fatura, repetir e avisar, Salvar fixo embaixo (implementada em 2026-10-19) |
 | Desfazer | [`demos/demo-desfazer.html`](demos/demo-desfazer.html)(demos/demo-desfazer.html) | janela de confirmação antes de excluir e de salvar uma edição, e depois o aviso de 6 s com "Desfazer"; erro ao efetivar e o que se perde (aprovado em 2026-10-14) |
 
 ## Princípios
 1. **Celular primeiro.** O dono usa o app no Android. Desenhe a largura de 360 a 400 px e só depois amplie.
 2. **Pouco à vista, detalhe sob demanda.** Uma linha com o resumo; o detalhe abre em tela cheia ou em janela de baixo.
-   Nunca deixe mais de dois ou três controles à vista num formulário (hoje o Lançar passou de 17 e ficou poluído).
+   Nunca deixe mais de dois ou três controles à vista num formulário (o Lançar passou de 17 e foi redesenhado em 2026-10-19).
 3. **Padrões nativos do celular**: lista que acumula com check redondo, rodas de rolar, interruptor, janela de baixo.
 4. **Os limites aparecem antes de serem atingidos** ("2 de 6 prazos"), e o erro aparece na própria tela, sem fechar.
 5. **O mesmo dado e as mesmas regras nos dois tamanhos.** Só o desenho muda com a largura da janela.
@@ -158,6 +159,14 @@ Demo [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html); imple
 - **Custo:** "Tirar" tira o lançamento inteiro da conta (o total fica "puro", não "real"); não há divisão do valor entre tags; no celular não se vê o gráfico
   mudar enquanto se edita (a barra de baixo resume) e editar custa um toque a mais ("Editar consulta"), o modo avançado outro; botões de tag ocupam mais
   altura que uma lista com centenas de tags (a busca fica no topo da janela); montar uma expressão custa um toque a mais por tag; a consulta não é guardada ao sair do app.
+
+## Lançar (tela)
+Demo [`demos/demo-lancar-layout.html`](demos/demo-lancar-layout.html), aprovada pelo dono em 2026-10-19; implementação em `web/index.html` (`#tab-lancar`), `web/css/app.css` (bloco "Aba Lançar") e `web/js/app.js` (`ligarLancar`). Todos os ids dos campos continuam os mesmos; só o desenho mudou.
+- **Modo no topo:** "Lançamento | Transferência" (`#modoLancar`) troca o painel. Editar ou copiar do Histórico volta sempre para Lançamento.
+- **Celular:** linha recolhida "Preencher com IA" (abre a caixa de texto); cartão com **Saída/Entrada** (o `<select id="fTipo">` escondido continua sendo a fonte do valor, e `definirTipo()` espelha os botões), **Valor em 32 px** e Descrição; depois linhas de 56 px: **Data, Banco e Status** são o próprio seletor nativo (`datetime-local` e `select`, sem janela nossa, valor à direita), **Tags** abre a janela de baixo, igual à de Tendências (título, busca, botões com ✓, "N tags marcadas" e o botão **Pronto** verde embaixo; as escolhas aparecem como chips na linha) e **Mais** abre nota, repetir, avisar, fatura e "valor estimado". Barra **fixa** embaixo com Limpar (cinza), Cancelar edição (só editando) e Salvar. A mensagem de resultado (`#iaStatus`) fica embaixo da barra, fora da IA recolhida.
+- **Transferência:** valor em destaque como em Lançamento, De e Para, e **Data e hora** (`datetime-local`; vazio vale agora).
+- **Computador (900 px ou mais):** formulário à esquerda (Valor, Descrição, Data, Banco, Status e Nota em grade de duas colunas, sem "Mais"; a linha **Tags** ocupa a largura toda e lista as tags escolhidas em chips com × para tirar, pois quem escolhe é a coluna da direita), **IA e Tags na coluna da direita**, sempre à vista; as Tags têm um só lugar (`#tagsCard`, que é janela de baixo no celular e coluna no computador). Transferência em coluna de 560 px com De e Para lado a lado.
+- **Custo:** Nota, repetir, avisar e fatura custam um toque a mais no celular (a tela abre "Mais" sozinha ao editar um lançamento com nota); Tags também; trocar para Transferência são dois toques em vez de rolar a página; a IA fica recolhida.
 
 ## Padrões do celular
 **1. Linha-resumo que abre tela cheia.** Cartão com título em negrito e, embaixo, o valor atual em `--muted`
@@ -367,4 +376,5 @@ ações), e tire uma captura para olhar.
   as extremidades com `getBoundingClientRect()` da coluna e do primeiro e do último botão.
 - Gráfico que rola na horizontal desenhado com a aba **escondida** (`hidden`) tem `scrollWidth` 0: o "rolar até o fim" não pega. Em Tendências um
   `ResizeObserver` rola até os meses recentes quando o gráfico ganha largura.
+- Esconder um elemento com uma regra de classe simples (`.lh-tags{display:none}`) dentro de `@media` não adianta se uma regra **posterior** de mesma especificidade (`.lh{display:block}`) o mostra de novo: no Lançar a linha "Tags" apareceu duas vezes no computador. Dobre a classe (`.lh.lh-tags`) e confira por `getComputedStyle`.
 - `\n` dentro de heredoc do shell no Windows se corrompe: edite arquivos com a ferramenta de edição.

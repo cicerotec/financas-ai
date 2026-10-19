@@ -42,70 +42,95 @@
 <main>
 
 <section id="tab-lancar">
-  <div class="card">
-    <label>Descreva o lançamento (a IA preenche pra você)</label>
-    <textarea id="notaLivre" placeholder="Ex: paguei 87,40 no posto ontem no crédito, cartão santander"></textarea>
-    <button class="primary" id="btnIA">✨ Preencher com IA</button>
-    <p class="muted" id="iaStatus"></p>
+  <div class="seg" id="modoLancar" role="group" aria-label="O que lançar">
+    <button type="button" data-modo="lanc" aria-pressed="true">Lançamento</button>
+    <button type="button" data-modo="transf" aria-pressed="false">Transferência</button>
   </div>
 
-  <div class="card" id="formCard">
-    <div class="row" id="linhaStatusTipoValor">
-      <div style="flex:1.3;"><label for="fStatus">Status</label><select id="fStatus"></select></div>
-      <div><label for="fTipo">Tipo</label><select id="fTipo"><option value="saida">Saída (gasto)</option><option value="entrada">Entrada (receita)</option></select></div>
-      <div><label for="fValor">Valor R$</label><input id="fValor" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
-    </div>
-    <p class="muted" id="fFuturoDica"></p>
-    <div id="fAvisoMount"></div>
-    <div id="fRepetirWrap" class="hidden">
-      <label style="margin-top:8px;">🔁 Repetir (opcional)</label>
-      <div id="fRepetirMount"></div>
-      <p class="muted" id="fRepetirDica"></p>
-    </div>
-    <div id="fFaturaWrap" class="hidden">
-      <label>Fatura do cartão</label>
-      <select id="fFatura"><option value="0">Pela data (padrão)</option><option value="1">Próxima fatura</option><option value="-1">Fatura anterior</option></select>
-      <p class="muted" id="fFaturaDica"></p>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" id="fEstimado" style="width:auto;"> Valor estimado (ex.: compra em dólar; corrijo quando a fatura fechar)</label>
+  <div id="painelLancar" class="lan-grade">
+    <div class="card ia-card" id="iaCard">
+      <button type="button" id="iaAbrir" aria-expanded="false" aria-controls="iaCorpo"><span aria-hidden="true">✨</span><span class="t"><b>Preencher com IA</b><small>Descreva em uma frase</small></span><span class="seta" aria-hidden="true">›</span></button>
+      <div class="ia-corpo" id="iaCorpo">
+        <label for="notaLivre">Descreva o lançamento</label>
+        <textarea id="notaLivre" placeholder="Ex: paguei 87,40 no posto ontem no crédito, cartão santander"></textarea>
+        <button class="primary" id="btnIA">✨ Preencher com IA</button>
+      </div>
     </div>
 
-    <label>Descrição</label>
-    <input id="fDesc" type="text" placeholder="Descrição do lançamento">
+    <div id="formCard" class="lan-form">
+      <div class="card">
+        <select id="fTipo" class="hidden" aria-hidden="true" tabindex="-1"><option value="saida">Saída (gasto)</option><option value="entrada">Entrada (receita)</option></select>
+        <div class="seg tipo" id="tipoLancar" role="radiogroup" aria-label="Tipo">
+          <button type="button" data-tipo="saida" role="radio" aria-checked="true">Saída (gasto)</button>
+          <button type="button" data-tipo="entrada" role="radio" aria-checked="false">Entrada (receita)</button>
+        </div>
+        <label for="fValor">Valor</label>
+        <div class="valor-grande"><span>R$</span><input id="fValor" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
+        <label for="fDesc">Descrição</label>
+        <input id="fDesc" type="text" placeholder="Descrição do lançamento">
+      </div>
 
-    <label>Nota (detalhe extra, opcional)</label>
-    <textarea id="fNota"></textarea>
+      <div class="card linhas">
+        <label class="lh" for="fData"><span class="r">Data</span><input id="fData" type="datetime-local"></label>
+        <label class="lh" for="fBanco"><span class="r">Banco</span><select id="fBanco"></select></label>
+        <label class="lh" for="fStatus"><span class="r">Status</span><select id="fStatus"></select></label>
+        <button type="button" class="lh lh-tags" id="tagsAbrir" aria-haspopup="dialog"><span class="r">Tags</span><span class="v" id="tagsResumo"></span><span class="seta" aria-hidden="true">›</span></button>
+        <button type="button" class="lh lh-mais" id="maisAbrir" aria-expanded="false" aria-controls="maisDet"><span class="r">Mais</span><span class="v">Nota, fatura, repetir, avisar</span><span class="seta" aria-hidden="true">›</span></button>
+        <div class="mais-det" id="maisDet">
+          <label for="fNota">Nota (detalhe extra, opcional)</label>
+          <textarea id="fNota"></textarea>
+          <div id="fRepetirWrap" class="hidden">
+            <label style="margin-top:8px;">🔁 Repetir (opcional)</label>
+            <div id="fRepetirMount"></div>
+            <p class="muted" id="fRepetirDica"></p>
+          </div>
+          <div id="fAvisoMount"></div>
+          <div id="fFaturaWrap" class="hidden">
+            <label for="fFatura">Fatura do cartão</label>
+            <select id="fFatura"><option value="0">Pela data (padrão)</option><option value="1">Próxima fatura</option><option value="-1">Fatura anterior</option></select>
+            <p class="muted" id="fFaturaDica"></p>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;font-size:13px;"><input type="checkbox" id="fEstimado" style="width:auto;"> Valor estimado (ex.: compra em dólar; corrijo quando a fatura fechar)</label>
+          </div>
+        </div>
+      </div>
+      <p class="muted" id="fFuturoDica"></p>
 
-    <div class="row">
-      <div><label>Data/hora do evento</label><input id="fData" type="datetime-local"></div>
-      <div><label>Banco</label><select id="fBanco"></select></div>
+      <div class="barra">
+        <button class="ghost" id="btnLimpar" type="button">Limpar</button>
+        <button class="ghost hidden" id="btnCancelarEdicao" type="button">Cancelar edição</button>
+        <button class="primary" id="btnSalvar" type="button">Salvar lançamento</button>
+      </div>
+      <p class="muted" id="iaStatus"></p>
     </div>
 
-    <label>Tags (toque num combo, busque ou digite abaixo para criar novas)</label>
-    <div id="tagArea">
-      <div id="tagCombos"></div>
-      <div class="tags" id="tagMarcadas"></div>
-      <input id="tagBusca" type="text" placeholder="Buscar tag..." style="margin-top:8px;">
-      <div class="tags" id="tagPicker"></div>
+    <div class="tags-veu" id="tagsVeu"></div>
+    <div class="card tags-card" id="tagsCard" role="dialog" aria-modal="true" aria-labelledby="tagsTit">
+      <h2 id="tagsTit">Tags do lançamento</h2>
+      <p class="tags-sub">Toque para marcar ou desmarcar. Para criar uma nova, digite no campo de baixo e aperte Enter.</p>
+      <input id="tagBusca" type="search" class="tags-busca" placeholder="Buscar tag..." aria-label="Buscar tag">
+      <div id="tagArea" class="tags-lista">
+        <div id="tagCombos"></div>
+        <div class="tags" id="tagMarcadas" hidden></div>
+        <div class="tags" id="tagPicker"></div>
+      </div>
+      <p class="tags-cnt" id="tagsCnt"></p>
+      <input id="novaTagInput" type="text" placeholder="nova tag + Enter">
+      <button class="tags-ok" id="tagsPronto" type="button">Pronto</button>
     </div>
-    <input id="novaTagInput" type="text" placeholder="nova tag + Enter" style="margin-top:6px;">
-
-    <button class="primary" id="btnSalvar">Salvar lançamento</button>
-    <button class="ghost hidden" id="btnCancelarEdicao" style="width:100%;margin-top:6px;">Cancelar edição</button>
-    <button class="ghost" id="btnLimpar" style="width:100%;margin-top:6px;">Limpar formulário</button>
   </div>
 
-  <div class="card">
-    <b>Transferência entre contas</b>
-    <p class="muted">Move dinheiro de uma conta sua para outra sem contar como gasto/receita real.</p>
-    <div class="row">
-      <div><label>De (banco)</label><select id="tBancoOrigem"></select></div>
-      <div><label>Para (banco)</label><select id="tBancoDestino"></select></div>
+  <div id="painelTransf" class="hidden">
+    <div class="card">
+      <label for="tValor">Valor</label>
+      <div class="valor-grande"><span>R$</span><input id="tValor" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
+      <div class="transf-campos">
+        <div><label for="tBancoOrigem">De (banco)</label><select id="tBancoOrigem"></select></div>
+        <div><label for="tBancoDestino">Para (banco)</label><select id="tBancoDestino"></select></div>
+        <div class="tdata"><label for="tData">Data e hora</label><input id="tData" type="datetime-local"></div>
+      </div>
+      <p class="muted">Move dinheiro de uma conta sua para outra sem contar como gasto/receita real.</p>
     </div>
-    <div class="row">
-      <div><label>Valor</label><input id="tValor" type="number" step="0.01" inputmode="decimal" placeholder="R$"></div>
-      <div><label>Data</label><input id="tData" type="date"></div>
-    </div>
-    <button class="primary" id="btnTransferir">Registrar transferência</button>
+    <div class="barra"><button class="primary" id="btnTransferir" type="button">Registrar transferência</button></div>
   </div>
 </section>
 
