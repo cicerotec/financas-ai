@@ -15,5 +15,6 @@ Origem: observar a esposa usando o app (sem explicar nada) e anotar onde ela hes
   **Corrigido:** `renderListas()` refazia os `<option>` dos combos (Status, Banco e bancos da transferência) e o
   navegador voltava ao primeiro; agora a escolha atual é guardada e devolvida depois de refazer a lista.
 - **Lançar redesenhado (2026-10-19):** o formulário passou de 17 controles à vista para 4 no celular; ver "Lançar (tela)" em `padrao-de-telas.md`. Observar o uso real: se Nota ou Tags forem usadas em todo lançamento, o toque a mais em "Mais" e "Tags" pode pedir ajuste.
+- **Lançar, a testar no ambiente dev (PR 146):** salvar, editar, copiar do Histórico, IA e Transferência com data e hora só tiveram o visual conferido, não o fluxo. Conferir também o × das tags no computador e o "Mais" abrindo sozinho ao editar um lançamento com nota.
 - **Observado e já resolvido:** salvar sem resposta, transferência sem data, Enter sem efeito na busca, tudo na tela
   em Histórico, X de status apagando sem aviso.
