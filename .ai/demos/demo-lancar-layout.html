@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Lançar em uma coluna</title>
+<style>
+/* Layout: celular = valor primeiro, linhas-resumo com seletores nativos e botão Salvar fixo embaixo;
+   computador = formulário à esquerda, tags e IA à direita, tudo à vista. Tokens do app (padrao-de-telas.md). */
+:root{
+  --bg:#f1f0ec; --card:#fff; --text:#1d2220; --muted:#5c645e; --border:#e4e2dc;
+  --accent:#0f6b4f; --onaccent:#fff; --accent-bg:#dcefe5; --danger:#a3321f; --danger-bg:#f8e6e2;
+  --income:#1d6b45; --faint:#8c938d; --ck:#d3d6d2; --frame:#e9e8e3;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121513; --card:#1f2421; --text:#e8ebe7; --muted:#a3aaa4; --border:#2e3430;
+  --accent:#5fc9a0; --onaccent:#08231a; --accent-bg:#1c3a2e; --danger:#f08a76; --danger-bg:#3a1f1a;
+  --income:#6fd6a4; --faint:#7b827c; --ck:#3b413d; --frame:#0c0f0d; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#121513; --card:#1f2421; --text:#e8ebe7; --muted:#a3aaa4; --border:#2e3430;
+  --accent:#5fc9a0; --onaccent:#08231a; --accent-bg:#1c3a2e; --danger:#f08a76; --danger-bg:#3a1f1a;
+  --income:#6fd6a4; --faint:#7b827c; --ck:#3b413d; --frame:#0c0f0d; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px;}
+.wrap{max-width:1100px;margin:0 auto;}
+h1{font-size:17px;margin:0 0 4px;}
+.nota{color:var(--muted);font-size:13px;line-height:1.45;margin:0 0 12px;max-width:68ch;}
+button,input,select,textarea{font:inherit;color:inherit;}
+button{cursor:pointer;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.vis{display:flex;gap:6px;margin:0 0 12px;}
+.vis button{border:1px solid var(--border);background:var(--card);border-radius:999px;padding:0 16px;min-height:40px;font-size:13px;}
+.vis button[aria-pressed="true"]{background:var(--accent);color:var(--onaccent);border-color:var(--accent);}
+
+/* quadro */
+.tela{background:var(--frame);border-radius:20px;padding:12px;margin:0 auto;max-width:420px;position:relative;}
+.tela.pc{max-width:1100px;}
+.cab{display:flex;align-items:center;min-height:56px;gap:8px;padding:0 4px 4px;}
+.cab h2{font-size:18px;margin:0;flex:1;}
+.cab .mais{width:48px;height:48px;border:0;background:transparent;border-radius:50%;font-size:20px;color:var(--muted);}
+.card{background:var(--card);border-radius:16px;padding:12px 16px;margin:0 0 10px;}
+.lbl{display:block;font-size:12.5px;color:var(--muted);margin:0 0 4px;}
+.campo{width:100%;min-height:48px;border:1px solid var(--border);background:var(--bg);border-radius:12px;padding:0 12px;}
+textarea.campo{padding:10px 12px;min-height:72px;resize:vertical;}
+
+/* modo: lançamento ou transferência */
+.seg{display:flex;background:var(--card);border-radius:14px;padding:4px;gap:4px;margin:0 0 10px;}
+.seg button{flex:1;min-height:44px;border:0;border-radius:11px;background:transparent;font-size:14px;color:var(--muted);}
+.seg button[aria-pressed="true"]{background:var(--accent-bg);color:var(--text);font-weight:600;}
+.seg.tipo button[data-v="saida"][aria-pressed="true"]{background:var(--danger-bg);color:var(--danger);}
+.seg.tipo{background:var(--bg);margin:0 0 10px;}
+
+/* IA */
+.ia{padding:0;overflow:hidden;}
+.ia > button{width:100%;min-height:56px;border:0;background:transparent;display:flex;align-items:center;gap:10px;padding:0 16px;text-align:left;}
+.ia .t{flex:1;min-width:0;}
+.ia .t small{display:block;color:var(--muted);font-size:12.5px;}
+.ia .corpo{padding:0 16px 14px;display:none;}
+.ia.aberto .corpo{display:block;}
+.ia .corpo .go{margin-top:8px;width:100%;min-height:48px;border:0;border-radius:14px;background:var(--accent);color:var(--onaccent);font-weight:600;}
+
+/* valor */
+.valor{display:flex;align-items:baseline;gap:6px;border-bottom:2px solid var(--border);padding:4px 0 6px;margin:0 0 10px;}
+.valor span{font-size:18px;color:var(--muted);}
+.valor input{flex:1;min-width:0;border:0;background:transparent;font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;padding:0;}
+.valor:focus-within{border-color:var(--accent);}
+.valor input:focus-visible{outline:none;}
+
+/* linhas-resumo */
+.linhas{padding:0;overflow:hidden;}
+.lh{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 16px;border:0;border-top:1px solid var(--border);background:transparent;text-align:left;position:relative;}
+.lh:first-child{border-top:0;}
+.lh .r{flex:none;width:96px;font-size:14px;}
+.lh .v{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;}
+.lh .seta{color:var(--faint);}
+/* o seletor nativo cobre a linha toda: um toque abre a roda do celular */
+.lh select,.lh input[type=datetime-local]{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;}
+.lh .v b{color:var(--text);font-weight:500;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}
+.chip{background:var(--accent-bg);border-radius:999px;padding:3px 10px;font-size:13px;color:var(--text);}
+.mais-det{display:none;padding:4px 16px 14px;border-top:1px solid var(--border);}
+.mais-det.aberto{display:block;}
+.mais-det .l2{display:flex;align-items:center;gap:10px;min-height:48px;}
+.mais-det .l2 input{width:22px;height:22px;accent-color:var(--accent);}
+
+/* barra de salvar */
+.barra{display:flex;gap:8px;position:sticky;bottom:0;padding:10px 0 calc(4px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--frame) 70%,transparent);}
+.barra .salvar{flex:1;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--onaccent);font-weight:600;font-size:15px;}
+.barra .ghost{min-height:52px;padding:0 16px;border:0;border-radius:14px;background:var(--ck);}
+
+/* tags à vista (computador) */
+.tagsbox{display:none;}
+.tagbtn{border:1px solid var(--border);background:var(--bg);border-radius:999px;padding:0 14px;min-height:40px;font-size:14px;}
+.tagbtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-bg);}
+.tagrow{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;}
+.busca{width:100%;min-height:44px;border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:0 12px;margin:0 0 6px;}
+.sub{font-size:12.5px;color:var(--muted);margin:0 0 4px;}
+
+/* janela de baixo */
+.veu{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80;display:flex;align-items:flex-end;justify-content:center;}
+.veu[hidden]{display:none;}
+.jan{background:var(--card);width:100%;max-width:520px;border-radius:22px 22px 0 0;padding:14px 16px max(16px,env(safe-area-inset-bottom,0px));max-height:84vh;overflow:auto;}
+.jan h3{margin:0 0 8px;font-size:16px;}
+.jan .ok{margin-top:6px;width:100%;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--onaccent);font-weight:600;}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:12px 18px;border-radius:12px;font-size:14px;z-index:90;}
+.toast[hidden]{display:none;}
+
+/* transferência */
+.par{display:flex;flex-direction:column;gap:8px;}
+
+/* computador */
+.tela.pc .grade{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start;}
+.tela.pc .col-dir{position:sticky;top:12px;}
+.tela.pc .tagsbox{display:block;}
+.tela.pc .linhas .lh.tagslinha{display:none;}
+.tela.pc #pTransf{max-width:560px;}
+.tela.pc .par{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.tela.pc .par .pdata{grid-column:1 / -1;}
+.tela.pc .barra{position:static;background:none;}
+.tela.pc .barra .salvar{flex:none;min-width:260px;}
+.tela.pc .linhas{padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;overflow:visible;}
+.tela.pc .linhas .lh{display:block;position:static;min-height:0;padding:0;border:0;}
+.tela.pc .linhas .lh .r{display:block;width:auto;font-size:12.5px;color:var(--muted);margin:0 0 4px;}
+.tela.pc .linhas .lh .v,.tela.pc .linhas .lh .seta{display:none;}
+.tela.pc .linhas .lh select,.tela.pc .linhas .lh input[type=datetime-local]{position:static;opacity:1;height:48px;border:1px solid var(--border);background:var(--bg);border-radius:12px;padding:0 12px;font-size:15px;}
+.tela.pc .linhas .lh.maislinha{display:none;}
+.tela.pc .mais-det{display:block;grid-column:1 / -1;border:0;padding:0;}
+.tela.pc .linhas .lh.linha-larga{grid-column:1 / -1;}
+.tela:not(.pc) .grade{display:flex;flex-direction:column;}
+.tela:not(.pc) .col-dir{display:contents;}
+.tela:not(.pc) .ia{order:-1;}
+.perde{margin:18px 0 0;font-size:13px;color:var(--muted);line-height:1.5;max-width:75ch;}
+.perde b{color:var(--text);}
+.perde ul{margin:6px 0 0;padding-left:18px;}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Aba Lançar: proposta de layout</h1>
+  <p class="nota">Tudo funciona: troque Celular e Computador, mude Saída e Entrada, toque em Tags, abra a IA e a Transferência. Na demo os seletores de Data, Banco e Status são os nativos do aparelho.</p>
+  <div class="vis" role="group" aria-label="Visão"><button id="vCel" aria-pressed="true">Celular</button><button id="vPc" aria-pressed="false">Computador</button></div>
+
+  <div class="tela" id="tela">
+    <div class="cab"><h2>Lançar</h2><button class="mais" aria-label="Menu">⋮</button></div>
+
+    <div class="seg" id="modo" role="group" aria-label="O que lançar">
+      <button data-m="lanc" aria-pressed="true">Lançamento</button>
+      <button data-m="transf" aria-pressed="false">Transferência</button>
+    </div>
+
+    <div id="pLanc" class="grade">
+      <div class="col-esq">
+        <div class="card valorcard">
+          <div class="seg tipo" id="tipo" role="radiogroup" aria-label="Tipo">
+            <button data-v="saida" role="radio" aria-pressed="true">Saída (gasto)</button>
+            <button data-v="entrada" role="radio" aria-pressed="false">Entrada (receita)</button>
+          </div>
+          <label class="lbl" for="fValor">Valor</label>
+          <div class="valor"><span>R$</span><input id="fValor" type="text" inputmode="decimal" placeholder="0,00" value="87,40"></div>
+          <label class="lbl" for="fDesc">Descrição</label>
+          <input class="campo" id="fDesc" type="text" placeholder="Descrição do lançamento" value="Posto Shell, gasolina">
+        </div>
+
+        <div class="card linhas">
+          <div class="lh"><span class="r">Data</span><span class="v"><b id="vData">18/10/2026 14:30</b></span><span class="seta">›</span>
+            <input id="fData" type="datetime-local" value="2026-10-18T14:30" aria-label="Data e hora do evento"></div>
+          <div class="lh"><span class="r">Banco</span><span class="v"><b id="vBanco">Santander crédito</b></span><span class="seta">›</span>
+            <select id="fBanco" aria-label="Banco"><option>Santander crédito</option><option>Nubank</option><option>C6 conta</option><option>Dinheiro</option></select></div>
+          <div class="lh"><span class="r">Status</span><span class="v"><b id="vStatus">Pago</b></span><span class="seta">›</span>
+            <select id="fStatus" aria-label="Status"><option>Pago</option><option>Creditando</option><option>Transferindo</option><option>A pagar (futuro)</option></select></div>
+          <button class="lh tagslinha" id="abrirTags" type="button"><span class="r">Tags</span><span class="v" id="vTags"></span><span class="seta">›</span></button>
+          <button class="lh maislinha" id="abrirMais" type="button" aria-expanded="false"><span class="r">Mais</span><span class="v">Nota, fatura, repetir, avisar</span><span class="seta">›</span></button>
+          <div class="mais-det" id="maisDet">
+            <label class="lbl" for="fNota">Nota (opcional)</label>
+            <textarea class="campo" id="fNota" placeholder="Detalhe extra"></textarea>
+            <label class="lbl" for="fFatura" style="margin-top:8px;">Fatura do cartão</label>
+            <select class="campo" id="fFatura"><option>Pela data (padrão)</option><option>Próxima fatura</option><option>Fatura anterior</option></select>
+            <label class="l2"><input type="checkbox" id="fEstimado"> Valor estimado (compra em dólar)</label>
+            <label class="l2"><input type="checkbox" id="fRepetir"> Repetir (só aparece para status futuro)</label>
+          </div>
+        </div>
+
+        <div class="barra">
+          <button class="ghost" id="limpar" type="button">Limpar</button>
+          <button class="salvar" id="salvar" type="button">Salvar lançamento</button>
+        </div>
+      </div>
+
+      <div class="col-dir">
+        <div class="card ia" id="ia">
+          <button type="button" id="iaBtn" aria-expanded="false"><span>✨</span><span class="t"><b>Preencher com IA</b><small>Descreva em uma frase</small></span><span class="seta">›</span></button>
+          <div class="corpo">
+            <textarea class="campo" id="notaLivre" placeholder="Ex.: paguei 87,40 no posto ontem no crédito, cartão santander"></textarea>
+            <button class="go" type="button" id="iaGo">Preencher</button>
+          </div>
+        </div>
+        <div class="card tagsbox" id="tagsbox">
+          <b>Tags</b>
+          <p class="sub">Combos</p>
+          <div class="tagrow" id="combosPc"></div>
+          <input class="busca" type="search" placeholder="Buscar tag..." id="buscaPc" aria-label="Buscar tag">
+          <div class="tagrow" id="tagsPc"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pTransf" hidden>
+      <div class="card">
+        <label class="lbl" for="tValor">Valor</label>
+        <div class="valor"><span>R$</span><input id="tValor" type="text" inputmode="decimal" placeholder="0,00" value="500,00"></div>
+        <div class="par">
+          <div><label class="lbl" for="tDe">De (banco)</label><select class="campo" id="tDe"><option>Nubank</option><option>C6 conta</option></select></div>
+          <div><label class="lbl" for="tPara">Para (banco)</label><select class="campo" id="tPara"><option>C6 conta</option><option>Nubank</option></select></div>
+          <div class="pdata"><label class="lbl" for="tData">Data e hora</label><input class="campo" id="tData" type="datetime-local" value="2026-10-18T14:30"></div>
+        </div>
+        <p class="sub" style="margin-top:10px;">Move dinheiro entre contas suas, sem contar como gasto nem receita.</p>
+      </div>
+      <div class="barra"><button class="salvar" type="button" id="transferir">Registrar transferência</button></div>
+    </div>
+  </div>
+
+  <div class="perde">
+    <b>O que muda e o que se perde</b>
+    <ul>
+      <li>Hoje são 17 controles à vista. Aqui o celular mostra 4 (tipo, valor, descrição e a lista de 5 linhas), e o resto fica atrás de um toque.</li>
+      <li>Valor primeiro e grande, com o teclado numérico. Data, Banco e Status usam o seletor nativo do aparelho, sem janela nossa.</li>
+      <li>O botão Salvar fica fixo embaixo e o "Limpar formulário" vira um botão pequeno ao lado, onde não se toca sem querer.</li>
+      <li>A IA vira uma linha recolhida: quem não usa não rola por ela. No computador ela fica à direita, sempre visível.</li>
+      <li>A Transferência deixa de ser um cartão no fim da página e vira um modo no topo (Lançamento | Transferência).</li>
+      <li>Tags: no celular uma linha-resumo que abre a janela de baixo (combos e botões, como em Tendências). No computador há um só lugar, a coluna da direita, sempre à vista.</li>
+      <li>Transferência: valor grande no topo como em Lançamento, data com hora, e no computador De e Para lado a lado.</li>
+      <li>Nota, fatura, estimado e repetir ficam em "Mais". No computador aparecem direto, pois há espaço.</li>
+      <li><b>Custo:</b> Nota e Tags custam um toque a mais no celular; quem digita nota em todo lançamento vai sentir. Trocar de Lançamento para Transferência são dois toques em vez de rolar a página.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="veu" id="veuTags" hidden>
+  <div class="jan" role="dialog" aria-label="Tags">
+    <h3>Tags</h3>
+    <p class="sub">Combos</p>
+    <div class="tagrow" id="combosCel"></div>
+    <input class="busca" type="search" placeholder="Buscar tag..." id="buscaCel" aria-label="Buscar tag">
+    <div class="tagrow" id="tagsCel"></div>
+    <button class="ok" type="button" id="okTags">Pronto</button>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+  var $=function(i){return document.getElementById(i);};
+  var TODAS=['Combustível','Carro','Mercado','Farmácia','Casa','Escola','Lazer','Restaurante','Saúde','Assinaturas','Viagem','Presente'];
+  var COMBOS={'Carro':['Carro','Combustível'],'Casa':['Casa','Mercado']};
+  var sel=['Carro','Combustível'];
+  var pc=false;
+
+  function toast(t){var e=$('toast');e.textContent=t;e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){e.hidden=true;},2000);}
+  function btn(t,on,fn){var b=document.createElement('button');b.type='button';b.className='tagbtn';b.textContent=t;b.setAttribute('aria-pressed',on?'true':'false');b.onclick=fn;return b;}
+  function desenhaTags(){
+    [['combosCel','tagsCel','buscaCel'],['combosPc','tagsPc','buscaPc']].forEach(function(ids){
+      var c=$(ids[0]),t=$(ids[1]),q=$(ids[2]).value.trim().toLowerCase();
+      c.innerHTML='';t.innerHTML='';
+      Object.keys(COMBOS).forEach(function(k){c.appendChild(btn('▸ '+k,false,function(){sel=COMBOS[k].slice();desenhaTags();resumo();}));});
+      TODAS.filter(function(x){return !q||x.toLowerCase().indexOf(q)>=0;}).forEach(function(x){
+        t.appendChild(btn(x,sel.indexOf(x)>=0,function(){var i=sel.indexOf(x);if(i>=0)sel.splice(i,1);else sel.push(x);desenhaTags();resumo();}));
+      });
+    });
+  }
+  function resumo(){
+    var v=$('vTags');
+    v.innerHTML=sel.length?'<span class="chips">'+sel.map(function(s){return '<span class="chip">'+s+'</span>';}).join('')+'</span>':'Nenhuma';
+  }
+  function fmtData(v){if(!v)return '';var p=v.split('T');var d=p[0].split('-');return d[2]+'/'+d[1]+'/'+d[0]+(p[1]?' '+p[1]:'');}
+  function espelhos(){
+    $('vData').textContent=fmtData($('fData').value);
+    $('vBanco').textContent=$('fBanco').value;
+    $('vStatus').textContent=$('fStatus').value;
+  }
+  ['fData','fBanco','fStatus'].forEach(function(i){$(i).onchange=espelhos;});
+
+  $('abrirTags').onclick=function(){$('veuTags').hidden=false;};
+  $('okTags').onclick=function(){$('veuTags').hidden=true;};
+  $('veuTags').onclick=function(e){if(e.target===this)this.hidden=true;};
+  $('buscaCel').oninput=desenhaTags;$('buscaPc').oninput=desenhaTags;
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')$('veuTags').hidden=true;});
+
+  $('abrirMais').onclick=function(){var d=$('maisDet'),a=!d.classList.contains('aberto');d.classList.toggle('aberto',a);this.setAttribute('aria-expanded',a);};
+  $('iaBtn').onclick=function(){var a=!$('ia').classList.contains('aberto');$('ia').classList.toggle('aberto',a);this.setAttribute('aria-expanded',a);};
+  $('iaGo').onclick=function(){toast('Na demo a IA não roda; o formulário já está preenchido.');};
+
+  function pressiona(grupo,fn){grupo.querySelectorAll('button').forEach(function(b){b.onclick=function(){grupo.querySelectorAll('button').forEach(function(o){o.setAttribute('aria-pressed','false');});b.setAttribute('aria-pressed','true');fn(b);};});}
+  pressiona($('tipo'),function(){});
+  pressiona($('modo'),function(b){var l=b.dataset.m==='lanc';$('pLanc').hidden=!l;$('pTransf').hidden=l;});
+
+  $('salvar').onclick=function(){toast('Lançamento salvo (demo)');};
+  $('transferir').onclick=function(){toast('Transferência registrada (demo)');};
+  $('limpar').onclick=function(){$('fValor').value='';$('fDesc').value='';sel=[];desenhaTags();resumo();toast('Formulário limpo');$('fValor').focus();};
+
+  function vis(p){pc=p;$('tela').classList.toggle('pc',p);$('vPc').setAttribute('aria-pressed',p);$('vCel').setAttribute('aria-pressed',!p);}
+  $('vCel').onclick=function(){vis(false);};$('vPc').onclick=function(){vis(true);};
+  if(window.innerWidth>=900)vis(true);
+
+  desenhaTags();resumo();espelhos();
+})();
+</script>
+</body>
+</html>

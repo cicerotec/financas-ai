@@ -129,12 +129,72 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 #avisoAcao.erro .aa-barra{background:#fff;}
 @keyframes aaBarra{from{transform:scaleX(1);}to{transform:scaleX(0);}}
 @media (prefers-reduced-motion:reduce){#avisoAcao{transition:none;}#avisoAcao .aa-barra{animation:none;}}
+/* Aba Lançar (padrao: .ai/demos/demo-lancar-layout.html). Celular: valor primeiro, linhas-resumo com seletor nativo,
+   Tags em janela de baixo e Salvar fixo embaixo. Computador (>= 900 px): formulario a esquerda, IA e Tags a direita. */
+.seg{display:flex;background:var(--card);border-radius:14px;padding:4px;gap:4px;margin:0 0 10px;}
+.seg button{flex:1;min-height:44px;border:0;border-radius:11px;background:transparent;color:var(--muted);font:inherit;font-size:14px;cursor:pointer;}
+.seg button[aria-pressed="true"],.seg button[aria-checked="true"]{background:var(--accent-bg);color:var(--text);font-weight:600;}
+.seg.tipo{background:var(--bg);}
+.seg.tipo button[data-tipo="saida"][aria-checked="true"]{background:var(--danger-bg);color:var(--danger);}
+.ia-card{padding:0;overflow:hidden;}
+.ia-card>button{width:100%;min-height:56px;border:0;background:transparent;color:var(--text);font:inherit;display:flex;align-items:center;gap:10px;padding:0 16px;text-align:left;cursor:pointer;}
+.ia-card .t{flex:1;min-width:0;}
+.ia-card .t small{display:block;color:var(--muted);font-size:12.5px;}
+.ia-card .seta,.lh .seta{color:var(--faint);}
+.ia-corpo{display:none;padding:0 16px 14px;}
+.ia-card.aberto .ia-corpo{display:block;}
+.ia-card.aberto .seta{transform:rotate(90deg);}
+.valor-grande{display:flex;align-items:baseline;gap:6px;border-bottom:2px solid var(--border);padding:4px 0 6px;margin:0 0 10px;}
+.valor-grande span{font-size:18px;color:var(--muted);}
+.valor-grande input{flex:1;min-width:0;width:auto;border:0;border-radius:0;background:transparent;font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;padding:0;}
+.valor-grande:focus-within{border-color:var(--accent);}
+.valor-grande input:focus-visible{outline:none;}
+#formCard .card,.lan-form .card{margin-bottom:10px;}
+#formCard .card{padding:12px 16px;}
+.linhas{padding:0 !important;overflow:hidden;}
+.lh{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 16px;margin:0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--text);font:inherit;font-size:15px;text-align:left;cursor:pointer;}
+.linhas>.lh:first-child{border-top:0;}
+.lh .r{flex:none;width:72px;font-size:15px;color:var(--text);}
+.lh select,.lh input[type=datetime-local]{font-family:inherit;flex:1;min-width:0;width:auto;height:44px;border:0;background:transparent;padding:0;font-size:15px;color:var(--muted);text-align:right;text-align-last:right;appearance:none;-webkit-appearance:none;cursor:pointer;}
+.lh select option{text-align:left;color:var(--text);}
+.lh .v{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;color:var(--muted);font-size:14px;}
+.lh .chip{background:var(--accent-bg);color:var(--text);border-radius:999px;padding:3px 10px;font-size:13px;}
+.mais-det{display:none;padding:4px 16px 14px;border-top:1px solid var(--border);}
+.mais-det.aberto{display:block;}
+.barra{display:flex;gap:8px;position:sticky;bottom:0;z-index:4;padding:10px 0 4px;background:linear-gradient(to top,var(--bg) 75%,transparent);}
+.barra button{margin:0;min-height:52px;border-radius:14px;}
+.barra .primary{flex:1;width:auto;}
+.barra .ghost{flex:none;padding:0 16px;background:var(--ck);border:0;color:var(--text);}
+.transf-campos{display:flex;flex-direction:column;gap:2px;}
+/* Tags: janela de baixo no celular; no computador fica a direita, sempre a vista */
+.tags-veu{display:none;}
+.tags-card{display:none;}
+.tags-cab{display:flex;align-items:center;justify-content:space-between;margin:0 0 6px;}
+.tags-card.aberto{display:block;position:fixed;left:0;right:0;bottom:0;z-index:80;max-height:84vh;overflow-y:auto;margin:0;border:0;border-radius:22px 22px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));}
+.tags-veu.aberto{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:79;}
+.tags-card .tag{min-height:40px;display:inline-flex;align-items:center;padding:0 14px;border-radius:999px;font-size:14px;}
 @media (min-width:900px){
-  main:has(#tab-lancar:not(.hidden)){max-width:1040px;}
-  #tab-lancar{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:0 16px;align-items:start;}
-  #tab-lancar>.card:first-child,#tab-lancar>#formCard{grid-column:1;}
-  #tab-lancar>.card:last-child{grid-column:2;grid-row:1 / span 2;position:sticky;top:110px;}
-  #formCard #fValor{font-size:16px;}
+  main:has(#tab-lancar:not(.hidden)){max-width:1100px;}
+  #modoLancar{max-width:420px;}
+  .lan-grade{display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-areas:"form ia" "form tags";grid-template-rows:auto 1fr;gap:0 16px;align-items:start;}
+  .lan-form{grid-area:form;}
+  .ia-card{grid-area:ia;}
+  .tags-card{display:block;grid-area:tags;position:sticky;top:110px;}
+  .tags-card .tags-cab button{display:none;}
+  .tags-card.aberto{position:sticky;max-height:none;border:1px solid var(--border);border-radius:12px;padding:14px;margin:0 0 12px;z-index:auto;}
+  .tags-veu.aberto{display:none;}
+  .lh.lh-tags,.lh.lh-mais{display:none;}
+  .linhas{padding:12px 16px !important;display:grid;grid-template-columns:1fr 1fr;gap:12px;overflow:visible;}
+  .lh{display:block;min-height:0;padding:0;border:0;cursor:default;}
+  .lh .r{display:block;width:auto;font-size:12px;color:var(--muted);margin:0 0 4px;}
+  .lh select,.lh input[type=datetime-local]{display:block;width:100%;height:48px;border:1px solid var(--border);background:var(--bg);border-radius:12px;padding:0 12px;text-align:left;text-align-last:left;color:var(--text);}
+  .mais-det{display:block;grid-column:1 / -1;border:0;padding:0;}
+  .barra{position:static;background:none;padding-top:4px;}
+  .barra .primary{flex:none;min-width:260px;}
+  #painelTransf{max-width:560px;}
+  .transf-campos{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
+  .transf-campos .tdata{grid-column:1 / -1;}
+  #painelTransf .barra{justify-content:flex-start;}
 }
 .ai-preview{border:1px dashed var(--accent);border-radius:10px;padding:10px;margin-top:10px;}
 .summary{display:flex;gap:10px;}
