@@ -29,6 +29,7 @@ feito e ideias).
 | [`demos/demo-tendencias-layout.html`](demos/demo-tendencias-layout.html) | Demo do layout da aba Tendências: duas colunas no computador, escolhas em tela cheia no celular e tags em botões (vale sobre a demo acima no layout) |
 | [`demos/demo-lancar-layout.html`](demos/demo-lancar-layout.html) | Demo do layout da aba Lançar: valor em destaque, seletores nativos, Tags em janela no celular e na coluna da direita no computador, Transferência como modo (implementada em 2026-10-19) |
 | [`demos/demo-historico-layout.html`](demos/demo-historico-layout.html) | Demo do layout da aba Histórico (lista de lançamentos): filtros numa janela, lançamentos por dia, nota em ícone, ações numa janela de baixo, tabela por mês no computador (aprovada e implementada em 2026-10-19) |
+| [`demos/demo-voltar-navegador.html`](demos/demo-voltar-navegador.html) | Demo do botão voltar do navegador, do Android e do app instalado: pilha do histórico ao vivo, Desfazer fora da pilha e pergunta ao descartar texto digitado (aprovada e implementada em 2026-10-19; seção "Botão voltar" de `padrao-de-telas.md`) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
