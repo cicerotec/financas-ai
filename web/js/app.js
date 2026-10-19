@@ -1771,7 +1771,7 @@ function abrirNotaLancamento(id){
   fecharAcoesFuturo();
   const ov = document.createElement('div');
   ov.className = 'fut-ov'; ov.id = 'futOv';
-  ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Nota de ${esc(l.descricao)}">
+  ov.innerHTML = `<div class="fut-sheet hist-nota-sheet" role="dialog" aria-modal="true" aria-label="Nota de ${esc(l.descricao)}">
     <h3>${esc(l.descricao)}</h3><p class="mm">${dataBR(l)} · ${esc(l.banco||'-')}</p>
     <p class="hist-nota-txt">${escHtml(l.nota)}</p><button type="button" class="hf-ok" data-fechar>Fechar</button></div>`;
   ov.addEventListener('click', e=>{ if(e.target === ov || e.target.closest('[data-fechar]')) fecharAcoesFuturo(); });
