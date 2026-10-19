@@ -818,9 +818,8 @@ function renderListas(){
   [fBanco,tOrig,tDest].forEach(sel=>refazer(sel, listas.banco));
   // tira da seleção qualquer status que não existe mais
   filStatusSelecionados = new Set([...filStatusSelecionados].filter(s=>listas.status.includes(s) && !ehFuturo(s)));
-  renderFilStatusDropdown();
+  renderFiltrosHistCampos();
   filBancoSelecionados = new Set([...filBancoSelecionados].filter(b=>listas.banco.includes(b)));
-  renderFilBancoDropdown();
 
   document.getElementById('pillStatus').innerHTML = listas.status.map(s=>
     `<span class="pill">
@@ -1112,6 +1111,8 @@ function criarSeletorFiltroTags(raiz, aoMudar){
       return S.modo==='todas' ? sel.every(t=>tg.includes(t)) : sel.some(t=>tg.includes(t));
     },
     descricao(){ return [...S.sel].join(S.modo==='todas' ? ' + ' : ' ou '); },
+    n(){ return S.sel.size; },
+    limpar(){ S.sel = new Set(); render(); },
     resumo(){
       const n = S.sel.size;
       if(!n) return 'todas';
@@ -1256,101 +1257,6 @@ function setupHandlers(){
   document.getElementById('btnLimpar').onclick = limparFormulario;
   document.getElementById('btnTransferir').onclick = registrarTransferencia;
   document.getElementById('tData').value = nowLocalInput();
-
-
-  document.getElementById('filStatusBtn').addEventListener('click', (e)=>{
-    e.stopPropagation();
-    document.getElementById('filBancoPanel').classList.add('hidden');
-    document.getElementById('filTagPanel').classList.add('hidden');
-    document.getElementById('filStatusPanel').classList.toggle('hidden');
-  });
-  document.getElementById('filTagBtn').addEventListener('click', (e)=>{
-    e.stopPropagation();
-    document.getElementById('filStatusPanel').classList.add('hidden');
-    document.getElementById('filBancoPanel').classList.add('hidden');
-    document.getElementById('filTagPanel').classList.toggle('hidden');
-  });
-  // os chips são redesenhados a cada toque; sem isso o clique "some" do painel e o fecharia
-  document.getElementById('filTagPanel').addEventListener('click', e=>e.stopPropagation());
-  document.getElementById('filBancoBtn').addEventListener('click', (e)=>{
-    e.stopPropagation();
-    document.getElementById('filTagPanel').classList.add('hidden');
-    document.getElementById('filStatusPanel').classList.add('hidden');
-    document.getElementById('filBancoPanel').classList.toggle('hidden');
-  });
-  document.addEventListener('click', (e)=>{
-    [['filStatusPanel','filStatusBtn'],['filBancoPanel','filBancoBtn'],['filTagPanel','filTagBtn']].forEach(([pid,bid])=>{
-      const painel = document.getElementById(pid);
-      const btn = document.getElementById(bid);
-      if(!painel.classList.contains('hidden') && !painel.contains(e.target) && e.target!==btn){
-        painel.classList.add('hidden');
-      }
-    });
-  });
-}
-
-function renderFilBancoDropdown(){
-  const btn = document.getElementById('filBancoBtn');
-  const painel = document.getElementById('filBancoPanel');
-  btn.textContent = filBancoSelecionados.size===0
-    ? 'Banco: todos'
-    : `Banco: ${[...filBancoSelecionados].join(', ')}`;
-  painel.innerHTML = `
-    <div class="dropdown-actions">
-      <button type="button" id="filBancoTodos">Marcar todos</button>
-      <button type="button" id="filBancoNenhum">Limpar</button>
-    </div>
-    ${listas.banco.map(b=>`
-      <label><input type="checkbox" data-fil-banco="${esc(b)}" ${filBancoSelecionados.has(b)?'checked':''}> ${esc(b)}</label>
-    `).join('')}
-  `;
-  painel.querySelectorAll('[data-fil-banco]').forEach(cb=>cb.addEventListener('change', ()=>{
-    cb.checked ? filBancoSelecionados.add(cb.dataset.filBanco) : filBancoSelecionados.delete(cb.dataset.filBanco);
-    renderFilBancoDropdown();
-    renderHistorico();
-  }));
-  document.getElementById('filBancoTodos').onclick = ()=>{
-    filBancoSelecionados = new Set(listas.banco);
-    renderFilBancoDropdown();
-    renderHistorico();
-  };
-  document.getElementById('filBancoNenhum').onclick = ()=>{
-    filBancoSelecionados = new Set();
-    renderFilBancoDropdown();
-    renderHistorico();
-  };
-}
-
-function renderFilStatusDropdown(){
-  const btn = document.getElementById('filStatusBtn');
-  const painel = document.getElementById('filStatusPanel');
-  btn.textContent = filStatusSelecionados.size===0
-    ? 'Status: todos'
-    : `Status: ${[...filStatusSelecionados].join(', ')}`;
-  painel.innerHTML = `
-    <div class="dropdown-actions">
-      <button type="button" id="filStatusTodos">Marcar todos</button>
-      <button type="button" id="filStatusNenhum">Limpar</button>
-    </div>
-    ${listas.status.filter(s=>!ehFuturo(s)).map(s=>`
-      <label><input type="checkbox" data-fil-status="${esc(s)}" ${filStatusSelecionados.has(s)?'checked':''}> ${esc(s)}</label>
-    `).join('')}
-  `;
-  painel.querySelectorAll('[data-fil-status]').forEach(cb=>cb.addEventListener('change', ()=>{
-    cb.checked ? filStatusSelecionados.add(cb.dataset.filStatus) : filStatusSelecionados.delete(cb.dataset.filStatus);
-    renderFilStatusDropdown();
-    renderHistorico();
-  }));
-  document.getElementById('filStatusTodos').onclick = ()=>{
-    filStatusSelecionados = new Set(listas.status.filter(s=>!ehFuturo(s)));
-    renderFilStatusDropdown();
-    renderHistorico();
-  };
-  document.getElementById('filStatusNenhum').onclick = ()=>{
-    filStatusSelecionados = new Set();
-    renderFilStatusDropdown();
-    renderHistorico();
-  };
 }
 
 async function preencherComIA(){
@@ -1715,6 +1621,88 @@ function renderAvisoMesFuturos(){
   el.innerHTML = `📅 Há ${n} evento${n>1?'s':''} futuro${n>1?'s':''} neste mês que não aparece${n>1?'m':''} aqui · <a href="#" data-ir-aba="futuros">ver em Futuros</a>`;
 }
 
+// ---------- Histórico: filtros numa janela, lançamentos por dia ou por mês, tabela no computador ----------
+// Demo: .ai/demos/demo-historico-layout.html. Reaproveita as classes de Futuros (.fut-*): mesma linha, mesma tabela, mesma janela de ações.
+const MQ_TABELA = window.matchMedia('(min-width:1160px)');
+MQ_TABELA.addEventListener('change', ()=>renderHistorico());
+let termoBuscaHist = '';
+const ICONE_NOTA = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h5"/></svg>';
+function htmlNotaIcone(l){
+  return l.nota ? `<span class="hist-nota" role="button" tabindex="0" data-hist-nota="${esc(l.id)}" title="${esc(cortar(l.nota,200))}" aria-label="Ver nota">${ICONE_NOTA}</span>` : '';
+}
+function horaBR(l){ return new Date(l.dataEvento).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+function tituloDiaHist(l){
+  const w = new Date(l.dataEvento).toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','');
+  return w.charAt(0).toUpperCase() + w.slice(1) + ' ' + dataBR(l);
+}
+function somaItens(arr){ return Math.round(arr.reduce((a,l)=>a+valorAssinado(l),0)*100)/100; }
+function htmlLinhaHist(l, busca){
+  const id = esc(l.id);
+  const cor = estiloCor==='nenhum' ? 'var(--faint)' : corStatus(l.status);
+  const tags = (l.tags||[]).map(t=>'#'+esc(t)).join(' ');
+  const fut = ehFuturo(l.status) ? ' · evento futuro' : '';
+  const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
+  return `<div class="fut-row hist-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}" style="--cor:${cor}">
+    <div class="fut-m" role="button" tabindex="0" data-fut-abrir="${id}" aria-haspopup="dialog">
+      <span class="l"><span class="d">${esc(l.descricao)}</span>
+        <span class="mt"><span>${busca?dataBR(l):horaBR(l)}</span>${seloStatus(l.status)}<span class="bk">${esc(l.banco||'-')}${l.oculto?' · oculto':''}${fut}</span>${htmlNotaIcone(l)}</span>
+        ${tags?`<span class="hist-tags">${tags}</span>`:''}</span>
+      <span class="r">${htmlValorLinha(l)}</span>
+      <span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>
+    </div>
+    <div class="fut-dk" tabindex="0">
+      <span class="dt">${dataBR(l)}<small>${horaBR(l)}</small></span>
+      <span class="dd"><span class="dl"><span class="d" title="${esc(l.descricao)}">${esc(l.descricao)}</span></span>${(tags||l.nota)?`<span class="sub hist-sub"><span class="hist-tags-t">${tags}</span>${htmlNotaIcone(l)}</span>`:''}</span>
+      <span class="bk" title="${esc(l.banco||'-')}">${esc(l.banco||'-')}${l.oculto?' · oculto':''}</span>
+      <span class="st">${seloStatus(l.status)}</span>
+      <span class="v">${htmlValorLinha(l)}</span>
+      <span class="fut-acoes">${botoes}</span>
+    </div>
+  </div>`;
+}
+function htmlListaHist(lista, busca, asc){
+  const tabela = MQ_TABELA.matches;
+  const grupos = [];
+  lista.forEach(l=>{
+    const k = busca ? diaLocal(l).slice(0,7) : (tabela ? '' : diaLocal(l));
+    let g = grupos[grupos.length-1];
+    if(!g || g.k!==k){ g = {k, l, itens:[]}; grupos.push(g); }
+    g.itens.push(l);
+  });
+  const corpo = grupos.map(g=>{
+    let tit = '';
+    if(busca) tit = `<div class="fut-titulo"><span>${esc(rotuloMes(g.k))} · ${g.itens.length} lançamento(s)</span>${htmlSomaValor(somaItens(g.itens),'Soma do mês na lista (renda menos gasto)')}</div>`;
+    else if(!tabela) tit = `<div class="fut-titulo"><span>${esc(tituloDiaHist(g.l))}</span></div>`;
+    return tit + `<div class="fut-grupo">${g.itens.map(l=>htmlLinhaHist(l,busca)).join('')}</div>`;
+  }).join('');
+  const cab = `<div class="fut-cab"><span><button type="button" class="hist-th" data-hist-ordem>Data ${asc?'↑':'↓'}</button></span><span>Lançamento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>`;
+  return `<div class="fut-tabela"><div class="fut-tabela-in">${cab}${corpo}</div></div>`;
+}
+function nFiltrosHist(){
+  return filStatusSelecionados.size + filBancoSelecionados.size + (seletorHist ? seletorHist.n() : 0)
+    + (document.getElementById('filMostrarOcultos').checked?1:0)
+    + (modoBuscaTexto && document.getElementById('buscaIncluiFuturos').checked?1:0);
+}
+function renderChipsHist(){
+  const chip = (k,v,t)=>`<button type="button" class="hist-chip" data-hist-x="${k}" data-v="${esc(v||'')}" aria-label="Tirar: ${esc(t)}">${esc(t)}<i aria-hidden="true">×</i></button>`;
+  const h = [];
+  if(modoBuscaTexto) h.push(chip('q','','Busca: '+cortar(termoBuscaHist,30)));
+  filStatusSelecionados.forEach(s=>h.push(chip('st',s,s)));
+  filBancoSelecionados.forEach(b=>h.push(chip('bk',b,b)));
+  if(seletorHist && seletorHist.n()) h.push(chip('tg','','Tags: '+seletorHist.descricao()));
+  if(document.getElementById('filMostrarOcultos').checked) h.push(chip('oc','','Com ocultos'));
+  if(modoBuscaTexto && document.getElementById('buscaIncluiFuturos').checked) h.push(chip('fu','','Com futuros'));
+  if(!modoBuscaTexto && mesSel!==mesAtualYM()) h.push('<button type="button" class="hist-chip solta" data-hist-x="hoje">Ir para o mês atual</button>');
+  document.getElementById('histChips').innerHTML = h.join('');
+}
+function renderFiltrosHistCampos(){
+  const st = document.getElementById('histFilStatus'), bk = document.getElementById('histFilBanco');
+  if(!st || !bk) return;
+  const b = (k,v,on)=>`<button type="button" class="tag ${on?'on':''}" aria-pressed="${on}" data-hist-f="${k}" data-v="${esc(v)}">${esc(v)}</button>`;
+  st.innerHTML = listas.status.filter(s=>!ehFuturo(s)).map(s=>b('st',s,filStatusSelecionados.has(s))).join('');
+  bk.innerHTML = listas.banco.map(x=>b('bk',x,filBancoSelecionados.has(x))).join('');
+}
+
 function renderHistorico(){
   renderAvisoFuturos();
   renderFuturos();
@@ -1722,12 +1710,13 @@ function renderHistorico(){
   const fsList = [...filStatusSelecionados];
   const fbList = [...filBancoSelecionados];
   const mostrarOcultos = document.getElementById('filMostrarOcultos').checked;
-  if(seletorHist) document.getElementById('filTagBtn').textContent = 'Tags: ' + seletorHist.resumo() + ' ▾';
   const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache.filter(l=>diaLocal(l).slice(0,7)===mesSel));
-  document.getElementById('navMes').classList.toggle('hidden', modoBuscaTexto);
+  document.getElementById('tab-historico').classList.toggle('em-busca', modoBuscaTexto);
   document.getElementById('filMesEspecifico').value = mesSel;
-  document.getElementById('mesHoje').classList.toggle('hidden', mesSel===mesAtualYM());
-  // Eventos futuros ficam fora do Histórico (lista padrão e mês buscado); só a busca por texto os inclui, pela caixa
+  document.getElementById('mesRotulo').textContent = rotuloMes(mesSel);
+  const hdr = document.querySelector('header');
+  document.documentElement.style.setProperty('--hdr-h', (hdr ? hdr.offsetHeight : 0) + 'px');
+  // Eventos futuros ficam fora do Histórico (lista padrão e mês buscado); só a busca por texto os inclui, pela chave
   // "Incluir eventos futuros". Eles ficam na aba Futuros.
   const incluirFuturos = modoBuscaTexto ? document.getElementById('buscaIncluiFuturos').checked : false;
   let lista = fonte.filter(l=>
@@ -1742,15 +1731,52 @@ function renderHistorico(){
   const extraFut = nFut ? ` · ${nFut} ${nFut>1?'são eventos futuros':'é evento futuro'}` : '';
   document.getElementById('contadorHistorico').textContent = modoBuscaTexto
     ? `${lista.length} lançamento(s) exibido(s) do resultado da busca (${lancamentosBusca.length} no total)${extraFut}`
-    : modoMesEspecifico
-    ? `${lista.length} lançamento(s) em ${rotuloMes(mesSel)}`
     : `${lista.length} lançamento(s) em ${rotuloMes(mesSel)}`;
   // Total da lista exibida (renda menos gasto, com o mesmo sinal de cada linha); acompanha todos os filtros.
-  const somaLista = Math.round(lista.reduce((a,l)=>a+valorAssinado(l), 0)*100)/100;
-  document.getElementById('somaHistorico').innerHTML = lista.length ? htmlSomaValor(somaLista, 'Soma da lista exibida: renda menos gasto') : '';
+  document.getElementById('somaHistorico').innerHTML = lista.length ? htmlSomaValor(somaItens(lista), 'Soma da lista exibida: renda menos gasto') : '';
+  const n = nFiltrosHist();
+  const bf = document.getElementById('btnFiltros');
+  bf.innerHTML = 'Filtros' + (n ? `<span class="n">${n}</span>` : '');
+  bf.classList.toggle('on', n>0);
+  document.getElementById('histFilOk').textContent = `Ver ${lista.length} lançamento(s)`;
+  renderChipsHist();
+  renderFiltrosHistCampos();
   renderAvisoMesFuturos();
-  if(!lista.length){ el.innerHTML = '<p class="muted">Nenhum lançamento encontrado.</p>'; return; }
-  el.innerHTML = lista.map(l=>htmlItemLancamento(l, {marcarFuturo:true})).join('');
+  const asc = ordem==='asc';
+  document.getElementById('btnOrdem').textContent = asc ? 'Data ↑' : 'Data ↓';
+  const fim = document.getElementById('histFim');
+  if(!lista.length){
+    el.innerHTML = `<div class="hist-vazio"><b>Nenhum lançamento encontrado.</b>${(n||modoBuscaTexto)?'<button type="button" data-hist-limpar>Limpar busca e filtros</button>':''}</div>`;
+    fim.innerHTML = '';
+    return;
+  }
+  el.innerHTML = htmlListaHist(lista, modoBuscaTexto, asc);
+  fim.innerHTML = (modoBuscaTexto ? '' :
+    `<div class="hm-fimbar"><button type="button" class="hm-b" data-hist-mes="-1" aria-label="Mês anterior">‹</button><label class="hm-m"><span>${esc(rotuloMes(mesSel))}</span><input type="month" value="${esc(mesSel)}" aria-label="Mês exibido" data-hist-mes-pick></label><button type="button" class="hm-b" data-hist-mes="1" aria-label="Próximo mês">›</button></div>`)
+    + '<button type="button" class="hm-topo" data-hist-topo>↑ Topo</button>';
+}
+
+// Janelas: filtros (estática, em index.html) e nota (montada como a janela de ações de Futuros).
+function abrirFiltrosHist(){ document.getElementById('histFilOv').classList.remove('hidden'); document.getElementById('histFilOk').focus(); }
+function fecharFiltrosHist(){ document.getElementById('histFilOv').classList.add('hidden'); }
+function limparFiltrosHist(){
+  filStatusSelecionados = new Set(); filBancoSelecionados = new Set();
+  if(seletorHist) seletorHist.limpar();
+  document.getElementById('filMostrarOcultos').checked = false;
+  document.getElementById('buscaIncluiFuturos').checked = false;
+}
+function abrirNotaLancamento(id){
+  const l = acharLancamento(id);
+  if(!l || !l.nota) return;
+  fecharAcoesFuturo();
+  const ov = document.createElement('div');
+  ov.className = 'fut-ov'; ov.id = 'futOv';
+  ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Nota de ${esc(l.descricao)}">
+    <h3>${esc(l.descricao)}</h3><p class="mm">${dataBR(l)} · ${esc(l.banco||'-')}</p>
+    <p class="hist-nota-txt">${escHtml(l.nota)}</p><button type="button" class="hf-ok" data-fechar>Fechar</button></div>`;
+  ov.addEventListener('click', e=>{ if(e.target === ov || e.target.closest('[data-fechar]')) fecharAcoesFuturo(); });
+  document.body.appendChild(ov);
+  ov.querySelector('[data-fechar]').focus();
 }
 
 function acharLancamento(id){
@@ -1957,6 +1983,55 @@ function cliqueAcaoRegistro(e){
 }
 document.getElementById('listaLancamentos').addEventListener('click', cliqueAcaoRegistro);
 document.getElementById('listaFuturos').addEventListener('click', cliqueAcaoRegistro);
+document.getElementById('listaLancamentos').addEventListener('click', e=>{
+  const n = e.target.closest('[data-hist-nota]');
+  if(n){ abrirNotaLancamento(n.dataset.histNota); return; }
+  const b = e.target.closest('[data-fut-abrir]');
+  if(b){ abrirAcoesFuturo(b.dataset.futAbrir); return; }
+  if(e.target.closest('[data-hist-ordem]')){ document.getElementById('btnOrdem').click(); return; }
+  if(e.target.closest('[data-hist-limpar]')) limparTudoHist();
+});
+document.getElementById('listaLancamentos').addEventListener('keydown', e=>{
+  if((e.key==='Enter' || e.key===' ') && e.target.matches('.fut-m,.hist-nota')){ e.preventDefault(); e.target.click(); }
+});
+document.getElementById('histFim').addEventListener('click', e=>{
+  const m = e.target.closest('[data-hist-mes]');
+  if(m){ deslocarMes(+m.dataset.histMes); return; }
+  if(e.target.closest('[data-hist-topo]')) window.scrollTo({top:0, behavior:'smooth'});
+});
+document.getElementById('histFim').addEventListener('change', e=>{
+  if(e.target.matches('[data-hist-mes-pick]') && e.target.value) irParaMes(e.target.value);
+});
+document.getElementById('btnFiltros').addEventListener('click', abrirFiltrosHist);
+document.getElementById('histFilOk').addEventListener('click', fecharFiltrosHist);
+document.getElementById('histFilOv').addEventListener('click', e=>{ if(e.target.id==='histFilOv') fecharFiltrosHist(); });
+document.getElementById('histFilLimpar').addEventListener('click', ()=>{ limparFiltrosHist(); renderHistorico(); });
+document.getElementById('histFilJan').addEventListener('click', e=>{
+  const f = e.target.closest('[data-hist-f]');
+  if(!f) return;
+  const set = f.dataset.histF==='st' ? filStatusSelecionados : filBancoSelecionados;
+  set.has(f.dataset.v) ? set.delete(f.dataset.v) : set.add(f.dataset.v);
+  renderHistorico();
+});
+document.getElementById('histChips').addEventListener('click', e=>{
+  const c = e.target.closest('[data-hist-x]');
+  if(!c) return;
+  const k = c.dataset.histX;
+  if(k==='q'){ limparBuscaTexto(); return; }
+  if(k==='hoje'){ irParaMes(mesAtualYM()); return; }
+  if(k==='st') filStatusSelecionados.delete(c.dataset.v);
+  if(k==='bk') filBancoSelecionados.delete(c.dataset.v);
+  if(k==='tg' && seletorHist) seletorHist.limpar();
+  if(k==='oc') document.getElementById('filMostrarOcultos').checked = false;
+  if(k==='fu') document.getElementById('buscaIncluiFuturos').checked = false;
+  renderHistorico();
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') fecharFiltrosHist(); });
+function limparTudoHist(){
+  limparFiltrosHist();
+  if(modoBuscaTexto){ limparBuscaTexto(); return; }
+  renderHistorico();
+}
 document.getElementById('listaFuturos').addEventListener('click', e=>{
   const b = e.target.closest('[data-fut-abrir]');
   if(b) abrirAcoesFuturo(b.dataset.futAbrir);
@@ -2005,7 +2080,6 @@ function deslocarMes(delta){
 }
 document.getElementById('mesAnterior').addEventListener('click', ()=>deslocarMes(-1));
 document.getElementById('mesProximo').addEventListener('click', ()=>deslocarMes(1));
-document.getElementById('mesHoje').addEventListener('click', ()=>irParaMes(mesAtualYM()));
 document.getElementById('filMesEspecifico').addEventListener('change', e=>{ if(e.target.value) irParaMes(e.target.value); });
 document.getElementById('btnOrdem').addEventListener('click', ()=>{
   const inp = document.getElementById('filOrdenacao');
@@ -2051,7 +2125,7 @@ async function buscarTextoHistorico(){
     }
     lancamentosBusca = encontrados.filter(l=>!exclusaoPendente.has(l.id));
     modoBuscaTexto = true;
-    document.getElementById('btnLimparBusca').classList.remove('hidden');
+    termoBuscaHist = document.getElementById('buscaTexto').value.trim();
     renderHistorico();
     statusEl.textContent = `Busca concluída: ${encontrados.length} resultado(s) em ${totalVarrido} lançamento(s) verificados no total.`;
   }catch(e){
@@ -2061,14 +2135,12 @@ async function buscarTextoHistorico(){
 }
 function limparBuscaTexto(){
   modoBuscaTexto = false;
-  document.getElementById('btnLimparBusca').classList.add('hidden');
   document.getElementById('buscaTexto').value = '';
   document.getElementById('buscaTextoStatus').textContent = '';
   renderHistorico();
 }
 document.getElementById('btnBuscarTexto').addEventListener('click', buscarTextoHistorico);
 document.getElementById('buscaTexto').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); buscarTextoHistorico(); } });
-document.getElementById('btnLimparBusca').addEventListener('click', limparBuscaTexto);
 document.getElementById('filMostrarOcultos').addEventListener('change', renderHistorico);
 document.getElementById('filOrdenacao').addEventListener('change', renderHistorico);
 

@@ -16,5 +16,6 @@ Origem: observar a esposa usando o app (sem explicar nada) e anotar onde ela hes
   navegador voltava ao primeiro; agora a escolha atual é guardada e devolvida depois de refazer a lista.
 - **Lançar redesenhado (2026-10-19):** o formulário passou de 17 controles à vista para 4 no celular; ver "Lançar (tela)" em `padrao-de-telas.md`. Observar o uso real: se Nota ou Tags forem usadas em todo lançamento, o toque a mais em "Mais" e "Tags" pode pedir ajuste.
 - **Lançar, a testar no ambiente dev (PR 146):** salvar, editar, copiar do Histórico, IA e Transferência com data e hora só tiveram o visual conferido, não o fluxo. Conferir também o × das tags no computador e o "Mais" abrindo sozinho ao editar um lançamento com nota.
+- **Histórico redesenhado (2026-10-19):** filtros numa janela, linha como a de Futuros e nota em ícone; ver "Histórico (tela, lista de lançamentos)" em `padrao-de-telas.md`. A testar no ambiente dev: busca por texto com dados reais, ações (editar, copiar, prever, ocultar, excluir), mudança de mês, faixa fixa no computador e o pior caso (valor de 7 dígitos, banco comprido).
 - **Observado e já resolvido:** salvar sem resposta, transferência sem data, Enter sem efeito na busca, tudo na tela
   em Histórico, X de status apagando sem aviso.
