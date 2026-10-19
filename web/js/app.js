@@ -755,6 +755,7 @@ function irParaAba(t){
   if(t==='cartao') carregarCartoesConfig().then(()=>carregarCartoes(false));
   if(t==='futuros') renderFuturos();
   if(t==='versoes') abrirVersoes();
+  if(t==='tendencias' && typeof tendRender==='function') tendRender();
 }
 function setupTabs(){
   document.querySelectorAll('nav button').forEach(b=>{

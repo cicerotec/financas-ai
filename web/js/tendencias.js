@@ -1,7 +1,8 @@
 // Tela Tendências: gasto por mês filtrado por tags, com grupos (E e NÃO dentro do grupo, OU entre grupos) e, sob demanda,
 // uma expressão livre (parênteses, E, OU, NÃO). A barra do mês mostra quanto do valor tem outras tags além das da consulta.
-// Demo: .ai/demos/demo-tendencias-tags.html. Lógica pura e testada em web/consulta-tags.js.
-// O front só desenha e soma o que já está na tela: nenhum número daqui vai para a API.
+// Layout (demo .ai/demos/demo-tendencias-layout.html): no computador (>= 1160 px) o resultado fica à esquerda e as escolhas à direita;
+// no celular o resultado vem primeiro e as escolhas abrem em tela cheia por "Editar consulta" (o modo avançado abre por cima).
+// Lógica pura e testada em web/consulta-tags.js. O front só desenha e soma o que já está na tela: nenhum número daqui vai para a API.
 // Carregado depois do app.js e usa os globais dele (lancamentosCache, tagsUsadas, ehStatusReal, combosAtuaisLista, esc, fmtMoeda).
 (function () {
   const CT = window.ConsultaTags;
@@ -11,51 +12,73 @@
   let avisoTxt = '', avisoRuim = false;
   let ultimo = null;     // último resumo de uma consulta válida
   let montado = false, mesesAntes = 0, rolarFim = true;
+  let edAberto = false;  // celular: tela cheia de escolhas aberta
   const $ = (id) => document.getElementById(id);
   const brl0 = (n) => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  const mq = window.matchMedia('(min-width:1160px)');
+  const largo = () => mq.matches;
 
   function montar() {
     $('tendRaiz').innerHTML =
-      '<div class="td-card" id="tdCombosCard" hidden><div class="td-tit">Combos (toque para usar)</div><div class="td-ex" id="tdCombos"></div></div>' +
-      '<div id="tdGrupos">' +
-        '<div class="td-card"><div class="td-tit">Sua consulta</div><div class="td-frase" id="tdFrase"></div></div>' +
-        '<div id="tdLista"></div>' +
-        '<button class="td-novo" id="tdNovo" type="button"></button>' +
-        '<button class="td-avanc" id="tdAvanc" type="button" aria-expanded="false" aria-controls="tdExpr">' +
-          '<span><b>Modo avançado</b><span class="td-sub">Escrever a expressão com parênteses, E, OU e NÃO</span></span><span class="td-seta" aria-hidden="true">›</span></button>' +
+      '<div class="td-layout">' +
+      // ---- resultado: esquerda no computador, primeiro no celular ----
+      '<div class="td-res">' +
+        '<div class="td-card"><div class="td-tit">Sua consulta</div><div class="td-consulta">' +
+          '<div class="td-frase" id="tdFrase"></div>' +
+          '<button class="td-editar td-so-cel" id="tdEditar" type="button">Editar consulta</button></div></div>' +
+        '<div class="td-card"><div class="td-rtop"><span class="td-rtx" id="tdRtx"></span><span class="td-rtot" id="tdRtot"></span></div>' +
+          '<div class="td-graf" id="tdGraf"></div><div class="td-leg" id="tdLeg"></div><div class="td-alerta" id="tdAlerta"></div></div>' +
+        '<div class="td-card"><div class="td-tit">Outras tags nesses lançamentos</div><div id="tdOutras"></div>' +
+          '<div class="td-aviso" id="tdAviso" hidden></div></div>' +
       '</div>' +
-      '<div id="tdExpr" hidden>' +
-        '<div class="td-volta"><button type="button" id="tdVoltar">‹ Voltar aos grupos</button><span>Descarta a expressão</span></div>' +
-        '<div class="td-card"><div class="td-tit">Gasto por mês de (expressão)</div>' +
-          '<div class="td-expr" id="tdFichas" role="group" aria-label="Expressão"></div>' +
-          '<div class="td-msg" id="tdMsg" role="status"></div><div class="td-lido" id="tdLido"></div>' +
-          '<div class="td-teclas">' +
-            '<button type="button" class="k-par" data-k="(" aria-label="Abre parêntese">(</button>' +
-            '<button type="button" class="k-par" data-k=")" aria-label="Fecha parêntese">)</button>' +
-            '<button type="button" class="k-e" data-k="E">E</button><button type="button" data-k="OU">OU</button>' +
-            '<button type="button" class="k-nao" data-k="NAO">NÃO</button></div>' +
-          '<div class="td-teclas l2">' +
-            '<button type="button" class="k-x" data-k="esq" aria-label="Cursor para a esquerda">◀</button>' +
-            '<button type="button" class="k-x" data-k="dir" aria-label="Cursor para a direita">▶</button>' +
-            '<button type="button" class="k-x" data-k="apagar" aria-label="Apagar a ficha antes do cursor">⌫ Apagar</button>' +
-            '<button type="button" class="k-x" data-k="limpar">Limpar</button></div>' +
-          '<p class="td-pe" id="tdCont"></p>' +
-          '<input type="search" class="td-busca" id="tdBusca" placeholder="Buscar tag..." aria-label="Buscar tag">' +
-          '<div class="td-tgs" id="tdTgs"></div></div>' +
-      '</div>' +
-      '<div class="td-card"><div class="td-rtop"><span class="td-rtx" id="tdRtx"></span><span class="td-rtot" id="tdRtot"></span></div>' +
-        '<div class="td-graf" id="tdGraf"></div><div class="td-leg" id="tdLeg"></div><div class="td-alerta" id="tdAlerta"></div></div>' +
-      '<div class="td-card"><div class="td-tit">Outras tags nesses lançamentos</div><div id="tdOutras"></div>' +
-        '<div class="td-aviso" id="tdAviso" hidden></div></div>' +
+      // ---- escolhas: direita no computador, tela cheia no celular ----
+      '<div class="td-esc" id="tdEsc">' +
+        '<div class="td-cab td-so-cel"><h2>Editar consulta</h2><button type="button" id="tdFechar" aria-label="Fechar">✕</button></div>' +
+        '<div class="td-card" id="tdCombosCard" hidden><div class="td-tit">Combos (toque para usar)</div><div class="td-ex" id="tdCombos"></div></div>' +
+        '<div id="tdGrupos">' +
+          '<div id="tdLista"></div>' +
+          '<button class="td-novo" id="tdNovo" type="button"></button>' +
+          '<button class="td-avanc" id="tdAvanc" type="button" aria-controls="tdExpr">' +
+            '<span><b>Modo avançado</b><span class="td-sub">Escrever a expressão com parênteses, E, OU e NÃO</span></span><span class="td-seta" aria-hidden="true">›</span></button>' +
+        '</div>' +
+        '<div id="tdExpr" hidden>' +
+          '<div class="td-cab td-so-cel"><button type="button" id="tdVoltarCel">‹ Grupos</button><h2>Expressão</h2></div>' +
+          '<div class="td-volta td-so-pc"><button type="button" id="tdVoltar">‹ Voltar aos grupos</button><span>Descarta a expressão</span></div>' +
+          '<div class="td-card"><div class="td-tit">Gasto por mês de (expressão)</div>' +
+            '<div class="td-expr" id="tdFichas" role="group" aria-label="Expressão"></div>' +
+            '<div class="td-msg" id="tdMsg" role="status"></div><div class="td-lido" id="tdLido"></div>' +
+            '<div class="td-teclas">' +
+              '<button type="button" class="k-par" data-k="(" aria-label="Abre parêntese">(</button>' +
+              '<button type="button" class="k-par" data-k=")" aria-label="Fecha parêntese">)</button>' +
+              '<button type="button" class="k-e" data-k="E">E</button><button type="button" data-k="OU">OU</button>' +
+              '<button type="button" class="k-nao" data-k="NAO">NÃO</button></div>' +
+            '<div class="td-teclas l2">' +
+              '<button type="button" class="k-x" data-k="esq" aria-label="Cursor para a esquerda">◀</button>' +
+              '<button type="button" class="k-x" data-k="dir" aria-label="Cursor para a direita">▶</button>' +
+              '<button type="button" class="k-x" data-k="apagar" aria-label="Apagar a ficha antes do cursor">⌫ Apagar</button>' +
+              '<button type="button" class="k-x" data-k="limpar">Limpar</button></div>' +
+            '<p class="td-pe" id="tdCont"></p>' +
+            '<input type="search" class="td-busca" id="tdBusca" placeholder="Buscar tag..." aria-label="Buscar tag">' +
+            '<div class="td-tgs" id="tdTgs"></div></div>' +
+        '</div>' +
+      '</div></div>' +
+      // ---- barra de baixo (celular, com a tela de escolhas aberta) ----
+      '<div class="td-rodape" id="tdRodape"><div class="td-rs" id="tdRs"></div><button type="button" id="tdPronto">Pronto</button></div>' +
+      // ---- janela para escolher as tags de um grupo ----
       '<div class="td-veu" id="tdVeu" hidden><div class="td-jan" role="dialog" aria-modal="true" aria-labelledby="tdJt">' +
         '<h2 id="tdJt"></h2><p class="td-jsub" id="tdJs"></p>' +
         '<input type="search" class="td-jbusca" id="tdJb" placeholder="Buscar tag..." aria-label="Buscar tag">' +
-        '<div class="td-jlista" id="tdJl" role="group"></div><p class="td-jcnt" id="tdJc"></p>' +
+        '<div class="td-jlista"><div class="td-tgs" id="tdJl" role="group"></div></div>' +
+        '<p class="td-jcnt" id="tdJc"></p><p class="td-jdica" id="tdJd"></p>' +
         '<button class="td-jok" id="tdJok" type="button">Pronto</button></div></div>';
     $('tendRaiz').addEventListener('click', aoClicar);
     $('tdBusca').addEventListener('input', renderTags);
     $('tdJb').addEventListener('input', () => { if (jan) renderJanela(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && jan) fecharJanela(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (jan) fecharJanela(); else if (edAberto && !largo()) { edAberto = false; render(); }
+    });
+    mq.addEventListener('change', () => { rolarFim = true; render(); });
     // a aba pode estar escondida quando o gráfico é desenhado: rola até os meses mais recentes assim que ele ganha largura
     if (window.ResizeObserver) new ResizeObserver(() => { const g = $('tdGraf'); if (rolarFim && g.clientWidth > 0) { g.scrollLeft = g.scrollWidth; rolarFim = false; } }).observe($('tdGraf'));
     montado = true;
@@ -78,17 +101,24 @@
     if (ten.fichas.length !== antes) ten.pos = Math.min(ten.pos, ten.fichas.length);
   }
 
-  // ---------- modo grupos ----------
+  // ---------- consulta (frase no topo do resultado) ----------
   function fraseHtml(g) {
     let h = g.tem.map(esc).join(' <span class="td-op e">E</span> ');
     if (g.nao.length) h += (g.tem.length ? ' ' : '') + g.nao.map((t) => '<span class="td-op nao">NÃO</span> ' + esc(t)).join(' ');
     return h;
   }
-  function renderFrase() {
-    const a = ten.grupos.filter(CT.grupoPreenchido);
-    $('tdFrase').innerHTML = !a.length ? '<span class="td-vazio">Nenhuma tag escolhida: mostra tudo.</span>'
-      : a.length === 1 ? fraseHtml(a[0]) : a.map((g) => '(' + fraseHtml(g) + ')').join(' <span class="td-op ou">OU</span> ');
+  function renderFrase(q) {
+    let h;
+    if (ten.modo === 'grupos') {
+      const a = ten.grupos.filter(CT.grupoPreenchido);
+      h = !a.length ? '<span class="td-vazio">Nenhuma tag escolhida: mostra tudo.</span>'
+        : a.length === 1 ? fraseHtml(a[0]) : a.map((g) => '(' + fraseHtml(g) + ')').join(' <span class="td-op ou">OU</span> ');
+    } else if (!q.valida) h = '<span class="td-vazio">Expressão com erro: corrija no modo avançado.</span>';
+    else h = q.no ? esc(CT.texto(q.no)) : '<span class="td-vazio">Nenhuma tag escolhida: mostra tudo.</span>';
+    $('tdFrase').innerHTML = h;
   }
+
+  // ---------- modo grupos ----------
   function chips(g, i, campo) {
     const arr = g[campo], cls = campo === 'nao' ? ' nao' : '';
     let h = arr.map((t, k) => '<span class="td-chip' + cls + '">' + esc(t) + '<button class="x" type="button" data-rm="' + i + ':' + campo + ':' + k + '" aria-label="Tirar ' + esc(t) + '">✕</button></span>').join('');
@@ -115,22 +145,23 @@
       esc(c.tags.join(' · ')) + (c.n ? ' <span class="td-n">' + c.n + 'x</span>' : '') + '</button>').join('');
   }
 
-  // janela de tags (grupos): lista que acumula, com check redondo
+  // janela de tags (grupos): as tags em botões que quebram em várias linhas, como no modo avançado
   function abrirJanela(g, campo) {
     jan = { g, campo }; $('tdJb').value = '';
     $('tdJt').textContent = campo === 'tem' ? 'Tags que o lançamento tem' : 'Tags que ele não pode ter';
     $('tdJs').textContent = 'Grupo ' + (g + 1) + '. ' + (campo === 'tem' ? 'Precisa ter todas as marcadas.' : 'Fica de fora se tiver qualquer uma das marcadas.');
-    $('tdVeu').hidden = false; renderJanela(); $('tdJb').focus();
+    $('tdVeu').hidden = false; travar(); renderJanela(); $('tdJb').focus();
   }
   function renderJanela() {
     const g = ten.grupos[jan.g], arr = g[jan.campo], outro = g[jan.campo === 'tem' ? 'nao' : 'tem'];
     const q = normTxt($('tdJb').value.trim());
+    $('tdJl').className = 'td-tgs' + (jan.campo === 'nao' ? ' nao' : '');
     $('tdJl').innerHTML = tagsUsadas.filter((t) => !q || normTxt(t).includes(q)).map((t) => {
       const on = arr.includes(t), bloq = outro.includes(t);
-      return '<button class="td-li ' + (jan.campo === 'nao' ? 'nao' : '') + '" type="button" role="checkbox" aria-checked="' + on + '" data-t="' + esc(t) + '"' + (bloq ? ' aria-disabled="true" style="opacity:.5"' : '') + '>' +
-        '<span class="n">' + esc(t) + (bloq ? '<span class="o">Já está em "' + (jan.campo === 'tem' ? 'Não pode ter' : 'Precisa ter') + '" deste grupo</span>' : '') + '</span><span class="td-ck">' + (on ? '✓' : '') + '</span></button>';
+      return '<button type="button" class="' + (on ? 'on' : '') + (bloq ? ' bloq' : '') + '" role="checkbox" aria-checked="' + on + '" data-t="' + esc(t) + '"' + (bloq ? ' aria-disabled="true"' : '') + '>' + (on ? '✓ ' : '') + esc(t) + '</button>';
     }).join('') || '<p class="td-vazio-g">Nenhuma tag encontrada.</p>';
     $('tdJc').textContent = arr.length + ' de ' + CT.MAX_TAGS + ' tags' + (arr.length >= CT.MAX_TAGS ? ' (limite atingido: desmarque uma para trocar)' : '');
+    $('tdJd').textContent = outro.length ? 'As tags em cinza já estão em "' + (jan.campo === 'tem' ? 'Não pode ter' : 'Precisa ter') + '" deste grupo.' : '';
   }
   function fecharJanela() { $('tdVeu').hidden = true; jan = null; render(); }
 
@@ -166,6 +197,7 @@
   function renderResultado(valida) {
     const a = ultimo;
     const max = Math.max(1, ...a.meses.map((m) => m.total));
+    const alt = largo() ? 180 : 118;
     $('tdRtx').textContent = a.n + ' lançamento(s)' + (valida ? '' : ' (último resultado válido)');
     $('tdRtot').textContent = a.n ? '-' + fmtMoeda(a.total) : '';
     const g = $('tdGraf');
@@ -175,7 +207,7 @@
     g.setAttribute('role', 'img');
     g.setAttribute('aria-label', a.n ? 'Gasto por mês: ' + a.meses.map((m) => m.mes.slice(5) + '/' + m.mes.slice(2, 4) + ' ' + fmtMoeda(m.total) + (m.ext ? ', sendo ' + fmtMoeda(m.ext) + ' com outras tags' : '')).join('; ') : 'Sem gastos com essa consulta');
     g.innerHTML = a.n ? '<div class="td-cols" style="min-width:' + a.meses.length * 46 + 'px">' + a.meses.map((m) => {
-      const h = m.total / max * 118, hx = m.ext / max * 118;
+      const h = m.total / max * alt, hx = m.ext / max * alt;
       return '<div class="td-col"><span class="v">' + brl0(m.total) + '</span><div class="b" style="height:' + h + 'px"><div class="bx" style="height:' + hx + 'px"></div><div class="bs" style="height:' + Math.max(h - hx, 0) + 'px"></div></div><span class="m">' + m.mes.slice(5) + '/' + m.mes.slice(2, 4) + '</span></div>';
     }).join('') + '</div>' : '<p class="td-vazio-g">Sem gastos com essa consulta ainda.</p>';
     if (rolarFim && g.clientWidth > 0) { g.scrollLeft = g.scrollWidth; rolarFim = false; } else if (!rolarFim) g.scrollLeft = rolada; // começa nos meses mais recentes
@@ -183,14 +215,18 @@
 
     $('tdLeg').innerHTML = a.vazia || !a.n ? '' : '<span><i class="s"></i>Só as tags da consulta</span><span><i class="x"></i>Tem outras tags além das da consulta</span>';
     const al = $('tdAlerta');
+    let pct = 0;
     if (a.vazia) { al.className = 'td-alerta ok'; al.textContent = 'Sem filtro: todos os gastos, com todas as tags.'; }
     else if (!a.n) { al.className = 'td-alerta ok'; al.textContent = 'Nenhum lançamento encontrado.'; }
     else if (!a.totExt) { al.className = 'td-alerta ok'; al.innerHTML = '<b>Total puro:</b> nenhum lançamento tem outras tags além das da consulta.'; }
     else {
-      const pct = Math.round(a.totExt / a.total * 100);
+      pct = Math.round(a.totExt / a.total * 100);
       al.className = 'td-alerta';
       al.innerHTML = '<b>' + pct + '% do valor (' + esc(fmtMoeda(a.totExt)) + ')</b> está em lançamentos que têm <b>outras tags</b> além das da consulta. O total pode estar misturando assuntos.';
     }
+    // resumo ao vivo da barra de baixo (celular)
+    $('tdRs').innerHTML = a.n + ' lançamento(s) · <b>' + (a.n ? '-' + esc(fmtMoeda(a.total)) : esc(fmtMoeda(0))) + '</b><br>' +
+      (a.vazia ? 'Sem filtro' : pct ? pct + '% com outras tags' : 'Total puro') + (valida ? '' : ' (último válido)');
   }
   function renderOutras() {
     const a = ultimo, el = $('tdOutras');
@@ -211,6 +247,14 @@
     av.innerHTML = avisoTxt ? '<span>' + esc(avisoTxt) + '</span>' + (desf && !avisoRuim ? '<button type="button" id="tdDesf">Desfazer</button>' : '') : '';
   }
 
+  // celular: a tela de escolhas e a janela de tags travam a rolagem da página
+  function travar() {
+    const celular = !largo() && edAberto;
+    document.body.classList.toggle('td-edit', celular);
+    document.body.classList.toggle('td-trava', celular || !$('tdVeu').hidden);
+    $('tdEsc').classList.toggle('aberto', edAberto);
+  }
+
   function render() {
     if (!$('tendRaiz')) return;
     if (!montado) { montar(); renderTags(); }
@@ -220,10 +264,9 @@
     else if (!ultimo) ultimo = CT.resumir(itens(), CT.consulta({ modo: 'grupos', grupos: [], fichas: [] }));
     $('tdGrupos').hidden = ten.modo !== 'grupos';
     $('tdExpr').hidden = ten.modo !== 'avancado';
-    $('tdAvanc').setAttribute('aria-expanded', ten.modo === 'avancado');
-    renderCombos();
-    if (ten.modo === 'grupos') { renderFrase(); renderGrupos(); } else { renderFichas(); renderMsgExpr(q); renderTags(); }
-    renderResultado(q.valida); renderOutras();
+    renderCombos(); renderFrase(q);
+    if (ten.modo === 'grupos') renderGrupos(); else { renderFichas(); renderMsgExpr(q); renderTags(); }
+    renderResultado(q.valida); renderOutras(); travar();
   }
 
   // ---------- toques ----------
@@ -240,10 +283,12 @@
     ten.fichas = r.fichas; ten.pos = r.pos; render();
   }
   function aoClicar(e) {
-    const t = e.target.closest('[data-combo],[data-add],[data-rm],[data-del],#tdNovo,[data-t],#tdJok,[data-i],[data-k],[data-tag],#tdAvanc,#tdVoltar,[data-cot],#tdDesf');
+    const t = e.target.closest('[data-combo],[data-add],[data-rm],[data-del],#tdNovo,[data-t],#tdJok,[data-i],[data-k],[data-tag],#tdAvanc,#tdVoltar,#tdVoltarCel,[data-cot],#tdDesf,#tdEditar,#tdFechar,#tdPronto');
     if (!t) { if (e.target === $('tdVeu')) fecharJanela(); return; }
+    if (t.id === 'tdEditar') { edAberto = true; render(); const f = $('tdFechar'); if (f) f.focus(); return; }
+    if (t.id === 'tdFechar' || t.id === 'tdPronto') { edAberto = false; render(); const b = $('tdEditar'); if (b && !largo()) b.focus(); return; }
     if (t.id === 'tdAvanc') { limparAviso(); ten.fichas = CT.gruposParaFichas(ten.grupos); ten.pos = ten.fichas.length; ten.modo = 'avancado'; return render(); }
-    if (t.id === 'tdVoltar') { limparAviso(); ten.modo = 'grupos'; return render(); }
+    if (t.id === 'tdVoltar' || t.id === 'tdVoltarCel') { limparAviso(); ten.modo = 'grupos'; return render(); }
     if (t.id === 'tdDesf') { if (desf) Object.assign(ten, desf); limparAviso(); return render(); }
     if (t.dataset.cot) return tirar(t.dataset.cot);
     if (t.dataset.combo !== undefined) {
@@ -251,8 +296,8 @@
       if (!c) return;
       limparAviso();
       const mesmo = ten.modo === 'grupos' && ten.grupos.length === 1 && !ten.grupos[0].nao.length && chaveTags(ten.grupos[0].tem) === chaveTags(c.tags);
-      const tags = mesmo ? [] : c.tags.slice(0, CT.MAX_TAGS); // tocar de novo no combo desmarca
-      ten.grupos = [{ tem: tags, nao: [] }]; // o limite de 8 tags por lista vale também para combo
+      const tags = mesmo ? [] : c.tags.slice(0, CT.MAX_TAGS); // tocar de novo no combo desmarca; o limite de 8 tags vale também para combo
+      ten.grupos = [{ tem: tags, nao: [] }];
       ten.fichas = []; tags.forEach((tg, k) => { if (k) ten.fichas.push({ k: 'op', v: 'E' }); ten.fichas.push({ k: 'tag', v: tg }); });
       ten.pos = ten.fichas.length;
       return render();
@@ -263,8 +308,8 @@
     if (t.id === 'tdNovo') { if (ten.grupos.length < CT.MAX_GRUPOS) { limparAviso(); ten.grupos.push(CT.grupoVazio()); render(); abrirJanela(ten.grupos.length - 1, 'tem'); } return; }
     if (t.id === 'tdJok') return fecharJanela();
     if (t.dataset.t) {
-      const g = ten.grupos[jan.g], arr = g[jan.campo], tag = t.dataset.t, k = arr.indexOf(tag);
       if (t.getAttribute('aria-disabled') === 'true') return;
+      const g = ten.grupos[jan.g], arr = g[jan.campo], tag = t.dataset.t, k = arr.indexOf(tag);
       if (k >= 0) arr.splice(k, 1); else if (arr.length < CT.MAX_TAGS) arr.push(tag);
       limparAviso(); renderJanela(); return render();
     }
