@@ -261,6 +261,7 @@ body.trava{overflow:hidden;}
 .teclas .k-nao{color:var(--danger);}
 .teclas .k-par{font-size:22px;font-weight:300;}
 .teclas .k-x{font-weight:500;color:var(--muted);font-size:13.5px;}
+.btn-tag{width:100%;min-height:52px;margin-top:10px;border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:12px;font-weight:600;font-size:15px;}
 .tagbusca{width:100%;border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;background:var(--bg);color:var(--text);margin:12px 0 8px;}
 .sem{font-size:12px;color:var(--faint);margin:6px 2px 0;}
 
@@ -301,7 +302,6 @@ body.trava{overflow:hidden;}
 </style>
 <div class="wrap">
   <h1>Tendências: layout em duas colunas</h1>
-  <p class="nota">Demonstração com dados de exemplo. <b>Computador</b> (janela de 1160 px ou mais): o resultado fica à esquerda e as escolhas à direita, lado a lado. <b>Celular</b>: o resultado vem primeiro e as escolhas abrem em tela cheia por "Editar consulta"; o modo avançado abre por cima, e as tags aparecem em botões. Redimensione a janela para ver as duas.</p>
 
   <div class="layout">
     <!-- RESULTADO (esquerda no computador; primeiro no celular) -->
@@ -330,10 +330,9 @@ body.trava{overflow:hidden;}
     <div class="col-esc" id="colEsc">
       <div class="cab so-cel"><h2>Editar consulta</h2><button type="button" id="btnFechar" aria-label="Fechar">✕</button></div>
 
-      <div class="card" id="cardCombos">
-        <div class="tit">Combos (toque para usar)</div>
-        <div class="ex" id="ex"></div>
-      </div>
+      <button class="avanc" id="btnCombos" type="button" aria-haspopup="dialog">
+        <span><b>Combos</b><span class="sub" id="combosSub"></span></span><span class="seta" aria-hidden="true">›</span>
+      </button>
 
       <div id="pgrupos">
         <div id="grupos"></div>
@@ -351,6 +350,7 @@ body.trava{overflow:hidden;}
           <div class="expr" id="expr" role="group" aria-label="Expressão"></div>
           <div class="msg ok" id="msg" role="status"></div>
           <div class="lido" id="lido"></div>
+          <button type="button" class="btn-tag" id="btnTagExpr" aria-haspopup="dialog">+ Tag</button>
           <div class="teclas">
             <button type="button" class="k-par" data-k="(" aria-label="Abre parêntese">(</button>
             <button type="button" class="k-par" data-k=")" aria-label="Fecha parêntese">)</button>
@@ -365,26 +365,28 @@ body.trava{overflow:hidden;}
             <button type="button" class="k-x" data-k="limpar">Limpar</button>
           </div>
           <p class="sem" id="cont"></p>
-          <input type="search" class="tagbusca" id="tb" placeholder="Buscar tag..." aria-label="Buscar tag">
-          <div class="tgs" id="tgs"></div>
         </div>
       </div>
     </div>
   </div>
 
   <div class="perde">
+    <p class="nota">Demonstração com dados de exemplo. Redimensione a janela para ver as duas visões (a troca é em 1160 px).</p>
     <b>O que muda nesta demo</b>
     <ul>
-      <li><b>Computador:</b> resultado (consulta, gráfico, outras tags) à esquerda e escolhas (combos, grupos, modo avançado) à direita. O que você escolhe aparece na hora ao lado; a coluna do resultado acompanha a rolagem.</li>
+      <li><b>Computador:</b> resultado (consulta, gráfico, outras tags) à esquerda e escolhas (combos, grupos, modo avançado) à direita, a página rola normalmente (sem barras de rolagem próprias nas colunas) e a coluna do resultado acompanha a rolagem. Como combos e tags abrem em janelas, a página quase não cresce. O que você escolhe aparece na hora ao lado.</li>
       <li><b>Celular:</b> o resultado vem primeiro. "Editar consulta" abre uma tela cheia com combos, grupos e o botão do modo avançado, que abre por cima em outra tela cheia. Uma barra fixa embaixo mostra o resumo ao vivo (lançamentos, total e % com outras tags) e o botão "Pronto".</li>
       <li><b>Escolher tags</b> (+ tag) abre uma janela com as tags em <b>botões</b> que quebram em várias linhas, como no modo avançado, no lugar da lista uma embaixo da outra. Tocar marca e desmarca; as cinzas já estão na outra lista do mesmo grupo.</li>
+      <li><b>Combos</b> também abrem uma janela: a linha "Combos" mostra qual está em uso, e tocar nela abre a lista de combos em botões. Escolher um combo já fecha a janela.</li>
+      <li><b>Modo avançado:</b> não mostra mais a lista de tags na página. O botão "+ Tag" abre a mesma janela de tags; tocar numa tag a insere onde está o cursor e fecha a janela.</li>
       <li>"Tirar (NÃO)" continua na lista de outras tags, sem abrir nenhuma janela.</li>
     </ul>
     <b style="display:block;margin-top:12px;">O que se perde</b>
     <ul>
       <li>No celular, ver o gráfico mudar enquanto escolhe não é possível (a tela de escolhas o cobre); o resumo da barra de baixo e o "Pronto" fazem esse papel.</li>
       <li>No celular, editar a consulta passa a pedir um toque a mais ("Editar consulta"), e o modo avançado, mais um.</li>
-      <li>Botões de tag ocupam mais altura que a lista com busca quando há centenas de tags; a busca continua no topo da janela.</li>
+      <li>Montar uma expressão no modo avançado custa mais toques: cada tag é abrir a janela, escolher (e ela fecha). Se preferir, a janela pode ficar aberta para inserir várias tags seguidas, mas ela cobriria o teclado de operadores.</li>
+      <li>Combos e tags ficam sempre a um toque de distância, nunca à vista na página (é o que mantém a tela limpa quando há centenas de tags e vários combos).</li>
       <li>No computador a coluna de escolhas fica estreita (430 px), então o teclado do modo avançado e os grupos ficam mais compactos.</li>
       <li>A coluna fixa da esquerda só acompanha a rolagem se couber na altura da janela; em janela baixa, rola junto.</li>
     </ul>
@@ -535,19 +537,47 @@ function renderGrupos(){
   b.className = 'novo' + (cheio?' lim':'');
   b.innerHTML = `<span>+ Outro grupo (OU)</span><span class="sub">${cheio?`Limite de ${MAX_G} grupos. Remova um para adicionar outro.`:`${grupos.length} de ${MAX_G} grupos`}</span>`;
 }
+const unicoCombo = () => modo==='grupos' && grupos.length===1 && !grupos[0].nao.length ? [...grupos[0].tem].sort().join('|') : null;
 function renderCombos(){
-  const unico = modo==='grupos' && grupos.length===1 && !grupos[0].nao.length ? [...grupos[0].tem].sort().join('|') : null;
-  $('ex').innerHTML = COMBOS.map((c,i)=>`<button type="button" class="${unico && [...c.tags].sort().join('|')===unico?'on':''}" data-combo="${i}" style="${c.salvo?'':'border-style:dashed;'}">${esc(c.tags.join(' · '))} <span class="combo-n">${c.n}x</span></button>`).join('');
+  const u = unicoCombo(), c = u ? COMBOS.find(c=>[...c.tags].sort().join('|')===u) : null;
+  $('combosSub').textContent = c ? 'Em uso: ' + c.tags.join(' · ') : COMBOS.length + ' combos. Toque para escolher.';
 }
 
 // janela de tags (grupos): tags em botões
 function abrirJanela(g, campo){
-  jan = {g, campo}; $('jb').value = '';
+  jan = {tipo:'tags', g, campo}; $('jb').value = '';
   $('jt').textContent = campo==='tem' ? 'Tags que o lançamento tem' : 'Tags que ele não pode ter';
   $('js').textContent = `Grupo ${g+1}. ` + (campo==='tem' ? 'Precisa ter todas as marcadas.' : 'Fica de fora se tiver qualquer uma das marcadas.');
   $('veu').hidden = false; document.body.classList.add('trava'); renderJanela(); $('jb').focus();
 }
+// a mesma janela serve para escolher um combo e para inserir uma tag na expressão
+function abrirCombos(){
+  jan = {tipo:'combos'}; $('jb').value = '';
+  $('jt').textContent = 'Combos'; $('js').textContent = 'Toque num combo para usá-lo. Tocar de novo no que está em uso desmarca.';
+  $('veu').hidden = false; document.body.classList.add('trava'); renderJanela();
+}
+function abrirInserir(){
+  jan = {tipo:'inserir'}; $('jb').value = '';
+  $('jt').textContent = 'Inserir tag'; $('js').textContent = 'A tag entra onde está o cursor da expressão.';
+  $('veu').hidden = false; document.body.classList.add('trava'); renderJanela(); $('jb').focus();
+}
 function renderJanela(){
+  $('jb').style.display = jan.tipo==='combos' ? 'none' : '';
+  $('jok').textContent = jan.tipo==='tags' ? 'Pronto' : 'Fechar';
+  if(jan.tipo==='combos'){
+    const u = unicoCombo();
+    $('jl').className = 'tgs';
+    $('jl').innerHTML = COMBOS.map((c,i)=>`<button type="button" class="${u && [...c.tags].sort().join('|')===u?'on':''}" data-combo="${i}" style="${c.salvo?'':'border-style:dashed;'}">${esc(c.tags.join(' · '))} <span class="combo-n">${c.n}x</span></button>`).join('');
+    $('jc').textContent = 'Tracejado = sugerido pelo histórico.'; $('jd').textContent = '';
+    return;
+  }
+  if(jan.tipo==='inserir'){
+    const q = $('jb').value.trim().toLowerCase();
+    $('jl').className = 'tgs';
+    $('jl').innerHTML = TAGS.filter(t=>!q || t.toLowerCase().includes(q)).map(t=>`<button type="button" data-tag="${esc(t)}">${esc(t)}</button>`).join('') || '<p class="vazio-g" style="width:100%">Nenhuma tag encontrada.</p>';
+    $('jc').textContent = ''; $('jd').textContent = '';
+    return;
+  }
   const g = grupos[jan.g], arr = g[jan.campo], outro = g[jan.campo==='tem'?'nao':'tem'];
   const q = $('jb').value.trim().toLowerCase();
   $('jl').className = 'tgs' + (jan.campo==='nao' ? ' nao' : '');
@@ -594,11 +624,6 @@ function renderMsgExpr(q){
   $('lido').innerHTML = q.valida && q.n ? 'Lido como: ' + texto(q.n) : '';
   $('cont').textContent = `${f.length} de ${MAX_TK} fichas` + (f.length>=MAX_TK ? ' (limite atingido: apague uma para inserir outra)' : '');
 }
-function renderTags(){
-  const q = $('tb').value.trim().toLowerCase();
-  $('tgs').innerHTML = TAGS.filter(t=>!q||t.toLowerCase().includes(q)).map(t=>`<button type="button" data-tag="${esc(t)}">${esc(t)}</button>`).join('')
-    || '<span style="color:var(--muted);font-size:13px">Nenhuma tag encontrada.</span>';
-}
 function inserir(x){
   if(f.length>=MAX_TK) return;
   const antes = pos>0 ? f[pos-1] : null;
@@ -634,7 +659,7 @@ function renderResultado(valida){
   }
   // resumo da barra de baixo (celular)
   const pct = a.n && a.totExt ? Math.round(a.totExt/a.total*100) : 0;
-  $('rs').innerHTML = `${a.n} lançamento(s) · <b>-${brl(a.total)}</b><br>${a.vazia ? 'Sem filtro' : pct ? pct + '% com outras tags' : 'Total puro'}${valida?'':' (último válido)'}`;
+  $('rs').innerHTML = `${a.n} lançamento(s) · <b>-${brl(a.total)}</b><br>${a.vazia ? 'Sem filtro' : !a.n ? 'Nenhum lançamento' : pct ? pct + '% com outras tags' : 'Total puro'}${valida?'':' (último válido)'}`;
 }
 function renderOutras(){
   const a = ultimo, el = $('outras');
@@ -689,16 +714,18 @@ function tudo(){
 window.matchMedia('(min-width:1160px)').addEventListener('change', ()=>tudo());
 
 document.addEventListener('click', e=>{
-  const t = e.target.closest('[data-combo],[data-add],[data-rm],[data-del],#novo,[data-t],#jok,[data-i],[data-k],[data-tag],#btnAvanc,#btnVoltar,#btnVoltarCel,[data-cot],#btnDesf,#btnEditar,#btnFechar,#btnPronto');
+  const t = e.target.closest('[data-combo],#btnCombos,#btnTagExpr,[data-add],[data-rm],[data-del],#novo,[data-t],#jok,[data-i],[data-k],[data-tag],#btnAvanc,#btnVoltar,#btnVoltarCel,[data-cot],#btnDesf,#btnEditar,#btnFechar,#btnPronto');
   if(!t){ if(e.target===$('veu')) fecharJanela(); return; }
   const novoAviso = () => { avisoTxt=''; desf=null; };
+  if(t.id==='btnCombos') return abrirCombos();
+  if(t.id==='btnTagExpr') return abrirInserir();
   if(t.id==='btnEditar'){ edAberto = true; return tudo(); }
   if(t.id==='btnFechar' || t.id==='btnPronto'){ edAberto = false; return tudo(); }
   if(t.id==='btnAvanc'){ novoAviso(); f = gruposParaFichas(); pos = f.length; modo = 'avancado'; return tudo(); }
   if(t.id==='btnVoltar' || t.id==='btnVoltarCel'){ novoAviso(); modo = 'grupos'; return tudo(); }
   if(t.id==='btnDesf'){ if(desf){ modo=desf.modo; grupos=desf.grupos; f=desf.f; pos=desf.pos; } novoAviso(); return tudo(); }
   if(t.dataset.cot) return tirar(t.dataset.cot);
-  if(t.dataset.combo!==undefined){ novoAviso(); const c = COMBOS[+t.dataset.combo];
+  if(t.dataset.combo!==undefined){ novoAviso(); $('veu').hidden = true; jan = null; const c = COMBOS[+t.dataset.combo];
     const mesmo = modo==='grupos' && grupos.length===1 && !grupos[0].nao.length && [...grupos[0].tem].sort().join('|')===[...c.tags].sort().join('|');
     const tags = mesmo ? [] : c.tags.slice(0, MAX_T);
     grupos = [{tem:tags,nao:[]}]; f = []; tags.forEach((tg,k)=>{ if(k) f.push({k:'op',v:'E'}); f.push({k:'tag',v:tg}); }); pos = f.length; return tudo(); }
@@ -714,7 +741,7 @@ document.addEventListener('click', e=>{
     novoAviso(); renderJanela(); const q = consulta(); ultimo = analise(q); renderFrase(q); renderGrupos(); renderResultado(true); renderOutras(); return;
   }
   if(t.dataset.i!==undefined){ pos = +t.dataset.i + 1; return tudo(); }
-  if(t.dataset.tag!==undefined){ novoAviso(); return inserir({k:'tag',v:t.dataset.tag}); }
+  if(t.dataset.tag!==undefined){ novoAviso(); $('veu').hidden = true; jan = null; return inserir({k:'tag',v:t.dataset.tag}); }
   const k = t.dataset.k;
   if(k) novoAviso();
   if(k==='(' || k===')') return inserir({k});
@@ -725,9 +752,8 @@ document.addEventListener('click', e=>{
   if(k==='limpar'){ f = []; pos = 0; tudo(); }
 });
 $('jb').addEventListener('input', ()=>jan && renderJanela());
-$('tb').addEventListener('input', renderTags);
 document.addEventListener('keydown', e=>{ if(e.key!=='Escape') return; if(jan) fecharJanela(); else if(edAberto && !largo()){ edAberto = false; tudo(); } });
-renderTags(); tudo();
+tudo();
 </script>
 </body>
 </html>
