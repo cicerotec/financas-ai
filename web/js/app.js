@@ -1045,6 +1045,7 @@ function renderTagPicker(){
     l = `<span data-todas="1" style="cursor:pointer;color:var(--accent);font-size:13px;">Todas as tags (${tagsUsadas.length}) ▾</span>`;
   }
   document.getElementById('tagPicker').innerHTML = l;
+  document.getElementById('tagsResumo').innerHTML = sel.length ? sel.map(t=>`<span class="chip">${esc(t)}</span>`).join('') : 'Nenhuma';
   if(seletorHist) seletorHist.render();
 }
 function renderCombosLista(){
@@ -1151,7 +1152,43 @@ async function garantirTags(novasTags){
   }
 }
 
+// Aba Lançar: o <select id="fTipo"> continua sendo a fonte do valor; os botões só o espelham.
+function definirTipo(v){
+  document.getElementById('fTipo').value = v;
+  document.querySelectorAll('#tipoLancar [data-tipo]').forEach(b=>b.setAttribute('aria-checked', b.dataset.tipo===v ? 'true' : 'false'));
+}
+function lancarModo(m){
+  document.querySelectorAll('#modoLancar [data-modo]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.modo===m ? 'true' : 'false'));
+  document.getElementById('painelLancar').classList.toggle('hidden', m!=='lanc');
+  document.getElementById('painelTransf').classList.toggle('hidden', m!=='transf');
+}
+function lancarMais(abrir){
+  document.getElementById('maisDet').classList.toggle('aberto', abrir);
+  document.getElementById('maisAbrir').setAttribute('aria-expanded', String(abrir));
+}
+function lancarTags(abrir){
+  document.getElementById('tagsCard').classList.toggle('aberto', abrir);
+  document.getElementById('tagsVeu').classList.toggle('aberto', abrir);
+  if(abrir) document.getElementById('tagBusca').focus();
+}
+function ligarLancar(){
+  document.getElementById('modoLancar').addEventListener('click', e=>{ const b = e.target.closest('[data-modo]'); if(b) lancarModo(b.dataset.modo); });
+  document.getElementById('tipoLancar').addEventListener('click', e=>{ const b = e.target.closest('[data-tipo]'); if(b) definirTipo(b.dataset.tipo); });
+  document.getElementById('iaAbrir').addEventListener('click', ()=>{
+    const aberto = document.getElementById('iaCard').classList.toggle('aberto');
+    document.getElementById('iaAbrir').setAttribute('aria-expanded', String(aberto));
+    if(aberto) document.getElementById('notaLivre').focus();
+  });
+  document.getElementById('maisAbrir').addEventListener('click', ()=>lancarMais(!document.getElementById('maisDet').classList.contains('aberto')));
+  document.getElementById('tagsAbrir').addEventListener('click', ()=>lancarTags(true));
+  document.getElementById('tagsPronto').addEventListener('click', ()=>lancarTags(false));
+  document.getElementById('tagsVeu').addEventListener('click', ()=>lancarTags(false));
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.getElementById('tagsCard').classList.contains('aberto')) lancarTags(false); });
+  definirTipo(document.getElementById('fTipo').value);
+}
+
 function setupHandlers(){
+  ligarLancar();
   document.getElementById('fAvisoMount').innerHTML = htmlAviso('f');
   document.getElementById('fRepetirMount').innerHTML = htmlRepeticao('fr', {qtd:1, rotuloQtd:'Total de ocorrências (com este)'});
   ligarAviso('f');
@@ -1219,7 +1256,7 @@ function setupHandlers(){
   document.getElementById('btnCancelarEdicao').onclick = cancelarEdicao;
   document.getElementById('btnLimpar').onclick = limparFormulario;
   document.getElementById('btnTransferir').onclick = registrarTransferencia;
-  document.getElementById('tData').value = nowLocalInput().slice(0,10);
+  document.getElementById('tData').value = nowLocalInput();
 
 
   document.getElementById('filStatusBtn').addEventListener('click', (e)=>{
@@ -1337,7 +1374,7 @@ Responda SOMENTE em JSON, sem markdown, no formato:
 Se não souber o banco com certeza, deixe banco como "".`;
     const res = await sample.json(prompt, {modelTier:"quick"});
     if(res.status){ document.getElementById('fStatus').value = res.status; document.getElementById('fFatura').value = String(ajustePadrao(res.status)); atualizarCampoFatura(); }
-    if(res.tipo) document.getElementById('fTipo').value = res.tipo;
+    if(res.tipo) definirTipo(res.tipo);
     if(res.valor) document.getElementById('fValor').value = res.valor;
     if(res.descricao) document.getElementById('fDesc').value = res.descricao;
     if(res.banco){
@@ -1469,17 +1506,15 @@ async function registrarTransferenciaInterno(){
   const destino = document.getElementById('tBancoDestino').value;
   const valor = parseFloat(document.getElementById('tValor').value);
   if(!origem || !destino || origem===destino || !valor || valor<=0){ await avisar("Confira os bancos e o valor."); return; }
-  const dia = document.getElementById('tData').value || nowLocalInput().slice(0,10);
-  const [y,m,d] = dia.split('-').map(Number);
   const hoje = new Date();
-  // data escolhida com a hora atual (mantém a ordem do dia); a data é a do usuário, não a de hoje
-  const quando = new Date(y, m-1, d, hoje.getHours(), hoje.getMinutes()).toISOString();
+  // data e hora escolhidas pela pessoa (datetime-local); vazio vale agora
+  const quando = new Date(document.getElementById('tData').value || nowLocalInput()).toISOString();
   const agora = hoje.toISOString();
   const parId = "transf_" + Date.now();
   await db.collection("lancamentos").add({status:"CONTAS", tipo:"saida", valor, descricao:`Transferência para ${destino}`, nota:"", dataEvento:quando, banco:origem, tags:[], criadoEm:agora, transferParId:parId});
   await db.collection("lancamentos").add({status:"CONTAS", tipo:"entrada", valor, descricao:`Transferência de ${origem}`, nota:"", dataEvento:quando, banco:destino, tags:[], criadoEm:agora, transferParId:parId});
   document.getElementById('tValor').value='';
-  document.getElementById('tData').value = nowLocalInput().slice(0,10);
+  document.getElementById('tData').value = nowLocalInput();
   toast(`✓ Transferência registrada: ${origem} → ${destino} · ${fmtMoeda(valor)}`);
 }
 
@@ -1743,10 +1778,11 @@ function iniciarEdicao(id){
   document.getElementById('fEstimado').checked = l.valorEstimado === true;
   preencherAvisoNoFormulario(l.aviso);
   atualizarCampoFatura();
-  document.getElementById('fTipo').value = l.tipo;
+  definirTipo(l.tipo);
   document.getElementById('fValor').value = l.valor;
   document.getElementById('fDesc').value = l.descricao;
   document.getElementById('fNota').value = l.nota || '';
+  lancarModo('lanc'); lancarMais(!!l.nota);
   const d = new Date(l.dataEvento); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
   document.getElementById('fData').value = d.toISOString().slice(0,16);
   document.getElementById('fBanco').value = l.banco || '';
@@ -1769,10 +1805,11 @@ function iniciarCopia(id){
   document.getElementById('fEstimado').checked = false;
   preencherAvisoNoFormulario(null); // a copia tem outra data: o aviso e escolhido de novo
   atualizarCampoFatura();
-  document.getElementById('fTipo').value = l.tipo;
+  definirTipo(l.tipo);
   document.getElementById('fValor').value = l.valor;
   document.getElementById('fDesc').value = l.descricao;
   document.getElementById('fNota').value = l.nota || '';
+  lancarModo('lanc'); lancarMais(!!l.nota);
   document.getElementById('fData').value = nowLocalInput();
   document.getElementById('fBanco').value = l.banco || '';
   tagsSelecionadas = new Set(l.tags||[]);

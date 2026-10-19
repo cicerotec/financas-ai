@@ -14,5 +14,6 @@ Origem: observar a esposa usando o app (sem explicar nada) e anotar onde ela hes
   ou reinicia os combos (cópia, salvar, atualização da tela por `seq`) e manter o banco escolhido.
   **Corrigido:** `renderListas()` refazia os `<option>` dos combos (Status, Banco e bancos da transferência) e o
   navegador voltava ao primeiro; agora a escolha atual é guardada e devolvida depois de refazer a lista.
+- **Lançar redesenhado (2026-10-19):** o formulário passou de 17 controles à vista para 4 no celular; ver "Lançar (tela)" em `padrao-de-telas.md`. Observar o uso real: se Nota ou Tags forem usadas em todo lançamento, o toque a mais em "Mais" e "Tags" pode pedir ajuste.
 - **Observado e já resolvido:** salvar sem resposta, transferência sem data, Enter sem efeito na busca, tudo na tela
   em Histórico, X de status apagando sem aviso.
