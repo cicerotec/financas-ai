@@ -136,43 +136,43 @@
 
 <section id="tab-historico" class="hidden">
   <div id="avisoFuturos" class="aviso-fut hidden"></div>
-  <div class="card" style="margin-bottom:10px;">
-    <label for="buscaTexto">Buscar por texto (descrição ou nota) em todo o histórico</label>
-    <div class="row" style="flex-wrap:wrap;">
-      <input type="text" id="buscaTexto" placeholder="ex: farmácia, Kyla, Netflix..." style="flex:1;min-width:180px;">
-      <button class="primary" id="btnBuscarTexto" style="flex:0 0 auto;width:auto;margin-top:0;">Buscar</button>
-      <button class="ghost hidden" id="btnLimparBusca" style="flex:0 0 auto;">Limpar busca</button>
+  <div class="hist-tools" id="histTools">
+    <div class="hm-bar" id="navMes">
+      <span class="hm-rotbusca">Busca em todo o histórico</span>
+      <button type="button" class="hm-b hm-nav" id="mesAnterior" aria-label="Mês anterior" title="Mês anterior">‹</button>
+      <label class="hm-m hm-nav"><span id="mesRotulo"></span><input type="month" id="filMesEspecifico" aria-label="Mês exibido"></label>
+      <button type="button" class="hm-b hm-nav" id="mesProximo" aria-label="Próximo mês" title="Próximo mês">›</button>
+      <input type="hidden" id="filOrdenacao" value="desc">
+      <button type="button" class="hm-ord" id="btnOrdem" title="Mais recentes primeiro. Toque para inverter." aria-label="Ordem: mais recentes primeiro. Toque para inverter.">Data ↓</button>
     </div>
-    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:6px 0 0;"><input type="checkbox" id="buscaIncluiFuturos" style="width:auto;"> Incluir eventos futuros na busca</label>
-    <p class="muted" id="buscaTextoStatus" style="margin-top:6px;"></p>
-  </div>
-  <div class="filters">
-    <div style="flex:1;min-width:110px;position:relative;">
-      <button type="button" id="filStatusBtn" class="dropdown-btn">Status: todos</button>
-      <div id="filStatusPanel" class="dropdown-panel hidden"></div>
-    </div>
-    <div style="flex:1;min-width:110px;position:relative;">
-      <button type="button" id="filBancoBtn" class="dropdown-btn">Banco: todos</button>
-      <div id="filBancoPanel" class="dropdown-panel hidden"></div>
-    </div>
-    <div style="flex:1 1 100%;position:relative;">
-      <button type="button" id="filTagBtn" class="dropdown-btn" aria-haspopup="true">Tags: todas ▾</button>
-      <div id="filTagPanel" class="dropdown-panel hidden" style="max-height:70vh;"><div id="histTags"></div></div>
+    <div class="hm-busca">
+      <div class="hm-campo">
+        <input type="search" id="buscaTexto" enterkeyhint="search" placeholder="Buscar em todo o histórico" aria-label="Buscar por texto (descrição ou nota) em todo o histórico">
+        <button type="button" id="btnBuscarTexto" aria-label="Buscar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
+      </div>
+      <button type="button" class="hm-fil" id="btnFiltros" aria-haspopup="dialog">Filtros</button>
     </div>
   </div>
-  <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);"><input type="checkbox" id="filMostrarOcultos" style="width:auto;"> mostrar ocultos</label>
-  <div class="nav-mes" id="navMes">
-    <button type="button" class="ghost" id="mesAnterior" aria-label="Mês anterior" title="Mês anterior">‹</button>
-    <input type="month" id="filMesEspecifico" aria-label="Mês exibido">
-    <button type="button" class="ghost" id="mesProximo" aria-label="Próximo mês" title="Próximo mês">›</button>
-    <button type="button" class="ghost hidden" id="mesHoje">Mês atual</button>
-    <input type="hidden" id="filOrdenacao" value="desc">
-    <button type="button" class="ghost" id="btnOrdem" style="margin-left:auto;" title="Mais recentes primeiro. Toque para inverter." aria-label="Ordem: mais recentes primeiro. Toque para inverter.">Data ↓</button>
-  </div>
+  <div class="hist-chips" id="histChips"></div>
+  <p class="muted" id="buscaTextoStatus" style="margin:0 4px 6px;"></p>
   <div class="hist-cont muted"><p id="contadorHistorico"></p><span id="somaHistorico"></span></div>
   <p class="muted hidden" id="avisoMesFuturos" style="margin:0 0 8px;"></p>
-  <div class="card" id="listaLancamentos"><p class="muted">Carregando...</p></div>
+  <div id="listaLancamentos"><p class="muted">Carregando...</p></div>
+  <div class="hist-fim" id="histFim"></div>
 </section>
+
+<div class="fut-ov hidden" id="histFilOv">
+  <div class="hist-jan" role="dialog" aria-modal="true" aria-label="Filtros do Histórico" id="histFilJan">
+    <h3>Filtros</h3>
+    <p class="mm">Dentro de Status e Banco vale qualquer uma das escolhidas. Nas tags você escolhe entre todas ou qualquer uma.</p>
+    <div class="hf-sec">Status</div><div class="tags" id="histFilStatus"></div>
+    <div class="hf-sec">Banco</div><div class="tags" id="histFilBanco"></div>
+    <div class="hf-sec">Tags</div><div id="histTags"></div>
+    <label class="fut-sw"><input type="checkbox" id="filMostrarOcultos"><span>Mostrar ocultos<small class="muted"> (entram na lista e no total)</small></span></label>
+    <label class="fut-sw"><input type="checkbox" id="buscaIncluiFuturos"><span>Incluir eventos futuros<small class="muted"> (só na busca por texto)</small></span></label>
+    <div class="hf-rod"><button type="button" class="hf-limpar" id="histFilLimpar">Limpar</button><button type="button" class="hf-ok" id="histFilOk">Pronto</button></div>
+  </div>
+</div>
 
 <section id="tab-listas" class="hidden">
   <div class="card" id="perfilCard">
