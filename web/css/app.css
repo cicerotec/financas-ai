@@ -193,7 +193,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .tags-card.aberto{display:block;position:sticky;max-height:none;border:1px solid var(--border);border-radius:12px;padding:14px;margin:0 0 12px;z-index:auto;}
   .tags-card.aberto .tags-lista{max-height:46vh;}
   .tags-veu.aberto{display:none;}
-  .lh.lh-tags,.lh.lh-mais{display:none;}
+  .lh.lh-mais{display:none;}
+  .lh.lh-tags{display:block;grid-column:1 / -1;cursor:default;}
+  .lh-tags .seta{display:none;}
+  .lh-tags .v{justify-content:flex-start;min-height:40px;align-items:center;}
+  .lh-tags .chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 6px 0 12px;font-size:14px;}
+  .lh-tags .chip::after{content:'×';font-size:18px;line-height:1;width:24px;height:24px;display:grid;place-items:center;color:var(--muted);cursor:pointer;}
   .linhas{padding:12px 16px !important;display:grid;grid-template-columns:1fr 1fr;gap:12px;overflow:visible;}
   .lh{display:block;min-height:0;padding:0;border:0;cursor:default;}
   .lh .r{display:block;width:auto;font-size:12px;color:var(--muted);margin:0 0 4px;}

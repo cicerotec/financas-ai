@@ -115,7 +115,12 @@ textarea.campo{padding:10px 12px;min-height:72px;resize:vertical;}
 .tela.pc .grade{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start;}
 .tela.pc .col-dir{position:sticky;top:12px;}
 .tela.pc .tagsbox{display:block;}
-.tela.pc .linhas .lh.tagslinha{display:none;}
+.tela.pc .linhas .lh.tagslinha{display:block;grid-column:1 / -1;cursor:default;}
+.tela.pc .linhas .lh.tagslinha .v{display:block;text-align:left;white-space:normal;overflow:visible;}
+.tela.pc .tagslinha .seta{display:none;}
+.tela.pc .tagslinha .chips{justify-content:flex-start;}
+.tela.pc .tagslinha .chip{display:inline-flex;align-items:center;gap:6px;padding:0 6px 0 12px;min-height:36px;}
+.tela.pc .tagslinha .chip::after{content:'×';font-size:18px;width:24px;text-align:center;color:var(--muted);cursor:pointer;}
 .tela.pc #pTransf{max-width:560px;}
 .tela.pc .par{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .tela.pc .par .pdata{grid-column:1 / -1;}
@@ -231,7 +236,7 @@ textarea.campo{padding:10px 12px;min-height:72px;resize:vertical;}
       <li>O botão Salvar fica fixo embaixo e o "Limpar formulário" vira um botão pequeno ao lado, onde não se toca sem querer.</li>
       <li>A IA vira uma linha recolhida: quem não usa não rola por ela. No computador ela fica à direita, sempre visível.</li>
       <li>A Transferência deixa de ser um cartão no fim da página e vira um modo no topo (Lançamento | Transferência).</li>
-      <li>Tags: no celular uma linha-resumo que abre a janela de baixo (combos e botões, como em Tendências). No computador há um só lugar, a coluna da direita, sempre à vista.</li>
+      <li>Tags: no celular uma linha-resumo que abre a janela de baixo (combos e botões, como em Tendências). No computador escolhe-se na coluna da direita, sempre à vista, e as escolhidas aparecem também no formulário, em chips com × para tirar.</li>
       <li>Transferência: valor grande no topo como em Lançamento, data com hora, e no computador De e Para lado a lado.</li>
       <li>Nota, fatura, estimado e repetir ficam em "Mais". No computador aparecem direto, pois há espaço.</li>
       <li><b>Custo:</b> Nota e Tags custam um toque a mais no celular; quem digita nota em todo lançamento vai sentir. Trocar de Lançamento para Transferência são dois toques em vez de rolar a página.</li>
@@ -276,7 +281,7 @@ textarea.campo{padding:10px 12px;min-height:72px;resize:vertical;}
   function resumo(){
     var v=$('vTags');
     $('cntTags').textContent=sel.length+(sel.length===1?' tag marcada':' tags marcadas');
-    v.innerHTML=sel.length?'<span class="chips">'+sel.map(function(s){return '<span class="chip">'+s+'</span>';}).join('')+'</span>':'Nenhuma';
+    v.innerHTML=sel.length?'<span class="chips">'+sel.map(function(s){return '<span class="chip" data-rm="'+s+'">'+s+'</span>';}).join('')+'</span>':'Nenhuma';
   }
   function fmtData(v){if(!v)return '';var p=v.split('T');var d=p[0].split('-');return d[2]+'/'+d[1]+'/'+d[0]+(p[1]?' '+p[1]:'');}
   function espelhos(){
@@ -286,7 +291,7 @@ textarea.campo{padding:10px 12px;min-height:72px;resize:vertical;}
   }
   ['fData','fBanco','fStatus'].forEach(function(i){$(i).onchange=espelhos;});
 
-  $('abrirTags').onclick=function(){$('veuTags').hidden=false;};
+  $('abrirTags').onclick=function(e){var x=e.target.closest('[data-rm]');if(pc){if(x){sel.splice(sel.indexOf(x.dataset.rm),1);desenhaTags();resumo();}return;}$('veuTags').hidden=false;};
   $('okTags').onclick=function(){$('veuTags').hidden=true;};
   $('veuTags').onclick=function(e){if(e.target===this)this.hidden=true;};
   $('buscaCel').oninput=desenhaTags;$('buscaPc').oninput=desenhaTags;

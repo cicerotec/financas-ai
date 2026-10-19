@@ -1038,7 +1038,7 @@ function renderTagPicker(){
   const l = lista.length ? lista.map(chipTag).join('') : '<span class="muted">Nenhuma tag encontrada. Digite abaixo e Enter para criar.</span>';
   document.getElementById('tagsCnt').textContent = sel.length + (sel.length===1 ? ' tag marcada' : ' tags marcadas');
   document.getElementById('tagPicker').innerHTML = l;
-  document.getElementById('tagsResumo').innerHTML = sel.length ? sel.map(t=>`<span class="chip">${esc(t)}</span>`).join('') : 'Nenhuma';
+  document.getElementById('tagsResumo').innerHTML = sel.length ? sel.map(t=>`<span class="chip" data-rm-tag="${esc(t)}">${esc(t)}</span>`).join('') : '<span class="tags-vazio">Nenhuma</span>';
   if(seletorHist) seletorHist.render();
 }
 function renderCombosLista(){
@@ -1172,7 +1172,11 @@ function ligarLancar(){
     if(aberto) document.getElementById('notaLivre').focus();
   });
   document.getElementById('maisAbrir').addEventListener('click', ()=>lancarMais(!document.getElementById('maisDet').classList.contains('aberto')));
-  document.getElementById('tagsAbrir').addEventListener('click', ()=>lancarTags(true));
+  document.getElementById('tagsAbrir').addEventListener('click', e=>{
+    const x = e.target.closest('[data-rm-tag]');
+    if(x && matchMedia('(min-width:900px)').matches){ tagsSelecionadas.delete(x.dataset.rmTag); renderTagPicker(); return; } // computador: o × tira a tag
+    if(!matchMedia('(min-width:900px)').matches) lancarTags(true);
+  });
   document.getElementById('tagsPronto').addEventListener('click', ()=>lancarTags(false));
   document.getElementById('tagsVeu').addEventListener('click', ()=>lancarTags(false));
   document.getElementById('tagArea').addEventListener('keydown', e=>{
