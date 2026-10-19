@@ -451,7 +451,7 @@ function analise(q){
   L.forEach(l=>{
     if(!q.pred(l)) return;
     n++; por[l.m]+=l.v; total+=l.v;
-    const outras = l.t.filter(t=>!q.mencionadas.has(t));
+    const outras = q.vazia ? [] : l.t.filter(t=>!q.mencionadas.has(t)); // sem filtro nao ha "outras tags"
     if(outras.length){ ext[l.m]+=l.v; totExt+=l.v; }
     outras.forEach(t=>{ co[t]=(co[t]||0)+l.v; });
   });
