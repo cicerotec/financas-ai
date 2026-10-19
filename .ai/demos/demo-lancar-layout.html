@@ -93,8 +93,8 @@ textarea.campo{padding:10px 12px;min-height:72px;resize:vertical;}
 
 /* tags à vista (computador) */
 .tagsbox{display:none;}
-.tagbtn{border:1px solid var(--border);background:var(--bg);border-radius:999px;padding:0 14px;min-height:40px;font-size:14px;}
-.tagbtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-bg);}
+.tagbtn{border:1px solid var(--border);background:var(--card);border-radius:999px;padding:0 16px;min-height:44px;font-size:15px;}
+.tagbtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-bg);font-weight:600;}
 .tagrow{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;}
 .busca{width:100%;min-height:44px;border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:0 12px;margin:0 0 6px;}
 .sub{font-size:12.5px;color:var(--muted);margin:0 0 4px;}
@@ -241,11 +241,13 @@ textarea.campo{padding:10px 12px;min-height:72px;resize:vertical;}
 
 <div class="veu" id="veuTags" hidden>
   <div class="jan" role="dialog" aria-label="Tags">
-    <h3>Tags</h3>
+    <h3>Tags do lançamento</h3>
+    <p class="sub">Toque para marcar ou desmarcar. Para criar uma nova, digite no campo de baixo e aperte Enter.</p>
     <p class="sub">Combos</p>
     <div class="tagrow" id="combosCel"></div>
     <input class="busca" type="search" placeholder="Buscar tag..." id="buscaCel" aria-label="Buscar tag">
     <div class="tagrow" id="tagsCel"></div>
+    <p class="sub" id="cntTags"></p>
     <button class="ok" type="button" id="okTags">Pronto</button>
   </div>
 </div>
@@ -267,12 +269,13 @@ textarea.campo{padding:10px 12px;min-height:72px;resize:vertical;}
       c.innerHTML='';t.innerHTML='';
       Object.keys(COMBOS).forEach(function(k){c.appendChild(btn('▸ '+k,false,function(){sel=COMBOS[k].slice();desenhaTags();resumo();}));});
       TODAS.filter(function(x){return !q||x.toLowerCase().indexOf(q)>=0;}).forEach(function(x){
-        t.appendChild(btn(x,sel.indexOf(x)>=0,function(){var i=sel.indexOf(x);if(i>=0)sel.splice(i,1);else sel.push(x);desenhaTags();resumo();}));
+        t.appendChild(btn((sel.indexOf(x)>=0?'✓ ':'')+x,sel.indexOf(x)>=0,function(){var i=sel.indexOf(x);if(i>=0)sel.splice(i,1);else sel.push(x);desenhaTags();resumo();}));
       });
     });
   }
   function resumo(){
     var v=$('vTags');
+    $('cntTags').textContent=sel.length+(sel.length===1?' tag marcada':' tags marcadas');
     v.innerHTML=sel.length?'<span class="chips">'+sel.map(function(s){return '<span class="chip">'+s+'</span>';}).join('')+'</span>':'Nenhuma';
   }
   function fmtData(v){if(!v)return '';var p=v.split('T');var d=p[0].split('-');return d[2]+'/'+d[1]+'/'+d[0]+(p[1]?' '+p[1]:'');}

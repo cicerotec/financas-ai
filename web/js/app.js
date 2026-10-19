@@ -1013,7 +1013,8 @@ function salvarCombos(){
   return filaCombos;
 }
 function chipTag(t){
-  return `<span class="tag ${tagsSelecionadas.has(t)?'on':''}" data-tag="${esc(t)}">${esc(t)}</span>`;
+  const on = tagsSelecionadas.has(t);
+  return `<span class="tag ${on?'on':''}" role="checkbox" aria-checked="${on}" tabindex="0" data-tag="${esc(t)}">${on?'✓ ':''}${esc(t)}</span>`;
 }
 function renderTagPicker(){
   if(!document.getElementById('tagArea')) return;
@@ -1032,18 +1033,10 @@ function renderTagPicker(){
   const jaSalvo = combosSalvos.some(c=>chaveTags(c.tags)===kSel);
   if(sel.length>=2 && !jaSalvo && ehOwner()) h += '<button class="ghost" id="btnSalvarCombo" style="margin-top:8px;">Salvar seleção como combo</button>';
   document.getElementById('tagCombos').innerHTML = h;
-  document.getElementById('tagMarcadas').innerHTML = sel.length
-    ? '<span class="muted" style="align-self:center;">Marcadas:</span>' + sel.map(chipTag).join('') : '';
   const q = normTxt(tagBusca.trim());
-  let l = '';
-  if(q){
-    const m = tagsUsadas.filter(t=>normTxt(t).includes(q));
-    l = m.length ? m.map(chipTag).join('') : '<span class="muted">Nenhuma tag encontrada. Digite abaixo e Enter para criar.</span>';
-  } else if(tagsTodasAbertas){
-    l = '<span data-todas="1" style="cursor:pointer;color:var(--accent);font-size:13px;width:100%;">Recolher ▴</span>' + tagsUsadas.map(chipTag).join('');
-  } else {
-    l = `<span data-todas="1" style="cursor:pointer;color:var(--accent);font-size:13px;">Todas as tags (${tagsUsadas.length}) ▾</span>`;
-  }
+  const lista = [...sel.filter(t=>!tagsUsadas.includes(t)), ...tagsUsadas].filter(t=>!q || normTxt(t).includes(q));
+  const l = lista.length ? lista.map(chipTag).join('') : '<span class="muted">Nenhuma tag encontrada. Digite abaixo e Enter para criar.</span>';
+  document.getElementById('tagsCnt').textContent = sel.length + (sel.length===1 ? ' tag marcada' : ' tags marcadas');
   document.getElementById('tagPicker').innerHTML = l;
   document.getElementById('tagsResumo').innerHTML = sel.length ? sel.map(t=>`<span class="chip">${esc(t)}</span>`).join('') : 'Nenhuma';
   if(seletorHist) seletorHist.render();
@@ -1169,7 +1162,6 @@ function lancarMais(abrir){
 function lancarTags(abrir){
   document.getElementById('tagsCard').classList.toggle('aberto', abrir);
   document.getElementById('tagsVeu').classList.toggle('aberto', abrir);
-  if(abrir) document.getElementById('tagBusca').focus();
 }
 function ligarLancar(){
   document.getElementById('modoLancar').addEventListener('click', e=>{ const b = e.target.closest('[data-modo]'); if(b) lancarModo(b.dataset.modo); });
@@ -1183,6 +1175,9 @@ function ligarLancar(){
   document.getElementById('tagsAbrir').addEventListener('click', ()=>lancarTags(true));
   document.getElementById('tagsPronto').addEventListener('click', ()=>lancarTags(false));
   document.getElementById('tagsVeu').addEventListener('click', ()=>lancarTags(false));
+  document.getElementById('tagArea').addEventListener('keydown', e=>{
+    if((e.key==='Enter' || e.key===' ') && e.target.dataset && e.target.dataset.tag!==undefined){ e.preventDefault(); e.target.click(); }
+  });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.getElementById('tagsCard').classList.contains('aberto')) lancarTags(false); });
   definirTipo(document.getElementById('fTipo').value);
 }

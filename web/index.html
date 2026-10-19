@@ -104,15 +104,18 @@
     </div>
 
     <div class="tags-veu" id="tagsVeu"></div>
-    <div class="card tags-card" id="tagsCard" role="dialog" aria-label="Tags">
-      <div class="tags-cab"><b>Tags</b><button type="button" class="ghost" id="tagsPronto">Pronto</button></div>
-      <div id="tagArea">
+    <div class="card tags-card" id="tagsCard" role="dialog" aria-modal="true" aria-labelledby="tagsTit">
+      <h2 id="tagsTit">Tags do lançamento</h2>
+      <p class="tags-sub">Toque para marcar ou desmarcar. Para criar uma nova, digite no campo de baixo e aperte Enter.</p>
+      <input id="tagBusca" type="search" class="tags-busca" placeholder="Buscar tag..." aria-label="Buscar tag">
+      <div id="tagArea" class="tags-lista">
         <div id="tagCombos"></div>
-        <div class="tags" id="tagMarcadas"></div>
-        <input id="tagBusca" type="text" placeholder="Buscar tag..." style="margin-top:8px;">
+        <div class="tags" id="tagMarcadas" hidden></div>
         <div class="tags" id="tagPicker"></div>
       </div>
-      <input id="novaTagInput" type="text" placeholder="nova tag + Enter" style="margin-top:6px;">
+      <p class="tags-cnt" id="tagsCnt"></p>
+      <input id="novaTagInput" type="text" placeholder="nova tag + Enter">
+      <button class="tags-ok" id="tagsPronto" type="button">Pronto</button>
     </div>
   </div>
 
