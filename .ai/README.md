@@ -28,6 +28,7 @@ feito e ideias).
 | [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html) | Demo da aba Tendências (implementada em `web/js/tendencias.js`): grupos com E, OU e NÃO, modo avançado de expressão livre e aviso de outras tags no gráfico |
 | [`demos/demo-tendencias-layout.html`](demos/demo-tendencias-layout.html) | Demo do layout da aba Tendências: duas colunas no computador, escolhas em tela cheia no celular e tags em botões (vale sobre a demo acima no layout) |
 | [`demos/demo-lancar-layout.html`](demos/demo-lancar-layout.html) | Demo do layout da aba Lançar: valor em destaque, seletores nativos, Tags em janela no celular e na coluna da direita no computador, Transferência como modo (implementada em 2026-10-19) |
+| [`demos/demo-historico-layout.html`](demos/demo-historico-layout.html) | Demo do layout da aba Histórico (lista de lançamentos): filtros numa janela, lançamentos por dia, nota em ícone, ações numa janela de baixo, tabela por mês no computador (aprovada em 2026-10-19; ainda não implementada) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
