@@ -2,6 +2,7 @@
 // uma expressão livre (parênteses, E, OU, NÃO). A barra do mês mostra quanto do valor tem outras tags além das da consulta.
 // Layout (demo .ai/demos/demo-tendencias-layout.html): no computador (>= 1160 px) o resultado fica à esquerda e as escolhas à direita;
 // no celular o resultado vem primeiro e as escolhas abrem em tela cheia por "Editar consulta" (o modo avançado abre por cima).
+// Nada de lista de tags ou de combos solta na página: tudo abre numa janela (grupos, combos e "+ Tag" do modo avançado).
 // Lógica pura e testada em web/consulta-tags.js. O front só desenha e soma o que já está na tela: nenhum número daqui vai para a API.
 // Carregado depois do app.js e usa os globais dele (lancamentosCache, tagsUsadas, ehStatusReal, combosAtuaisLista, esc, fmtMoeda).
 (function () {
@@ -34,7 +35,8 @@
       // ---- escolhas: direita no computador, tela cheia no celular ----
       '<div class="td-esc" id="tdEsc">' +
         '<div class="td-cab td-so-cel"><h2>Editar consulta</h2><button type="button" id="tdFechar" aria-label="Fechar">✕</button></div>' +
-        '<div class="td-card" id="tdCombosCard" hidden><div class="td-tit">Combos (toque para usar)</div><div class="td-ex" id="tdCombos"></div></div>' +
+        '<button class="td-avanc" id="tdCombos" type="button" aria-haspopup="dialog" hidden>' +
+          '<span><b>Combos</b><span class="td-sub" id="tdCombosSub"></span></span><span class="td-seta" aria-hidden="true">›</span></button>' +
         '<div id="tdGrupos">' +
           '<div id="tdLista"></div>' +
           '<button class="td-novo" id="tdNovo" type="button"></button>' +
@@ -47,6 +49,7 @@
           '<div class="td-card"><div class="td-tit">Gasto por mês de (expressão)</div>' +
             '<div class="td-expr" id="tdFichas" role="group" aria-label="Expressão"></div>' +
             '<div class="td-msg" id="tdMsg" role="status"></div><div class="td-lido" id="tdLido"></div>' +
+            '<button type="button" class="td-btn-tag" id="tdBtnTag" aria-haspopup="dialog">+ Tag</button>' +
             '<div class="td-teclas">' +
               '<button type="button" class="k-par" data-k="(" aria-label="Abre parêntese">(</button>' +
               '<button type="button" class="k-par" data-k=")" aria-label="Fecha parêntese">)</button>' +
@@ -57,9 +60,7 @@
               '<button type="button" class="k-x" data-k="dir" aria-label="Cursor para a direita">▶</button>' +
               '<button type="button" class="k-x" data-k="apagar" aria-label="Apagar a ficha antes do cursor">⌫ Apagar</button>' +
               '<button type="button" class="k-x" data-k="limpar">Limpar</button></div>' +
-            '<p class="td-pe" id="tdCont"></p>' +
-            '<input type="search" class="td-busca" id="tdBusca" placeholder="Buscar tag..." aria-label="Buscar tag">' +
-            '<div class="td-tgs" id="tdTgs"></div></div>' +
+            '<p class="td-pe" id="tdCont"></p></div>' +
         '</div>' +
       '</div></div>' +
       // ---- barra de baixo (celular, com a tela de escolhas aberta) ----
@@ -72,7 +73,6 @@
         '<p class="td-jcnt" id="tdJc"></p><p class="td-jdica" id="tdJd"></p>' +
         '<button class="td-jok" id="tdJok" type="button">Pronto</button></div></div>';
     $('tendRaiz').addEventListener('click', aoClicar);
-    $('tdBusca').addEventListener('input', renderTags);
     $('tdJb').addEventListener('input', () => { if (jan) renderJanela(); });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
@@ -137,22 +137,51 @@
     b.className = 'td-novo' + (cheio ? ' lim' : '');
     b.innerHTML = '<span>+ Outro grupo (OU)</span><span class="td-sub">' + (cheio ? 'Limite de ' + CT.MAX_GRUPOS + ' grupos. Remova um para adicionar outro.' : ten.grupos.length + ' de ' + CT.MAX_GRUPOS + ' grupos') + '</span>';
   }
+  // combo em uso: o único grupo, sem NÃO, com as mesmas tags do combo
+  const comboEmUso = () => (ten.modo === 'grupos' && ten.grupos.length === 1 && !ten.grupos[0].nao.length ? chaveTags(ten.grupos[0].tem) : null);
   function renderCombos() {
-    const cs = combosAtuaisLista();
-    $('tdCombosCard').hidden = !cs.length;
-    const unico = ten.modo === 'grupos' && ten.grupos.length === 1 && !ten.grupos[0].nao.length ? chaveTags(ten.grupos[0].tem) : null;
-    $('tdCombos').innerHTML = cs.map((c, i) => '<button type="button" class="' + (unico && chaveTags(c.tags) === unico ? 'on' : '') + '" data-combo="' + i + '" style="' + (c.salvo ? '' : 'border-style:dashed;') + '">' +
-      esc(c.tags.join(' · ')) + (c.n ? ' <span class="td-n">' + c.n + 'x</span>' : '') + '</button>').join('');
+    const cs = combosAtuaisLista(), b = $('tdCombos');
+    b.hidden = !cs.length;
+    const u = comboEmUso(), c = u ? cs.find((x) => chaveTags(x.tags) === u) : null;
+    $('tdCombosSub').textContent = c ? 'Em uso: ' + c.tags.join(' · ') : cs.length + (cs.length === 1 ? ' combo' : ' combos') + '. Toque para escolher.';
   }
 
   // janela de tags (grupos): as tags em botões que quebram em várias linhas, como no modo avançado
   function abrirJanela(g, campo) {
-    jan = { g, campo }; $('tdJb').value = '';
+    jan = { tipo: 'tags', g, campo }; $('tdJb').value = '';
     $('tdJt').textContent = campo === 'tem' ? 'Tags que o lançamento tem' : 'Tags que ele não pode ter';
     $('tdJs').textContent = 'Grupo ' + (g + 1) + '. ' + (campo === 'tem' ? 'Precisa ter todas as marcadas.' : 'Fica de fora se tiver qualquer uma das marcadas.');
     $('tdVeu').hidden = false; travar(); renderJanela(); $('tdJb').focus();
   }
+  function abrirCombos() {
+    jan = { tipo: 'combos' }; $('tdJb').value = '';
+    $('tdJt').textContent = 'Combos'; $('tdJs').textContent = 'Toque num combo para usá-lo. Tocar de novo no que está em uso desmarca.';
+    $('tdVeu').hidden = false; travar(); renderJanela();
+  }
+  function abrirInserir() {
+    jan = { tipo: 'inserir' }; $('tdJb').value = '';
+    $('tdJt').textContent = 'Inserir tag'; $('tdJs').textContent = 'A tag entra onde está o cursor da expressão.';
+    $('tdVeu').hidden = false; travar(); renderJanela(); $('tdJb').focus();
+  }
   function renderJanela() {
+    $('tdJb').style.display = jan.tipo === 'combos' ? 'none' : '';
+    $('tdJok').textContent = jan.tipo === 'tags' ? 'Pronto' : 'Fechar';
+    if (jan.tipo === 'combos') {
+      const u = comboEmUso();
+      $('tdJl').className = 'td-tgs';
+      $('tdJl').innerHTML = combosAtuaisLista().map((c, i) => '<button type="button" class="' + (u && chaveTags(c.tags) === u ? 'on' : '') + '" data-combo="' + i + '" style="' + (c.salvo ? '' : 'border-style:dashed;') + '">' +
+        esc(c.tags.join(' · ')) + (c.n ? ' <span class="td-n">' + c.n + 'x</span>' : '') + '</button>').join('');
+      $('tdJc').textContent = 'Tracejado = sugerido pelo histórico.'; $('tdJd').textContent = '';
+      return;
+    }
+    if (jan.tipo === 'inserir') {
+      const q = normTxt($('tdJb').value.trim());
+      $('tdJl').className = 'td-tgs';
+      $('tdJl').innerHTML = tagsUsadas.filter((t) => !q || normTxt(t).includes(q)).map((t) => '<button type="button" data-tag="' + esc(t) + '">' + esc(t) + '</button>').join('')
+        || '<p class="td-vazio-g">Nenhuma tag encontrada.</p>';
+      $('tdJc').textContent = ''; $('tdJd').textContent = '';
+      return;
+    }
     const g = ten.grupos[jan.g], arr = g[jan.campo], outro = g[jan.campo === 'tem' ? 'nao' : 'tem'];
     const q = normTxt($('tdJb').value.trim());
     $('tdJl').className = 'td-tgs' + (jan.campo === 'nao' ? ' nao' : '');
@@ -187,12 +216,6 @@
     $('tdLido').textContent = q.valida && q.no ? 'Lido como: ' + CT.texto(q.no) : '';
     $('tdCont').textContent = ten.fichas.length + ' de ' + CT.MAX_FICHAS + ' fichas' + (ten.fichas.length >= CT.MAX_FICHAS ? ' (limite atingido: apague uma para inserir outra)' : '');
   }
-  function renderTags() {
-    const q = normTxt($('tdBusca').value.trim());
-    $('tdTgs').innerHTML = tagsUsadas.filter((t) => !q || normTxt(t).includes(q)).map((t) => '<button type="button" data-tag="' + esc(t) + '">' + esc(t) + '</button>').join('')
-      || '<span class="td-vazio">Nenhuma tag encontrada.</span>';
-  }
-
   // ---------- resultado ----------
   function renderResultado(valida) {
     const a = ultimo;
@@ -226,7 +249,7 @@
     }
     // resumo ao vivo da barra de baixo (celular)
     $('tdRs').innerHTML = a.n + ' lançamento(s) · <b>' + (a.n ? '-' + esc(fmtMoeda(a.total)) : esc(fmtMoeda(0))) + '</b><br>' +
-      (a.vazia ? 'Sem filtro' : pct ? pct + '% com outras tags' : 'Total puro') + (valida ? '' : ' (último válido)');
+      (a.vazia ? 'Sem filtro' : !a.n ? 'Nenhum lançamento' : pct ? pct + '% com outras tags' : 'Total puro') + (valida ? '' : ' (último válido)');
   }
   function renderOutras() {
     const a = ultimo, el = $('tdOutras');
@@ -257,7 +280,7 @@
 
   function render() {
     if (!$('tendRaiz')) return;
-    if (!montado) { montar(); renderTags(); }
+    if (!montado) montar();
     limparTagsInexistentes();
     const q = CT.consulta(ten);
     if (q.valida) ultimo = CT.resumir(itens(), q);
@@ -265,7 +288,7 @@
     $('tdGrupos').hidden = ten.modo !== 'grupos';
     $('tdExpr').hidden = ten.modo !== 'avancado';
     renderCombos(); renderFrase(q);
-    if (ten.modo === 'grupos') renderGrupos(); else { renderFichas(); renderMsgExpr(q); renderTags(); }
+    if (ten.modo === 'grupos') renderGrupos(); else { renderFichas(); renderMsgExpr(q); }
     renderResultado(q.valida); renderOutras(); travar();
   }
 
@@ -283,8 +306,10 @@
     ten.fichas = r.fichas; ten.pos = r.pos; render();
   }
   function aoClicar(e) {
-    const t = e.target.closest('[data-combo],[data-add],[data-rm],[data-del],#tdNovo,[data-t],#tdJok,[data-i],[data-k],[data-tag],#tdAvanc,#tdVoltar,#tdVoltarCel,[data-cot],#tdDesf,#tdEditar,#tdFechar,#tdPronto');
+    const t = e.target.closest('[data-combo],#tdCombos,#tdBtnTag,[data-add],[data-rm],[data-del],#tdNovo,[data-t],#tdJok,[data-i],[data-k],[data-tag],#tdAvanc,#tdVoltar,#tdVoltarCel,[data-cot],#tdDesf,#tdEditar,#tdFechar,#tdPronto');
     if (!t) { if (e.target === $('tdVeu')) fecharJanela(); return; }
+    if (t.id === 'tdCombos') return abrirCombos();
+    if (t.id === 'tdBtnTag') return abrirInserir();
     if (t.id === 'tdEditar') { edAberto = true; render(); const f = $('tdFechar'); if (f) f.focus(); return; }
     if (t.id === 'tdFechar' || t.id === 'tdPronto') { edAberto = false; render(); const b = $('tdEditar'); if (b && !largo()) b.focus(); return; }
     if (t.id === 'tdAvanc') { limparAviso(); ten.fichas = CT.gruposParaFichas(ten.grupos); ten.pos = ten.fichas.length; ten.modo = 'avancado'; return render(); }
@@ -295,7 +320,8 @@
       const c = combosAtuaisLista()[+t.dataset.combo];
       if (!c) return;
       limparAviso();
-      const mesmo = ten.modo === 'grupos' && ten.grupos.length === 1 && !ten.grupos[0].nao.length && chaveTags(ten.grupos[0].tem) === chaveTags(c.tags);
+      $('tdVeu').hidden = true; jan = null; // escolher um combo fecha a janela
+      const mesmo = comboEmUso() === chaveTags(c.tags);
       const tags = mesmo ? [] : c.tags.slice(0, CT.MAX_TAGS); // tocar de novo no combo desmarca; o limite de 8 tags vale também para combo
       ten.grupos = [{ tem: tags, nao: [] }];
       ten.fichas = []; tags.forEach((tg, k) => { if (k) ten.fichas.push({ k: 'op', v: 'E' }); ten.fichas.push({ k: 'tag', v: tg }); });
@@ -314,7 +340,7 @@
       limparAviso(); renderJanela(); return render();
     }
     if (t.dataset.i !== undefined) { ten.pos = +t.dataset.i + 1; return render(); }
-    if (t.dataset.tag !== undefined) { limparAviso(); return inserir({ k: 'tag', v: t.dataset.tag }); }
+    if (t.dataset.tag !== undefined) { limparAviso(); $('tdVeu').hidden = true; jan = null; return inserir({ k: 'tag', v: t.dataset.tag }); } // a tag entra no cursor e a janela fecha
     const k = t.dataset.k;
     if (k) limparAviso();
     if (k === '(' || k === ')') return inserir({ k });
