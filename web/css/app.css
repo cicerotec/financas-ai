@@ -658,7 +658,9 @@ body[data-aba="historico"] main{max-width:1600px;}
 .hist-th{border:0;background:transparent;padding:0;font:inherit;color:inherit;cursor:pointer;}
 .hist-row .hist-sub{display:flex;align-items:center;gap:4px;min-width:0;margin-top:2px;color:var(--muted);font-size:12.5px;}
 .hist-tags-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.hist-nota-txt{margin:0 8px 8px;line-height:1.5;overflow-wrap:anywhere;white-space:pre-wrap;}
+.hist-nota-sheet{display:flex;flex-direction:column;max-height:88vh;}
+.hist-nota-sheet h3,.hist-nota-sheet .mm,.hist-nota-sheet .hf-ok{flex:none;}
+.hist-nota-txt{flex:1 1 auto;min-height:0;overflow-y:auto;margin:0 8px 8px;line-height:1.5;overflow-wrap:anywhere;white-space:pre-wrap;}
 .hist-fim{display:flex;align-items:center;gap:6px;margin:12px 0 0;}
 .hm-fimbar{flex:1;min-width:0;display:flex;align-items:center;gap:6px;}
 .hm-topo{flex:none;height:48px;border:0;border-radius:12px;background:var(--card);color:var(--muted);padding:0 14px;font-size:13px;cursor:pointer;}
