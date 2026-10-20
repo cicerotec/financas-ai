@@ -14,6 +14,7 @@ feito e ideias).
 | [`eventos-futuros.md`](eventos-futuros.md) | Conceito e regras de Prever, Repetir e Estender |
 | [`avisos.md`](avisos.md) | Avisos de lançamentos futuros (Telegram) |
 | [`colaboracao-tempo-real.md`](colaboracao-tempo-real.md) | Proposta de colaboração em tempo real e o plano por fases |
+| [`offline-e-sincronizacao.md`](offline-e-sincronizacao.md) | Ideia para o futuro: uso sem internet, níveis, erros da escrita offline e proposta de orquestrador local com fila de eventos (nada decidido) |
 | [`hospedagem.md`](hospedagem.md) | S3 + CloudFront e a decisão sobre o `/api/*` |
 | [`ambiente-de-teste.md`](ambiente-de-teste.md) | A stack `financas-dev` |
 | [`deploy-github-actions.md`](deploy-github-actions.md) | Deploy, release e as roles OIDC |
