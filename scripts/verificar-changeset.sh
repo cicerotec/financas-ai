@@ -5,8 +5,9 @@
 set -euo pipefail
 stack="${1:?informe a stack}"
 
+# Sem `|| true` nem 2>/dev/null: um erro (permissao, stack inexistente) derruba o passo em vez de virar "sem mudancas".
 nome=$(aws cloudformation list-change-sets --stack-name "$stack" \
-  --query "Summaries[?ExecutionStatus=='AVAILABLE'] | [0].ChangeSetName" --output text 2>/dev/null || true)
+  --query "Summaries[?ExecutionStatus=='AVAILABLE'] | [0].ChangeSetName" --output text)
 if [ -z "$nome" ] || [ "$nome" = "None" ]; then
   echo "Sem mudancas para publicar."
   [ -n "${GITHUB_OUTPUT:-}" ] && echo "changeset=" >> "$GITHUB_OUTPUT"

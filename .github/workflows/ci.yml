@@ -18,31 +18,12 @@ concurrency:
 jobs:
   validar:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: backend/go.mod
-          cache-dependency-path: backend/go.sum
-      - uses: aws-actions/setup-sam@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: aws-actions/setup-sam@f84ec7d548307efafe33230528756de3c5841a17 # v2
         with:
           use-installer: true
-      - name: Testes do Go
-        working-directory: backend
-        run: |
-          go vet ./...
-          go test ./...
-      - name: Testes do front (logica de repeticao dos eventos futuros)
-        run: node web/recorrencia.test.js
-      - name: Testes do front (tela Historico de versoes)
-        run: node web/versoes.test.js
-      - name: Testes do front (confirmacao de mes fechado)
-        run: node web/confirmacao.test.js
-      - name: Testes do front (conta no menu)
-        run: node web/usuario.test.js
-      - name: Testes do front (consulta por tags de Tendencias)
-        run: node web/consulta-tags.test.js
-      - name: Testes do front (botao voltar do navegador)
-        run: node web/voltar.test.js
+      - uses: ./.github/actions/testes
       - name: sam validate --lint
         run: sam validate --lint --region sa-east-1

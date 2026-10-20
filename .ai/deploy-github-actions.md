@@ -10,6 +10,12 @@ Os dois deploys usam `_deploy.yml`: testes, `sam build`, `sam deploy --no-execut
 (`scripts/verificar-changeset.sh`, falha se a tabela do DynamoDB ou o pool do Cognito forem removidos/substituídos),
 execução do changeset e publicação do front. O `config.js` do front é gerado dos Outputs da stack.
 
+**Testes num lugar só:** a action `.github/actions/testes` roda `go vet`, `go test` e **todo `web/*.test.js`** (arquivo
+novo entra sozinho). O `ci.yml` e o `_deploy.yml` a usam, então o deploy nunca roda menos que o CI. Ela roda os testes
+sem `AMBIENTE`, mesmo no deploy que o define. Erro de AWS no `verificar-changeset.sh` e na limpeza de changesets derruba o
+passo (só "stack ainda não existe" é tolerado na limpeza). As ações de terceiros estão **pinadas por SHA** (o comentário
+`# vN` diz a versão; para atualizar, troque o SHA) e todo job tem `timeout-minutes`.
+
 ## Segurança
 - Sem chave de acesso: o Action troca o token OIDC do GitHub por credenciais temporárias.
 - Cada role só aceita `repo:cicerotec@24279229/financas-ai@1394222228:environment:<ambiente>` (outro repositório ou outro
