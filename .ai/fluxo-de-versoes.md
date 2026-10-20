@@ -23,5 +23,7 @@ e para emergência. As regras de branch para a IA (mantra, prefixos, não reapro
   preciso reproduzir o bug (`git checkout v0.1.0`).
 - **Sem branches `release/x.y`** por enquanto; só se for preciso congelar uma leva grande para testar enquanto a
   `develop` segue em frente.
-- **Publicar na AWS é separado** da release: backend com `deploy.ps1`, front com `publicar-front.ps1`. Para a versão
-  no ar bater com a tag, publicar a partir da `main` depois de lançar.
+- **Publicar na AWS é feito pelo GitHub Actions**, não pela release: o push na `develop` publica o dev e o push na
+  `main` publica a produção (depois da aprovação do environment `prod`); a tag e a release saem depois desse deploy
+  (veja [`deploy-github-actions.md`](deploy-github-actions.md)). Os scripts `deploy.ps1` e `publicar-front.ps1` ficam
+  como alternativa manual, para emergência, e só publicam a partir da branch do ambiente (`main` ou `develop`).

@@ -30,6 +30,16 @@ feito e ideias).
 | [`demos/demo-lancar-layout.html`](demos/demo-lancar-layout.html) | Demo do layout da aba Lançar: valor em destaque, seletores nativos, Tags em janela no celular e na coluna da direita no computador, Transferência como modo (implementada em 2026-10-19) |
 | [`demos/demo-historico-layout.html`](demos/demo-historico-layout.html) | Demo do layout da aba Histórico (lista de lançamentos): filtros numa janela, lançamentos por dia, nota em ícone, ações numa janela de baixo, tabela por mês no computador (aprovada e implementada em 2026-10-19) |
 | [`demos/demo-voltar-navegador.html`](demos/demo-voltar-navegador.html) | Demo do botão voltar do navegador, do Android e do app instalado: pilha do histórico ao vivo, Desfazer fora da pilha e pergunta ao descartar texto digitado (aprovada e implementada em 2026-10-19; seção "Botão voltar" de `padrao-de-telas.md`) |
+| [`specs/arquitetura-camadas/`](specs/arquitetura-camadas/intent.md) | Intent, plan e as quatro specs de fatia do item 32: o que falta migrar da raiz do backend para as camadas (as quatro fatias estão implementadas; a 4 aguarda a conferência em dev) |
+| [`demos/demo-repeticao-e-aviso.html`](demos/demo-repeticao-e-aviso.html) | Demo de Repetir e avisar no celular: linha-resumo que abre tela cheia, lista que acumula, janela com rodas; base do Prever e do Estender |
+| [`demos/demo-futuros.html`](demos/demo-futuros.html) | Demo da tela Futuros: uma linha por evento, ações numa janela de baixo, resumo com faixa de atraso e a versão para computador |
+| [`demos/demo-futuros-largura.html`](demos/demo-futuros-largura.html) | Demo de Futuros por largura da janela (vale sobre a demo acima onde diferirem): prazo embaixo do valor, "⋯" no celular, botões no computador |
+| [`demos/demo-resumo-futuros.html`](demos/demo-resumo-futuros.html) | Demo da comparação que decidiu o resumo de Futuros, com valores extremos e larguras de 320 a 390 px |
+| [`demos/demo-historico-total.html`](demos/demo-historico-total.html) | Demo do total no Histórico: soma da lista (renda menos gasto) à direita do contador (aprovada em 2026-10-11) |
+| [`demos/demo-atalho-saldos.html`](demos/demo-atalho-saldos.html) | Demo dos atalhos Histórico e Saldos no cabeçalho, entre o nome da tela e o ⋮ (aprovada em 2026-10-15) |
+| [`demos/demo-confirmacao-mes-fechado.html`](demos/demo-confirmacao-mes-fechado.html) | Demo da confirmação ao mexer em mês fechado: segunda janela, restaurar, importar e mês conferido (aprovada em 2026-10-17) |
+| [`demos/demo-exclusao-imediata.html`](demos/demo-exclusao-imediata.html) | Demo de excluir na hora, com Desfazer por restauração e as recusas antes de sumir (aprovada em 2026-10-17) |
+| [`demos/demo-menu-usuario.html`](demos/demo-menu-usuario.html) | Demo do menu do usuário: nome e Sair saem da linha de cima e vão para o menu (aprovada em 2026-10-17) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
