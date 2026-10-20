@@ -3,6 +3,10 @@
 Registro de uma conversa de 2026-10-20. **Nada aqui foi decidido ou implementado.** É memória do que foi discutido, para
 retomar depois. O documento continua aberto: novas perguntas e conclusões entram aqui.
 
+**Quando isto entra em jogo (decisão do dono, 2026-10-20):** é trabalho **de futuro**, para o dia em que houver muitos
+usuários querendo usar o app sem internet. Nada daqui é para fazer agora. O objetivo do documento é não ser pego de
+calças curtas: ter o desenho pensado e saber quais passos são baratos e quais só valem a pena se o uso justificar.
+
 Relacionados: [`arquitetura.md`](arquitetura.md) (front não decide, "Saldo e totais calculados no servidor"),
 [`colaboracao-tempo-real.md`](colaboracao-tempo-real.md), [`hospedagem.md`](hospedagem.md).
 
@@ -130,9 +134,88 @@ Efeito no projeto: é uma mudança de contrato da API (comandos com ID de evento
 não um acréscimo. Faz mais sentido junto da migração "Saldo e totais calculados no servidor", para não refazer o front
 duas vezes.
 
+## 8. Comunicação: status do comando e canal de mensagens (em discussão)
+
+Conflito no mesmo registro já acontece online e a defesa é a versão esperada (o backend recusa a versão antiga); a fila
+não cria o problema nem o piora. O que ela dá é **visibilidade**: o conflito vira um estado do comando na tela.
+
+Ciclo de vida de cada comando, com o ID de correlação em todas as transições:
+
+```
+na fila (local) → enviado → recebido pelo servidor → processando
+                                      ↓
+              aceito | rejeitado (motivo) | precisa de decisão
+```
+
+**Sem loop de requisições.** O padrão é publish/subscribe com request-reply assíncrono:
+1. O worker envia o comando por HTTP e recebe só `202 Accepted` com o ID.
+2. O servidor **publica o resultado** num tópico do espaço (ou da pessoa).
+3. O worker está inscrito por uma conexão persistente e recebe o resultado quando ele existe; ninguém fica perguntando.
+
+**Obstáculo na infra atual.** A Lambda não mantém conexão: `colaboracao-tempo-real.md` fixa "sem API Gateway" e
+`hospedagem.md` registra o limite de 10 execuções simultâneas na conta (uma conexão SSE na Lambda ocuparia uma execução
+durante toda a sessão). A conexão persistente teria de viver fora da Lambda.
+
+| Opção | Observação |
+|---|---|
+| AWS IoT Core (MQTT sobre WebSocket) | Pub/sub gerenciado, cobrança por mensagem, autenticação via Cognito (Identity Pool), sem API Gateway. Inclinação inicial |
+| AppSync Events | Parecido; mais um serviço para aprender |
+| Servidor próprio de WebSocket (container) | Custo fixo e mais operação |
+| Web Push | Não é sessão aberta; só complemento ("1 lançamento precisa da sua atenção") |
+
+Exigências do padrão:
+- **Mensagem perdida:** ao reconectar, o worker faz **uma** consulta pontual "o que mudou desde o cursor X?". O contador
+  `_seq` do backend serve de cursor. Não é loop.
+- **Idempotência no recebimento:** o resultado pode chegar duas vezes (canal e reconciliação); o worker ignora pelo ID.
+- **App fechado:** navegadores matam a conexão e até o service worker. Sem app aberto não há sessão; os resultados ficam
+  no servidor e são recuperados pela reconciliação ao abrir.
+- **Autorização do tópico:** por espaço; só dono e membro assinam, e o servidor confere o papel antes de emitir a credencial.
+- O mesmo canal pode servir à **presença e atualizações ao vivo** de `colaboracao-tempo-real.md`: decidir as duas juntas.
+
+## 9. Core independente da Lambda (em discussão; só se houver demanda)
+
+Princípio do dono: **não ficar refém da Lambda.** O core (`domain` + `service`) deve poder receber comandos de várias
+entradas: a Lambda HTTP (online) e consumidores de fila (online e offline).
+
+**O que já existe.** É uma arquitetura hexagonal: o `service` declara as interfaces e não importa AWS, HTTP nem Telegram
+(o `arquitetura_test.go` garante); relógio e repositório entram por construtor; o `local.go` já é uma segunda entrada.
+O que prende à Lambda é só a borda: o `roteador.go` recebe o evento da Lambda e o `controller` pensa em rota, token e JSON.
+
+**O que faltaria.**
+1. **Porta de comandos independente de HTTP:** `Comando{id, tipo, autor, espaço, dados}` que devolve
+   `Resultado{status, motivo}`.
+2. **Entradas como adaptadores finos** que só traduzem e chamam o core: Lambda HTTP (a atual), consumidor de fila, modo local.
+3. **Porta de saída para resultados:** interface `Publicador` declarada no core e implementada por um adaptador (IoT,
+   WebSocket...), no mesmo molde do `Avisador`. O core não sabe que canal existe.
+4. **Empacotamento:** vários executáveis no mesmo módulo Go (`cmd/lambda`, `cmd/worker`, `cmd/local`) ligando o mesmo
+   core. Separar em módulos distintos só mais tarde, se compensar.
+
+**Pontos de atenção.**
+- **Duas filas diferentes:** a fila **local** no aparelho (outbox, para o offline) e a fila de **ingestão no servidor**.
+  Têm papéis e falhas distintos.
+- **Várias entradas ao mesmo tempo:** a proteção continua sendo a transação atômica + a checagem de versão esperada.
+- **Ordem por espaço:** uma fila FIFO particionada por espaço (SQS FIFO com grupo por espaço, por exemplo) dá ordem e
+  deduplicação por ID. É escolha de infraestrutura que o core não deve conhecer.
+- **Idempotência no core:** o ID do comando precisa ser lembrado em algum lugar. É um **dado novo no banco**, então cai
+  no princípio 3 de `arquitetura.md` (nenhuma chave ou campo novo no DynamoDB sem discutir antes).
+- **Processo de longa duração:** se o core puder rodar como container, ele mesmo pode manter o canal aberto, sem IoT
+  Core. A troca é custo fixo de servidor ligado contra serviço gerenciado por mensagem.
+
+**Ressalva honesta.** Para duas pessoas, vários executáveis e fila de ingestão não se justificam. A separação em camadas
+já existe, então o custo real está só nas portas de comando e de saída. **Não começar** extraindo o core em módulo nem
+trocando a infra: começar definindo o contrato `Comando`/`Resultado`, com a Lambda como primeiro adaptador a usá-lo.
+
+**Gatilho sugerido para retomar:** quando houver demanda real de uso offline por muitos usuários. Até lá, o que é barato
+e não compromete nada: manter o `service` livre de AWS/HTTP (já garantido por teste), não colocar regra no front e
+fazer a migração "Saldo e totais calculados no servidor", que é pré-requisito do nível 2 e do modelo de comandos.
+
 ## Em aberto
 - Forma do orquestrador local (item 7.2).
 - Critério de "possível duplicado" (campos e tolerância).
 - Se um item rejeitado para a fila ou ela segue.
 - O que a pessoa vê quando um evento precisa de decisão e ela já saiu do app.
 - Prazo/ordem em relação à migração de saldo e totais para o servidor.
+- Serviço de pub/sub (inclinação: IoT Core) ou core de longa duração com o canal próprio.
+- Se o Web Push entra ou basta o aviso ao abrir o app.
+- Formato exato de `Comando`/`Resultado` e onde guardar o ID para idempotência (campo novo: discutir antes).
+- O que medir para decidir que "há muitos usuários querendo offline" (o gatilho de retomada).
