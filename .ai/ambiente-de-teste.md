@@ -2,7 +2,9 @@
 
 Decidido: **opção A**, uma segunda stack inteira (`financas-dev`) com o mesmo template, em vez de só outra tabela ou de
 prefixo na tabela real (isolamento fraco, risco de misturar com dados reais). **Dados fictícios**, ambiente **sempre
-ligado**, **publicação manual** (automatizar a partir da `develop` fica para depois).
+ligado**, **publicação automática** a cada push na `develop` pelo GitHub Actions (`deploy-dev.yml`, veja
+[`deploy-github-actions.md`](deploy-github-actions.md)); os scripts `deploy.ps1` e `publicar-front.ps1` seguem como
+alternativa manual.
 - Hoje há nomes fixos no `template.yaml`: tabela `FinancasApp`, função `financas-api`, pool `financas`; os scripts
   `seed.sh`, `definir-nome.sh` e `limpar-espaco.py` também fixam `FinancasApp`. Uma segunda stack colidiria.
 - Parâmetro `Ambiente` (`prod` por padrão, `dev`). O padrão tem que gerar **exatamente os nomes atuais**, senão o
