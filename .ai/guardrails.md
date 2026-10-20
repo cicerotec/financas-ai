@@ -63,7 +63,7 @@ e para ajustes em telas que já existem.
 
 ## Git
 - Rode `git branch --show-current` antes de commitar e use `git push origin <branch>` com o nome da branch. Não commite
-  direto em `develop` ou `main`: o push numa branch de trabalho abre o PR rascunho sozinho.
+  direto em `develop` ou `main`: o push numa branch de trabalho abre o PR sozinho, já pronto para mergear.
 - Depois que o PR de uma branch for mergeado, **não envie mais nada para ela**: o robô abre um PR novo só com esse
   commit (foi o #63, que colidiu com o #64) e o commit pode ficar de fora do merge que você esperava. Abra uma branch
   nova a partir da `develop`.
@@ -75,7 +75,7 @@ e para ajustes em telas que já existem.
   git checkout -b feature/xxxx
   ```
 - Use o prefixo da branch que combina com o assunto (`feature/`, `fix/`, `bug/`, `docs/` ou `chore/`), que é o que faz
-  o robô abrir o PR rascunho no primeiro push. Antes do mantra, confira o `git status`: se houver alterações não
+  o robô abrir o PR no primeiro push. Antes do mantra, confira o `git status`: se houver alterações não
   commitadas, guarde-as ou commite-as, em vez de arrastá-las para a branch nova. Pelo mesmo motivo, veja o
   `git status` antes de `git add -A` (um `.exe` de build já foi parar num commit).
 
