@@ -15,14 +15,10 @@ Relacionados: [`arquitetura.md`](arquitetura.md) (front não decide, "Saldo e to
 - Hoje o **navegador calcula** o saldo por banco (`calcularSaldoBanco`), o total, as faturas do cartão e os totais de
   Futuros e Histórico. A decisão de mover isso ao servidor está em `arquitetura.md`, ainda não implementada.
 
-## 2. SQLite e a web (conversa anterior)
+## 2. Armazenamento local (decidido em 2026-10-20)
 
-- Trocar o banco é barato pelas camadas: um segundo adaptador em `backend/repository/` implementa as mesmas interfaces do
-  `service`. Front, `service`, `controller` e `domain` não mudam.
-- **SQLite não combina com Lambda** (disco efêmero por instância, um escritor por vez). Opções: (A) servidor único com
-  Litestream para S3; (B) Turso/libSQL; (C) SQLite só em dev/teste, mantendo o DynamoDB em produção.
-- SQLite no servidor **não resolve** o uso offline; é o mesmo problema com outro banco. SQLite no navegador (sqlite-wasm)
-  seria só um cache local e não resolve sincronização nem conflito.
+O dado local fica no **IndexedDB** do navegador. SQLite local foi descartado por custo; o banco do servidor continua o
+DynamoDB, sem novo adaptador.
 
 ## 3. Níveis de uso offline
 
@@ -118,7 +114,7 @@ Pontos levantados, ainda sem decisão:
    Chave derivada do conteúdo bloquearia gastos legítimos iguais no mesmo dia.
 2. **Forma do orquestrador local** (decisão que destrava as demais):
    - service worker + IndexedDB no próprio navegador (mais barato, mesmo código e instalação);
-   - app separado (Tauri, Capacitor, nativo): isolamento e SQLite local, mas dois produtos para manter;
+   - app separado (Tauri, Capacitor, nativo): isolamento, mas dois produtos para manter;
    - processo local no computador: não serve ao celular.
    O isolamento é de **responsabilidade**, não de segurança: quem garante a regra é o servidor.
 3. **O front manda comandos, não estados.** Hoje monta o lançamento inteiro (com `status` e `faturaAjuste`). No novo
