@@ -1,0 +1,28 @@
+# Testes do projeto, num lugar so: usado pelo ci.yml e pelo _deploy.yml, para o deploy nunca rodar menos que o CI.
+# Precisa do checkout feito antes. Os testes rodam sem AMBIENTE (como no CI), mesmo dentro do deploy, que o define.
+name: Testes do projeto
+description: go vet, go test e os testes de node do front (todo web/*.test.js)
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      with:
+        go-version-file: backend/go.mod
+        cache-dependency-path: backend/go.sum
+    - name: Testes do Go
+      shell: bash
+      working-directory: backend
+      run: |
+        env -u AMBIENTE go vet ./...
+        env -u AMBIENTE go test ./...
+    - name: Testes do front (todo web/*.test.js)
+      shell: bash
+      run: |
+        set -e
+        arquivos=(web/*.test.js)
+        [ -e "${arquivos[0]}" ] || { echo "nenhum web/*.test.js encontrado" >&2; exit 1; }
+        for t in "${arquivos[@]}"; do
+          echo "== node $t"
+          node "$t"
+        done

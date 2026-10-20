@@ -87,7 +87,7 @@ e para ajustes em telas que já existem.
 - **Dado real nunca no git** (o repositório é público): exemplos e fixtures só com dados fictícios.
 
 ## Testes e deploy
-- **Testes:** rode `go test ./...` em `backend/` e os `node web/*.test.js` (`recorrencia`, `versoes`, `confirmacao`, `usuario`, `consulta-tags`, `voltar`) antes de commitar. Quebre o código de
+- **Testes:** rode `go test ./...` em `backend/` e cada `node web/*.test.js` (o CI e o deploy rodam todos os que existirem, sem lista) antes de commitar. Quebre o código de
   propósito uma vez para ver o teste falhar. Teste não pode depender de variável de ambiente do CI (o deploy roda com
   `AMBIENTE=dev`).
 - **Deploy:** o job verde não basta: confira o changeset e o status final da stack. Permissão nova na infra exige
