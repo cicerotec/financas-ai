@@ -1,19 +1,18 @@
-# Validacao de PR (develop e main) e de push nas branches de trabalho: testes do Go e `sam validate --lint`. Nao usa credenciais da AWS nem publica nada.
+# Validacao do push nas branches de trabalho e na develop: testes do Go, do front e `sam validate --lint`. Nao usa credenciais da AWS nem publica nada.
 name: CI
 
+# So `push`, de proposito: os PRs sao criados pelo robo (GITHUB_TOKEN), e o run de `pull_request` de um PR de robo fica
+# parado em "Approve and run" (vermelho, sem nada a aprovar). O check do push ja aparece no PR, ligado ao mesmo commit:
+# o PR da branch mostra o CI da branch e o PR de release (develop -> main) mostra o CI da develop.
 on:
-  pull_request:
-    branches: [develop, main]
-  # PR criado pelo Actions (GITHUB_TOKEN) nao dispara o evento de PR; o push garante o CI nas branches de trabalho e,
-  # na develop, o resultado aparece no PR de release.
   push:
-    branches: ['feature/**', 'fix/**', 'bug/**', 'docs/**', 'chore/**', develop]
+    branches: ['feature/**', 'fix/**', 'bug/**', 'docs/**', 'chore/**', 'hotfix/**', develop]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.head_ref || github.ref_name }}
+  group: ci-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:

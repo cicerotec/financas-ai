@@ -1,5 +1,5 @@
-# Push numa branch de trabalho (feature/, fix/, bug/, docs/ ou chore/) abre o PR para a develop como RASCUNHO, se ainda
-# nao houver um. Quando terminar, clique em "Ready for review". Exige ligar, em Settings > Actions > General:
+# Push numa branch de trabalho (feature/, fix/, bug/, docs/ ou chore/) abre o PR para a develop, ja pronto para mergear,
+# se ainda nao houver um. Exige ligar, em Settings > Actions > General:
 # "Allow GitHub Actions to create and approve pull requests".
 name: PR da branch
 

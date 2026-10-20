@@ -2,7 +2,7 @@
 
 | Quando | Workflow | O que faz |
 |---|---|---|
-| PR para `develop` ou `main`, ou push em branch de trabalho / `develop` | `ci.yml` | `go vet`, `go test`, `sam validate --lint`. Sem credenciais da AWS. |
+| push em branch de trabalho (`feature/`, `fix/`, `bug/`, `docs/`, `chore/`, `hotfix/`) ou na `develop` | `ci.yml` | `go vet`, `go test`, os testes do front e `sam validate --lint`. Sem credenciais da AWS. Só `push`, sem `pull_request` (veja o fim deste documento): o check aparece no PR. |
 | push na `develop` | `deploy-dev.yml` | publica a stack `financas-dev` (back e front). Sem aprovação. |
 | push na `main` | `deploy-prod.yml` | publica a stack `financas`. **Espera a aprovação** do environment `prod`. |
 
@@ -45,7 +45,7 @@ CloudFormation recusa o segundo (a stack fica em atualização).
 
 | Quando | Workflow | O que faz |
 |---|---|---|
-| push em `feature/**`, `fix/**`, `bug/**`, `docs/**` ou `chore/**` | `pr-feature.yml` | abre o PR **rascunho** para a `develop`, se não houver um (PR fechado sem merge não é reaberto). Clique em *Ready for review* quando terminar. |
+| push em `feature/**`, `fix/**`, `bug/**`, `docs/**` ou `chore/**` | `pr-feature.yml` | abre o PR para a `develop`, **já pronto para mergear** (sem rascunho), se não houver um (PR fechado sem merge não é reaberto). O CI do push já aparece nos checks do PR. |
 | `Deploy dev` bem-sucedido | job `pr-release` em `deploy-dev.yml` | abre o PR `develop → main` (se não houver) e comenta a **próxima versão** e a lista do que entra. |
 | rótulo ou commits mudam no PR de release | `pr-release-versao.yml` | atualiza esse comentário. |
 | `Deploy prod` bem-sucedido | job `lancar-versao` em `deploy-prod.yml` | cria a tag anotada `vX.Y.Z` no commit publicado e a release (`--generate-notes`). |
@@ -64,5 +64,16 @@ Configuração única (sua):
    ```
 3. Antes do primeiro release automático, a última versão lançada precisa ter tag (o cálculo parte dela).
 
-PR criado com o `GITHUB_TOKEN` não dispara outros workflows; por isso o CI roda também em `push` e o primeiro comentário
-do PR de release é feito pelo próprio job que o cria.
+PR criado com o `GITHUB_TOKEN` não dispara outros workflows de forma normal: o run de `pull_request` de um PR de robô
+fica parado em *Approve and run* (aparece vermelho, mas não há nada a aprovar e não bloqueia o merge). Por isso o
+`ci.yml` **não** usa `pull_request`: o CI roda só no `push`, que é seu, e o check dele aparece no PR (o da branch no PR
+da branch; o da `develop` no PR de release). O primeiro comentário do PR de release é feito pelo próprio job que o cria.
+
+**Antes de aprovar a produção:** o environment `prod` pede a aprovação antes de o job começar, então o changeset ainda
+não existe nessa hora. A conferência vem depois do aval: `verificar-changeset.sh` bloqueia sozinho se a tabela do
+DynamoDB ou o pool do Cognito forem removidos ou substituídos (os outros recursos não são bloqueados), e a lista de
+mudanças fica no log do passo "Conferir o changeset". Para um deploy de mais risco, confira o que mudou em
+`template.yaml` no PR de release antes de aprovar.
+
+**Proteção de branch:** hoje não há. A única trava antes da produção é a aprovação do `prod`; o merge na `main` com o CI
+vermelho ou um push direto não são impedidos. Se for ligar um ruleset na `main`, exija o check `validar`.
