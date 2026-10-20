@@ -81,5 +81,25 @@ DynamoDB ou o pool do Cognito forem removidos ou substituídos (os outros recurs
 mudanças fica no log do passo "Conferir o changeset". Para um deploy de mais risco, confira o que mudou em
 `template.yaml` no PR de release antes de aprovar.
 
-**Proteção de branch:** hoje não há. A única trava antes da produção é a aprovação do `prod`; o merge na `main` com o CI
-vermelho ou um push direto não são impedidos. Se for ligar um ruleset na `main`, exija o check `validar`.
+## Proteção de branch (rulesets do repositório)
+
+Settings > Rules > Rulesets. Configurado e conferido com `gh api repos/cicerotec/financas-ai/rules/branches/main` em 2026-10-19:
+
+| Ruleset | Alvo | Regras |
+|---|---|---|
+| `bloqueia_main` | `refs/heads/main` | não apagar a branch; sem force-push; **PR obrigatório** (0 aprovações, você trabalha sozinho); check **`validar`** precisa passar; só o método **merge** (sem squash nem rebase) |
+| `protege_develop` | `refs/heads/develop` | não apagar a branch (o resto fica livre de propósito: a `develop` publica só o ambiente de dev) |
+
+Nenhum dos dois tem bypass. Se um dia for preciso entrar na `main` fora do PR, desative o ruleset por alguns minutos e
+reative.
+
+- **Por que só `merge`:** o `scripts/pr-release.sh` monta "O que entra" lendo os commits `Merge pull request #N`. Squash ou
+  rebase faria os itens sumirem da lista da release. Na `develop` o botão ainda aceita os três métodos; use **merge**
+  também lá.
+- **Por que `validar` e não "approve":** o check vem do CI do `push` (o `ci.yml` não tem `pull_request`), ligado ao commit.
+  No PR de release ele é o da `develop`. Se um push novo cancelar o run anterior, o PR pode ficar em "Expected" até o
+  do commit novo terminar; é só esperar.
+- **Armadilha (2026-10-19):** o `bloqueia_main` foi criado com `conditions.ref_name.include` **vazio**, o que não protege
+  branch nenhuma. Depois de mexer em ruleset, confira se a regra vale de fato: `gh api repos/cicerotec/financas-ai/rules/branches/main`
+  deve listar `deletion`, `non_fast_forward`, `pull_request` e `required_status_checks`.
+- A aprovação do environment `prod` continua sendo a última trava, depois do merge.
