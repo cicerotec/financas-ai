@@ -1121,7 +1121,7 @@ function criarSeletorFiltroTags(raiz, aoMudar){
   const S = {sel:new Set(), busca:'', abertas:false, modo:'todas', combos:[]};
   raiz.innerHTML = '<div data-p="combos"></div><div class="tags" data-p="marcadas"></div>' +
     '<input type="text" data-p="busca" placeholder="Buscar tag..." style="margin-top:8px;">' +
-    '<div class="tags" data-p="lista"></div><div class="tags" data-p="modo"></div>';
+    '<div class="muted tags-rot" style="margin-top:8px;">Tags</div><div class="tags" data-p="lista"></div><div class="tags" data-p="modo"></div>';
   const q = k=>raiz.querySelector('[data-p="'+k+'"]');
   const chip = t=>`<span class="tag ${S.sel.has(t)?'on':''}" data-tag="${esc(t)}">${esc(t)}</span>`;
   function render(){
