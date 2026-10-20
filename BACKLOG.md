@@ -257,9 +257,10 @@ DynamoDB sem discutir com o dono.**
   tag anotada e a release depois do deploy da `main`. Versão pelos commits (`feat:` sobe o número do meio, o resto
   sobe o último) com os rótulos `release:minor|patch` no PR de release por cima; o PR de release recebe um comentário
   com a versão calculada. No ar (PRs #44 e #45, release v0.7.0). Detalhes em `.ai/deploy-github-actions.md`.
-- 25. [x] **PRs automáticos**: push em `feature/**` (e `fix/`, `bug/`, `docs/`, `chore/`) abre o PR rascunho para a
-  `develop`; depois do deploy do dev, abre o PR `develop → main`. O CI roda também em `push`. No ar (PR #44). O
-  `CI` por `pull_request` do PR criado pelo robô espera "Approve and run" (limite do `GITHUB_TOKEN`); não bloqueia.
+- 25. [x] **PRs automáticos**: push em `feature/**` (e `fix/`, `bug/`, `docs/`, `chore/`) abre o PR para a
+  `develop` (inicialmente em rascunho; desde 2026-10-20, já pronto para mergear); depois do deploy do dev, abre o PR
+  `develop → main`. No ar (PR #44). O `CI` por `pull_request` do PR criado pelo robô esperava "Approve and run" (limite
+  do `GITHUB_TOKEN`; vermelho sem efeito); por isso o CI passou a rodar só em `push`, e o check dele aparece no PR.
 - 19. [x] **Script de release**: dispensado e substituído pela automação dos itens 25 e 26 (PR de release aberto pelo
   robô, tag e release criadas depois do deploy da produção). Funcionou na v0.7.0.
 - 36. [ ] <a id="item-36"></a>**[Próximo] Remover `financas-app.html`** (versão original em arquivo único, de quando o app rodava no ambiente

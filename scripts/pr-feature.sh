@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Abre o PR (rascunho) da branch atual para a develop, se ainda nao houver. Roda no GitHub Actions a cada push em
+# Abre o PR da branch atual para a develop, ja pronto para mergear (sem rascunho), se ainda nao houver. Roda no GitHub Actions a cada push em
 # feature/**, fix/**, bug/**, docs/** e chore/**. Precisa de GH_TOKEN e BRANCH, e do historico completo.
 set -euo pipefail
 branch="${BRANCH:?informe BRANCH}"
@@ -15,7 +15,7 @@ if [ "$existe" -gt 0 ]; then echo "Ja existe PR aberto ou fechado para $branch."
 titulo=$(git log --reverse --format=%s origin/develop..HEAD | head -1)
 commits=$(git log --reverse --format='- %s' origin/develop..HEAD | head -30)
 corpo=$(cat <<EOF
-PR aberto automaticamente em rascunho (draft) no push da branch. Clique em **Ready for review** quando terminar.
+PR aberto automaticamente no push da branch, pronto para mergear. O CI do push aparece nos checks abaixo.
 
 ## Commits
 $commits
@@ -23,4 +23,4 @@ $commits
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )
-gh pr create --draft --base develop --head "$branch" --title "$titulo" --body "$corpo"
+gh pr create --base develop --head "$branch" --title "$titulo" --body "$corpo"

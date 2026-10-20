@@ -57,7 +57,7 @@ case "$acao" in
 PR de release aberto automaticamente depois de um deploy do dev bem-sucedido. A lista do que entra e a versão calculada estão no comentário abaixo.
 
 ## Produção
-**O merge dispara o deploy de produção pelo Actions**, que espera a aprovação no environment `prod`. Antes de aprovar, abra o log do passo "Conferir o changeset": só mudanças esperadas.
+**O merge dispara o deploy de produção pelo Actions**, que espera a aprovação no environment `prod`. O changeset só é criado depois da aprovação: o passo "Conferir o changeset" bloqueia sozinho se a tabela do DynamoDB ou o pool do Cognito forem removidos ou substituídos, e o resto você confere no log do job (a lista de mudanças) logo após aprovar.
 
 Depois do deploy, a tag e a release são criadas sozinhas.
 
