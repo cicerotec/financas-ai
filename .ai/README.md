@@ -42,6 +42,7 @@ feito e ideias).
 | [`demos/demo-confirmacao-mes-fechado.html`](demos/demo-confirmacao-mes-fechado.html) | Demo da confirmação ao mexer em mês fechado: segunda janela, restaurar, importar e mês conferido (aprovada em 2026-10-17) |
 | [`demos/demo-exclusao-imediata.html`](demos/demo-exclusao-imediata.html) | Demo de excluir na hora, com Desfazer por restauração e as recusas antes de sumir (aprovada em 2026-10-17) |
 | [`demos/demo-menu-usuario.html`](demos/demo-menu-usuario.html) | Demo do menu do usuário: nome e Sair saem da linha de cima e vão para o menu (aprovada em 2026-10-17) |
+| [`demos/demo-historico-periodo.html`](demos/demo-historico-periodo.html) | Demo da aba Histórico por período (30d, 90d, 180d e calendário de um mês, abre em 30d), com a busca limitada ao que está marcado e o aviso de "Buscar em tudo" (aprovada pelo dono em 2026-10-20; ainda não implementada) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
