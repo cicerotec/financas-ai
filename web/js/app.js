@@ -1791,7 +1791,9 @@ function renderHistorico(){
   document.getElementById('histCal').classList.toggle('on', emMes);
   document.getElementById('calRotulo').textContent = emMes ? mesAbrev(mesSel) : '';
   document.getElementById('navMes').classList.toggle('hidden', !emMes);
-  document.getElementById('buscaTexto').placeholder = periodoHist==='mes' ? 'Buscar neste mês' : 'Buscar neste período';
+  // No celular o campo é estreito: o período já aparece no grupo de cima e na faixa do resultado.
+  document.getElementById('buscaTexto').placeholder = MQ_TABELA.matches
+    ? `Buscar neste ${periodoHist==='mes'?'mês':'período'} (descrição, nota ou tag)` : 'Descrição, nota ou tag';
   const hdr = document.querySelector('header');
   document.documentElement.style.setProperty('--hdr-h', (hdr ? hdr.offsetHeight : 0) + 'px');
   // Eventos futuros ficam fora do Histórico (lista padrão e mês buscado); só a busca por texto os inclui, pela chave
@@ -2211,12 +2213,16 @@ document.getElementById('btnOrdem').addEventListener('click', ()=>{
   renderHistorico();
 });
 
+// Texto da busca: sem acento, sem maiúsculas, sem "#" no começo (quem digita #mercado procura a tag) e sem espaços sobrando.
+function termoBusca(s){ return normTxt(s).replace(/^[#\s]+/, '').replace(/\s+/g, ' ').trim(); }
+// Onde a busca olha: descrição, nota e tags, também sem acento. O dado guardado não muda.
+function textoBuscavel(l){ return normTxt((l.descricao||'') + ' ' + (l.nota||'') + ' ' + (Array.isArray(l.tags) ? l.tags.join(' ') : '')); }
 // Busca por texto no que está marcado (período ou mês) ou, pedindo "Buscar em tudo", em todo o histórico.
 // A API não tem operador de "contém" no banco: varremos o intervalo em blocos de 1000, do mais recente pro mais antigo,
 // e comparamos o texto no código. No período marcado é rápido; em tudo cresce com o histórico, por isso há o aviso.
 async function buscarTextoHistorico(tudo, termoFixo){
   const entrada = (termoFixo !== undefined ? termoFixo : document.getElementById('buscaTexto').value).trim();
-  const termo = entrada.toLowerCase();
+  const termo = termoBusca(entrada);
   const statusEl = document.getElementById('buscaTextoStatus');
   const btn = document.getElementById('btnBuscarTexto');
   if(!termo){ statusEl.textContent = "Digite algo pra buscar."; return; }
@@ -2237,8 +2243,7 @@ async function buscarTextoHistorico(tudo, termoFixo){
       snap.docs.forEach(d=>{
         const l = {id:d.id, ...d.data()};
         totalVarrido++;
-        const alvo = ((l.descricao||'')+' '+(l.nota||'')).toLowerCase();
-        if(alvo.includes(termo)) encontrados.push(l);
+        if(textoBuscavel(l).includes(termo)) encontrados.push(l);
       });
       statusEl.textContent = `Varrendo... ${totalVarrido} lançamento(s) verificados, ${encontrados.length} encontrado(s) até agora.`;
       cursor = snap.docs[snap.docs.length-1].data().dataEvento;
