@@ -620,14 +620,23 @@ body.td-trava{overflow:hidden;}
    Reaproveita as classes .fut-* de Futuros (linha, tabela, janela de acoes). */
 body[data-aba="historico"] main{max-width:1600px;}
 .hist-tools{display:flex;flex-direction:column;gap:8px;margin:0 0 8px;}
-.hm-bar{display:flex;align-items:center;gap:6px;}
+.hper{display:flex;flex-direction:column;gap:8px;}
+.perbar{display:flex;gap:6px;align-items:center;}
+.seg2{flex:1;min-width:0;display:flex;background:var(--card);border-radius:12px;padding:3px;gap:3px;}
+.seg2 button,.seg2 label{flex:1 1 0;min-width:0;min-height:42px;border:0;border-radius:10px;background:transparent;font-size:14px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px;position:relative;white-space:nowrap;padding:0 6px;cursor:pointer;}
+.seg2 .on{background:var(--accent-bg);color:var(--text);font-weight:600;}
+.seg2 .cal{flex:1.5 1 0;}
+.seg2 .cal svg{width:18px;height:18px;flex:none;}
+.seg2 .cal input{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;padding:0;border:0;cursor:pointer;}
+.mesrow{display:flex;align-items:center;gap:6px;}
+.escopo{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--card);border-radius:12px;padding:8px 8px 8px 14px;margin:0 0 8px;font-size:13px;}
+.escopo .t{min-width:0;flex:1 1 160px;}
+.escopo button{flex:none;min-height:40px;border:0;border-radius:10px;background:var(--accent-bg);color:var(--text);padding:0 14px;font-size:13px;font-weight:600;cursor:pointer;}
+.hm-amp{flex:1;min-height:48px;border:0;border-radius:12px;background:var(--card);color:var(--text);padding:0 14px;font-size:14px;cursor:pointer;}
 .hm-b{flex:none;width:44px;height:48px;border:0;border-radius:12px;background:var(--card);color:var(--text);font-size:20px;cursor:pointer;padding:0;}
 .hm-m{flex:1;min-width:0;height:48px;border-radius:12px;background:var(--card);position:relative;display:grid;place-items:center;font-weight:600;cursor:pointer;}
 .hm-m input{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;padding:0;border:0;cursor:pointer;}
 .hm-ord{flex:none;min-width:48px;height:48px;border:0;border-radius:12px;background:var(--card);color:var(--muted);font-size:13px;padding:0 10px;cursor:pointer;}
-.hm-rotbusca{display:none;flex:1;min-width:0;height:48px;border-radius:12px;background:var(--card);place-items:center;font-weight:600;}
-.em-busca .hm-nav{display:none;}
-.em-busca .hm-rotbusca{display:grid;}
 .hm-busca{display:flex;gap:6px;}
 .hm-campo{flex:1;min-width:0;display:flex;align-items:center;background:var(--card);border-radius:12px;min-height:48px;}
 .hm-campo input{flex:1;min-width:0;border:0;background:transparent;padding:0 0 0 14px;height:48px;font-size:15px;border-radius:12px;}
@@ -688,9 +697,10 @@ body[data-aba="historico"] main{max-width:1600px;}
   .hist-jan{border-radius:22px;}
   .hist-tools{flex-direction:row;align-items:center;position:sticky;top:calc(var(--faixa-h,0px) + var(--hdr-h,0px));z-index:4;background:var(--bg);padding:6px 0;margin:0 0 4px;}
   .hm-busca{order:1;flex:1;max-width:620px;}
-  .hm-bar{order:2;flex:none;}
-  .hm-bar .hm-m{width:200px;flex:none;}
-  .hm-ord,.em-busca .hm-rotbusca,.em-busca .hm-bar{display:none;}
+  .hper{order:2;flex:none;flex-direction:row;align-items:center;}
+  .hper .seg2{flex:none;width:340px;}
+  .hper .mesrow .hm-m{width:190px;flex:none;}
+  .hm-ord{display:none;}
   .hist-fim{display:none;}
   .hist-row .fut-dk{align-items:start;}
   .hist-row .fut-dk .dt{font-variant-numeric:tabular-nums;}
