@@ -500,6 +500,10 @@ let tokenMes = 0;
 let lancamentosMes = [];
 let modoBuscaTexto = false;
 let lancamentosBusca = [];
+let periodoHist = '30d';  // '30d' | '90d' | '180d' | 'mes' (demo: .ai/demos/demo-historico-periodo.html)
+let tudoHist = false;     // a busca atual olhou todo o histórico
+let escopoBuscaTxt = '';  // onde a busca atual olhou, para a faixa do resultado
+const DIAS_PERIODO = {'30d':30, '90d':90, '180d':180};
 let tagsSelecionadas = new Set();
 function clonar(x){ return x===undefined ? x : JSON.parse(JSON.stringify(x)); }
 let combosSalvos = [];
@@ -1680,7 +1684,7 @@ document.addEventListener('keydown', e=>{ if(e.key === 'Escape') fecharAcoesFutu
 function renderAvisoMesFuturos(){
   const el = document.getElementById('avisoMesFuturos');
   if(!el) return;
-  const n = modoMesEspecifico ? lancamentosMes.filter(l=>ehFuturo(l.status) && !l.oculto).length : 0;
+  const n = (modoMesEspecifico && periodoHist==='mes') ? lancamentosMes.filter(l=>ehFuturo(l.status) && !l.oculto).length : 0;
   if(!n){ el.classList.add('hidden'); el.innerHTML = ''; return; }
   el.classList.remove('hidden');
   el.innerHTML = `📅 Há ${n} evento${n>1?'s':''} futuro${n>1?'s':''} neste mês que não aparece${n>1?'m':''} aqui · <a href="#" data-ir-aba="futuros">ver em Futuros</a>`;
@@ -1727,16 +1731,17 @@ function htmlLinhaHist(l, busca){
 }
 function htmlListaHist(lista, busca, asc){
   const tabela = MQ_TABELA.matches;
+  const porMes = busca || (tabela && periodoHist!=='mes');
   const grupos = [];
   lista.forEach(l=>{
-    const k = busca ? diaLocal(l).slice(0,7) : (tabela ? '' : diaLocal(l));
+    const k = porMes ? diaLocal(l).slice(0,7) : (tabela ? '' : diaLocal(l));
     let g = grupos[grupos.length-1];
     if(!g || g.k!==k){ g = {k, l, itens:[]}; grupos.push(g); }
     g.itens.push(l);
   });
   const corpo = grupos.map(g=>{
     let tit = '';
-    if(busca) tit = `<div class="fut-titulo"><span>${esc(rotuloMes(g.k))} · ${g.itens.length} lançamento(s)</span>${htmlSomaValor(somaItens(g.itens),'Soma do mês na lista (renda menos gasto)')}</div>`;
+    if(porMes) tit = `<div class="fut-titulo"><span>${esc(rotuloMes(g.k))} · ${g.itens.length} lançamento(s)</span>${htmlSomaValor(somaItens(g.itens),'Soma do mês na lista (renda menos gasto)')}</div>`;
     else if(!tabela) tit = `<div class="fut-titulo"><span>${esc(tituloDiaHist(g.l))}</span></div>`;
     return tit + `<div class="fut-grupo">${g.itens.map(l=>htmlLinhaHist(l,busca)).join('')}</div>`;
   }).join('');
@@ -1757,7 +1762,6 @@ function renderChipsHist(){
   if(seletorHist && seletorHist.n()) h.push(chip('tg','','Tags: '+seletorHist.descricao()));
   if(document.getElementById('filMostrarOcultos').checked) h.push(chip('oc','','Com ocultos'));
   if(modoBuscaTexto && document.getElementById('buscaIncluiFuturos').checked) h.push(chip('fu','','Com futuros'));
-  if(!modoBuscaTexto && mesSel!==mesAtualYM()) h.push('<button type="button" class="hist-chip solta" data-hist-x="hoje">Ir para o mês atual</button>');
   document.getElementById('histChips').innerHTML = h.join('');
 }
 function renderFiltrosHistCampos(){
@@ -1775,10 +1779,19 @@ function renderHistorico(){
   const fsList = [...filStatusSelecionados];
   const fbList = [...filBancoSelecionados];
   const mostrarOcultos = document.getElementById('filMostrarOcultos').checked;
-  const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache.filter(l=>diaLocal(l).slice(0,7)===mesSel));
-  document.getElementById('tab-historico').classList.toggle('em-busca', modoBuscaTexto);
+  const iniDia = periodoHist==='mes' ? '' : chaveDia(inicioPeriodoHist(periodoHist));
+  const noEscopo = l=> periodoHist==='mes' ? diaLocal(l).slice(0,7)===mesSel : diaLocal(l) >= iniDia;
+  const fonte = modoBuscaTexto ? lancamentosBusca : (modoMesEspecifico ? lancamentosMes : lancamentosCache).filter(noEscopo);
   document.getElementById('filMesEspecifico').value = mesSel;
   document.getElementById('mesRotulo').textContent = rotuloMes(mesSel);
+  document.getElementById('calPeriodo').value = mesSel;
+  const tudoAgora = modoBuscaTexto && tudoHist;
+  document.querySelectorAll('#histPer [data-hist-per]').forEach(b=>{ const on = !tudoAgora && periodoHist===b.dataset.histPer; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  const emMes = !tudoAgora && periodoHist==='mes';
+  document.getElementById('histCal').classList.toggle('on', emMes);
+  document.getElementById('calRotulo').textContent = emMes ? mesAbrev(mesSel) : '';
+  document.getElementById('navMes').classList.toggle('hidden', !emMes);
+  document.getElementById('buscaTexto').placeholder = periodoHist==='mes' ? 'Buscar neste mês' : 'Buscar neste período';
   const hdr = document.querySelector('header');
   document.documentElement.style.setProperty('--hdr-h', (hdr ? hdr.offsetHeight : 0) + 'px');
   // Eventos futuros ficam fora do Histórico (lista padrão e mês buscado); só a busca por texto os inclui, pela chave
@@ -1796,7 +1809,7 @@ function renderHistorico(){
   const extraFut = nFut ? ` · ${nFut} ${nFut>1?'são eventos futuros':'é evento futuro'}` : '';
   document.getElementById('contadorHistorico').textContent = modoBuscaTexto
     ? `${lista.length} lançamento(s) exibido(s) do resultado da busca (${lancamentosBusca.length} no total)${extraFut}`
-    : `${lista.length} lançamento(s) em ${rotuloMes(mesSel)}`;
+    : periodoHist==='mes' ? `${lista.length} lançamento(s) em ${rotuloMes(mesSel)}` : `${lista.length} lançamento(s) nos últimos ${DIAS_PERIODO[periodoHist]} dias`;
   // Total da lista exibida (renda menos gasto, com o mesmo sinal de cada linha); acompanha todos os filtros.
   document.getElementById('somaHistorico').innerHTML = lista.length ? htmlSomaValor(somaItens(lista), 'Soma da lista exibida: renda menos gasto') : '';
   const n = nFiltrosHist();
@@ -1805,6 +1818,9 @@ function renderHistorico(){
   bf.classList.toggle('on', n>0);
   document.getElementById('histFilOk').textContent = `Ver ${lista.length} lançamento(s)`;
   renderChipsHist();
+  document.getElementById('histEscopo').innerHTML = !modoBuscaTexto ? '' : (tudoHist
+    ? `<div class="escopo"><span class="t">Resultado de <b>todo o histórico</b></span><button type="button" data-hist-voltar>Voltar a ${periodoHist==='mes'?esc(mesAbrev(mesSel)):periodoHist}</button></div>`
+    : `<div class="escopo"><span class="t">Resultado <b>${esc(escopoBuscaTxt)}</b></span><button type="button" data-hist-tudo>Buscar em tudo</button></div>`);
   renderFiltrosHistCampos();
   renderAvisoMesFuturos();
   const asc = ordem==='asc';
@@ -1816,8 +1832,10 @@ function renderHistorico(){
     return;
   }
   el.innerHTML = htmlListaHist(lista, modoBuscaTexto, asc);
-  fim.innerHTML = (modoBuscaTexto ? '' :
-    `<div class="hm-fimbar"><button type="button" class="hm-b" data-hist-mes="-1" aria-label="Mês anterior">‹</button><label class="hm-m"><span>${esc(rotuloMes(mesSel))}</span><input type="month" value="${esc(mesSel)}" aria-label="Mês exibido" data-hist-mes-pick></label><button type="button" class="hm-b" data-hist-mes="1" aria-label="Próximo mês">›</button></div>`)
+  const prox = periodoHist==='30d' ? '90d' : periodoHist==='90d' ? '180d' : '';
+  fim.innerHTML = (modoBuscaTexto ? '' : (periodoHist==='mes'
+    ? `<div class="hm-fimbar"><button type="button" class="hm-b" data-hist-mes="-1" aria-label="Mês anterior">‹</button><label class="hm-m"><span>${esc(rotuloMes(mesSel))}</span><input type="month" value="${esc(mesSel)}" aria-label="Mês exibido" data-hist-mes-pick></label><button type="button" class="hm-b" data-hist-mes="1" aria-label="Próximo mês">›</button></div>`
+    : (prox ? `<button type="button" class="hm-amp" data-hist-per="${prox}">Ver ${prox}</button>` : '')))
     + '<button type="button" class="hm-topo" data-hist-topo>↑ Topo</button>';
 }
 
@@ -2063,6 +2081,10 @@ document.getElementById('listaLancamentos').addEventListener('keydown', e=>{
 document.getElementById('histFim').addEventListener('click', e=>{
   const m = e.target.closest('[data-hist-mes]');
   if(m){ deslocarMes(+m.dataset.histMes); return; }
+  const pp = e.target.closest('[data-hist-per]');
+  if(pp){ irParaPeriodo(pp.dataset.histPer); return; }
+  const pk = e.target.closest('[data-hist-mes-pick]');
+  if(pk){ try{ pk.showPicker(); }catch(_){} return; }
   if(e.target.closest('[data-hist-topo]')) window.scrollTo({top:0, behavior:'smooth'});
 });
 document.getElementById('histFim').addEventListener('change', e=>{
@@ -2084,7 +2106,6 @@ document.getElementById('histChips').addEventListener('click', e=>{
   if(!c) return;
   const k = c.dataset.histX;
   if(k==='q'){ limparBuscaTexto(); return; }
-  if(k==='hoje'){ irParaMes(mesAtualYM()); return; }
   if(k==='st') filStatusSelecionados.delete(c.dataset.v);
   if(k==='bk') filBancoSelecionados.delete(c.dataset.v);
   if(k==='tg' && seletorHist) seletorHist.limpar();
@@ -2112,32 +2133,57 @@ document.getElementById('avisoFuturos').addEventListener('click', (e)=>{
 });
 document.getElementById('futMostrarOcultos').addEventListener('change', renderFuturos);
 document.getElementById('buscaIncluiFuturos').addEventListener('change', renderHistorico);
-async function irParaMes(ym){
-  if(!/^\d{4}-\d{2}$/.test(ym)) return;
-  mesSel = ym;
-  if(ym === mesAtualYM()){ modoMesEspecifico = false; renderHistorico(); return; }
+function inicioPeriodoHist(p){ const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - DIAS_PERIODO[p]); return d; }
+function mesAbrev(ym){ const [y,m] = ym.split('-').map(Number); return MESES_NOME[m-1].slice(0,3) + '/' + y; }
+// Limites (ISO) do que a tela mostra agora; fim vazio = sem limite superior.
+function limitesEscopoHist(){
+  if(periodoHist==='mes'){
+    const [a, m] = mesSel.split('-').map(Number);
+    return {ini:new Date(a, m-1, 1).toISOString(), fim:new Date(a, m, 1).toISOString()};
+  }
+  return {ini:inicioPeriodoHist(periodoHist).toISOString(), fim:''};
+}
+// O cache guarda os 1000 lançamentos mais recentes: serve se for tudo o que existe ou se já chega até o início do escopo.
+function cacheCobre(ini){
+  const c = lancamentosCache;
+  return c.length < 1000 || (c.length > 0 && new Date(c[c.length-1].dataEvento) <= new Date(ini));
+}
+async function carregarEscopoHist(){
+  const {ini, fim} = limitesEscopoHist();
+  if(cacheCobre(ini)){ modoMesEspecifico = false; renderHistorico(); return; }
   if(!db) return;
   const meu = ++tokenMes;
-  const [ano, mes] = ym.split('-').map(Number);
-  const inicio = new Date(ano, mes-1, 1).toISOString();
-  const fim = new Date(ano, mes, 1).toISOString();
   document.getElementById('contadorHistorico').textContent = "Buscando...";
   document.getElementById('somaHistorico').innerHTML = '';
   try{
-    const snap = await db.collection("lancamentos")
-      .where("dataEvento", ">=", inicio)
-      .where("dataEvento", "<", fim)
-      .orderBy("dataEvento", "desc").limit(1000).get();
-    if(meu !== tokenMes) return; // o usuário já foi para outro mês
+    let q = db.collection("lancamentos").where("dataEvento", ">=", ini);
+    if(fim) q = q.where("dataEvento", "<", fim);
+    const snap = await q.orderBy("dataEvento", "desc").limit(1000).get();
+    if(meu !== tokenMes) return; // o usuário já foi para outro período
     lancamentosMes = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(l=>!exclusaoPendente.has(l.id));
     modoMesEspecifico = true;
     renderHistorico();
   }catch(err){
     if(meu === tokenMes){
-      document.getElementById('contadorHistorico').textContent = "Não consegui buscar esse mês: " + err.message;
+      document.getElementById('contadorHistorico').textContent = "Não consegui buscar esse período: " + err.message;
       document.getElementById('somaHistorico').innerHTML = '';
     }
   }
+}
+// Trocar o período ou o mês recarrega a lista e, havendo busca, refaz a busca no novo escopo (o que está marcado é o que se busca).
+async function aplicarEscopoHist(){
+  await carregarEscopoHist();
+  if(modoBuscaTexto) buscarTextoHistorico(false, termoBuscaHist);
+}
+function irParaMes(ym){
+  if(!/^\d{4}-\d{2}$/.test(ym)) return;
+  mesSel = ym; periodoHist = 'mes'; tudoHist = false;
+  return aplicarEscopoHist();
+}
+function irParaPeriodo(p){
+  if(!DIAS_PERIODO[p]) return;
+  periodoHist = p; tudoHist = false;
+  return aplicarEscopoHist();
 }
 function deslocarMes(delta){
   const [a, m] = mesSel.split('-').map(Number);
@@ -2146,7 +2192,13 @@ function deslocarMes(delta){
 }
 document.getElementById('mesAnterior').addEventListener('click', ()=>deslocarMes(-1));
 document.getElementById('mesProximo').addEventListener('click', ()=>deslocarMes(1));
-document.getElementById('filMesEspecifico').addEventListener('change', e=>{ if(e.target.value) irParaMes(e.target.value); });
+document.getElementById('histPer').addEventListener('click', e=>{
+  const b = e.target.closest('[data-hist-per]');
+  if(b){ irParaPeriodo(b.dataset.histPer); return; }
+  const p = e.target.closest('[data-hist-pick]');
+  if(p){ try{ p.showPicker(); }catch(_){} } // abre o seletor de mês mesmo quando o campo está escondido sob o botão
+});
+document.getElementById('histPer').addEventListener('change', e=>{ if(e.target.matches('[data-hist-pick]') && e.target.value) irParaMes(e.target.value); });
 document.getElementById('btnOrdem').addEventListener('click', ()=>{
   const inp = document.getElementById('filOrdenacao');
   const asc = inp.value !== 'asc';
@@ -2159,24 +2211,27 @@ document.getElementById('btnOrdem').addEventListener('click', ()=>{
   renderHistorico();
 });
 
-// Busca por texto em TODO o histórico (não só o que está carregado na tela).
-// A API não tem operador de "contém" — então varremos a coleção em blocos de 1000,
-// do mais recente pro mais antigo, e comparamos o texto no código. Não é instantâneo
-// com muitos anos de dados, por isso mostra progresso enquanto varre.
-async function buscarTextoHistorico(){
-  const termo = document.getElementById('buscaTexto').value.trim().toLowerCase();
+// Busca por texto no que está marcado (período ou mês) ou, pedindo "Buscar em tudo", em todo o histórico.
+// A API não tem operador de "contém" no banco: varremos o intervalo em blocos de 1000, do mais recente pro mais antigo,
+// e comparamos o texto no código. No período marcado é rápido; em tudo cresce com o histórico, por isso há o aviso.
+async function buscarTextoHistorico(tudo, termoFixo){
+  const entrada = (termoFixo !== undefined ? termoFixo : document.getElementById('buscaTexto').value).trim();
+  const termo = entrada.toLowerCase();
   const statusEl = document.getElementById('buscaTextoStatus');
   const btn = document.getElementById('btnBuscarTexto');
   if(!termo){ statusEl.textContent = "Digite algo pra buscar."; return; }
   if(!db){ statusEl.textContent = "Banco de dados indisponível nesta visualização."; return; }
   btn.disabled = true;
+  const lim = tudo ? {ini:'', fim:''} : limitesEscopoHist();
   let encontrados = [];
   let totalVarrido = 0;
   let cursor = null;
   try{
     while(true){
       let q = db.collection("lancamentos").orderBy("dataEvento","desc");
-      if(cursor) q = q.where("dataEvento","<",cursor);
+      if(lim.ini) q = q.where("dataEvento",">=",lim.ini);
+      const ate = cursor || lim.fim;
+      if(ate) q = q.where("dataEvento","<",ate);
       const snap = await q.limit(1000).get();
       if(snap.docs.length===0) break;
       snap.docs.forEach(d=>{
@@ -2191,9 +2246,11 @@ async function buscarTextoHistorico(){
     }
     lancamentosBusca = encontrados.filter(l=>!exclusaoPendente.has(l.id));
     modoBuscaTexto = true;
-    termoBuscaHist = document.getElementById('buscaTexto').value.trim();
+    tudoHist = !!tudo;
+    escopoBuscaTxt = tudo ? 'de todo o histórico' : (periodoHist==='mes' ? 'de ' + rotuloMes(mesSel).toLowerCase() : `dos últimos ${DIAS_PERIODO[periodoHist]} dias`);
+    termoBuscaHist = entrada;
     renderHistorico();
-    statusEl.textContent = `Busca concluída: ${encontrados.length} resultado(s) em ${totalVarrido} lançamento(s) verificados no total.`;
+    statusEl.textContent = `Busca concluída: ${encontrados.length} resultado(s) em ${totalVarrido} lançamento(s) verificados.`;
   }catch(e){
     statusEl.textContent = "Erro na busca: " + e.message;
   }
@@ -2201,12 +2258,21 @@ async function buscarTextoHistorico(){
 }
 function limparBuscaTexto(){
   modoBuscaTexto = false;
+  tudoHist = false;
   document.getElementById('buscaTexto').value = '';
   document.getElementById('buscaTextoStatus').textContent = '';
   renderHistorico();
 }
-document.getElementById('btnBuscarTexto').addEventListener('click', buscarTextoHistorico);
-document.getElementById('buscaTexto').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); buscarTextoHistorico(); } });
+document.getElementById('btnBuscarTexto').addEventListener('click', ()=>buscarTextoHistorico(false));
+document.getElementById('buscaTexto').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); buscarTextoHistorico(false); } });
+document.getElementById('histEscopo').addEventListener('click', async e=>{
+  if(e.target.closest('[data-hist-tudo]')){
+    const ok = await confirmarModal('Isso olha todos os lançamentos, de todos os anos, e pode demorar alguns segundos, principalmente no celular. Se o que você procura é recente, escolha 180d ou um mês no calendário: é bem mais rápido.', 'Buscar em tudo');
+    if(ok) buscarTextoHistorico(true, termoBuscaHist);
+    return;
+  }
+  if(e.target.closest('[data-hist-voltar]')) buscarTextoHistorico(false, termoBuscaHist);
+});
 document.getElementById('filMostrarOcultos').addEventListener('change', renderHistorico);
 document.getElementById('filOrdenacao').addEventListener('change', renderHistorico);
 
