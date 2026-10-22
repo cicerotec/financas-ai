@@ -461,7 +461,7 @@ body[data-aba="futuros"] main{max-width:1600px;}
 .td-avanc[hidden]{display:none;}
 .td-btn-tag{width:100%;min-height:52px;margin-top:10px;border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:12px;font-weight:600;font-size:15px;}
 .td-n{font-size:11px;color:var(--faint);}
-.td-frase{font-size:15px;line-height:1.7;overflow-wrap:anywhere;}
+.td-frase{font-size:14px;line-height:1.5;overflow-wrap:anywhere;}
 .td-op{font-size:11px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:6px;margin:0 2px;vertical-align:1px;}
 .td-op.e{background:var(--accent-bg);color:var(--accent);}
 .td-op.nao{background:var(--danger-bg);color:var(--danger);}
@@ -538,12 +538,18 @@ body[data-aba="futuros"] main{max-width:1600px;}
 .td-col .v{font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);margin-bottom:3px;}
 .td-col .neg .v{margin:3px 0 0;}
 .td-col .m{font-size:11.5px;color:var(--muted);margin:5px 0 4px;}
-.td-sim{margin:0 0 10px;padding:10px 12px;border-radius:12px;border:1px dashed var(--faint);font-size:12.5px;line-height:1.45;color:var(--muted);}
-.td-sim b{color:var(--text);}
-.td-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:12px;background:var(--bg);}
+/* topo: Simulação, Gastos | Receitas | Resultado e a consulta. Celular: o seletor ocupa uma linha; computador: tudo numa linha só */
+.td-topo{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;}
+.td-pill{order:1;flex:none;border:1px dashed var(--faint);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:var(--muted);cursor:help;}
+.td-editar{order:2;margin-left:auto;}
+.td-consulta{order:3;flex:1 1 100%;min-width:0;display:flex;align-items:baseline;gap:6px;}
+.td-cons-rot{flex:none;font-size:12.5px;color:var(--muted);}
+.td-consulta .td-frase{flex:1;min-width:0;}
+.td-seg{order:4;flex:1 1 100%;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:12px;background:var(--bg);}
+.td-nota-sim{font-size:12.5px;color:var(--muted);margin:10px 2px 0;line-height:1.45;}
+.td-nota-sim b{color:var(--text);}
 .td-seg button{min-height:44px;border:0;border-radius:9px;background:transparent;font-weight:600;font-size:14px;}
 .td-seg button[aria-checked="true"]{background:var(--accent);color:var(--accent-ink);}
-.td-seg-nota{font-size:12.5px;color:var(--muted);margin:6px 2px 12px;}
 .td-rtot.pos{color:var(--income);}
 .td-rtot.zero{color:var(--muted);}
 .td-leg{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 2px 0;font-size:12.5px;color:var(--muted);}
@@ -585,8 +591,6 @@ body.td-trava{overflow:hidden;}
 .td-layout{display:block;}
 .td-res,.td-esc{min-width:0;}
 .td-so-pc{display:none !important;}
-.td-consulta{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
-.td-consulta .td-frase{flex:1;min-width:0;}
 .td-editar{flex:none;min-height:48px;padding:0 16px;border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:12px;font-weight:600;font-size:14px;}
 .td-cab{display:flex;align-items:center;gap:6px;margin:0 0 12px;}
 .td-cab h2{font-size:18px;margin:0;font-weight:600;flex:1;}
@@ -608,6 +612,11 @@ body.td-trava{overflow:hidden;}
 @media (min-width:1160px){
   body[data-aba="tendencias"] main{max-width:1200px;}
   .td-layout{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:16px;align-items:start;}
+  .td-topo{flex-wrap:nowrap;}
+  .td-seg{order:2;flex:none;width:auto;grid-template-columns:repeat(3,auto);}
+  .td-seg button{min-height:38px;padding:0 14px;}
+  .td-consulta{order:3;flex:1 1 0;}
+  .td-consulta .td-frase{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .td-res{position:sticky;top:calc(var(--faixa-h,0px) + 12px);}
   .td-so-cel{display:none !important;}
   .td-so-pc{display:block !important;}

@@ -169,6 +169,7 @@ Demo [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html); imple
 - **A Tendências é uma simulação, não o saldo** (regra do dono, 2026-10-22): o **Histórico é o saldo real** (ocultar tira o lançamento do saldo); a Tendências serve para
   brincar com os números e fazer projeções, **nunca vale como saldo e nunca grava nada no backend** (só lê o que já está na tela). Uma **faixa fixa "Simulação"** no topo do
   resultado diz isso e avisa que **lançamentos ocultos ficam de fora**, como no Histórico (`CT.base`, com teste). Não há interruptor para contar ocultos.
+  **Topo do resultado compacto** (pedido do dono, 2026-10-22, sem demo): no computador uma **linha só** com o selo "Simulação" (o texto inteiro fica no `title` e numa nota embaixo do gráfico), o seletor Gastos | Receitas | Resultado e a consulta (corta com reticências, texto inteiro no `title`), para o gráfico subir. No celular são três linhas: selo e "Editar consulta", a consulta e o seletor.
 - **Seletor Gastos | Receitas | Resultado** (demo [`demos/demo-tendencias-visao.html`](demos/demo-tendencias-visao.html)): no topo do resultado, **Gastos é o padrão** (soma as saídas, a regra
   de antes), Receitas soma as entradas e **Resultado é entradas menos saídas das tags escolhidas** (entrada é tudo que não é saída, como em `valorAssinado`). O nome **não é "Saldo"**
   de propósito, para ninguém confundir com o saldo da conta. Uma frase embaixo diz o que está somando. No Resultado a barra do mês **desce** (em `--danger`) quando ele é
