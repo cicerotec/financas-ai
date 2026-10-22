@@ -27,17 +27,18 @@
       '<div class="td-layout">' +
       // ---- resultado: esquerda no computador, primeiro no celular ----
       '<div class="td-res">' +
-        '<div class="td-sim" role="note"><b>Simulação.</b> Os números aqui servem para explorar: não são o seu saldo e nada é gravado. Lançamentos ocultos ficam de fora, como no Histórico.</div>' +
-        '<div class="td-card"><div class="td-tit">Sua consulta</div><div class="td-consulta">' +
-          '<div class="td-frase" id="tdFrase"></div>' +
-          '<button class="td-editar td-so-cel" id="tdEditar" type="button">Editar consulta</button></div></div>' +
-        '<div class="td-card"><div class="td-seg" id="tdSeg" role="radiogroup" aria-label="O que somar">' +
-          '<button type="button" role="radio" aria-checked="true" data-v="gastos">Gastos</button>' +
-          '<button type="button" role="radio" aria-checked="false" data-v="receitas">Receitas</button>' +
-          '<button type="button" role="radio" aria-checked="false" data-v="saldo">Resultado</button></div>' +
-          '<p class="td-seg-nota" id="tdSegNota"></p>' +
+        '<div class="td-card td-topo">' +
+          '<span class="td-pill" tabindex="0" title="Os números aqui servem para explorar: não são o seu saldo e nada é gravado. Lançamentos ocultos ficam de fora, como no Histórico.">Simulação</span>' +
+          '<div class="td-seg" id="tdSeg" role="radiogroup" aria-label="O que somar">' +
+            '<button type="button" role="radio" aria-checked="true" data-v="gastos">Gastos</button>' +
+            '<button type="button" role="radio" aria-checked="false" data-v="receitas">Receitas</button>' +
+            '<button type="button" role="radio" aria-checked="false" data-v="saldo">Resultado</button></div>' +
+          '<div class="td-consulta"><span class="td-cons-rot">Consulta:</span><div class="td-frase" id="tdFrase"></div></div>' +
+          '<button class="td-editar td-so-cel" id="tdEditar" type="button">Editar consulta</button></div>' +
+        '<div class="td-card">' +
           '<div class="td-rtop"><span class="td-rtx" id="tdRtx"></span><span class="td-rtot" id="tdRtot"></span></div>' +
-          '<div class="td-graf" id="tdGraf"></div><div class="td-leg" id="tdLeg"></div><div class="td-alerta" id="tdAlerta"></div></div>' +
+          '<div class="td-graf" id="tdGraf"></div><div class="td-leg" id="tdLeg"></div><div class="td-alerta" id="tdAlerta"></div>' +
+          '<p class="td-nota-sim" id="tdSegNota"></p></div>' +
         '<div class="td-card"><div class="td-tit">Outras tags nesses lançamentos</div><div id="tdOutras"></div>' +
           '<div class="td-aviso" id="tdAviso" hidden></div></div>' +
       '</div>' +
@@ -121,6 +122,7 @@
     } else if (!q.valida) h = '<span class="td-vazio">Expressão com erro: corrija no modo avançado.</span>';
     else h = q.no ? esc(CT.texto(q.no)) : '<span class="td-vazio">Nenhuma tag escolhida: mostra tudo.</span>';
     $('tdFrase').innerHTML = h;
+    $('tdFrase').title = $('tdFrase').textContent; // a linha corta com reticências quando é longa: o texto inteiro fica no title
   }
 
   // ---------- modo grupos ----------
@@ -228,7 +230,7 @@
   const cents = (x) => Math.round(x * 100) / 100 + 0;
   function renderResultado(valida) {
     const a = ultimo, vis = a.visao;
-    $('tdSegNota').textContent = NOTA_VISAO[vis];
+    $('tdSegNota').innerHTML = '<b>Simulação:</b> não é o seu saldo, nada é gravado e ocultos ficam de fora, como no Histórico. ' + esc(NOTA_VISAO[vis]);
     document.querySelectorAll('#tdSeg [data-v]').forEach((b) => b.setAttribute('aria-checked', b.dataset.v === vis));
     $('tdRtx').textContent = a.n + ' lançamento(s)' + (valida ? '' : ' (último resultado válido)');
     const rt = $('tdRtot');
