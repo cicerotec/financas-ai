@@ -176,6 +176,13 @@ Demo [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html); imple
   de propósito, para ninguém confundir com o saldo da conta. Uma frase embaixo diz o que está somando. No Resultado a barra do mês **desce** (em `--danger`) quando ele é
   negativo, e a porcentagem de "outras tags" e o peso da lista são do **movimento** (entradas mais saídas, sem sinal): valores que se cancelam não servem de base. A escolha não é
   guardada (volta a Gastos ao recarregar).
+- **Lista dos lançamentos da consulta** (demo [`demos/demo-tendencias-lista.html`](demos/demo-tendencias-lista.html), item 42a do backlog; implementada e aprovada em 2026-10-22): o texto
+  "Ver os N lançamentos ›" acima do total e cada **barra do mês** abrem uma **janela só de leitura** (tela cheia no celular, janela central de 700 px no computador; `#tdListaVeu`, entra em
+  `camadasAbertas()` e `fecharCamadaTopo()` do botão voltar). Não edita, não oculta e não exclui: para isso, o Histórico. Linhas como as do Histórico (descrição, data com ano, status, banco, tags,
+  valor com sinal e cor, sem ações), mais novo primeiro; **fichas de mês** (Todos e cada mês, com a contagem) e, em Todos, grupos por mês com a soma. A lista **segue a visão** e a base do gráfico
+  (ocultos e futuros fora), e o **rodapé mostra a soma com "✓ Bate com o gráfico"** (ou com a barra do mês): `CT.listar` faz a conta, com teste. Desenha no máximo **200 linhas** ("Mostrando 200 de N.
+  Escolha um mês acima para ver o resto."). **Custos:** não deixa agir no lançamento (a ponte "Abrir no Histórico" é o item 42e), sem busca por texto nem ordenação, e só enxerga os 1000 lançamentos
+  mais recentes carregados.
 - **Gráfico:** barra do mês dividida em "só as tags da consulta" (cheia) e "tem outras tags além das da consulta" (listrada), que somam o total
   do mês; faixa com a porcentagem do valor com outras tags; com erro na expressão o gráfico fica esmaecido com o último resultado válido.
   Meses em fila que rola na horizontal (46 px por mês), começando pelos mais recentes.
@@ -411,6 +418,8 @@ ações), e tire uma captura para olhar.
   Use o mesmo id na regra (`#futMetricaAtras.sem-atraso`). Sempre confira por `getComputedStyle(...).display`.
 - `scrollWidth` não acusa estouro para a **esquerda** em linha com `justify-content:flex-end` (as ações da tabela). Meça
   as extremidades com `getBoundingClientRect()` da coluna e do primeiro e do último botão.
+- Dois elementos com o **mesmo id** (o container dos grupos e a janela da lista ficaram ambos `tdLista`) fazem o `$()` achar o primeiro e a janela nunca aparece (altura 0, `position:static`). A janela
+  é `tdListaVeu`. Antes de criar um id novo, confira que ele não existe: `grep -n "id=\"x\"" web/js/tendencias.js`.
 - `#tendRaiz button{color:inherit}` com id **vence** as cores de `.td-*` (o "Tirar" e o segmento marcado ficavam com a cor do texto). O reset usa `:where(#tendRaiz) button`
   (especificidade zero), e cada botão traz a sua cor.
 - Gráfico que rola na horizontal desenhado com a aba **escondida** (`hidden`) tem `scrollWidth` 0: o "rolar até o fim" não pega. Em Tendências um

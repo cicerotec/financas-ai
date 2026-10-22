@@ -256,7 +256,7 @@ DynamoDB sem discutir com o dono.**
   própria, aberta pela tela que a chama dizendo **quais blocos quer** (a Tendências só tags e combos; o Histórico tags, bancos e status), em duas partes, a lógica
   pura (testada) e a janela que só desenha. Cada tela é dona do seu estado, as opções vêm da tela que chama e nada é enviado ao servidor. Cada passo pede demo
   (janela nova ou tela mexida) e a janela nova entra no botão voltar (`camadasAbertas` e `fecharCamadaTopo`). Ordem:
-  - [ ] **a) [Próximo] Lista dos lançamentos da consulta, na Tendências** (decidido em 2026-10-22: ficar na Tendências e testar em produção). Janela só de leitura aberta
+  - [x] **a) Lista dos lançamentos da consulta, na Tendências** (implementada e aprovada em 2026-10-22; falta testar no `dev`) (decidido em 2026-10-22: ficar na Tendências e testar em produção). Janela só de leitura aberta
     por um botão ao lado do total; tocar numa barra do mês filtra a lista; a soma da lista bate com o gráfico e a lista respeita a visão (Gastos, Receitas ou
     Resultado); limite de linhas na tela (proposta: 200, com aviso). A Tendências é uma **simulação**: não edita, não oculta e não grava nada.
   - [ ] **b) Extrair o filtro de tags** que já existe (`consulta-tags.js` e o seletor de `tendencias.js`) para o componente compartilhado, sem mudar o que a Tendências faz.

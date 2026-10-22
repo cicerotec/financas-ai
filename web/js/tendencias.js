@@ -16,6 +16,8 @@
   let ultimo = null;     // último resumo de uma consulta válida
   let montado = false, mesesAntes = 0, rolarFim = true;
   let edAberto = false;  // celular: tela cheia de escolhas aberta
+  let listaAberta = false, listaMes = ''; // janela da lista dos lançamentos da consulta e o mês que ela mostra ('' = todos)
+  const MAX_LISTA = 200;  // linhas desenhadas na lista (o resto pede um mês)
   let visao = 'gastos';  // o que somar: 'gastos' (saídas), 'receitas' (entradas) ou 'saldo' (renda menos gasto). Volta a Gastos ao recarregar.
   const $ = (id) => document.getElementById(id);
   const brl0 = (n) => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
@@ -36,7 +38,7 @@
           '<div class="td-consulta"><span class="td-cons-rot">Consulta:</span><div class="td-frase" id="tdFrase"></div></div>' +
           '<button class="td-editar td-so-cel" id="tdEditar" type="button">Editar consulta</button></div>' +
         '<div class="td-card">' +
-          '<div class="td-rtop"><span class="td-rtx" id="tdRtx"></span><span class="td-rtot" id="tdRtot"></span></div>' +
+          '<div class="td-rtop"><button type="button" class="td-ver-lista" id="tdBtnLista" aria-haspopup="dialog"><span id="tdRtx"></span><span aria-hidden="true"> ›</span></button><span class="td-rtot" id="tdRtot"></span></div>' +
           '<div class="td-graf" id="tdGraf"></div><div class="td-leg" id="tdLeg"></div><div class="td-alerta" id="tdAlerta"></div>' +
           '<p class="td-nota-sim" id="tdSegNota"></p></div>' +
         '<div class="td-card"><div class="td-tit">Outras tags nesses lançamentos</div><div id="tdOutras"></div>' +
@@ -81,12 +83,21 @@
         '<input type="search" class="td-jbusca" id="tdJb" placeholder="Buscar tag..." aria-label="Buscar tag">' +
         '<div class="td-jlista"><div class="td-tgs" id="tdJl" role="group"></div></div>' +
         '<p class="td-jcnt" id="tdJc"></p><p class="td-jdica" id="tdJd"></p>' +
-        '<button class="td-jok" id="tdJok" type="button">Pronto</button></div></div>';
+        '<button class="td-jok" id="tdJok" type="button">Pronto</button></div></div>' +
+      // ---- janela da lista dos lançamentos da consulta (só leitura) ----
+      '<div class="td-veu td-lista" id="tdListaVeu" hidden><div class="td-jan td-ljan" role="dialog" aria-modal="true" aria-labelledby="tdLt">' +
+        '<div class="td-lcab"><h2 id="tdLt">Lançamentos da consulta</h2><button type="button" id="tdLFechar" aria-label="Fechar">✕</button></div>' +
+        '<p class="td-lsub" id="tdLsub"></p><div class="td-lchips" id="tdLMeses" role="group" aria-label="Mês"></div>' +
+        '<div class="td-lcorpo" id="tdLCorpo"></div><div class="td-lrodape" id="tdLRodape"></div></div></div>';
     $('tendRaiz').addEventListener('click', aoClicar);
     $('tdJb').addEventListener('input', () => { if (jan) renderJanela(); });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
+      if (listaAberta) { fecharLista(); return; }
       if (jan) fecharJanela(); else if (edAberto && !largo()) { edAberto = false; render(); }
+    });
+    $('tendRaiz').addEventListener('keydown', (e) => { // as barras do mês são botões: Enter e espaço abrem a lista daquele mês
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.td-col[data-mes]')) { e.preventDefault(); abrirLista(e.target.dataset.mes); }
     });
     mq.addEventListener('change', () => { rolarFim = true; render(); });
     // a aba pode estar escondida quando o gráfico é desenhado: rola até os meses mais recentes assim que ele ganha largura
@@ -232,7 +243,8 @@
     const a = ultimo, vis = a.visao;
     $('tdSegNota').innerHTML = '<b>Simulação:</b> não é o seu saldo, nada é gravado e ocultos ficam de fora, como no Histórico. ' + esc(NOTA_VISAO[vis]);
     document.querySelectorAll('#tdSeg [data-v]').forEach((b) => b.setAttribute('aria-checked', b.dataset.v === vis));
-    $('tdRtx').textContent = a.n + ' lançamento(s)' + (valida ? '' : ' (último resultado válido)');
+    $('tdRtx').textContent = (a.n ? (a.n === 1 ? 'Ver o lançamento' : 'Ver os ' + a.n + ' lançamentos') : 'Nenhum lançamento') + (valida ? '' : ' (último resultado válido)');
+    $('tdBtnLista').classList.toggle('sem', !a.n);
     const rt = $('tdRtot');
     rt.textContent = a.n ? sinal(a.total, vis) + fmtMoeda(Math.abs(a.total)) : '';
     rt.className = 'td-rtot' + (vis === 'receitas' || (vis === 'saldo' && a.total > 0) ? ' pos' : vis === 'saldo' && a.total === 0 ? ' zero' : '');
@@ -240,7 +252,7 @@
     const rolada = g.scrollLeft;
     if (a.meses.length !== mesesAntes) rolarFim = true;
     g.classList.toggle('velho', !valida);
-    g.setAttribute('role', 'img');
+    g.setAttribute('role', 'group');
     // cada barra tem uma parte acima e outra abaixo do zero (só o saldo desce); "só as tags da consulta" + "tem outras tags" somam o mês
     const sol = (m) => cents(m.total - m.ext);
     const up = (m) => Math.max(sol(m), 0) + Math.max(m.ext, 0), dn = (m) => Math.max(-sol(m), 0) + Math.max(-m.ext, 0);
@@ -253,7 +265,8 @@
     const peca = (v, tipo) => (v ? '<div class="' + tipo + '" style="height:' + Math.abs(v) * k + 'px;--c:' + cor(v) + '"></div>' : '');
     g.innerHTML = a.n ? '<div class="td-cols" style="min-width:' + a.meses.length * 46 + 'px">' + a.meses.map((m) => {
       const s2 = sol(m), e = m.ext, liq = m.total, rotulo = '<span class="v">' + rot(liq) + '</span>';
-      return '<div class="td-col"><div class="pos" style="height:' + (maxUp * k + 16) + 'px">' + (liq >= 0 ? rotulo : '') + (e > 0 ? peca(e, 'bx') : '') + (s2 > 0 ? peca(s2, 'bs') : '') + '</div>' +
+      const rm = m.mes.slice(5) + '/' + m.mes.slice(2, 4);
+      return '<div class="td-col" data-mes="' + m.mes + '" role="button" tabindex="0" aria-label="Ver os lançamentos de ' + rm + '"><div class="pos" style="height:' + (maxUp * k + 16) + 'px">' + (liq >= 0 ? rotulo : '') + (e > 0 ? peca(e, 'bx') : '') + (s2 > 0 ? peca(s2, 'bs') : '') + '</div>' +
         '<div class="neg" style="height:' + (maxDn ? maxDn * k + 16 : 0) + 'px">' + (s2 < 0 ? peca(s2, 'bs') : '') + (e < 0 ? peca(e, 'bx') : '') + (liq < 0 ? rotulo : '') + '</div>' +
         '<span class="m">' + m.mes.slice(5) + '/' + m.mes.slice(2, 4) + '</span></div>';
     }).join('') + '</div>' : '<p class="td-vazio-g">Sem lançamentos com essa consulta ainda.</p>';
@@ -301,7 +314,7 @@
   function travar() {
     const celular = !largo() && edAberto;
     document.body.classList.toggle('td-edit', celular);
-    document.body.classList.toggle('td-trava', celular || !$('tdVeu').hidden);
+    document.body.classList.toggle('td-trava', celular || !$('tdVeu').hidden || listaAberta);
     $('tdEsc').classList.toggle('aberto', edAberto);
   }
 
@@ -316,8 +329,45 @@
     $('tdExpr').hidden = ten.modo !== 'avancado';
     renderCombos(); renderFrase(q);
     if (ten.modo === 'grupos') renderGrupos(); else { renderFichas(); renderMsgExpr(q); }
-    renderResultado(q.valida); renderOutras(); travar();
+    renderResultado(q.valida); renderOutras();
+    if (listaAberta) { if (ultimo.n) renderLista(); else fecharLista(); }
+    travar();
   }
+
+  // ---------- lista dos lançamentos da consulta (só leitura) ----------
+  // A Tendências é uma simulação: a lista não edita, não oculta e não exclui (para isso, o Histórico). Segue a visão e a base do
+  // gráfico, e a soma do rodapé bate com ele (CT.listar faz a conta e diz se bate).
+  function linhaLista(l) {
+    const x = l.ref;
+    return '<div class="td-lrow"><div class="ld"><b>' + esc(x.descricao || '(sem descrição)') + '</b><span class="lm">' + esc(dataBR(x)) + ' · ' + esc(x.status || '') + ' · ' + esc(x.banco || '-') +
+      '</span><span class="ltg">' + esc((x.tags || []).map((t) => '#' + t).join(' ')) + '</span></div>' +
+      '<span class="lv ' + (l.entrada ? 'pos' : 'neg') + '">' + (l.entrada ? '+' : '-') + esc(fmtMoeda(l.valor)) + '</span></div>';
+  }
+  function renderLista() {
+    const a = ultimo, r = CT.listar(a, listaMes, MAX_LISTA);
+    listaMes = r.mes;
+    const textoSoma = (v) => sinal(v, a.visao) + fmtMoeda(Math.abs(v));
+    $('tdLsub').textContent = 'Só leitura: aqui não dá para editar, ocultar nem excluir; para isso, use o Histórico. ' + NOTA_VISAO[a.visao] + ' Ocultos e futuros ficam de fora, como no gráfico.';
+    $('tdLMeses').innerHTML = '<button type="button" class="' + (listaMes === '' ? 'on' : '') + '" data-lm="">Todos <span class="td-n">' + a.n + '</span></button>' +
+      r.meses.map((m) => '<button type="button" class="' + (listaMes === m.mes ? 'on' : '') + '" data-lm="' + m.mes + '">' + m.mes.slice(5) + '/' + m.mes.slice(2, 4) + ' <span class="td-n">' + m.n + '</span></button>').join('');
+    const ficha = $('tdLMeses').querySelector('.on'); // a ficha do mês escolhido fica à vista, mesmo com muitos meses
+    if (ficha && ficha.scrollIntoView) ficha.scrollIntoView({ inline: 'center', block: 'nearest' });
+    let h = '', mesAtual = '';
+    if (!r.n) h = '<p class="td-vazio-g">Nenhum lançamento neste mês com essa consulta.</p>';
+    r.linhas.forEach((l) => {
+      if (!listaMes && l.mes !== mesAtual) { mesAtual = l.mes; h += '<div class="td-lmes"><span>' + esc(rotuloMes(l.mes)) + '</span><span>' + esc(textoSoma(r.somaMes[l.mes])) + '</span></div>'; }
+      h += linhaLista(l);
+    });
+    if (r.corte) h += '<div class="td-laviso">Mostrando ' + MAX_LISTA + ' de ' + r.n + ' lançamentos. Escolha um mês acima para ver o resto.</div>';
+    $('tdLCorpo').innerHTML = h;
+    $('tdLRodape').innerHTML = '<span>' + r.n + ' lançamento(s) · soma <b>' + esc(textoSoma(r.soma)) + '</b></span>' +
+      (r.bate ? '<span class="bate">✓ Bate com ' + (listaMes ? 'a barra de ' + listaMes.slice(5) + '/' + listaMes.slice(2, 4) : 'o gráfico') + '</span>' : '<span class="nbate">⚠ Não bate com o gráfico</span>');
+  }
+  function abrirLista(mes) {
+    if (!ultimo || !ultimo.n) return;
+    listaMes = mes || ''; listaAberta = true; $('tdListaVeu').hidden = false; renderLista(); $('tdLCorpo').scrollTop = 0; travar();
+  }
+  function fecharLista() { listaAberta = false; $('tdListaVeu').hidden = true; travar(); const b = $('tdBtnLista'); if (b) b.focus(); }
 
   // ---------- toques ----------
   function limparAviso() { avisoTxt = ''; desf = null; }
@@ -333,8 +383,12 @@
     ten.fichas = r.fichas; ten.pos = r.pos; render();
   }
   function aoClicar(e) {
-    const t = e.target.closest('[data-v],[data-combo],#tdCombos,#tdBtnTag,[data-add],[data-rm],[data-del],#tdNovo,[data-t],#tdJok,[data-i],[data-k],[data-tag],#tdAvanc,#tdVoltar,#tdVoltarCel,[data-cot],#tdDesf,#tdEditar,#tdFechar,#tdPronto');
-    if (!t) { if (e.target === $('tdVeu')) fecharJanela(); return; }
+    const t = e.target.closest('#tdBtnLista,[data-mes],[data-lm],#tdLFechar,[data-v],[data-combo],#tdCombos,#tdBtnTag,[data-add],[data-rm],[data-del],#tdNovo,[data-t],#tdJok,[data-i],[data-k],[data-tag],#tdAvanc,#tdVoltar,#tdVoltarCel,[data-cot],#tdDesf,#tdEditar,#tdFechar,#tdPronto');
+    if (!t) { if (e.target === $('tdVeu')) fecharJanela(); else if (e.target === $('tdListaVeu')) fecharLista(); return; }
+    if (t.id === 'tdBtnLista') return abrirLista('');
+    if (t.dataset.mes) return abrirLista(t.dataset.mes);
+    if (t.dataset.lm !== undefined) { listaMes = t.dataset.lm; renderLista(); $('tdLCorpo').scrollTop = 0; return; }
+    if (t.id === 'tdLFechar') return fecharLista();
     if (t.dataset.v) { visao = t.dataset.v; return render(); }
     if (t.id === 'tdCombos') return abrirCombos();
     if (t.id === 'tdBtnTag') return abrirInserir();
