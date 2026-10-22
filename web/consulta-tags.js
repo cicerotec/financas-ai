@@ -123,27 +123,39 @@
     return { fichas: f, pos: pos + novos.length, cheio: false };
   }
 
-  // Resume os lancamentos da consulta. itens: [{mes, valor, tags}] (so os gastos que contam). Uma barra do mes se divide em
-  // "so as tags da consulta" e "tem outras tags": por lancamento, nunca por pedaco do valor.
-  // cot: as outras tags, com o valor dos lancamentos da consulta que a tem (se sobrepoem: uma compra com 5 tags conta nas 5).
-  function resumir(itens, q) {
+  const VISOES = ['gastos', 'receitas', 'saldo'];
+  const centavos = (x) => Math.round(x * 100) / 100 + 0; // + 0 troca -0 por 0
+
+  // Resume os lancamentos da consulta. itens: [{mes, valor, tags, entrada}] (so os que contam; sem 'entrada' e saida).
+  // visao: 'gastos' soma as saidas, 'receitas' soma as entradas e 'saldo' e renda menos gasto (a conta do total do Historico).
+  // Uma barra do mes se divide em "so as tags da consulta" (total - ext) e "tem outras tags" (ext): por lancamento, nunca por
+  // pedaco do valor. No saldo os valores levam sinal (entrada soma, saida subtrai).
+  // vol/volExt: o movimento (valor sem sinal), a base das porcentagens no saldo, onde valores que se cancelam nao servem de base.
+  // cot: as outras tags, com o movimento dos lancamentos da consulta que a tem (se sobrepoem: uma compra com 5 tags conta nas 5).
+  function resumir(itens, q, visao) {
+    if (!VISOES.includes(visao)) visao = 'gastos';
     const meses = new Map();
     const co = new Map();
-    let n = 0, total = 0, totExt = 0;
+    let n = 0, total = 0, totExt = 0, vol = 0, volExt = 0;
     itens.forEach((l) => {
+      if (visao === 'gastos' && l.entrada) return;
+      if (visao === 'receitas' && !l.entrada) return;
       const tags = l.tags || [];
       if (!q.pred(tags)) return;
-      n++; total += l.valor;
+      const val = visao === 'saldo' ? (l.entrada ? l.valor : -l.valor) : l.valor;
+      n++; total += val; vol += l.valor;
       const m = meses.get(l.mes) || { mes: l.mes, total: 0, ext: 0 };
-      m.total += l.valor;
+      m.total += val;
       const outras = q.vazia ? [] : tags.filter((t) => !q.mencionadas.has(t)); // sem filtro nao ha 'outras tags'
-      if (outras.length) { m.ext += l.valor; totExt += l.valor; }
+      if (outras.length) { m.ext += val; totExt += val; volExt += l.valor; }
       outras.forEach((t) => co.set(t, (co.get(t) || 0) + l.valor));
       meses.set(l.mes, m);
     });
-    const cot = [...co.entries()].map(([t, v]) => ({ t, v }))
-      .sort((a, b) => b.v - a.v || a.t.localeCompare(b.t, 'pt-BR'));
-    return { meses: [...meses.values()].sort((a, b) => (a.mes < b.mes ? -1 : a.mes > b.mes ? 1 : 0)), n, total, totExt, cot, vazia: !!q.vazia };
+    const cot = [...co.entries()].map(([t, v]) => ({ t, v: centavos(v) }))
+      .sort((x, y) => y.v - x.v || x.t.localeCompare(y.t, 'pt-BR'));
+    const lista = [...meses.values()].map((m) => ({ mes: m.mes, total: centavos(m.total), ext: centavos(m.ext) }))
+      .sort((x, y) => (x.mes < y.mes ? -1 : x.mes > y.mes ? 1 : 0));
+    return { meses: lista, n, total: centavos(total), totExt: centavos(totExt), vol: centavos(vol), volExt: centavos(volExt), cot, vazia: !!q.vazia, visao };
   }
 
   // "Tirar (NAO)" numa outra tag: nos grupos, o NAO entra em todos os grupos preenchidos; na expressao, ela inteira vira
@@ -169,7 +181,7 @@
   }
 
   const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
-    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, tirarTag };
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, tirarTag, VISOES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.ConsultaTags = api;
 })(typeof window !== 'undefined' ? window : globalThis);
