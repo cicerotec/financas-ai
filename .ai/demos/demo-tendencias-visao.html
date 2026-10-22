@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="claude:viewport-fit-sides" content="cover">
-<title>Tendências: gastos, receitas e saldo</title>
+<title>Tendências: gastos, receitas e resultado</title>
 <style>
 /* Tokens do app (web/index.html). Layout: um quadro de celular com o montador de grupos e o gráfico mensal. */
 :root{
@@ -273,6 +273,8 @@ body.trava{overflow:hidden;}
 .volta span{font-size:12.5px;color:var(--muted);}
 
 /* gráfico: barra empilhada */
+.sim{margin:0 0 10px;padding:10px 12px;border-radius:12px;border:1px dashed var(--faint);font-size:12.5px;line-height:1.45;color:var(--muted);}
+.sim b{color:var(--text);}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:12px;background:var(--bg);}
 .seg button{min-height:44px;border:0;border-radius:9px;background:transparent;font-weight:600;font-size:14px;}
 .seg button[aria-checked="true"]{background:var(--accent);color:var(--onaccent);}
@@ -314,11 +316,12 @@ body.trava{overflow:hidden;}
 .combo-n{font-size:11px;color:var(--faint);}
 </style>
 <div class="wrap">
-  <h1>Tendências: gastos, receitas e saldo</h1>
+  <h1>Tendências: gastos, receitas e resultado</h1>
 
   <div class="layout">
     <!-- RESULTADO (esquerda no computador; primeiro no celular) -->
     <div class="col-res">
+      <div class="sim" role="note"><b>Simulação.</b> Os números aqui servem para explorar: não são o seu saldo e nada é gravado. Lançamentos ocultos ficam de fora, como no Histórico.</div>
       <div class="card">
         <div class="tit">Sua consulta</div>
         <div class="consulta-top">
@@ -330,7 +333,7 @@ body.trava{overflow:hidden;}
         <div class="seg" role="radiogroup" aria-label="O que somar">
           <button type="button" role="radio" aria-checked="true" data-v="gastos">Gastos</button>
           <button type="button" role="radio" aria-checked="false" data-v="receitas">Receitas</button>
-          <button type="button" role="radio" aria-checked="false" data-v="saldo">Saldo</button>
+          <button type="button" role="radio" aria-checked="false" data-v="saldo">Resultado</button>
         </div>
         <p class="seg-nota" id="segNota"></p>
         <div class="rtop"><span class="tx" id="rtx"></span><span class="tot" id="rtot"></span></div>
@@ -396,8 +399,9 @@ body.trava{overflow:hidden;}
       <li><b>Computador:</b> resultado (consulta, gráfico, outras tags) à esquerda e escolhas (combos, grupos, modo avançado) à direita, a página rola normalmente (sem barras de rolagem próprias nas colunas) e a coluna do resultado acompanha a rolagem. Como combos e tags abrem em janelas, a página quase não cresce. O que você escolhe aparece na hora ao lado.</li>
       <li><b>Celular:</b> o resultado vem primeiro. "Editar consulta" abre uma tela cheia com combos, grupos e o botão do modo avançado, que abre por cima em outra tela cheia. Uma barra fixa embaixo mostra o resumo ao vivo (lançamentos, total e % com outras tags) e o botão "Pronto".</li>
       <li><b>Escolher tags</b> (+ tag) abre uma janela com as tags em <b>botões</b> que quebram em várias linhas, como no modo avançado, no lugar da lista uma embaixo da outra. Tocar marca e desmarca; as cinzas já estão na outra lista do mesmo grupo.</li>
-      <li><b>Gastos | Receitas | Saldo</b> no topo do resultado, com <b>Gastos</b> como padrão. Gastos soma as saídas, Receitas soma as entradas e Saldo é renda menos gasto, a mesma conta do total do Histórico. Na demo, <b>Moradia · Limpeza · Lazer · Comida · Variavel</b> tem um reembolso em setembro que cancela a compra: em Gastos aparece R$ 310, em Saldo aparece zero.</li>
-      <li>No Saldo, a barra do mês pode ir para baixo (saldo negativo, em vermelho) e a porcentagem de "outras tags" passa a ser do <b>movimento</b> (entradas mais saídas, sem sinal), porque um valor que se cancela não serve de base.</li>
+      <li><b>Gastos | Receitas | Resultado</b> no topo do resultado, com <b>Gastos</b> como padrão. Gastos soma as saídas, Receitas soma as entradas e Resultado é entradas menos saídas das tags escolhidas. O nome não é "Saldo" de propósito: o saldo da conta é o do Histórico, e esta tela é uma simulação. Na demo, <b>Moradia · Limpeza · Lazer · Comida · Variavel</b> tem um reembolso em setembro que cancela a compra: em Gastos aparece R$ 310, em Resultado aparece zero.</li>
+      <li><b>Faixa "Simulação"</b> no topo do resultado, sempre visível: a Tendências é para brincar com os números e fazer projeções, nunca vale como saldo real e nunca grava nada. Ela também avisa que <b>ocultos ficam de fora</b>, como no Histórico (quem oculta no Histórico tira o lançamento do saldo; aqui o mesmo lançamento também sai da soma).</li>
+      <li>No Resultado, a barra do mês pode ir para baixo (resultado negativo, em vermelho) e a porcentagem de "outras tags" passa a ser do <b>movimento</b> (entradas mais saídas, sem sinal), porque um valor que se cancela não serve de base.</li>
       <li><b>Combos</b> também abrem uma janela: a linha "Combos" mostra qual está em uso, e tocar nela abre a lista de combos em botões. Escolher um combo já fecha a janela.</li>
       <li><b>Modo avançado:</b> não mostra mais a lista de tags na página. O botão "+ Tag" abre a mesma janela de tags; tocar numa tag a insere onde está o cursor e fecha a janela.</li>
       <li>"Tirar (NÃO)" continua na lista de outras tags, sem abrir nenhuma janela.</li>
@@ -406,8 +410,10 @@ body.trava{overflow:hidden;}
     <ul>
       <li>No celular, ver o gráfico mudar enquanto escolhe não é possível (a tela de escolhas o cobre); o resumo da barra de baixo e o "Pronto" fazem esse papel.</li>
       <li>No celular, editar a consulta passa a pedir um toque a mais ("Editar consulta"), e o modo avançado, mais um.</li>
+      <li>A faixa "Simulação" ocupa uma linha a mais (duas em celular estreito) no topo, e não dá para dispensá-la.</li>
+      <li>Ocultos ficam de fora sem interruptor: quem quiser contá-los precisa mostrá-los de novo no Histórico.</li>
       <li>O seletor ocupa uma linha a mais no resultado; a escolha não é guardada ao sair da aba (volta para Gastos).</li>
-      <li>No Saldo, as barras para baixo e para cima dividem a mesma altura do gráfico, então as barras ficam menores que em Gastos.</li>
+      <li>No Resultado, as barras para baixo e para cima dividem a mesma altura do gráfico, então as barras ficam menores que em Gastos.</li>
       <li>Montar uma expressão no modo avançado custa mais toques: cada tag é abrir a janela, escolher (e ela fecha). Se preferir, a janela pode ficar aberta para inserir várias tags seguidas, mas ela cobriria o teclado de operadores.</li>
       <li>Combos e tags ficam sempre a um toque de distância, nunca à vista na página (é o que mantém a tela limpa quando há centenas de tags e vários combos).</li>
       <li>No computador a coluna de escolhas fica estreita (430 px), então o teclado do modo avançado e os grupos ficam mais compactos.</li>
@@ -665,8 +671,8 @@ function inserir(x){
 }
 
 // ---------- resultado ----------
-const NOME_VISAO = {gastos:'Gastos', receitas:'Receitas', saldo:'Saldo'};
-const NOTA_VISAO = {gastos:'Soma das saídas.', receitas:'Soma das entradas.', saldo:'Renda menos gasto, como o total do Histórico.'};
+const NOME_VISAO = {gastos:'Gastos', receitas:'Receitas', saldo:'Resultado'};
+const NOTA_VISAO = {gastos:'Soma das saídas.', receitas:'Soma das entradas.', saldo:'Entradas menos saídas das tags escolhidas. Não é o saldo da conta.'};
 const sinal = (v, vis) => vis==='gastos' ? '-' : vis==='receitas' ? '+' : v<0 ? '-' : v>0 ? '+' : '';
 function renderResultado(valida){
   const a = ultimo;
@@ -701,7 +707,7 @@ function renderResultado(valida){
   else {
     al.className = 'alerta';
     al.innerHTML = a.visao==='saldo'
-      ? `<b>${pct}% do movimento (${brl(baseExt)} entre entradas e saídas)</b> está em lançamentos que têm <b>outras tags</b> além das da consulta. O saldo pode estar misturando assuntos.`
+      ? `<b>${pct}% do movimento (${brl(baseExt)} entre entradas e saídas)</b> está em lançamentos que têm <b>outras tags</b> além das da consulta. O resultado pode estar misturando assuntos.`
       : `<b>${pct}% do valor (${brl(baseExt)})</b> está em lançamentos que têm <b>outras tags</b> além das da consulta. O total pode estar misturando assuntos.`;
   }
   // resumo da barra de baixo (celular)
