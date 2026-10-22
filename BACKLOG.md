@@ -29,6 +29,7 @@ pendentes: nenhum.
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
 - [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
+- [\[UX/UI\] - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
 - [\[Processo\] - **\[Próximo\] Remover `financas-app.html`:**](#item-36)
 - [\[Infra\] - **\[Depois\] AWS Budget de US$ 1 e backup periódico:**](#item-11)
 - [\[Backend\] - **\[Depois\] Saldos e faturas do cartão calculados na Lambda:**](#item-14)
@@ -248,7 +249,22 @@ DynamoDB sem discutir com o dono.**
   Pelo padrão, começa com uma demo do formulário completo para aprovação.
 - 21. [ ] <a id="item-21"></a>**[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em [`.ai/ux.md`](.ai/ux.md)): barra de navegação
   inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
-  acessibilidade das abas, unificar o seletor de tags.
+  acessibilidade das abas, unificar o seletor de tags (agora no item 42).
+- 42. [ ] <a id="item-42"></a>**[Próximo] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências** (guarda-chuva; raciocínio e regras em
+  [`.ai/ux.md`](.ai/ux.md), seção "Filtro único e lista da consulta"). Hoje Tendências (filtro avançado de tags com E, OU e NÃO), Histórico (status, banco, tags e
+  combos, só "todas" ou "qualquer uma") e Futuros têm cada um o seu filtro, e os números e as consultas divergem. A ideia é **um filtro compartilhado**: uma janela
+  própria, aberta pela tela que a chama dizendo **quais blocos quer** (a Tendências só tags e combos; o Histórico tags, bancos e status), em duas partes, a lógica
+  pura (testada) e a janela que só desenha. Cada tela é dona do seu estado, as opções vêm da tela que chama e nada é enviado ao servidor. Cada passo pede demo
+  (janela nova ou tela mexida) e a janela nova entra no botão voltar (`camadasAbertas` e `fecharCamadaTopo`). Ordem:
+  - [ ] **a) [Próximo] Lista dos lançamentos da consulta, na Tendências** (decidido em 2026-10-22: ficar na Tendências e testar em produção). Janela só de leitura aberta
+    por um botão ao lado do total; tocar numa barra do mês filtra a lista; a soma da lista bate com o gráfico e a lista respeita a visão (Gastos, Receitas ou
+    Resultado); limite de linhas na tela (proposta: 200, com aviso). A Tendências é uma **simulação**: não edita, não oculta e não grava nada.
+  - [ ] **b) Extrair o filtro de tags** que já existe (`consulta-tags.js` e o seletor de `tendencias.js`) para o componente compartilhado, sem mudar o que a Tendências faz.
+  - [ ] **c) Histórico passa a usar o filtro**, ganhando o filtro avançado de tags. É a tela do saldo real: demo e cuidado extra.
+  - [ ] **d) Futuros:** ler o que ele filtra hoje e decidir se adota o componente.
+  - [ ] **e) "Abrir no Histórico" a partir da Tendências**, levando a consulta e o mês, para quem quiser editar ou ocultar. Depende do c.
+  - [ ] **f) Detalhes já vistos:** gráfico parado nos meses antigos ao girar o celular ou redimensionar a janela; decidir se Gastos/Receitas/Resultado deve ser lembrado
+    (hoje volta a Gastos ao recarregar); o gráfico longo é limitado aos 1000 lançamentos mais recentes carregados.
 
 ### Processo e qualidade (testes, releases, docs)
 - 10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
