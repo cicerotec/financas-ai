@@ -22,6 +22,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Tendências por tags | [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html) | grupos com E/NÃO e OU entre eles (padrão), "Modo avançado" com expressão livre (parênteses, E, OU, NÃO), barra do mês em duas partes e lista de outras tags com "Tirar (NÃO)" (implementada em 2026-10-18) |
 | Tendências, layout | [`demos/demo-tendencias-layout.html`](demos/demo-tendencias-layout.html) | **vale sobre a demo acima onde diferirem (layout)**: computador com resultado à esquerda e escolhas à direita, celular com "Editar consulta" em tela cheia, modo avançado por cima, barra de resumo e tags em botões (implementada em 2026-10-18) |
 | Tendências, visão | [`demos/demo-tendencias-visao.html`](demos/demo-tendencias-visao.html) | seletor "Gastos \| Receitas \| Resultado" no topo do resultado (Gastos é o padrão; Resultado é entradas menos saídas das tags escolhidas, **não** o saldo da conta), faixa fixa "Simulação" (não é saldo, nada é gravado, ocultos ficam de fora), barra que desce quando o resultado é negativo e "outras tags" pesadas pelo movimento no Resultado (implementada e aprovada em 2026-10-22) |
+| Tendências, lista | [`demos/demo-tendencias-lista.html`](demos/demo-tendencias-lista.html) | **em avaliação, não aprovada**: janela só de leitura com os lançamentos da consulta (botão "Ver os N lançamentos" ou toque numa barra do mês), fichas de mês, soma que bate com o gráfico, limite de 200 linhas e o topo compacto do app. Só desenha: nada vai para o código antes da aprovação |
 | Lançar, layout | [`demos/demo-lancar-layout.html`](demos/demo-lancar-layout.html) | Lançamento e Transferência como modos no topo, valor grande, Data/Banco/Status em linhas com seletor nativo, Tags em janela de baixo (celular) ou na coluna da direita (computador), "Mais" para nota, fatura, repetir e avisar, Salvar fixo embaixo (implementada em 2026-10-19) |
 | Histórico, layout | [`demos/demo-historico-layout.html`](demos/demo-historico-layout.html) | Lista de lançamentos: mês e busca no topo (o topo e a busca foram trocados pela demo de período abaixo), Filtros numa janela, linha como a de Futuros agrupada por dia, nota em ícone, ações numa janela de baixo, grupos por mês com soma na busca e tabela no computador (implementada em 2026-10-19) |
 | Histórico, período | [`demos/demo-historico-periodo.html`](demos/demo-historico-periodo.html) | **vale sobre a demo acima no topo da tela e na busca**: grupo 30d · 90d · 180d · 📅 (um mês) no lugar do ‹ mês ›, abre em 30d, a busca olha só o que está marcado e "Buscar em tudo" pede confirmação (implementada em 2026-10-20) |
@@ -175,6 +176,13 @@ Demo [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html); imple
   de propósito, para ninguém confundir com o saldo da conta. Uma frase embaixo diz o que está somando. No Resultado a barra do mês **desce** (em `--danger`) quando ele é
   negativo, e a porcentagem de "outras tags" e o peso da lista são do **movimento** (entradas mais saídas, sem sinal): valores que se cancelam não servem de base. A escolha não é
   guardada (volta a Gastos ao recarregar).
+- **Lista dos lançamentos da consulta** (demo [`demos/demo-tendencias-lista.html`](demos/demo-tendencias-lista.html), item 42a do backlog; implementada e aprovada em 2026-10-22): o texto
+  "Ver os N lançamentos ›" acima do total e cada **barra do mês** abrem uma **janela só de leitura** (tela cheia no celular, janela central de 700 px no computador; `#tdListaVeu`, entra em
+  `camadasAbertas()` e `fecharCamadaTopo()` do botão voltar). Não edita, não oculta e não exclui: para isso, o Histórico. Linhas como as do Histórico (descrição, data com ano, status, banco, tags,
+  valor com sinal e cor, sem ações), mais novo primeiro; **fichas de mês** (Todos e cada mês, com a contagem) e, em Todos, grupos por mês com a soma. A lista **segue a visão** e a base do gráfico
+  (ocultos e futuros fora), e o **rodapé mostra a soma com "✓ Bate com o gráfico"** (ou com a barra do mês): `CT.listar` faz a conta, com teste. Desenha no máximo **200 linhas** ("Mostrando 200 de N.
+  Escolha um mês acima para ver o resto."). **Custos:** não deixa agir no lançamento (a ponte "Abrir no Histórico" é o item 42e), sem busca por texto nem ordenação, e só enxerga os 1000 lançamentos
+  mais recentes carregados.
 - **Gráfico:** barra do mês dividida em "só as tags da consulta" (cheia) e "tem outras tags além das da consulta" (listrada), que somam o total
   do mês; faixa com a porcentagem do valor com outras tags; com erro na expressão o gráfico fica esmaecido com o último resultado válido.
   Meses em fila que rola na horizontal (46 px por mês), começando pelos mais recentes.
@@ -410,6 +418,8 @@ ações), e tire uma captura para olhar.
   Use o mesmo id na regra (`#futMetricaAtras.sem-atraso`). Sempre confira por `getComputedStyle(...).display`.
 - `scrollWidth` não acusa estouro para a **esquerda** em linha com `justify-content:flex-end` (as ações da tabela). Meça
   as extremidades com `getBoundingClientRect()` da coluna e do primeiro e do último botão.
+- Dois elementos com o **mesmo id** (o container dos grupos e a janela da lista ficaram ambos `tdLista`) fazem o `$()` achar o primeiro e a janela nunca aparece (altura 0, `position:static`). A janela
+  é `tdListaVeu`. Antes de criar um id novo, confira que ele não existe: `grep -n "id=\"x\"" web/js/tendencias.js`.
 - `#tendRaiz button{color:inherit}` com id **vence** as cores de `.td-*` (o "Tirar" e o segmento marcado ficavam com a cor do texto). O reset usa `:where(#tendRaiz) button`
   (especificidade zero), e cada botão traz a sua cor.
 - Gráfico que rola na horizontal desenhado com a aba **escondida** (`hidden`) tem `scrollWidth` 0: o "rolar até o fim" não pega. Em Tendências um

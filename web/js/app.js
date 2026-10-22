@@ -753,6 +753,7 @@ function camadasAbertas(){
   let n = 0;
   if(camadaVisivel('modalOverlay')) n++;
   if(camadaVisivel('mnDrop')) n++;
+  if(camadaVisivel('tdListaVeu')) n++;
   if(camadaVisivel('tdVeu')) n++;
   if(document.body.classList.contains('td-edit')){ n++; if(camadaVisivel('tdExpr') && window.matchMedia('(max-width:1159px)').matches) n++; }
   if(pv) n += 1 + (pv.tela !== 'main' ? 1 : 0) + (pv.sheet ? 1 : 0);
@@ -766,6 +767,7 @@ function fecharCamadaTopo(){ // na ordem de cima para baixo; o que nao existe e 
   const clicar = sel=>{ const e = document.querySelector(sel); if(e) e.click(); return !!e; };
   if(camadaVisivel('modalOverlay')){ clicar('#modalCancelar') || clicar('#modalOk'); return; }
   if(camadaVisivel('mnDrop')){ fecharMenuApp(false); return; }
+  if(camadaVisivel('tdListaVeu')){ clicar('#tdLFechar'); return; }
   if(camadaVisivel('tdVeu')){ clicar('#tdJok'); return; }
   if(document.body.classList.contains('td-edit')){
     if(camadaVisivel('tdExpr') && window.matchMedia('(max-width:1159px)').matches){ clicar('#tdVoltarCel') || clicar('#tdVoltar'); return; }

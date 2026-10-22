@@ -129,7 +129,7 @@
   function base(lancamentos, ehReal) {
     return lancamentos.filter((l) => !l.oculto && ehReal(l.status)).map((l) => {
       const d = new Date(l.dataEvento);
-      return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida' };
+      return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida', ref: l };
     });
   }
 
@@ -147,13 +147,14 @@
     const meses = new Map();
     const co = new Map();
     let n = 0, total = 0, totExt = 0, vol = 0, volExt = 0;
+    const sel = []; // os lancamentos que entraram, para a lista da consulta
     itens.forEach((l) => {
       if (visao === 'gastos' && l.entrada) return;
       if (visao === 'receitas' && !l.entrada) return;
       const tags = l.tags || [];
       if (!q.pred(tags)) return;
       const val = visao === 'saldo' ? (l.entrada ? l.valor : -l.valor) : l.valor;
-      n++; total += val; vol += l.valor;
+      n++; total += val; vol += l.valor; sel.push(l);
       const m = meses.get(l.mes) || { mes: l.mes, total: 0, ext: 0 };
       m.total += val;
       const outras = q.vazia ? [] : tags.filter((t) => !q.mencionadas.has(t)); // sem filtro nao ha 'outras tags'
@@ -165,7 +166,26 @@
       .sort((x, y) => y.v - x.v || x.t.localeCompare(y.t, 'pt-BR'));
     const lista = [...meses.values()].map((m) => ({ mes: m.mes, total: centavos(m.total), ext: centavos(m.ext) }))
       .sort((x, y) => (x.mes < y.mes ? -1 : x.mes > y.mes ? 1 : 0));
-    return { meses: lista, n, total: centavos(total), totExt: centavos(totExt), vol: centavos(vol), volExt: centavos(volExt), cot, vazia: !!q.vazia, visao };
+    return { meses: lista, n, total: centavos(total), totExt: centavos(totExt), vol: centavos(vol), volExt: centavos(volExt), cot, vazia: !!q.vazia, visao, itens: sel };
+  }
+
+  // A lista da consulta (janela so de leitura da Tendencias). r: o resultado de resumir; mes: '' (todos) ou 'aaaa-mm'; max: linhas a desenhar.
+  // Ordem: do mais novo ao mais antigo. A soma segue a visao (no saldo, entrada soma e saida subtrai) e tem de bater com o grafico
+  // (r.total, ou a barra do mes): "bate" e a conferencia dos numeros. Mes que nao tem lancamento cai em "todos".
+  function listar(r, mes, max) {
+    const todos = r.itens.slice().sort((a, b) => new Date(b.ref.dataEvento) - new Date(a.ref.dataEvento));
+    const contagem = new Map();
+    todos.forEach((l) => contagem.set(l.mes, (contagem.get(l.mes) || 0) + 1));
+    const meses = [...contagem.entries()].map(([m, n]) => ({ mes: m, n })).sort((a, b) => (a.mes < b.mes ? -1 : a.mes > b.mes ? 1 : 0));
+    if (!contagem.has(mes)) mes = '';
+    const vis = mes ? todos.filter((l) => l.mes === mes) : todos;
+    const val = (l) => (r.visao === 'saldo' ? (l.entrada ? l.valor : -l.valor) : l.valor);
+    const soma = (arr) => centavos(arr.reduce((t, l) => t + val(l), 0));
+    const somaMes = {};
+    meses.forEach((m) => { somaMes[m.mes] = soma(todos.filter((l) => l.mes === m.mes)); });
+    const esperado = mes ? r.meses.find((m) => m.mes === mes).total : r.total;
+    const total = soma(vis);
+    return { mes, meses, n: vis.length, linhas: vis.slice(0, max), corte: vis.length > max, soma: total, esperado, bate: Math.abs(total - esperado) < 0.005, somaMes };
   }
 
   // "Tirar (NAO)" numa outra tag: nos grupos, o NAO entra em todos os grupos preenchidos; na expressao, ela inteira vira
@@ -191,7 +211,7 @@
   }
 
   const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
-    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, tirarTag, VISOES, base };
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, tirarTag, VISOES, base };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.ConsultaTags = api;
 })(typeof window !== 'undefined' ? window : globalThis);

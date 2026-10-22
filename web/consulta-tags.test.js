@@ -257,7 +257,8 @@ test('base: status que nao e real fica de fora, quem decide e o ehReal do app', 
 
 test('base: entrada e tudo que nao e saida; mes, valor e tags saem prontos', () => {
   const r = C.base([lan({ tipo: 'entrada', valor: '25.5', tags: undefined, dataEvento: '2026-09-02T09:00:00' }), lan({ tipo: 'saida' })], real);
-  assert.deepEqual(r[0], { mes: '2026-09', valor: 25.5, tags: [], entrada: true });
+  assert.deepEqual({ mes: r[0].mes, valor: r[0].valor, tags: r[0].tags, entrada: r[0].entrada }, { mes: '2026-09', valor: 25.5, tags: [], entrada: true });
+  assert.equal(r[0].ref.tipo, 'entrada'); // guarda o lancamento original para a lista
   assert.equal(r[1].entrada, false);
 });
 
@@ -265,4 +266,64 @@ test('base: o saldo da consulta nao conta o oculto (mesma regra do total do Hist
   const itens = C.base([lan({ valor: 100 }), lan({ valor: 40, oculto: true }), lan({ tipo: 'entrada', valor: 30 })], real);
   assert.equal(C.resumir(itens, qG('A'), 'saldo').total, -70);
   assert.equal(C.resumir(itens, qG('A'), 'gastos').total, 100);
+});
+
+// ---- lista da consulta ----
+const lc = (id, dia, extra) => lan(Object.assign({ id, dataEvento: '2026-07-' + dia + 'T12:00:00' }, extra));
+const MAXL = 200;
+
+test('listar: do mais novo ao mais antigo, com a contagem de cada mes em ordem crescente', () => {
+  const itens = C.base([lc('a', '05'), lc('b', '20'), lc('c', '12', { dataEvento: '2026-08-03T12:00:00' }), lc('d', '28', { dataEvento: '2026-06-28T12:00:00' })], real);
+  const r = C.resumir(itens, qG('A'));
+  const l = C.listar(r, '', MAXL);
+  assert.deepEqual(l.linhas.map((x) => x.ref.id), ['c', 'b', 'a', 'd']);
+  assert.deepEqual(l.meses, [{ mes: '2026-06', n: 1 }, { mes: '2026-07', n: 2 }, { mes: '2026-08', n: 1 }]);
+  assert.equal(l.mes, ''); assert.equal(l.n, 4);
+});
+
+test('listar: filtra por mes, e mes sem lancamento cai em todos', () => {
+  const itens = C.base([lc('a', '05'), lc('b', '20', { dataEvento: '2026-08-03T12:00:00' })], real);
+  const r = C.resumir(itens, qG('A'));
+  assert.deepEqual(C.listar(r, '2026-08', MAXL).linhas.map((x) => x.ref.id), ['b']);
+  assert.equal(C.listar(r, '2026-12', MAXL).mes, '');
+  assert.equal(C.listar(r, '2026-12', MAXL).n, 2);
+});
+
+test('listar: a soma bate com o grafico nas tres visoes, no total e em cada mes', () => {
+  const itens = C.base([lc('a', '05', { valor: 100 }), lc('b', '09', { tipo: 'entrada', valor: 30 }),
+    lc('c', '12', { valor: 45.5, dataEvento: '2026-08-03T12:00:00' }), lc('d', '15', { tipo: 'entrada', valor: 10, dataEvento: '2026-08-04T12:00:00' })], real);
+  ['gastos', 'receitas', 'saldo'].forEach((v) => {
+    const r = C.resumir(itens, qG('A'), v);
+    const t = C.listar(r, '', MAXL);
+    assert.equal(t.bate, true, v + ' total'); assert.equal(t.soma, r.total, v + ' soma');
+    r.meses.forEach((m) => { const x = C.listar(r, m.mes, MAXL); assert.equal(x.bate, true, v + ' ' + m.mes); assert.equal(x.soma, m.total); });
+  });
+  const s = C.listar(C.resumir(itens, qG('A'), 'saldo'), '', MAXL);
+  assert.equal(s.soma, -105.5); // 100 + 45.5 de saida, 40 de entrada: -145.5 + 40
+});
+
+test('listar: a visao decide o que aparece (gastos so saidas, receitas so entradas, saldo as duas)', () => {
+  const itens = C.base([lc('a', '05'), lc('b', '09', { tipo: 'entrada' })], real);
+  const ids = (v) => C.listar(C.resumir(itens, qG('A'), v), '', MAXL).linhas.map((x) => x.ref.id).sort();
+  assert.deepEqual(ids('gastos'), ['a']); assert.deepEqual(ids('receitas'), ['b']); assert.deepEqual(ids('saldo'), ['a', 'b']);
+});
+
+test('listar: so desenha ate o limite e diz que cortou; a soma continua a de todos', () => {
+  const muitos = Array.from({ length: 250 }, (_, i) => lc('x' + i, String((i % 28) + 1).padStart(2, '0'), { valor: 1 }));
+  const r = C.resumir(C.base(muitos, real), qG('A'));
+  const l = C.listar(r, '', MAXL);
+  assert.equal(l.linhas.length, 200); assert.equal(l.corte, true); assert.equal(l.n, 250); assert.equal(l.soma, 250); assert.equal(l.bate, true);
+  assert.equal(C.listar(r, '', 300).corte, false);
+});
+
+test('listar: consulta vazia de resultado devolve lista vazia sem quebrar', () => {
+  const r = C.resumir(C.base([lc('a', '05')], real), qG('Z'));
+  const l = C.listar(r, '2026-07', MAXL);
+  assert.equal(l.n, 0); assert.deepEqual(l.linhas, []); assert.deepEqual(l.meses, []); assert.equal(l.bate, true);
+});
+
+test('listar: somaMes traz a soma de cada mes (cabecalho do grupo na janela)', () => {
+  const itens = C.base([lc('a', '05', { valor: 10 }), lc('b', '06', { valor: 5 }), lc('c', '03', { valor: 7, dataEvento: '2026-08-03T12:00:00' })], real);
+  const l = C.listar(C.resumir(itens, qG('A')), '', MAXL);
+  assert.deepEqual(l.somaMes, { '2026-07': 15, '2026-08': 7 });
 });
