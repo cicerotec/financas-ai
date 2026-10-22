@@ -3,7 +3,8 @@
 // Layout (demo .ai/demos/demo-tendencias-layout.html): no computador (>= 1160 px) o resultado fica à esquerda e as escolhas à direita;
 // no celular o resultado vem primeiro e as escolhas abrem em tela cheia por "Editar consulta" (o modo avançado abre por cima).
 // Nada de lista de tags ou de combos solta na página: tudo abre numa janela (grupos, combos e "+ Tag" do modo avançado).
-// O seletor Gastos | Receitas | Saldo (padrão: Gastos) escolhe o que somar; Saldo é renda menos gasto, a conta do total do Histórico.
+// O seletor Gastos | Receitas | Resultado (padrão: Gastos) escolhe o que somar; Resultado é entradas menos saídas das tags escolhidas.
+// Isto é uma SIMULAÇÃO (a faixa no topo diz): nunca vale como saldo (o saldo real é o do Histórico) e nunca grava nada. Ocultos ficam de fora.
 // Lógica pura e testada em web/consulta-tags.js. O front só desenha e soma o que já está na tela: nenhum número daqui vai para a API.
 // Carregado depois do app.js e usa os globais dele (lancamentosCache, tagsUsadas, ehStatusReal, combosAtuaisLista, esc, fmtMoeda).
 (function () {
@@ -26,13 +27,14 @@
       '<div class="td-layout">' +
       // ---- resultado: esquerda no computador, primeiro no celular ----
       '<div class="td-res">' +
+        '<div class="td-sim" role="note"><b>Simulação.</b> Os números aqui servem para explorar: não são o seu saldo e nada é gravado. Lançamentos ocultos ficam de fora, como no Histórico.</div>' +
         '<div class="td-card"><div class="td-tit">Sua consulta</div><div class="td-consulta">' +
           '<div class="td-frase" id="tdFrase"></div>' +
           '<button class="td-editar td-so-cel" id="tdEditar" type="button">Editar consulta</button></div></div>' +
         '<div class="td-card"><div class="td-seg" id="tdSeg" role="radiogroup" aria-label="O que somar">' +
           '<button type="button" role="radio" aria-checked="true" data-v="gastos">Gastos</button>' +
           '<button type="button" role="radio" aria-checked="false" data-v="receitas">Receitas</button>' +
-          '<button type="button" role="radio" aria-checked="false" data-v="saldo">Saldo</button></div>' +
+          '<button type="button" role="radio" aria-checked="false" data-v="saldo">Resultado</button></div>' +
           '<p class="td-seg-nota" id="tdSegNota"></p>' +
           '<div class="td-rtop"><span class="td-rtx" id="tdRtx"></span><span class="td-rtot" id="tdRtot"></span></div>' +
           '<div class="td-graf" id="tdGraf"></div><div class="td-leg" id="tdLeg"></div><div class="td-alerta" id="tdAlerta"></div></div>' +
@@ -92,14 +94,9 @@
   }
 
   // ---------- dados ----------
-  // Lançamentos com status real; entrada é tudo que não é saída (a mesma regra do valorAssinado do Histórico). Quem escolhe o que
-  // somar (gastos, receitas ou saldo) é CT.resumir, pela visão.
-  function itens() {
-    return lancamentosCache.filter((l) => ehStatusReal(l.status)).map((l) => {
-      const d = new Date(l.dataEvento);
-      return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida' };
-    });
-  }
+  // A base é de CT.base: sem ocultos (como o Histórico), só status real, entrada = tudo que não é saída. Quem escolhe o que somar
+  // (gastos, receitas ou resultado) é CT.resumir, pela visão.
+  function itens() { return CT.base(lancamentosCache, ehStatusReal); }
   function limparTagsInexistentes() { // tag excluída ou migrada sai da consulta (só depois que a lista de tags chegou)
     if (!tagsUsadas.length) return;
     const ok = (t) => tagsUsadas.includes(t);
@@ -225,8 +222,8 @@
     $('tdCont').textContent = ten.fichas.length + ' de ' + CT.MAX_FICHAS + ' fichas' + (ten.fichas.length >= CT.MAX_FICHAS ? ' (limite atingido: apague uma para inserir outra)' : '');
   }
   // ---------- resultado ----------
-  const NOME_VISAO = { gastos: 'Gastos', receitas: 'Receitas', saldo: 'Saldo' };
-  const NOTA_VISAO = { gastos: 'Soma das saídas.', receitas: 'Soma das entradas.', saldo: 'Renda menos gasto, como o total do Histórico.' };
+  const NOME_VISAO = { gastos: 'Gastos', receitas: 'Receitas', saldo: 'Resultado' };
+  const NOTA_VISAO = { gastos: 'Soma das saídas.', receitas: 'Soma das entradas.', saldo: 'Entradas menos saídas das tags escolhidas. Não é o saldo da conta.' };
   const sinal = (v, vis) => (vis === 'gastos' ? '-' : vis === 'receitas' ? '+' : v < 0 ? '-' : v > 0 ? '+' : '');
   const cents = (x) => Math.round(x * 100) / 100 + 0;
   function renderResultado(valida) {
@@ -272,7 +269,7 @@
     else {
       al.className = 'td-alerta';
       al.innerHTML = vis === 'saldo'
-        ? '<b>' + pct + '% do movimento (' + esc(fmtMoeda(baseExt)) + ' entre entradas e saídas)</b> está em lançamentos que têm <b>outras tags</b> além das da consulta. O saldo pode estar misturando assuntos.'
+        ? '<b>' + pct + '% do movimento (' + esc(fmtMoeda(baseExt)) + ' entre entradas e saídas)</b> está em lançamentos que têm <b>outras tags</b> além das da consulta. O resultado pode estar misturando assuntos.'
         : '<b>' + pct + '% do valor (' + esc(fmtMoeda(baseExt)) + ')</b> está em lançamentos que têm <b>outras tags</b> além das da consulta. O total pode estar misturando assuntos.';
     }
     // resumo ao vivo da barra de baixo (celular)

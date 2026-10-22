@@ -240,3 +240,29 @@ test('visoes: sem filtro mostra tudo e nao ha outras tags', () => {
   const r = C.resumir(itens, C.consulta(grupos()), 'saldo');
   assert.equal(r.vazia, true); assert.equal(r.total, -6); assert.equal(r.totExt, 0); assert.deepEqual(r.cot, []);
 });
+
+// ---- base da Tendencias: o que conta ----
+const lan = (extra) => Object.assign({ tipo: 'saida', status: 'PAGO', dataEvento: '2026-07-15T12:00:00', valor: 10, tags: ['A'] }, extra);
+const real = (st) => st !== 'PREVISTO';
+
+test('base: lancamento oculto fica de fora (ocultar tira do total, como no Historico)', () => {
+  const r = C.base([lan(), lan({ oculto: true }), lan({ oculto: false })], real);
+  assert.equal(r.length, 2);
+});
+
+test('base: status que nao e real fica de fora, quem decide e o ehReal do app', () => {
+  assert.equal(C.base([lan(), lan({ status: 'PREVISTO' })], real).length, 1);
+  assert.equal(C.base([lan(), lan({ status: 'PREVISTO' })], () => true).length, 2);
+});
+
+test('base: entrada e tudo que nao e saida; mes, valor e tags saem prontos', () => {
+  const r = C.base([lan({ tipo: 'entrada', valor: '25.5', tags: undefined, dataEvento: '2026-09-02T09:00:00' }), lan({ tipo: 'saida' })], real);
+  assert.deepEqual(r[0], { mes: '2026-09', valor: 25.5, tags: [], entrada: true });
+  assert.equal(r[1].entrada, false);
+});
+
+test('base: o saldo da consulta nao conta o oculto (mesma regra do total do Historico)', () => {
+  const itens = C.base([lan({ valor: 100 }), lan({ valor: 40, oculto: true }), lan({ tipo: 'entrada', valor: 30 })], real);
+  assert.equal(C.resumir(itens, qG('A'), 'saldo').total, -70);
+  assert.equal(C.resumir(itens, qG('A'), 'gastos').total, 100);
+});

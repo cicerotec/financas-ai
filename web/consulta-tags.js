@@ -123,6 +123,16 @@
     return { fichas: f, pos: pos + novos.length, cheio: false };
   }
 
+  // A base da Tendencias: so o que o Historico tambem conta nos totais. Fica de fora o lancamento oculto (ocultar tira do saldo) e o
+  // de status que nao e real (futuro etc., decidido por ehReal, que vem do app). Entrada e tudo que nao e saida (como o valorAssinado do
+  // Historico). O mes e o da data local do lancamento. A Tendencias e uma simulacao: le o que ja esta na tela e nunca grava nada.
+  function base(lancamentos, ehReal) {
+    return lancamentos.filter((l) => !l.oculto && ehReal(l.status)).map((l) => {
+      const d = new Date(l.dataEvento);
+      return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida' };
+    });
+  }
+
   const VISOES = ['gastos', 'receitas', 'saldo'];
   const centavos = (x) => Math.round(x * 100) / 100 + 0; // + 0 troca -0 por 0
 
@@ -181,7 +191,7 @@
   }
 
   const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
-    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, tirarTag, VISOES };
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, tirarTag, VISOES, base };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.ConsultaTags = api;
 })(typeof window !== 'undefined' ? window : globalThis);
