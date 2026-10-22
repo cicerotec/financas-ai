@@ -178,3 +178,91 @@ test('frases', () => {
   assert.equal(C.fraseGrupos([G(['A', 'B']), G(['C'])]), '(A E B) OU (C)');
   assert.equal(C.fraseGrupos([G([])]), '');
 });
+
+// ---- visoes: gastos, receitas e saldo ----
+const en = (mes, valor, ...tags) => ({ mes, valor, tags, entrada: true });
+const qG = (...tem) => C.consulta(grupos(G(tem)));
+
+test('visao padrao e gastos: soma so as saidas e ignora as entradas', () => {
+  const itens = [li('2026-07', 100, 'A'), en('2026-07', 100, 'A'), li('2026-07', 50, 'A')];
+  const r = C.resumir(itens, qG('A'));
+  assert.equal(r.visao, 'gastos'); assert.equal(r.n, 2); assert.equal(r.total, 150);
+  assert.equal(C.resumir(itens, qG('A'), 'qualquer coisa').visao, 'gastos'); // visao desconhecida cai em gastos
+});
+
+test('receitas: soma so as entradas', () => {
+  const itens = [li('2026-07', 100, 'A'), en('2026-07', 70, 'A'), en('2026-08', 30, 'A')];
+  const r = C.resumir(itens, qG('A'), 'receitas');
+  assert.equal(r.n, 2); assert.equal(r.total, 100);
+  assert.deepEqual(r.meses.map((m) => [m.mes, m.total]), [['2026-07', 70], ['2026-08', 30]]);
+});
+
+test('saldo: renda menos gasto, como o total do Historico (reembolso que cancela a compra da zero)', () => {
+  const itens = [li('2026-09', 310, 'A', 'B'), en('2026-09', 310, 'A', 'B'), li('2026-09', 40, 'A')];
+  const r = C.resumir(itens, qG('A'), 'saldo');
+  assert.equal(r.visao, 'saldo'); assert.equal(r.n, 3); assert.equal(r.total, -40);
+  const g = C.resumir(itens, qG('A'), 'gastos');
+  assert.equal(g.total, 350); // em gastos o reembolso nao aparece
+});
+
+test('saldo: mes que se cancela aparece com zero; mes so de renda fica positivo', () => {
+  const itens = [li('2026-06', 100, 'A'), en('2026-06', 100, 'A'), en('2026-07', 500, 'A')];
+  const r = C.resumir(itens, qG('A'), 'saldo');
+  assert.deepEqual(r.meses.map((m) => [m.mes, m.total]), [['2026-06', 0], ['2026-07', 500]]);
+  assert.equal(r.total, 500);
+});
+
+test('saldo: a barra se divide por lancamento com sinal; o movimento (sem sinal) e a base das porcentagens', () => {
+  const itens = [li('2026-07', 100, 'A'), li('2026-07', 300, 'A', 'X'), en('2026-07', 200, 'A', 'X')];
+  const r = C.resumir(itens, qG('A'), 'saldo');
+  assert.deepEqual(r.meses[0], { mes: '2026-07', total: -200, ext: -100 }); // sem outras tags: -100; com outras: -300 + 200
+  assert.equal(r.totExt, -100);
+  assert.equal(r.vol, 600); assert.equal(r.volExt, 500);
+  assert.deepEqual(r.cot, [{ t: 'X', v: 500 }]); // peso da outra tag = movimento, nao o saldo
+});
+
+test('receitas e gastos: porcentagem e peso seguem o valor da propria visao', () => {
+  const itens = [li('2026-07', 100, 'A'), li('2026-07', 100, 'A', 'X'), en('2026-07', 999, 'A', 'X')];
+  const g = C.resumir(itens, qG('A'), 'gastos');
+  assert.equal(g.total, 200); assert.equal(g.totExt, 100); assert.deepEqual(g.cot, [{ t: 'X', v: 100 }]);
+  const rc = C.resumir(itens, qG('A'), 'receitas');
+  assert.equal(rc.total, 999); assert.deepEqual(rc.cot, [{ t: 'X', v: 999 }]);
+});
+
+test('visoes: arredonda centavos (soma de decimais nao vaza erro de ponto flutuante)', () => {
+  const itens = [li('2026-07', 0.1, 'A'), li('2026-07', 0.2, 'A'), en('2026-07', 0.3, 'A')];
+  assert.equal(C.resumir(itens, qG('A'), 'gastos').total, 0.3);
+  assert.equal(C.resumir(itens, qG('A'), 'saldo').total, 0); // 0.3 - 0.1 - 0.2
+});
+
+test('visoes: sem filtro mostra tudo e nao ha outras tags', () => {
+  const itens = [li('2026-07', 10, 'A'), en('2026-07', 4)];
+  const r = C.resumir(itens, C.consulta(grupos()), 'saldo');
+  assert.equal(r.vazia, true); assert.equal(r.total, -6); assert.equal(r.totExt, 0); assert.deepEqual(r.cot, []);
+});
+
+// ---- base da Tendencias: o que conta ----
+const lan = (extra) => Object.assign({ tipo: 'saida', status: 'PAGO', dataEvento: '2026-07-15T12:00:00', valor: 10, tags: ['A'] }, extra);
+const real = (st) => st !== 'PREVISTO';
+
+test('base: lancamento oculto fica de fora (ocultar tira do total, como no Historico)', () => {
+  const r = C.base([lan(), lan({ oculto: true }), lan({ oculto: false })], real);
+  assert.equal(r.length, 2);
+});
+
+test('base: status que nao e real fica de fora, quem decide e o ehReal do app', () => {
+  assert.equal(C.base([lan(), lan({ status: 'PREVISTO' })], real).length, 1);
+  assert.equal(C.base([lan(), lan({ status: 'PREVISTO' })], () => true).length, 2);
+});
+
+test('base: entrada e tudo que nao e saida; mes, valor e tags saem prontos', () => {
+  const r = C.base([lan({ tipo: 'entrada', valor: '25.5', tags: undefined, dataEvento: '2026-09-02T09:00:00' }), lan({ tipo: 'saida' })], real);
+  assert.deepEqual(r[0], { mes: '2026-09', valor: 25.5, tags: [], entrada: true });
+  assert.equal(r[1].entrada, false);
+});
+
+test('base: o saldo da consulta nao conta o oculto (mesma regra do total do Historico)', () => {
+  const itens = C.base([lan({ valor: 100 }), lan({ valor: 40, oculto: true }), lan({ tipo: 'entrada', valor: 30 })], real);
+  assert.equal(C.resumir(itens, qG('A'), 'saldo').total, -70);
+  assert.equal(C.resumir(itens, qG('A'), 'gastos').total, 100);
+});
