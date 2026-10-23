@@ -43,14 +43,13 @@ Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave n
    lançamento, injetados; o resto do backend (`fechamento`, `tags`, `avisos`, `cfg`) segue como está e é migrado nos
    itens seguintes do 32. Não se cria "camada pela metade": o que entra é completo para lançamentos.
 5. **Importação em lote (fechada pelo dono em 2026-10-15).** O lote vira uma sequência de `TransactWriteItems` de até 25 lançamentos + 25
-   versões (50 itens, abaixo do limite de 100). `id` que já existe é uma **edição** (`acao = update`); `id` novo é
-   `insert`. A resposta mantém `gravados`, `rejeitados` e `pendentes`.
+   versões (50 itens, abaixo do limite de 100). `id` que já existe é uma **edição** (`acao = update`); `id` novo **não grava versão** (ajuste de 2026-10-23, decisão 8). A resposta mantém `gravados`, `rejeitados` e `pendentes`.
 6. **Como o v1 nasce: sem migração (fechada pelo dono em 2026-10-15).** O intent previa migrar o estado atual de cada
    lançamento como versão 1. **Descartado:** um lançamento nunca editado é igual ao seu v1, então a cópia não protege
    nada, e os lançamentos importados são do passado (o histórico começa quando a escrita nova entra no ar). Em vez
    disso, o caminho de escrita **cria o v1 sozinho** (`acao = insert`, `porSub` vazio) na **primeira edição ou
    exclusão** de um lançamento que ainda não tem versão, na **mesma transação**: v1 = estado antes, v2 = estado depois.
-   Nenhuma gravação em massa em prod. Para quem nunca foi editado, a API devolve "sem alterações desde o início do
+   Nenhuma gravação em massa em prod. **Desde 2026-10-23 (decisão 8) esta é a única forma de a versão 1 nascer, para todo lançamento.** Para quem nunca foi editado, a API devolve "sem alterações desde o início do
    histórico" e o estado atual (a decisão é da API, não do front). Alteração feita fora do service (console do
    DynamoDB) não gera versão, com ou sem migração.
 7. **Busca por mês de alteração (fechada pelo dono em 2026-10-15).** O intent restringia a consulta às versões de
@@ -69,6 +68,17 @@ Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave n
    - **Teto de 5.000 versões lidas**; acima disso a resposta traz `truncado: true` e a tela diz "refine a busca".
    - **Quem vê:** owner todas; member só dos lançamentos que criou.
    - **Custo (vai na demo):** só aparece o que foi alterado no mês escolhido; para ver outro mês, escolhe-se o mês.
+
+8. **A versão só nasce na alteração (fechada pelo dono em 2026-10-23).** Criar e importar `id` novo **não gravam versão**. Um
+   lançamento nunca alterado é igual ao seu estado original; criador e data já estão no registro (`criadoPor`, `criadoEm`). A v1
+   (estado antes, `acao = insert`, `porSub` vazio) e a v2 continuam nascendo juntas na primeira edição, exclusão ou
+   sobrescrita (regra R5 do spec, agora a única origem da v1). Importar um `id` **existente** segue gravando versão. Na tela, a
+   v1 passa a se chamar **"Original"** (só o texto; o valor `insert` não muda). **Custo e ganho:** criar passa de 4 WCU
+   (put + versão transacionais) para 1; editar continua em 4; some a causa do excesso de versões e do teto de 5.000. **O que se
+   perde:** o registro de quem importou e quando (a importação deixa de deixar rastro no histórico). **Dados já gravados:** as
+   versões `insert` de importações anteriores ficam; o dono pode apagar as de lançamentos nunca alterados pelo console do
+   DynamoDB (o `Deny` vale para o app, não para o administrador). **Ocultar** continua sendo edição e gerando versão; o
+   tratamento do oculto fica para o item 40 do BACKLOG. Não cria chave nem campo no DynamoDB.
 
 ## Desenho
 
@@ -172,6 +182,16 @@ surpresa:
   (`HIST#`, exemplo fictício e `excluidoEm`) atualizados; deploy em `financas-dev` e uma tentativa real de
   `DeleteItem` em `HIST#` negada.
 
+### Fase 1b: versão só na alteração (decisão 8, 2026-10-23)
+- `Criar` e o ramo "`id` novo" do `Importar` passam a gravar só o lançamento (sem versão). Editar, excluir, restaurar e a
+  sobrescrita na importação ficam como estão (a v1 preguiçosa já existe em `VersoesDaEscrita`).
+- Testes: o de criar e o de importar `id` novo passam a afirmar que **não há versão** e **falham antes da mudança**; os de
+  primeira edição e primeira exclusão cobrem o caminho que agora vale para todos; importar `id` existente continua gravando.
+- Tela: o texto da pílula da v1 muda de "Criado" para "Original" (`versoes.js`, `VS_ACAO`); `padrao-de-telas.md` e a demo
+  `demo-historico-versoes.html` acompanham na mesma entrega.
+- **Pronto quando:** os testes acima passam, `go test ./...` segue verde, e o spec, o intent e o modelo de dados já estão em
+  dia (esta documentação).
+
 ### Fase 2: busca por mês, diff e restauração (API)
 - Rotas novas, `authz.go` com teste (o que não está liberado é negado), diff e `restauravel` calculados no backend.
 - **Pronto quando:** testes de permissão (owner, member dono, member de outro, restaurar excluído), trava do
@@ -194,7 +214,7 @@ surpresa:
 | Item vivo e versão divergem | Os dois na mesma transação; falha da versão aborta |
 | `SALDO#` fica velho se `invalidarSaldos` falhar | Já é dívida do fechamento (intent); não entra aqui |
 | Excluído reaparece em alguma tela | Decisão 2 + teste de `GET /tx` depois de `DELETE`; conferir os leitores de `TX#` além de `listarTx` (`avisos.go`) |
-| Importação lenta com 5 WCU | Decisão 3: adiada; reavaliar depois da refatoração |
+| Importação lenta com 5 WCU | Decisão 3: adiada; reavaliar depois da refatoração. Desde a decisão 8, importar `id` novo não grava versão, o que reduz o gasto |
 | Registro de 400 KB | Versão guarda o registro inteiro; hoje um lançamento tem poucos KB, e o limite do item aborta a edição com erro claro |
 | Restaurar bagunçar fatura do cartão | Lacuna do item 33, documentada no intent; a restauração herda a regra quando existir |
 

@@ -4,7 +4,7 @@ Primeira feature da nova arquitetura ([`arquitetura.md`](../../arquitetura.md), 
 documento diz **o quê e por quê**; o como (`plan.md`) e o roteiro (`spec.md`) vêm depois, depois de o dono aprovar o
 intent.
 
-**Estado:** aprovado pelo dono (decisões fechadas em 2026-10-13 e ajustadas em 2026-10-15; veja `plan.md` e `spec.md`).
+**Estado:** aprovado pelo dono (decisões fechadas em 2026-10-13 e ajustadas em 2026-10-15 e 2026-10-23; veja `plan.md` e `spec.md`).
 As fases 0 a 2 estão implementadas e verificadas em dev; a 3 (tela) está implementada e falta conferir no app de dev.
 
 ## Por quê
@@ -15,13 +15,16 @@ foi, quem o mudou nem voltar atrás.
 
 ## O que queremos
 
-1. **Todo evento de escrita de lançamento vira uma versão no histórico.** Criar, editar, ocultar, excluir e restaurar
-   gravam, junto com o registro atual, uma versão com o **registro inteiro**, quem fez e quando.
+1. **Toda alteração de lançamento vira uma versão no histórico.** Editar (inclui ocultar), excluir e restaurar gravam,
+   junto com o registro atual, uma versão com o **registro inteiro**, quem fez e quando. **Criar não gera versão** (decisão do
+   dono de 2026-10-23): um lançamento é um lançamento, a criação não sobrescreve nada e quem criou e quando já estão no próprio
+   registro (`criadoPor` e `criadoEm`). A versão 1 nasce **junto com a primeira alteração ou exclusão** do lançamento, com o
+   estado de antes, e a versão 2 com o estado de depois. Importar um `id` novo também não gera versão.
 2. **Cada versão diz o que ocorreu**, num campo de evento (`acao`):
 
    | `acao` | Quando |
    |---|---|
-   | `insert` | o registro nasceu (versão 1) |
+   | `insert` | o **estado original**: a versão 1, criada sozinha na primeira alteração ou exclusão, com o estado de antes (a tela a chama de "Original"; o valor gravado continua `insert`) |
    | `update` | o registro mudou (inclui ocultar, ajustar fatura e mudar a data, que são edições) |
    | `delete` | o registro foi excluído (exclusão lógica: some das telas, fica na tabela e no histórico) |
    | `restore` | uma versão antiga foi recuperada (aponta qual versão originou) |
@@ -137,10 +140,20 @@ histórico começa quando a escrita nova entra no ar. Na **primeira edição ou 
 service grava, na mesma transação, a **versão 1** com o estado de antes (`acao = insert`, autor desconhecido) e a
 versão 2 com o estado de depois. Nenhuma gravação em massa.
 
+**Ajuste do dono (2026-10-23): a versão só existe quando há alteração.** O que vale para os lançamentos antigos vale agora para
+**todos**: criar pelo app e importar um `id` novo **não gravam versão**. A versão 1 (estado de antes, `acao = insert`, autor
+desconhecido) e a 2 nascem juntas na primeira edição, exclusão ou sobrescrita. Motivo: um lançamento nunca alterado é igual
+ao seu estado original, então a versão não protege nada, só enche o histórico (a importação de anos antigos gravou milhares
+de versões "Criado" sem uso) e custa escrita na tabela de 5 WCU. Importar um `id` que **já existe** continua sendo
+sobrescrita e continua gravando versão (v1 com o estado antes, v2 com o importado), porque "nada se sobrescreve sem versão"
+segue valendo. As versões `insert` de importação já gravadas continuam válidas; o dono pode apagá-las no DynamoDB, fora do
+app, só as de lançamentos que nunca foram alterados (sem versão 2): o lançamento volta a ser "sem versões".
+
 ## Pronto quando
 
-- Toda escrita de lançamento passa por um único caminho que grava registro e versão juntos, com teste que falha se a
-  versão não for gravada.
+- Toda **alteração** de lançamento (editar, excluir, restaurar e sobrescrever na importação) passa por um único caminho que grava
+  registro e versão juntos (criar e importar `id` novo não gravam versão); um teste falha se a versão de uma alteração não for gravada, e outro falha se criar ou importar `id` novo
+  gravarem versão.
 - Editar ou excluir um lançamento sem versões grava a versão 1 (estado de antes) e a versão 2 na mesma transação.
 - Nenhum código nem policy permite editar ou apagar uma versão (teste no repository e `Deny` no `template.yaml`).
 - A tela lista as versões, mostra o que mudou e restaura criando versão nova, em celular e computador, nos dois temas;
