@@ -169,6 +169,12 @@
     return { meses: lista, n, total: centavos(total), totExt: centavos(totExt), vol: centavos(vol), volExt: centavos(volExt), cot, vazia: !!q.vazia, visao, itens: sel };
   }
 
+  // O app carrega so os N lancamentos mais recentes (limite). Se vieram N, o mes mais antigo pode estar incompleto: devolve esse mes
+  // ('aaaa-mm', o primeiro do grafico) para o aviso, ou '' quando nao ha corte provavel. Nao resolve o corte: so evita a confusao.
+  function corte(carregados, limite, r) {
+    return carregados >= limite && r.meses.length ? r.meses[0].mes : '';
+  }
+
   // A lista da consulta (janela so de leitura da Tendencias). r: o resultado de resumir; mes: '' (todos) ou 'aaaa-mm'; max: linhas a desenhar.
   // Ordem: do mais novo ao mais antigo. A soma segue a visao (no saldo, entrada soma e saida subtrai) e tem de bater com o grafico
   // (r.total, ou a barra do mes): "bate" e a conferencia dos numeros. Mes que nao tem lancamento cai em "todos".
@@ -211,7 +217,7 @@
   }
 
   const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
-    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, tirarTag, VISOES, base };
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.ConsultaTags = api;
 })(typeof window !== 'undefined' ? window : globalThis);

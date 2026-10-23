@@ -17,6 +17,7 @@
   let montado = false, mesesAntes = 0, rolarFim = true;
   let edAberto = false;  // celular: tela cheia de escolhas aberta
   let listaAberta = false, listaMes = ''; // janela da lista dos lançamentos da consulta e o mês que ela mostra ('' = todos)
+  const LIMITE_CARGA = 1000; // quantos lançamentos o app carrega (limit(1000) em app.js; o backend também limita a 1000)
   const MAX_LISTA = 200;  // linhas desenhadas na lista (o resto pede um mês)
   let visao = 'gastos';  // o que somar: 'gastos' (saídas), 'receitas' (entradas) ou 'saldo' (renda menos gasto). Volta a Gastos ao recarregar.
   const $ = (id) => document.getElementById(id);
@@ -241,7 +242,9 @@
   const cents = (x) => Math.round(x * 100) / 100 + 0;
   function renderResultado(valida) {
     const a = ultimo, vis = a.visao;
-    $('tdSegNota').innerHTML = '<b>Simulação:</b> não é o seu saldo, nada é gravado e ocultos ficam de fora, como no Histórico. ' + esc(NOTA_VISAO[vis]);
+    const mesCorte = CT.corte(lancamentosCache.length, LIMITE_CARGA, a); // chegou ao limite: o mês mais antigo pode estar incompleto
+    $('tdSegNota').innerHTML = '<b>Simulação:</b> não é o seu saldo, nada é gravado e ocultos ficam de fora, como no Histórico. ' + esc(NOTA_VISAO[vis]) +
+      (mesCorte ? ' <span class="td-corte">O app carrega só os ' + LIMITE_CARGA + ' lançamentos mais recentes, então o mês mais antigo (' + esc(mesCorte.slice(5) + '/' + mesCorte.slice(2, 4)) + ') pode estar incompleto.</span>' : '');
     document.querySelectorAll('#tdSeg [data-v]').forEach((b) => b.setAttribute('aria-checked', b.dataset.v === vis));
     $('tdRtx').textContent = (a.n ? (a.n === 1 ? 'Ver o lançamento' : 'Ver os ' + a.n + ' lançamentos') : 'Nenhum lançamento') + (valida ? '' : ' (último resultado válido)');
     $('tdBtnLista').classList.toggle('sem', !a.n);

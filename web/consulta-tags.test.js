@@ -327,3 +327,16 @@ test('listar: somaMes traz a soma de cada mes (cabecalho do grupo na janela)', (
   const l = C.listar(C.resumir(itens, qG('A')), '', MAXL);
   assert.deepEqual(l.somaMes, { '2026-07': 15, '2026-08': 7 });
 });
+
+// ---- aviso de corte do grafico ----
+test('corte: so avisa quando vieram tantos lancamentos quanto o limite, e diz o mes mais antigo do grafico', () => {
+  const r = C.resumir(C.base([lc('a', '05'), lc('b', '09', { dataEvento: '2026-05-03T12:00:00' })], real), qG('A'));
+  assert.equal(C.corte(1000, 1000, r), '2026-05');
+  assert.equal(C.corte(1200, 1000, r), '2026-05');
+  assert.equal(C.corte(999, 1000, r), '');
+});
+
+test('corte: sem nada no grafico nao ha mes para avisar', () => {
+  const r = C.resumir(C.base([lc('a', '05')], real), qG('Z'));
+  assert.equal(C.corte(1000, 1000, r), '');
+});
