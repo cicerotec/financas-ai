@@ -184,6 +184,9 @@ Demo [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html); imple
   (ocultos e futuros fora), e o **rodapé mostra a soma com "✓ Bate com o gráfico"** (ou com a barra do mês): `CT.listar` faz a conta, com teste. Desenha no máximo **200 linhas** ("Mostrando 200 de N.
   Escolha um mês acima para ver o resto."). **Custos:** não deixa agir no lançamento (a ponte "Abrir no Histórico" é o item 42e), sem busca por texto nem ordenação, e só enxerga os 1000 lançamentos
   mais recentes carregados.
+- **Aviso de corte** (2026-10-23, pedido do dono, sem demo nova): o app carrega só os **1000 lançamentos mais recentes**; quando chegam 1000, a nota embaixo do gráfico ("Simulação: …") ganha, em
+  `--danger`, "O app carrega só os 1000 lançamentos mais recentes, então o mês mais antigo (mm/aa) pode estar incompleto." (`CT.corte`, com teste). **Não resolve** o corte: só evita a confusão. O caminho certo
+  é o período em meses cheios por intervalo de datas (item 42f do backlog).
 - **Gráfico:** barra do mês dividida em "só as tags da consulta" (cheia) e "tem outras tags além das da consulta" (listrada), que somam o total
   do mês; faixa com a porcentagem do valor com outras tags; com erro na expressão o gráfico fica esmaecido com o último resultado válido.
   Meses em fila que rola na horizontal (46 px por mês), começando pelos mais recentes.
