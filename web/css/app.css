@@ -777,3 +777,4 @@ body[data-aba="historico"] main{max-width:1600px;}
 .td-lrodape b{font-variant-numeric:tabular-nums;white-space:nowrap;}
 .td-lrodape .bate{color:var(--accent);font-weight:600;}
 .td-lrodape .nbate{color:var(--danger);font-weight:600;}
+.td-corte{color:var(--danger);}

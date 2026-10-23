@@ -326,6 +326,7 @@ body.trava{overflow:hidden;}
 .topo .seg{order:4;flex:1 1 100%;}
 .nota-sim{font-size:12.5px;color:var(--muted);margin:10px 2px 0;line-height:1.45;}
 .nota-sim b{color:var(--text);}
+.nota-sim .corte{color:var(--danger);}
 @media (min-width:1160px){
   .topo{flex-wrap:nowrap;}
   .topo .seg{order:2;flex:none;width:auto;grid-template-columns:repeat(3,auto);}
@@ -451,6 +452,7 @@ body.trava{overflow:hidden;}
     <p class="nota">Demonstração com dados de exemplo. Redimensione a janela para ver as duas visões (a troca é em 1160 px).</p>
     <b>O que muda nesta demo</b>
     <button type="button" class="btn-demo" id="btnMuitos">Simular 500+ lançamentos (só na demo)</button>
+    <button type="button" class="btn-demo" id="btnCorte">Simular o limite de 1000 lançamentos (só na demo)</button>
     <ul>
       <li><b>Ver os lançamentos da consulta.</b> O número de lançamentos acima do total virou um botão ("Ver os 23 lançamentos ›"). Tocar numa barra do mês faz o mesmo, já filtrando aquele mês. A lista abre numa janela (tela cheia no celular, janela central no computador).</li>
       <li><b>Só leitura.</b> A Tendências é uma simulação: a lista não edita, não oculta e não exclui. Para mexer num lançamento, o caminho é o Histórico.</li>
@@ -476,6 +478,7 @@ body.trava{overflow:hidden;}
       <li>A lista não deixa agir sobre o lançamento: para editar ou ocultar é preciso ir ao Histórico e achar o lançamento lá (a ponte "Abrir no Histórico" fica para depois, item 42e do backlog).</li>
       <li>Com muitos lançamentos só se vê o começo da lista (200 linhas) até escolher um mês; não há busca por texto nem ordenação aqui.</li>
       <li>A lista só enxerga o que o app já carregou (os 1000 lançamentos mais recentes), como o gráfico.</li>
+      <li><b>Aviso do corte:</b> quando o app chegou ao limite de 1000 lançamentos, a nota embaixo do gráfico diz que o mês mais antigo pode estar incompleto (em vermelho, com o mês). Ele só aparece nesse caso; não resolve o corte, só evita a confusão. Use o botão de cima para ver.</li>
       <li>Ocultos ficam de fora sem interruptor: quem quiser contá-los precisa mostrá-los de novo no Histórico.</li>
       <li>O seletor ocupa uma linha a mais no resultado; a escolha não é guardada ao sair da aba (volta para Gastos).</li>
       <li>No Resultado, as barras para baixo e para cima dividem a mesma altura do gráfico, então as barras ficam menores que em Gastos.</li>
@@ -562,6 +565,7 @@ const MESES = ['2026-05','2026-06','2026-07','2026-08','2026-09','2026-10'];
 const TAGS = [...new Set(L.flatMap(l=>l.t))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
 
 let listaAberta = false, listaMes = '';        // janela da lista e o mês que ela mostra ('' = todos)
+let CORTE = false;                              // só na demo: simula o limite de 1000 lançamentos atingido
 let MUITOS = false, LM = null;                  // só na demo: simula 500+ lançamentos para mostrar o limite de linhas
 const MAX_LISTA = 200;
 let visao = 'gastos';                       // 'gastos' | 'receitas' | 'saldo'
@@ -781,7 +785,9 @@ const NOTA_VISAO = {gastos:'Soma das saídas.', receitas:'Soma das entradas.', s
 const sinal = (v, vis) => vis==='gastos' ? '-' : vis==='receitas' ? '+' : v<0 ? '-' : v>0 ? '+' : '';
 function renderResultado(valida){
   const a = ultimo;
-  $('segNota').innerHTML = '<b>Simulação:</b> não é o seu saldo, nada é gravado e ocultos ficam de fora, como no Histórico. ' + NOTA_VISAO[a.visao];
+  const mesCorte = CORTE && a.n ? MESES[0] : '';   // no app: o mês mais antigo do gráfico, quando vieram 1000 lançamentos
+  $('segNota').innerHTML = '<b>Simulação:</b> não é o seu saldo, nada é gravado e ocultos ficam de fora, como no Histórico. ' + NOTA_VISAO[a.visao] +
+    (mesCorte ? ' <span class="corte">O app carrega só os 1000 lançamentos mais recentes, então o mês mais antigo (' + mesCorte.slice(5) + '/' + mesCorte.slice(2,4) + ') pode estar incompleto.</span>' : '');
   document.querySelectorAll('.seg [data-v]').forEach(b=>b.setAttribute('aria-checked', b.dataset.v===a.visao));
   $('rtx').textContent = (a.n ? (a.n===1 ? 'Ver o lançamento' : `Ver os ${a.n} lançamentos`) : 'Nenhum lançamento') + (valida?'':' (último resultado válido)');
   $('btnLista').classList.toggle('sem', !a.n);
@@ -951,12 +957,13 @@ function abrirLista(mes){
 }
 function fecharLista(){ listaAberta = false; $('veuL').hidden = true; travar(); }
 document.addEventListener('click', e=>{
-  const t = e.target.closest('#btnLista,[data-mes],[data-lm],#lFechar,#btnMuitos');
+  const t = e.target.closest('#btnLista,[data-mes],[data-lm],#lFechar,#btnMuitos,#btnCorte');
   if(!t){ if(e.target===$('veuL')) fecharLista(); return; }
   if(t.id==='btnLista') return abrirLista('');
   if(t.dataset.mes) return abrirLista(t.dataset.mes);
   if(t.dataset.lm!==undefined){ listaMes = t.dataset.lm; renderLista(); $('lCorpo').scrollTop = 0; return; }
   if(t.id==='lFechar') return fecharLista();
+  if(t.id==='btnCorte'){ CORTE = !CORTE; t.textContent = CORTE ? 'Voltar ao normal (só na demo)' : 'Simular o limite de 1000 lançamentos (só na demo)'; return tudo(); }
   if(t.id==='btnMuitos'){ MUITOS = !MUITOS; t.textContent = MUITOS ? 'Voltar aos poucos lançamentos (só na demo)' : 'Simular 500+ lançamentos (só na demo)'; return tudo(); }
 });
 document.addEventListener('keydown', e=>{

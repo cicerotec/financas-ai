@@ -263,7 +263,7 @@ DynamoDB sem discutir com o dono.**
   - [ ] **c) Histórico passa a usar o filtro**, ganhando o filtro avançado de tags. É a tela do saldo real: demo e cuidado extra.
   - [ ] **d) Futuros:** ler o que ele filtra hoje e decidir se adota o componente.
   - [ ] **e) "Abrir no Histórico" a partir da Tendências**, levando a consulta e o mês, para quem quiser editar ou ocultar. Depende do c.
-  - [ ] **f) Detalhes já vistos:** gráfico parado nos meses antigos ao girar o celular ou redimensionar a janela; decidir se Gastos/Receitas/Resultado deve ser lembrado
+  - [ ] **f) Detalhes já vistos** (o aviso de que o mês mais antigo pode estar incompleto foi feito em 2026-10-23; o corte em si continua): gráfico parado nos meses antigos ao girar o celular ou redimensionar a janela; decidir se Gastos/Receitas/Resultado deve ser lembrado
     (hoje volta a Gastos ao recarregar); o gráfico longo é limitado aos 1000 lançamentos mais recentes carregados.
 
 ### Processo e qualidade (testes, releases, docs)
