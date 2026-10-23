@@ -1,0 +1,189 @@
+<title>Demo Configurações</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: quadro de celular (ou janela de computador) no centro; o seletor de telas fica fora do quadro. Tokens iguais aos do app (padrao-de-telas.md). */
+:root{
+  --bg:#f1f0ec; --bg2:#e9e8e3; --card:#ffffff; --fg:#1d2220; --muted:#5c645e; --line:#e4e2dc;
+  --accent:#0f6b4f; --onaccent:#ffffff; --danger:#a3321f; --faint:#8c938d; --ck:#d3d6d2; --accent-bg:#dcefe5; --danger-bg:#f8e6e2;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121513; --bg2:#0c0f0d; --card:#1f2421; --fg:#e8ebe7; --muted:#a3aaa4; --line:#2e3430;
+  --accent:#5fc9a0; --onaccent:#08231a; --danger:#f08a76; --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e; --danger-bg:#3a1f1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121513; --bg2:#0c0f0d; --card:#1f2421; --fg:#e8ebe7; --muted:#a3aaa4; --line:#2e3430;
+  --accent:#5fc9a0; --onaccent:#08231a; --danger:#f08a76; --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e; --danger-bg:#3a1f1a; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg2);color:var(--fg);font:15px/1.4 var(--font);padding-block:16px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+.topo{max-width:720px;margin:0 auto 14px}
+.topo h1{font-size:18px;margin:0 0 4px}
+.topo p{margin:0;color:var(--muted);font-size:13px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px}
+.seg{display:inline-flex;background:var(--bg);border-radius:12px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:8px 12px;border-radius:10px;font-size:13px;min-height:40px}
+.seg button[aria-pressed="true"]{background:var(--card);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.rot{font-size:12px;color:var(--faint);align-self:center}
+
+.quadro{margin:0 auto;width:100%;max-width:400px;background:var(--bg);border-radius:22px;overflow:hidden;border:1px solid var(--line)}
+.quadro.pc{max-width:640px}
+.cab{display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 8px 0 16px;background:var(--card);border-bottom:1px solid var(--line);position:relative}
+.cab h2{font-size:18px;margin:0}
+.ponto{width:48px;height:48px;border:0;background:transparent;font-size:22px;border-radius:12px}
+.menu{position:absolute;right:8px;top:54px;width:230px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.menu .g{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:8px 10px 2px}
+.menu div.i{padding:10px;border-radius:10px;font-size:15px;display:flex;justify-content:space-between}
+.menu div.at{background:var(--accent-bg);font-weight:600}
+.menu .novo{font-size:11px;color:var(--accent);font-weight:600}
+.corpo{padding:10px;display:flex;flex-direction:column;gap:10px;min-height:420px}
+
+.cartao{background:var(--card);border-radius:16px;padding:14px 16px}
+.cartao b{font-size:15px}
+.mut{color:var(--muted);font-size:13px;margin:4px 0 8px}
+input[type=file]{width:100%;font-size:13px;margin:4px 0 8px;color:var(--muted)}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:12px;padding:10px;font:inherit;font-size:13px;resize:vertical}
+.btn{display:block;width:100%;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--onaccent);font-weight:600;margin-top:8px}
+.btn.cz{background:var(--ck);color:var(--fg)}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+.chk input{width:18px;height:18px;accent-color:var(--accent)}
+
+/* seção */
+.sec{background:var(--card);border-radius:16px;overflow:hidden}
+.sec>button.cabsec{display:flex;width:100%;align-items:center;gap:10px;min-height:64px;padding:10px 16px;border:0;background:transparent;text-align:left}
+.sec .tit{flex:1;min-width:0}
+.sec .tit b{display:block;font-size:16px}
+.sec .tit span{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seta{color:var(--muted);font-size:18px;transition:transform .15s}
+.sec.aberta .seta{transform:rotate(90deg)}
+.sec .dentro{display:none;padding:0 10px 10px;flex-direction:column;gap:8px}
+.sec.aberta .dentro{display:flex}
+.fixa>.cabsec{cursor:default}
+.fixa .seta{display:none}
+.sub{border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.sub .st{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin:0 0 4px}
+.sub b{font-size:14px}
+.so-dono{display:inline-block;font-size:11px;background:var(--accent-bg);color:var(--accent);border-radius:8px;padding:2px 7px;margin-left:6px;font-weight:600;vertical-align:1px}
+
+/* cartão (aba) */
+.resumo{text-align:center}
+.resumo .n{font-size:32px;font-weight:600;font-variant-numeric:tabular-nums}
+.banco{display:flex;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line);min-height:56px;align-items:center}
+.removido{border:2px dashed var(--danger);background:var(--danger-bg);border-radius:16px;padding:12px 16px}
+.removido b{color:var(--danger)}
+.nota{max-width:720px;margin:16px auto 0;background:var(--card);border-radius:16px;padding:14px 16px;font-size:13px}
+.nota h3{margin:0 0 6px;font-size:14px}
+.nota ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.dica{font-size:12px;color:var(--faint);text-align:center;margin:6px 0 0}
+</style>
+
+<div class="topo">
+  <h1>Configurações: Cartão, Importar e Exportar</h1>
+  <p>A aba Importar passa a se chamar Configurações e ganha três seções. Veja as três telas e escolha como as seções se comportam.</p>
+  <div class="ctl">
+    <div class="seg" role="group" aria-label="Tela">
+      <button id="tCfg" aria-pressed="true">Configurações</button>
+      <button id="tCar" aria-pressed="false">Aba Cartão</button>
+      <button id="tHoje" aria-pressed="false">Hoje (Importar)</button>
+    </div>
+    <div class="seg" role="group" aria-label="Largura">
+      <button id="wCel" aria-pressed="true">Celular</button>
+      <button id="wPc" aria-pressed="false">Computador</button>
+    </div>
+  </div>
+</div>
+
+<div class="quadro" id="quadro">
+  <div class="cab">
+    <h2 id="titulo">Configurações</h2>
+    <button class="ponto" id="btnMenu" aria-label="Menu" aria-expanded="false">⋮</button>
+    <div class="menu" id="menu" hidden>
+      <div class="g">Dia a dia</div>
+      <div class="i">Lançar</div><div class="i">Histórico</div><div class="i">Futuros</div>
+      <div class="g">Acompanhar</div>
+      <div class="i">Cartão</div><div class="i">Saldos</div><div class="i">Tendências</div>
+      <div class="g">Configurar</div>
+      <div class="i">Listas</div><div class="i">Histórico de versões</div>
+      <div class="i at"><span>Configurações ✓</span><span class="novo">antes: Importar</span></div>
+    </div>
+  </div>
+  <div class="corpo" id="corpo"></div>
+</div>
+
+<div class="nota" id="nota"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+let tela='cfg', recolhidas=true;
+
+const fechamentos=`<div class="sub"><b>Importar fechamentos da planilha</b>
+  <p class="mut">Lê, em cada aba mensal (ex.: "maio 2025"), a linha do cartão marcada com FECHAMENTO e grava o dia de cada mês. Não altera lançamentos. Valores já digitados de "valor no app do cartão" são mantidos.</p>
+  <input type="file" aria-label="Planilha de fechamentos">
+  <button class="btn">Importar fechamentos</button></div>`;
+
+const importar=`
+  <div class="sub"><div class="st">Planilha</div><b>Arquivo da planilha</b>
+    <p class="mut">O arquivo é lido aqui no seu navegador, não é enviado a ninguém. Formato: ST/DESCRIÇÃO/DIA/SEM/MES/DATA HORA/PAGO/RENDA/GASTOS/BANCO/TAG, uma aba por mês.</p>
+    <input type="file" aria-label="Planilha"><button class="btn">Processar arquivo</button></div>
+  <div class="sub"><div class="st">Planilha</div><b>Colar dados da planilha</b>
+    <p class="mut">No Google Sheets, selecione as células (do cabeçalho ST até o fim), copie e cole aqui.</p>
+    <textarea placeholder="Cole aqui..." aria-label="Dados colados"></textarea><button class="btn">Processar texto colado</button></div>
+  <div class="sub"><div class="st">Backup</div><b>Importar backup (.json)</b>
+    <p class="mut">Restaura o arquivo gerado por "Exportar dados". Itens com o mesmo id são sobrescritos; nada é apagado.</p>
+    <input type="file" aria-label="Backup">
+    <label class="chk"><input type="checkbox" checked> Importar lançamentos (dados financeiros)</label>
+    <label class="chk"><input type="checkbox" checked> Importar configurações</label>
+    <button class="btn">Importar backup</button></div>`;
+
+const exportar=`<div class="sub"><b>Exportar seus dados</b>
+  <p class="mut">Baixa um arquivo .json com o que você marcar abaixo. Sua cópia de segurança, fora da Anthropic.</p>
+  <label class="chk"><input type="checkbox" checked> Lançamentos (sem limite de quantidade)</label>
+  <label class="chk"><input type="checkbox" checked> Configurações (listas, tags, combos, cores, saldos e cartões)</label>
+  <button class="btn">Exportar dados</button></div>`;
+
+function sec(id,titulo,resumo,conteudo,dono){
+  const ab=!recolhidas;
+  return `<section class="sec ${ab?'aberta':''}" data-s="${id}">
+    <button class="cabsec" aria-expanded="${ab}"><div class="tit"><b>${titulo}${dono?'<span class="so-dono" style="display:inline">só dono</span>':''}</b><span>${resumo}</span></div><span class="seta">›</span></button>
+    <div class="dentro">${conteudo}</div></section>`;
+}
+
+function render(){
+  const q=$('quadro'), c=$('corpo'), n=$('nota');
+  $('titulo').textContent = tela==='cfg'?'Configurações': tela==='car'?'Cartão':'Importar';
+  $('menu').hidden=true; $('btnMenu').setAttribute('aria-expanded','false');
+  if(tela==='cfg'){
+    c.innerHTML = sec('car','Cartão','Fechamentos da planilha',fechamentos,false)
+      + sec('imp','Importar','Planilha, colar dados e backup',importar,false)
+      + sec('exp','Exportar seus dados','Lançamentos e configurações',exportar,false);
+    n.innerHTML=`<h3>O que muda e o que se perde</h3><ul>
+      <li><b>Nome:</b> Importar vira Configurações, no menu ⋮ (grupo Configurar), no cabeçalho e no endereço da aba.</li>
+      <li><b>Cartão:</b> só "Importar fechamentos da planilha" se muda para cá, junto com o texto e o resultado. <b>Adicionar cartão</b> continua na aba Cartão.</li>
+      <li><b>Importar:</b> uma seção com três blocos (arquivo da planilha, colar dados, backup). A prévia e o "Arquivo x banco de dados" continuam aparecendo embaixo do bloco que os gerou.</li>
+      <li><b>Exportar:</b> o conteúdo fica como está. Só ganha o mesmo cabeçalho de seção.</li>
+      <li><b>Seções recolhidas</b> no celular e no computador: a tela abre com três linhas. <b>Custo:</b> um toque a mais para abrir cada seção.</li>
+      <li><b>Só o dono:</b> a aba inteira é do dono, como a Importar é hoje. O membro não vê a aba nem o item no menu.</li>
+      <li>"Configurações" fica no grupo Configurar do menu, ao lado de Listas.</li></ul>`;
+  } else if(tela==='car'){
+    c.innerHTML=`<div class="cartao resumo"><div class="mut" style="margin:0">Faturas abertas</div><div class="n">R$ 4.218,90</div><div class="mut" style="margin:0">2 cartões</div></div>
+      <div class="cartao"><div class="banco" style="border:0"><span><b>NUBANK</b><div class="mut" style="margin:0">Fecha dia 25</div></span><b>R$ 2.410,00</b></div>
+      <div class="banco"><span><b>SANTANDER</b><div class="mut" style="margin:0">Fecha dia 8</div></span><b>R$ 1.808,90</b></div></div>
+      <div class="cartao"><b>Adicionar cartão</b><p class="mut">Escolha o banco ou conta que é cartão de crédito e o dia de fechamento da fatura atual.</p><button class="btn">Adicionar</button></div>`;
+    n.innerHTML=`<h3>Aba Cartão</h3><ul><li>Mesma tela de hoje, sem o bloco de fechamentos. Nada mais muda nela.</li><li><b>Custo:</b> quem importava os fechamentos sem sair do Cartão passa a ir a Configurações (dois toques, pelo ⋮).</li></ul>`;
+  } else {
+    c.innerHTML=`<div class="cartao">${importar.replace(/class="sub"/g,'class="x"').replace(/<div class="st">[^<]*<\/div>/g,'')}</div>${'<div class="cartao">'+exportar.replace('class="sub"','class="x"')+'</div>'}<p class="dica">Hoje: cinco blocos soltos, um atrás do outro. Os fechamentos estão na aba Cartão.</p>`;
+    n.innerHTML=`<h3>Como está hoje</h3><ul><li>Aba Importar com: arquivo da planilha, colar dados, importar backup e Exportar, sem títulos de seção.</li><li>Os fechamentos da planilha ficam na aba Cartão, entre as faturas e Adicionar cartão.</li></ul>`;
+  }
+  c.querySelectorAll('.cabsec').forEach(b=>b.onclick=()=>{
+    const s=b.parentElement, a=s.classList.toggle('aberta'); b.setAttribute('aria-expanded',a);
+  });
+}
+function par(ids,ativo){ids.forEach(i=>$(i).setAttribute('aria-pressed',i===ativo))}
+$('tCfg').onclick=()=>{tela='cfg';par(['tCfg','tCar','tHoje'],'tCfg');render()};
+$('tCar').onclick=()=>{tela='car';par(['tCfg','tCar','tHoje'],'tCar');render()};
+$('tHoje').onclick=()=>{tela='hoje';par(['tCfg','tCar','tHoje'],'tHoje');render()};
+$('wCel').onclick=()=>{$('quadro').classList.remove('pc');par(['wCel','wPc'],'wCel')};
+$('wPc').onclick=()=>{$('quadro').classList.add('pc');par(['wCel','wPc'],'wPc')};
+$('btnMenu').onclick=()=>{const m=$('menu');m.hidden=!m.hidden;$('btnMenu').setAttribute('aria-expanded',!m.hidden)};
+render();
+</script>

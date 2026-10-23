@@ -23,6 +23,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Tendências, layout | [`demos/demo-tendencias-layout.html`](demos/demo-tendencias-layout.html) | **vale sobre a demo acima onde diferirem (layout)**: computador com resultado à esquerda e escolhas à direita, celular com "Editar consulta" em tela cheia, modo avançado por cima, barra de resumo e tags em botões (implementada em 2026-10-18) |
 | Tendências, visão | [`demos/demo-tendencias-visao.html`](demos/demo-tendencias-visao.html) | seletor "Gastos \| Receitas \| Resultado" no topo do resultado (Gastos é o padrão; Resultado é entradas menos saídas das tags escolhidas, **não** o saldo da conta), faixa fixa "Simulação" (não é saldo, nada é gravado, ocultos ficam de fora), barra que desce quando o resultado é negativo e "outras tags" pesadas pelo movimento no Resultado (implementada e aprovada em 2026-10-22) |
 | Tendências, lista | [`demos/demo-tendencias-lista.html`](demos/demo-tendencias-lista.html) | **em avaliação, não aprovada**: janela só de leitura com os lançamentos da consulta (botão "Ver os N lançamentos" ou toque numa barra do mês), fichas de mês, soma que bate com o gráfico, limite de 200 linhas e o topo compacto do app. Só desenha: nada vai para o código antes da aprovação |
+| Configurações | [`demos/demo-configuracoes.html`](demos/demo-configuracoes.html) | A antiga aba Importar vira Configurações, só do dono, com as seções recolhidas Cartão (fechamentos da planilha), Importar (planilha, colar dados e backup) e Exportar; a aba Cartão perde o bloco de fechamentos (aprovada e implementada em 2026-10-23) |
 | Lançar, layout | [`demos/demo-lancar-layout.html`](demos/demo-lancar-layout.html) | Lançamento e Transferência como modos no topo, valor grande, Data/Banco/Status em linhas com seletor nativo, Tags em janela de baixo (celular) ou na coluna da direita (computador), "Mais" para nota, fatura, repetir e avisar, Salvar fixo embaixo (implementada em 2026-10-19) |
 | Histórico, layout | [`demos/demo-historico-layout.html`](demos/demo-historico-layout.html) | Lista de lançamentos: mês e busca no topo (o topo e a busca foram trocados pela demo de período abaixo), Filtros numa janela, linha como a de Futuros agrupada por dia, nota em ícone, ações numa janela de baixo, grupos por mês com soma na busca e tabela no computador (implementada em 2026-10-19) |
 | Histórico, período | [`demos/demo-historico-periodo.html`](demos/demo-historico-periodo.html) | **vale sobre a demo acima no topo da tela e na busca**: grupo 30d · 90d · 180d · 📅 (um mês) no lugar do ‹ mês ›, abre em 30d, a busca olha só o que está marcado e "Buscar em tudo" pede confirmação (implementada em 2026-10-20) |
@@ -81,7 +82,7 @@ literal num componente.
 Aprovado pelo dono em 2026-10-14. Presente no topo de todas as demos de `demos/` (bloco `menu-app:inicio` a `menu-app:fim`).
 - **Celular e janela abaixo de 1160 px:** cabeçalho de uma linha, com o **nome da tela atual** em destaque (sem o nome do
   app: o app se chama só "Finanças", e isso aparece na aba do navegador e no ícone) e o botão **⋮** (alvo de 48 px). O ⋮ abre um menu suspenso com as telas agrupadas em **Dia a dia** (Lançar,
-  Histórico, Futuros), **Acompanhar** (Cartão, Saldos, Tendências) e **Configurar** (Listas, Importar). A tela atual leva
+  Histórico, Futuros), **Acompanhar** (Cartão, Saldos, Tendências) e **Configurar** (Listas, Histórico de versões, Configurações). A tela atual leva
   destaque e "✓". Toque fora do menu ou Esc fecha, e o foco volta ao ⋮.
 - **Atalhos Histórico e Saldos** (aprovado em 2026-10-15, `demos/demo-atalho-saldos.html`): dois botões de 56 × 52 px
   entre o nome da tela e o ⋮, com ícone e rótulo de 11 px embaixo (ícone sozinho é ambíguo). Ficam **sempre no mesmo
@@ -97,8 +98,8 @@ Aprovado pelo dono em 2026-10-14. Presente no topo de todas as demos de `demos/`
   cabeçalho ganha um **botão da conta** (inicial e nome) que abre o mesmo bloco, com Sair. O limite é o mesmo da tabela de
   Futuros.
 - **No app**, as abas em botões (`nav`) continuam sendo a fonte das telas e dos nomes; o menu é montado a partir delas
-  (`MENU_APP` em `web/js/app.js` só define a ordem, os grupos e os ícones). Membro não vê Importar, nem no menu. Configurar tem Listas,
-  Histórico de versões e Importar.
+  (`MENU_APP` em `web/js/app.js` só define a ordem, os grupos e os ícones). Membro não vê Configurações, nem no menu. Configurar tem Listas,
+  Histórico de versões e Configurações (antes Importar).
 - **Custo:** trocar de tela passa a pedir dois toques (⋮ e a tela) em vez de um, **exceto Histórico e Saldos** (um toque). Sair
   também pede dois (⋮ e Sair), e o nome só aparece com o menu aberto.
   Em troca, o cabeçalho cai de 2 linhas para 1. A barra inferior estilo C6 foi descartada: lá a barra some em toda tela
@@ -191,6 +192,12 @@ Demo [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html); imple
 - **Custo:** "Tirar" tira o lançamento inteiro da conta (o total fica "puro", não "real"); não há divisão do valor entre tags; no celular não se vê o gráfico
   mudar enquanto se edita (a barra de baixo resume) e editar custa um toque a mais ("Editar consulta"), o modo avançado outro; botões de tag ocupam mais
   altura que uma lista com centenas de tags (a busca fica no topo da janela); montar uma expressão custa um toque a mais por tag; a consulta não é guardada ao sair do app.
+
+## Configurações (tela)
+Demo [`demos/demo-configuracoes.html`](demos/demo-configuracoes.html), aprovada pelo dono em 2026-10-23; implementação em `web/index.html` (`#tab-configuracoes`) e `web/css/app.css` (bloco "Aba Configurações"). É a antiga aba Importar, **só do dono** (`body.papel-member` esconde o botão e o item do menu). O id da aba passou de `importar` para `configuracoes`.
+- **Três seções recolhidas** (`<details class="cfg-sec">`, abertas só por toque, no celular e no computador): **Cartão** (só "Importar fechamentos da planilha"), **Importar** (arquivo da planilha, colar dados, backup .json; a prévia e o "Arquivo x banco de dados" continuam abrindo dentro dela) e **Exportar** (o cartão "Exportar seus dados" como era). Cada cabeçalho tem 64 px, título em negrito e uma linha de resumo.
+- **A aba Cartão** perdeu o bloco de fechamentos e **não deixa aviso no lugar**; fica só com faturas e "Adicionar cartão".
+- **Custo:** um toque a mais para abrir cada seção; quem importava fechamentos sem sair do Cartão agora passa por Configurações (dois toques, pelo ⋮).
 
 ## Lançar (tela)
 Demo [`demos/demo-lancar-layout.html`](demos/demo-lancar-layout.html), aprovada pelo dono em 2026-10-19; implementação em `web/index.html` (`#tab-lancar`), `web/css/app.css` (bloco "Aba Lançar") e `web/js/app.js` (`ligarLancar`). Todos os ids dos campos continuam os mesmos; só o desenho mudou.
@@ -433,4 +440,5 @@ ações), e tire uma captura para olhar.
 - **Janela ou tela cheia nova precisa entrar no botão voltar:** acrescente o teste de "está aberta" em `camadasAbertas()` e o jeito de fechar em `fecharCamadaTopo()` (`web/js/app.js`), na ordem de cima para baixo. O `MutationObserver` só enxerga mudança de `class`, `hidden` e filhos do `body`; se a camada mudar só por estado do JavaScript (como as telas internas de Prever), chame `Voltar.sync()` depois de redesenhar. Sem isso o voltar ignora a camada e fecha o app ou a aba por baixo.
 - `history.go()` seguidos não se somam em todo navegador: `voltar.js` pede um por vez e espera o `popstate` do anterior antes de acertar o próximo. Não chame `history.back()` à mão no app; mude o estado da tela e deixe o módulo acompanhar.
 - Este botão voltar só foi testado em Node (`web/voltar.test.js`) e num navegador de teste com uma página de mentira; o app real exige o login do Cognito. Confira no ambiente dev, no celular e instalado, antes de dar por fechado.
+- Renomear a aba muda o id (`data-tab`, `#tab-...`, regras de `papel-member` no CSS e `MENU_APP`) e o hash do endereço; um favorito antigo `#importar` cai na aba inicial. Procure o id velho em `web/` e nas demos antes de entregar.
 - `\n` dentro de heredoc do shell no Windows se corrompe: edite arquivos com a ferramenta de edição.
