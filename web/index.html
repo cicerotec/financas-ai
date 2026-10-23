@@ -36,7 +36,7 @@
     <button data-tab="saldos">Saldos</button>
     <button data-tab="futuros">Futuros</button>
     <button data-tab="versoes">Histórico de versões</button>
-    <button data-tab="importar">Importar</button>
+    <button data-tab="configuracoes">Configurações</button>
   </nav>
 </header>
 <main>
@@ -248,13 +248,6 @@
     <button class="ghost" id="btnAtualizarCartao" style="padding:4px 10px;">Atualizar ⟳</button>
   </div>
   <div id="listaCartoes"></div>
-  <div class="card so-owner" id="fechCard">
-    <b>Importar fechamentos da planilha</b>
-    <p class="muted">Lê, em cada aba mensal (ex.: "maio 2025"), a linha do cartão marcada com FECHAMENTO e grava o dia de cada mês, sem precisar digitar mês a mês. Não altera lançamentos. Valores já digitados de "valor no app do cartão" são mantidos.</p>
-    <input type="file" id="arquivoFech" accept=".xlsx,.xls">
-    <button class="primary" id="btnImportarFech">Importar fechamentos</button>
-    <p class="muted" id="fechStatus"></p>
-  </div>
   <div class="card so-owner" id="novoCartaoCard">
     <b>Adicionar cartão</b>
     <p class="muted">Escolha o banco ou conta que é cartão de crédito e o dia de fechamento da fatura atual. Depois você ajusta o fechamento de cada fatura, que muda todo mês.</p>
@@ -292,7 +285,22 @@
 
 <section id="tab-versoes" class="hidden"></section>
 
-<section id="tab-importar" class="hidden">
+<section id="tab-configuracoes" class="hidden">
+<details class="cfg-sec" id="cfgCartao">
+  <summary><span class="cfg-tit"><b>Cartão</b><span>Fechamentos da planilha</span></span><span class="cfg-seta" aria-hidden="true">›</span></summary>
+  <div class="cfg-corpo">
+  <div class="card" id="fechCard">
+    <b>Importar fechamentos da planilha</b>
+    <p class="muted">Lê, em cada aba mensal (ex.: "maio 2025"), a linha do cartão marcada com FECHAMENTO e grava o dia de cada mês, sem precisar digitar mês a mês. Não altera lançamentos. Valores já digitados de "valor no app do cartão" são mantidos.</p>
+    <input type="file" id="arquivoFech" accept=".xlsx,.xls">
+    <button class="primary" id="btnImportarFech">Importar fechamentos</button>
+    <p class="muted" id="fechStatus"></p>
+  </div>
+  </div>
+</details>
+<details class="cfg-sec" id="cfgImportar">
+  <summary><span class="cfg-tit"><b>Importar</b><span>Planilha, colar dados e backup</span></span><span class="cfg-seta" aria-hidden="true">›</span></summary>
+  <div class="cfg-corpo">
   <div class="card">
     <p class="muted">O arquivo é lido aqui no seu navegador — não é enviado pra mim em nenhum momento. Funciona com a planilha no formato ST/DESCRIÇÃO/DIA/SEM/MES/DATA HORA/PAGO/RENDA/GASTOS/BANCO/TAG, uma aba por mês.</p>
     <input type="file" id="arquivoImport" accept=".xlsx,.xls,.csv">
@@ -326,6 +334,11 @@
     <button class="primary" id="btnImportarBackup">Importar backup</button>
     <p class="muted" id="backupStatus"></p>
   </div>
+  </div>
+</details>
+<details class="cfg-sec" id="cfgExportar">
+  <summary><span class="cfg-tit"><b>Exportar</b><span>Lançamentos e configurações</span></span><span class="cfg-seta" aria-hidden="true">›</span></summary>
+  <div class="cfg-corpo">
   <div class="card">
     <b>Exportar seus dados</b>
     <p class="muted">Baixa um arquivo .json com o que você marcar abaixo. Dá para exportar só os lançamentos, só as configurações, ou os dois. Sua cópia de segurança, fora da Anthropic.</p>
@@ -334,6 +347,8 @@
     <button class="primary" id="btnExportar">Exportar dados</button>
     <p class="muted" id="exportStatus"></p>
   </div>
+  </div>
+</details>
 </section>
 
 </main>

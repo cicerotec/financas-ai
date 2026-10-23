@@ -97,7 +97,7 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
   var el=document.getElementById('mn'); if(!el) return;
   var T=[['lancar','Lançar','✏️','Dia a dia'],['historico','Histórico','🕘','Dia a dia'],['futuros','Futuros','📅','Dia a dia'],
          ['cartao','Cartão','💳','Acompanhar'],['saldos','Saldos','🏦','Acompanhar'],['tendencias','Tendências','📈','Acompanhar'],
-         ['listas','Listas','🏷️','Configurar'],['importar','Importar','📥','Configurar']];
+         ['listas','Listas','🏷️','Configurar'],['configuracoes','Configurações','⚙️','Configurar']];
   var atual=el.getAttribute('data-tela')||'lancar';
   var MAIS='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
   function nome(){for(var i=0;i<T.length;i++)if(T[i][0]===atual)return T[i][1];return '';}
