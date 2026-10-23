@@ -5,7 +5,9 @@ cada teste tem um id (`F<fase>-T<n>`), para o PR dizer exatamente o que cobriu. 
 divergirem, vale o plan, que registra as decisões do dono de 2026-10-15.
 
 **Estado:** aprovado pelo dono. Fases 0 a 2 implementadas e verificadas em dev (PRs #100, #102 e #106); a 3 (tela) implementada
-(PR #111), falta conferir no app de dev.
+(PR #111), falta conferir no app de dev. **Ajuste de 2026-10-23 (Fase 1b, a implementar):** criar e importar `id` novo não gravam
+versão; a versão só nasce na alteração. As regras R2, R4, R5 e R10, os testes F1-T1, F1-T3, F1-T8, F1-T13, F1-T14 e F2-T10 e os exemplos 1, 2 e 6
+deste documento já descrevem o comportamento novo; o código ainda faz o antigo até a Fase 1b.
 
 **Como usar:** uma fase por PR, na ordem. Cada fase só termina quando todos os seus testes passam e o "Pronto quando"
 está marcado. Teste de regra de negócio é teste de backend (`go test ./...` em `backend/`); o front não decide nada.
@@ -24,7 +26,7 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
 | `PK` | string | `HIST#<sid>` (o `sid` vem da rota, depois de `papel()`; nunca do corpo) |
 | `SK` | string | `TX#<id>#<versão com 8 dígitos>`, ex.: `TX#k3x9a1m7q2w8e5r4t6y1#00000003` |
 | `versao` | número | igual ao sufixo da `SK`; a primeira é `1` |
-| `acao` | string | `insert`, `update`, `delete` ou `restore` |
+| `acao` | string | `insert`, `update`, `delete` ou `restore`; `insert` só existe como a **versão 1** (o estado de antes da primeira alteração, "Original" na tela) |
 | `registro` | mapa | o lançamento **como ficou depois** da ação (na exclusão, com `excluidoEm`); no v1 preguiçoso, **como era antes** |
 | `porSub` | string | `sub` de quem agiu; **vazio** no v1 preguiçoso (autor desconhecido) |
 | `em` | string | ISO em UTC, com milissegundos |
@@ -51,11 +53,12 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
   Nenhum controller chama `db` nem importa o SDK da AWS.
 - **R2.** Toda escrita é **uma** `TransactWriteItems` com: o put do lançamento vivo, o put da versão (com
   `attribute_not_exists(SK)`) e, só se a `dataEvento` mudou, o delete da chave antiga. Falhou qualquer item: nada muda.
+  **Criar (e importar `id` novo) grava só o item vivo, sem versão.**
 - **R3.** `versao` = (maior versão do `id`) + 1. Duas escritas concorrentes disputam a mesma `SK`: a segunda recebe
   `409` com `codigo: "conflito_versao"` e nada é gravado.
-- **R4.** **Criar** grava a versão 1 com `acao = insert`. **Editar** (inclui ocultar, ajustar fatura e mudar a data)
+- **R4.** **Criar não grava versão** (nem pelo app, nem por importação de `id` novo): o item vivo nasce com `criadoPor` e `criadoEm`. **Editar** (inclui ocultar, ajustar fatura e mudar a data)
   grava uma versão `update`; mudar a data gera **uma** versão, não duas.
-- **R5. Versão 1 preguiçosa.** Se o lançamento não tem nenhuma versão (legado) e vai ser editado ou excluído, a mesma
+- **R5. Versão 1 preguiçosa (a única origem da v1).** Se o lançamento não tem nenhuma versão (qualquer lançamento ainda não alterado, antigo ou novo) e vai ser editado ou excluído, a mesma
   transação grava duas versões: **v1** = estado de antes (`insert`, `porSub` vazio) e **v2** = estado de depois.
 - **R6. Excluir** é lógico: grava `excluidoEm` no item vivo e uma versão `delete`. O item continua na tabela. Excluir
   o que já está excluído, ou o que não existe, responde `200 {"ok": true}` como hoje, **sem versão nova**.
@@ -65,8 +68,8 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
   `garantirTagsServidor`, `sincronizarAviso` (e `removerAviso` na exclusão), `comSeq` (uma vez por escrita).
 - **R9.** Nenhum código nem policy edita ou apaga versão: a interface do repository só tem `AnexarVersao` (via
   `SalvarLancamento`), e o `template.yaml` nega `UpdateItem` e `DeleteItem` em `HIST#*`.
-- **R10.** **Importação:** cada lote é uma transação com até 25 lançamentos e 25 versões. `id` novo = `insert`;
-  `id` existente = `update` (e R5 se não tinha versão). A trava rejeita item a item (`rejeitados`). A resposta mantém
+- **R10.** **Importação:** cada lote é uma transação com até 25 lançamentos e 25 versões. `id` novo = só o lançamento, **sem versão**;
+  `id` existente = sobrescrita: `update` (e R5 se não tinha versão: v1 com o estado antes, v2 com o importado). Só os sobrescritos têm versão no lote. A trava rejeita item a item (`rejeitados`). A resposta mantém
   `gravados`, `rejeitados` e `pendentes`; lote que falha inteiro volta em `pendentes`.
 
 **Leitura**
@@ -117,13 +120,13 @@ Erros seguem o formato de hoje (`{"erro": "...", "codigo": "..."}`).
 }
 ```
 
-Uma linha por lançamento, com a **última** versão do mês, ordenada por `em` decrescente. `excluidoEm` vem do `registro`
+Uma linha por lançamento, com a **última** versão do mês, ordenada por `em` decrescente. Como a v1 nasce junto da v2, a última versão do mês de um lançamento novo nunca é `insert`; só aparecem `insert` as versões de importação já gravadas antes do ajuste de 2026-10-23. `excluidoEm` vem do `registro`
 da última versão do mês (`null` se vivo) e `excluido` é `excluidoEm != null`. `porNome` é o `apelido` do vínculo
 `USER#<sub>` / `SPACE#<sid>` (vazio se não houver).
 
 ### `GET /spaces/{sid}/tx/{id}/versoes` (ação `historico.ler`)
 
-Todas as versões do `id`, da mais nova para a mais antiga. Um lançamento antigo, que nunca foi alterado, não tem versão
+Todas as versões do `id`, da mais nova para a mais antiga. Um lançamento que nunca foi alterado (antigo ou novo) não tem versão
 e a chave viva leva a `dataEvento`, então só se acha com o parâmetro `?de=<dataEvento>`: com ele, `200` com
 `"semHistorico": true`, `"versoes": []` e `"atual"`; sem ele, ou sem lançamento, `404`. A API procura as versões pelo `id`, então com versões o `?de=` é **ignorado**; ele só vale
 quando não há nenhuma.
@@ -170,7 +173,7 @@ DE="2026-09-10T12:00:00.000Z"                     # dataEvento atual (as rotas P
 H=(-H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json")
 ```
 
-### 1. Criar (`POST /tx`) grava o lançamento e a versão 1 (`insert`)
+### 1. Criar (`POST /tx`) grava só o lançamento, sem versão
 
 ```bash
 curl -s -X POST "$API/spaces/$SID/tx" "${H[@]}" -d '{
@@ -183,10 +186,10 @@ curl -s -X POST "$API/spaces/$SID/tx" "${H[@]}" -d '{
   "tipo": "saida", "status": "PAGO", "banco": "Nubank", "tags": ["mercado-mensal"],
   "criadoEm": "2026-09-10T12:05:00.000Z", "criadoPor": "sub-demo-1", "_seq": 101 }
 ```
-Status `201`. A resposta é igual à de hoje: **não traz** `excluidoEm`, `registro` nem versão. No DynamoDB, além do
-item vivo, nasce `HIST#esp-demo` / `TX#k3x9a1m7q2w8e5r4t6y1#00000001` com `acao = insert` e `registro` = o lançamento.
+Status `201`. A resposta é igual à de hoje: **não traz** `excluidoEm`, `registro` nem versão. No DynamoDB nasce **só o item vivo**:
+nenhuma versão em `HIST#`. Quem criou e quando ficam em `criadoPor` e `criadoEm`.
 
-### 2. Editar (`PUT /tx/{id}?de=`) grava a versão 2 (`update`)
+### 2. Editar pela primeira vez (`PUT /tx/{id}?de=`) grava a versão 1 (estado antes) e a 2 (`update`)
 
 ```bash
 curl -s -X PUT "$API/spaces/$SID/tx/$ID?de=$DE" "${H[@]}" -d '{ "valor": 187.5 }'
@@ -196,8 +199,8 @@ curl -s -X PUT "$API/spaces/$SID/tx/$ID?de=$DE" "${H[@]}" -d '{ "valor": 187.5 }
   "tipo": "saida", "status": "PAGO", "banco": "Nubank", "tags": ["mercado-mensal"],
   "criadoEm": "2026-09-10T12:05:00.000Z", "criadoPor": "sub-demo-1", "_seq": 102 }
 ```
-Status `200`. Em um lançamento **legado** (sem versões), a mesma chamada grava duas versões na mesma transação: a **v1**
-(estado de antes, `acao = insert`, `porSub` vazio) e a **v2** (`update`).
+Status `200`. Como o lançamento ainda não tem versões, a mesma chamada grava duas versões na mesma transação: a **v1**
+(estado de antes, `acao = insert`, `porSub` vazio; "Original" na tela) e a **v2** (`update`). Nas edições seguintes grava só a próxima.
 
 ### 3. Excluir (`DELETE /tx/{id}?de=`) é lógico: grava `excluidoEm` e a versão 3 (`delete`)
 
@@ -258,7 +261,7 @@ curl -s "$API/spaces/$SID/tx/$ID/versoes" "${H[@]}"
       "diff": [ { "campo": "valor", "antes": 180, "depois": 187.5 } ],
       "registro": { "id": "k3x9a1m7q2w8e5r4t6y1", "valor": 187.5 },
       "restauravel": true, "motivo": "" },
-    { "versao": 1, "acao": "insert", "porSub": "sub-demo-1", "porNome": "Ana", "em": "2026-09-10T12:05:00.000Z", "deVersao": null,
+    { "versao": 1, "acao": "insert", "porSub": "", "porNome": "", "em": "2026-09-14T13:02:11.482Z", "deVersao": null,
       "diff": [], "registro": { "id": "k3x9a1m7q2w8e5r4t6y1", "valor": 180 },
       "restauravel": true, "motivo": "" } ] }
 ```
@@ -325,23 +328,24 @@ Entrega: `HIST#`, R2 a R11, `excluidoEm`, `Deny` no `template.yaml`. Capacidade 
 
 | Id | Cenário | Esperado |
 |---|---|---|
-| F1-T1 | Criar lançamento | Item vivo + versão 1 `insert`, `porSub` = quem criou |
+| F1-T1 | Criar lançamento | Item vivo e **nenhuma** versão em `HIST#` (falha antes da Fase 1b) |
 | F1-T2 | Editar lançamento **com** versões | Versão `n+1` `update`; `registro` = depois |
-| F1-T3 | Editar lançamento legado (sem versões) | v1 `insert` (antes, `porSub` vazio) e v2 `update`, na mesma transação |
+| F1-T3 | Editar pela primeira vez (lançamento sem versões, antigo ou novo) | v1 `insert` (antes, `porSub` vazio) e v2 `update`, na mesma transação |
 | F1-T4 | Ocultar e ajustar fatura | Cada um é uma versão `update` |
 | F1-T5 | Mudar a `dataEvento` | **Uma** versão; chave antiga some, nova existe, na mesma transação |
 | F1-T6 | Excluir lançamento vivo | `excluidoEm` no item vivo, versão `delete`, aviso removido, `seq` +1 |
 | F1-T7 | Excluir de novo o excluído e excluir `id` inexistente | `200 {"ok": true}`, **sem versão nova** |
-| F1-T8 | Excluir legado | v1 `insert` (antes) e v2 `delete` |
+| F1-T8 | Excluir pela primeira vez (lançamento sem versões) | v1 `insert` (antes) e v2 `delete` |
 | F1-T9 | Falha injetada ao gravar a versão | A edição **inteira** aborta: item vivo igual ao de antes, `500` |
 | F1-T10 | Duas edições concorrentes do mesmo `id` | Uma grava; a outra `409` `conflito_versao`; só uma versão nova existe |
 | F1-T11 | Edição em mês conferido | `409` `mes_conferido` e **nenhum** item gravado (nem versão) |
 | F1-T12 | `GET /tx` depois de `DELETE` | O excluído **não** aparece; `excluidoEm` nunca sai em resposta |
-| F1-T13 | Importar lote com `id` novo e `id` existente | `insert` e `update`; resposta com `gravados`/`rejeitados`/`pendentes` |
-| F1-T14 | Importar com um item em mês conferido | Esse item em `rejeitados`; os demais gravados com versão |
+| F1-T13 | Importar lote com `id` novo e `id` existente | `id` novo: só o lançamento, sem versão; `id` existente: `update` (e v1 se não tinha versão); resposta com `gravados`/`rejeitados`/`pendentes` |
+| F1-T14 | Importar com um item em mês conferido | Esse item em `rejeitados`; os demais gravados (com versão só os sobrescritos) |
 | F1-T15 | Repository: nenhuma expressão de escrita de versão sem `attribute_not_exists(SK)` | O teste falha se alguma faltar |
 | F1-T16 | Repository e service | Não existe método de editar ou apagar versão (teste de reflexão sobre a interface) |
 | F1-T17 | Nenhuma rota monta `HIST#` a partir do corpo ou da query | Teste varre os controllers |
+| F1-T18 | Importar um lote só com `id` novos | Nenhum item em `HIST#` (falha antes da Fase 1b) |
 
 **Verificação em dev (manual, registrada no PR):**
 1. `sam deploy` na stack `financas-dev`.
@@ -363,7 +367,7 @@ Entrega: `HIST#`, R2 a R11, `excluidoEm`, `Deny` no `template.yaml`. Capacidade 
           dynamodb:LeadingKeys: ['HIST#*']
 ```
 
-**Pronto quando:** F1-T1 a F1-T17 passam; a verificação em dev está colada no PR; `security.md` e
+**Pronto quando:** F1-T1 a F1-T18 passam; a verificação em dev está colada no PR; `security.md` e
 `specs/modelo-de-dados/` (chave `HIST#`, `excluidoEm`, exemplo fictício) atualizados.
 
 ### Fase 2: busca por mês, diff e restauração (API)
@@ -384,7 +388,7 @@ maior que zero responde `400`; versão inexistente, `404`.
 | F2-T7 | `q` casa o nome **antigo** de um item renomeado no mês | O item aparece |
 | F2-T8 | Mais de 5.000 versões | Para a leitura e devolve `truncado: true` |
 | F2-T9 | Member em `/historico` e `/versoes` | Só o que criou; o de outro: vazio e `403` |
-| F2-T10 | `GET /versoes` de legado nunca editado | `semHistorico: true`, `atual` preenchido |
+| F2-T10 | `GET /versoes` de lançamento nunca editado (antigo ou novo) | `semHistorico: true`, `atual` preenchido |
 | F2-T11 | `GET /versoes` de `id` inexistente | `404` |
 | F2-T12 | `diff` | Só campos que mudaram; v1 com `[]`; sem `PK`/`SK` |
 | F2-T13 | Restaurar versão antiga de lançamento vivo | Versão `restore` com `deVersao`; `criadoPor`/`criadoEm` da versão (R13) |
@@ -433,3 +437,4 @@ Sem código antes da **demo aprovada** (guardrails, "Telas"). A demo é um artef
 3. Uma linha por lançamento, com a **última** versão do mês, e `q` olhando todas as versões do mês.
 4. Teto de **5.000** versões e `Deny` com `ForAnyValue` (verificado em dev antes de confiar).
 5. Excluir o que já está excluído, ou que não existe, **não** gera versão.
+6. (2026-10-23) Criar e importar `id` novo **não** geram versão; a v1 ("Original") nasce só na primeira alteração, exclusão ou sobrescrita.

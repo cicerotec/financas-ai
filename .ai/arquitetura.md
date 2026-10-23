@@ -135,8 +135,8 @@ qual canal está por trás.
 
 ## Histórico imutável e versionado
 
-**Regra de domínio (fechada):** toda criação, edição, ocultação e exclusão gera uma **versão** com o registro inteiro,
-quem fez e quando. Restaurar uma versão antiga cria uma versão nova com aquele conteúdo; o passado nunca é reescrito.
+**Regra de domínio (fechada):** toda edição, ocultação, exclusão e restauração gera uma **versão** com o registro inteiro,
+quem fez e quando; **criar (e importar `id` novo) não gera versão** (ajuste de 2026-10-23: a versão só nasce na alteração). Restaurar uma versão antiga cria uma versão nova com aquele conteúdo; o passado nunca é reescrito.
 
 Mecanismo (decisões do dono de 2026-10-15; o roteiro está em [`specs/historico/`](specs/historico/spec.md)). A **Fase 1**
 está implementada para lançamentos:
@@ -150,7 +150,8 @@ está implementada para lançamentos:
 - escopo: lançamentos primeiro, depois configurações (`listas`, `cartoes`, `saldos`, `combos`, hoje sobrescritas por
   `PUT` do blob inteiro) e fechamentos;
 - **sem migração**: a versão 1 nasce na primeira edição ou exclusão de um lançamento que ainda não tem histórico
-  (estado de antes, autor desconhecido), junto com a versão 2.
+  (estado de antes, autor desconhecido), junto com a versão 2. Desde 2026-10-23 isso vale para **todo** lançamento: criar e
+  importar `id` novo não gravam versão.
 
 O service tem **um único caminho de escrita**, que sempre grava registro e versão juntos. Como o controller só chega ao
 dado pelo service, não existe atalho que pule o histórico.

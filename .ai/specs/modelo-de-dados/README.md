@@ -57,7 +57,7 @@ porque a chave do lançamento muda quando a data é editada.
 | Atributo | O que é |
 |---|---|
 | `versao` | Número, igual ao sufixo da `SK`; a primeira é `1` |
-| `acao` | `insert`, `update`, `delete` ou `restore` |
+| `acao` | `insert`, `update`, `delete` ou `restore`; `insert` só existe como a versão 1 (estado de antes da primeira alteração; "Original" na tela) |
 | `registro` | O lançamento **como ficou depois** da ação (na exclusão, com `excluidoEm`); na versão 1 preguiçosa, **como era antes** |
 | `porSub` | `sub` de quem agiu; vazio na versão 1 preguiçosa (autor desconhecido) |
 | `em` | Texto ISO em UTC, com milissegundos |
@@ -65,7 +65,7 @@ porque a chave do lançamento muda quando a data é editada.
 | `confirmouMesFechado` | `true` só na versão em que a pessoa **confirmou** mexer em mês fechado por data (item 38) e a confirmação era necessária; nunca na versão 1 preguiçosa nem no lançamento vivo. Exemplo: [`hist-versao_update_confirmada.json`](dynamodb-single-table/hist-versao_update_confirmada.json) |
 
 O histórico só recebe versões novas, gravadas junto com o lançamento na mesma `TransactWriteItems`, com `attribute_not_exists(SK)` (a segunda de duas edições concorrentes falha com `409`). A role da Lambda tem `Deny` de `UpdateItem` e `DeleteItem` em `HIST#*` (`template.yaml`, `HistoricoImutavel`).
-Sem migração: a versão 1 nasce na primeira edição ou exclusão de um lançamento antigo. A vida de um lançamento (versão
+Sem migração: a versão 1 nasce na primeira edição ou exclusão de **qualquer** lançamento que ainda não tem versão (desde 2026-10-23, criar e importar `id` novo não gravam versão). A vida de um lançamento (versão
 1 preguiçosa, edição, exclusão) está em [`hist-versao_insert.json`](dynamodb-single-table/hist-versao_insert.json),
 [`_update`](dynamodb-single-table/hist-versao_update.json) e [`_delete`](dynamodb-single-table/hist-versao_delete.json).
 

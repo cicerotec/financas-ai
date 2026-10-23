@@ -123,10 +123,10 @@ Aprovado pelo dono em 2026-10-16 ([`demos/demo-historico-versoes.html`](demos/de
   atual, que é o padrão) e o campo de texto com o botão Buscar (Enter também busca). O texto olha a descrição e a nota de qualquer
   versão do mês.
 - **Lista (padrão 8):** uma linha por lançamento com a última alteração do mês: descrição (até 2 linhas), data · banco, a pílula
-  (Criado, Alterado, Excluído ou Restaurado), quem e quando, o valor e "versão N". Mês sem alteração mostra o estado vazio, e
+  (Original, Alterado, Excluído ou Restaurado; "Original" é a versão 1, o estado de antes da primeira alteração; a tela ainda diz "Criado" até a Fase 1b do histórico), quem e quando, o valor e "versão N". Mês sem alteração mostra o estado vazio, e
   `truncado` mostra a faixa "Há mais versões do que a tela mostra. Refine a busca ou escolha outro mês."
 - **Versões:** tocar abre a **tela cheia** com ← (padrão 2); a mais nova primeiro, cada uma só com o que mudou (valor antes → depois).
-  A v1 de um lançamento antigo diz "Estado antes da primeira alteração registrada."
+  A v1 (de qualquer lançamento, desde 2026-10-23) diz "Estado antes da primeira alteração registrada."
 - **Restaurar:** botão de 52 px por versão, com janela de confirmação ("Restaurar a versão N?") que diz que será gravada uma versão
   nova e que o lançamento reaparece nas listas, se estava excluído. O botão vem **desabilitado com o motivo** que o servidor mandou
   (a versão é a exclusão, já está nessa versão, mês conferido, só o dono restaura um excluído). Todos os motivos aparecem na mesma cor
