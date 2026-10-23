@@ -839,7 +839,7 @@ function setupTabs(){
 const MENU_APP = [
   ['Dia a dia', [['lancar','✏️'],['historico','🕘'],['futuros','📅']]],
   ['Acompanhar', [['cartao','💳'],['saldos','🏦'],['tendencias','📈']]],
-  ['Configurar', [['listas','🏷️'],['versoes','🧾'],['importar','📥']]]
+  ['Configurar', [['listas','🏷️'],['versoes','🧾'],['configuracoes','⚙️']]]
 ];
 function fecharMenuApp(voltarFoco){
   const btn = document.getElementById('mnBtn');
@@ -3556,7 +3556,7 @@ async function confirmarImportacao(){
   if(erro){
     const gravados = erro.gravados != null ? erro.gravados : 0;
     statusEl.textContent = `⚠️ A importação parou em ${est.feitos}/${total} (${gravados} gravados): ${(erro && erro.message) || erro}. Nada se perde nem duplica: processe o mesmo arquivo de novo e confirme, que só o que faltou é importado.`;
-    toast('A importação parou. Veja a mensagem na aba Importar.', true);
+    toast('A importação parou. Veja a mensagem em Configurações › Importar.', true);
     document.getElementById('cardPreview').classList.add('hidden');
     lancamentosParaImportar = [];
   }else{
