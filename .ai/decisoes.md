@@ -4,6 +4,16 @@ Decisões pequenas que não pertencem a um documento de assunto. As de arquitetu
 [`arquitetura.md`](arquitetura.md), as de permissão em [`security.md`](security.md) e as de hospedagem em
 [`hospedagem.md`](hospedagem.md).
 
+## Histórico de versões: a versão só nasce na alteração (2026-10-23)
+Fechado com o dono; o raciocínio está em [`specs/historico/plan.md`](specs/historico/plan.md) (decisão 8).
+- **Criar e importar `id` novo não gravam versão.** Um lançamento é um lançamento; quem criou e quando já estão nele.
+- **A versão 1 nasce na primeira edição, exclusão ou sobrescrita**, com o estado de antes, junto da versão 2. Na tela ela
+  chama-se **"Original"** (só o texto; o valor `insert` no banco não muda).
+- Importar um `id` que já existe é sobrescrita e continua gravando versão.
+- **Ocultar** continua sendo edição e gerando versão. O que ocultar significa para o saldo fica para o item 40 do BACKLOG.
+- As versões `insert` de importações anteriores ficam; o dono pode apagá-las no DynamoDB, só as de lançamentos nunca alterados.
+- Perde-se o rastro de quem importou e quando. Não cria chave nem campo no DynamoDB.
+
 ## Futuros, status e números no servidor (2026-10-18; decididas, nada implementado)
 O raciocínio completo está em [`arquitetura.md`](arquitetura.md), nas seções "Saldo e totais calculados no servidor" e
 "Futuros, status e saldo no servidor". Resumo do que foi fechado com o dono:
