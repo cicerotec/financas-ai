@@ -39,7 +39,8 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
   `fora` (quantos ficaram de fora).
 - **R11.** `GET /spaces/{sid}/saldos` devolve um item para cada meio de `CFG#LISTAS` (`meio`, o `banco` gravado; R0 do item 33a), na ordem da lista, mais `total` e
   `mesAtual` (o do relógio do servidor). Banco sem configuração em `CFG#SALDOS` devolve `semInicio: true`. Não há limite de
-  lançamentos e não há o campo `incompleto`.
+  lançamentos e não há o campo `incompleto`. **Leitura em duas passadas:** os meios com início do controle (ou ponto de partida) leem só de lá em diante; os meios **sem** início leem desde o começo, numa passada à parte, para um meio sem configuração não obrigar os outros a
+  ler tudo. Se a leitura desses meios falhar (por exemplo, a tabela limitando a leitura), eles voltam com `erro: true`, ficam fora do total (`total.erros`) e **os outros meios não são afetados**; não é um `500`.
 - **R12.** Depois de calcular, o servidor grava o cache (R7) em `SALDO#<banco>` com controle otimista (`version`): se outra escrita
   mudou o item no meio, **não grava** e devolve o que calculou. Falha de gravação só vai ao log.
 - **R13.** O cliente **não** define `saldo`, `caches`, `base` nem `invalidoDe`. `PUT /spaces/{sid}/fechamentos` **não existe** (Fase C;
@@ -135,7 +136,7 @@ Relógio fixo em 2026-10-24; dados fictícios; a função pura é testada em tab
 | S-T21 | `PUT /fechamentos` com `caches` forjados | Fase A: ignorado e nada gravado; Fase C: `404` |
 | S-T22 | `authz`: `GET /saldos` para owner e member; `conferir` e `reabrir` só do dono; rota desconhecida | liberado; liberado e negado; `404` |
 | S-T23 | O teste de arquitetura e os de reflexão do histórico | continuam verdes |
-| S-T25 | **Volume:** 10 anos de dados fictícios (centenas de milhares de lançamentos no teste de carga, ou o que a tabela de dev comportar), 3 bancos: a primeira chamada sem cache e a seguinte com cache | a primeira termina dentro do tempo da Lambda (o limite medido vai no PR); a segunda lê só os meses abertos; os saldos batem |
+| S-T25 | **O início do controle limita a leitura (R4):** a tabela com 10 anos de histórico e o controle começando num mês recente (`dataInicio`) | o servidor lê da tabela **só os lançamentos de `dataInicio` em diante** (conta-se os itens que o Query devolve), os anteriores não entram no saldo e os saldos batem |
 | S-T24 | **Equivalência:** o mesmo conjunto de lançamentos e configuração calculado pela função pura e por uma implementação de referência escrita no teste, sem cache e com cache | iguais em todos os meses |
 
 Os testes que rejeitam (S-T15, S-T21) são escritos primeiro e devem **falhar antes da mudança**.

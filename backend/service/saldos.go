@@ -49,6 +49,8 @@ type calculoBanco struct {
 	acc     *domain.Acumulador
 	calculo domain.Calculo
 	mapa    map[string]float64 // fechamento de cada mes conhecido (cache e cascata)
+	erro    bool               // a leitura dos lancamentos deste meio falhou (so acontece para meio sem inicio do controle)
+	semDe   bool               // sem inicio do controle nem ponto de partida: precisa ler desde o comeco
 }
 
 // ResultadoBanco e o que um calculo devolve de um banco.
@@ -88,7 +90,6 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 	atual := domain.MesAtual(s.rel.Agora())
 	por := map[string]*calculoBanco{}
 	var menor *time.Time
-	semLimite := false
 	for _, nome := range bancos {
 		c := &calculoBanco{nome: nome, cfg: domain.ConfigBancoDe(cfgSaldos, nome)}
 		if c.item, err = s.saldos.Ler(ctx, sid, nome); err != nil {
@@ -108,7 +109,7 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 				menor = &l
 			}
 		} else {
-			semLimite = true
+			c.semDe = true
 		}
 		c.acc = domain.NovoAcumulador(listas, de)
 		por[nome] = c
@@ -116,31 +117,38 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 	if len(bancos) == 0 {
 		return por, listas, atual, nil
 	}
-	filtro := domain.FiltroTx{Asc: true, Limite: 1000}
-	if !semLimite && menor != nil {
-		filtro.De = menor.UTC().Format("2006-01-02T15:04:05.000Z")
-	}
+	// Duas passadas: os meios com inicio do controle (ou ponto de partida) leem so de la em diante; os sem inicio leem desde o comeco, mas
+	// numa passada a parte, para um meio sem configuracao nao obrigar os outros a ler tudo.
+	base := domain.FiltroTx{Asc: true, Limite: 1000}
 	if len(bancos) == 1 {
-		filtro.Banco = bancos[0]
+		base.Banco = bancos[0]
 	}
-	for {
-		itens, proximo, err := s.lanc.Listar(ctx, sid, filtro)
-		if err != nil {
+	if menor != nil {
+		f := base
+		f.De = menor.UTC().Format("2006-01-02T15:04:05.000Z")
+		if err := s.lerEAcumular(ctx, sid, f, por, false); err != nil {
 			log.Println("saldos: listar:", err)
 			return nil, nil, "", ErrListar
 		}
-		for _, l := range itens {
-			b, _ := l["banco"].(string)
-			if c := por[b]; c != nil {
-				c.acc.Somar(l)
-			}
-		}
-		if proximo == "" {
-			break
-		}
-		filtro.Cursor = proximo
 	}
 	for _, c := range por {
+		if c.semDe {
+			// uma falha aqui (a tabela limitando a leitura, por exemplo) marca so estes meios com erro; os outros seguem
+			if err := s.lerEAcumular(ctx, sid, base, por, true); err != nil {
+				log.Println("saldos: listar (meios sem inicio):", err)
+				for _, x := range por {
+					if x.semDe {
+						x.erro = true
+					}
+				}
+			}
+			break
+		}
+	}
+	for _, c := range por {
+		if c.erro {
+			continue
+		}
 		c.calculo = domain.Cascata(c.acc.PorMes(), c.cfg, c.partida, atual)
 		c.mapa = map[string]float64{}
 		for m, v := range domain.CachesValidos(c.item, c.cfg, c.base, atual) {
@@ -151,6 +159,27 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 		}
 	}
 	return por, listas, atual, nil
+}
+
+// lerEAcumular le, em paginas, os lancamentos do filtro e soma cada um no acumulador do seu banco. soDeSemInicio: so soma nos meios que
+// precisam ler desde o comeco (a passada deles); nas outras passadas esses meios sao ignorados.
+func (s *Saldos) lerEAcumular(ctx context.Context, sid string, filtro domain.FiltroTx, por map[string]*calculoBanco, soDeSemInicio bool) error {
+	for {
+		itens, proximo, err := s.lanc.Listar(ctx, sid, filtro)
+		if err != nil {
+			return err
+		}
+		for _, l := range itens {
+			b, _ := l["banco"].(string)
+			if c := por[b]; c != nil && c.semDe == soDeSemInicio {
+				c.acc.Somar(l)
+			}
+		}
+		if proximo == "" {
+			return nil
+		}
+		filtro.Cursor = proximo
+	}
 }
 
 func conferidosDe(item domain.Doc) map[string]domain.Doc {
@@ -230,9 +259,14 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 		return nil, err
 	}
 	itens := []domain.Doc{}
-	total, dentro, fora := 0.0, 0, 0
+	total, dentro, fora, erros := 0.0, 0, 0, 0
 	for _, nome := range nomes {
 		c := por[nome]
+		if c.erro {
+			itens = append(itens, domain.Doc{"meio": nome, "erro": true, "saldo": 0.0, "foraDoTotal": c.cfg.ForaDoTotal, "semInicio": !c.cfg.Existe, "meses": []domain.Doc{}})
+			erros++
+			continue
+		}
 		item := domain.Doc{
 			"meio": nome, "saldo": c.calculo.Saldo, "foraDoTotal": c.cfg.ForaDoTotal, "semInicio": !c.cfg.Existe,
 			"meses": mesesParaJSON(domain.MesesDoPainel(c.mapa, conferidosDe(c.item), atual)),
@@ -251,7 +285,7 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 	}
 	return domain.Doc{
 		"mesAtual": atual,
-		"total":    domain.Doc{"valor": domain.Arred(total), "meios": dentro, "fora": fora},
+		"total":    domain.Doc{"valor": domain.Arred(total), "meios": dentro, "fora": fora, "erros": erros},
 		"meios":    itens,
 	}, nil
 }
@@ -263,6 +297,9 @@ func (s *Saldos) Calcular(ctx context.Context, sid, banco string) (ResultadoBanc
 		return ResultadoBanco{}, err
 	}
 	c := por[banco]
+	if c.erro {
+		return ResultadoBanco{}, ErrListar
+	}
 	return ResultadoBanco{Saldo: c.calculo.Saldo, Mapa: c.mapa, Item: c.item, Cfg: c.cfg}, nil
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -173,8 +174,9 @@ func TestSaldosSemDataDeInicioNaoGravaCache(t *testing.T) {
 	}
 }
 
-// S-T10 e S-T25: muitos lancamentos (varias paginas do Query, dez anos) contam todos, sem o limite dos 1000.
-func TestSaldosVolumeDeDezAnos(t *testing.T) {
+// S-T10: muitos lancamentos (varias paginas do Query) contam todos, sem o limite dos 1000. O inicio do controle aqui e em 2016 so para
+// ter volume a ler; no uso real ele e recente e o que vem antes e historico (veja o teste seguinte, S-T25).
+func TestSaldosComVariasPaginasDoQuery(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0,
@@ -416,5 +418,110 @@ func TestSaldoPartindoDoMesConferidoEIgualAoCompleto(t *testing.T) {
 	ms := itemDoMeio(t, depois, "ITAU")["meses"].([]any)
 	if estado := ms[7].(map[string]any)["estado"]; estado != "conferido" {
 		t.Errorf("marco deveria estar conferido: %v", ms)
+	}
+}
+
+// S-T25: o inicio do controle existe para NAO calcular desde o comeco: com dez anos de historico e o controle comecando em 01/01/2026, o servidor le
+// so a partir dessa data (a chave de data limita o Query) e o que e anterior nao entra na conta nem na leitura da tabela.
+func TestSaldosLeSoDoInicioDoControleEmDiante(t *testing.T) {
+	relogioFixo(t)
+	f := cenario(t)
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0,
+		"porBanco": map[string]any{"ITAU": map[string]any{"saldoInicial": 100.0, "dataInicio": "2026-01-01"}}})
+	antigos, recentes := 0, 0
+	for ano := 2016; ano <= 2026; ano++ {
+		for mes := 1; mes <= 9; mes++ {
+			for d := 1; d <= 28; d += 3 {
+				data := time.Date(ano, time.Month(mes), d, 12, 0, 0, 0, time.UTC).Format("2006-01-02T15:04:05.000Z")
+				id := fmt.Sprintf("h%019d", antigos+recentes)
+				f.colocar(t, doc{"PK": pkEspaco, "SK": dePrefixoTx + data + "#" + id, "id": id, "dataEvento": data, "status": "PAGO",
+					"tipo": "saida", "valor": 1.0, "banco": "ITAU", "criadoPor": "own"})
+				if ano < 2026 {
+					antigos++
+				} else {
+					recentes++
+				}
+			}
+		}
+	}
+	f.lidosNoQuery = 0
+	c, d := saldos(t, "own")
+	esperar(t, "saldos", c, 200)
+	// 100 (inicial) - 30 (os tres do cenario, em janeiro) - os lancamentos de 2026 (1 cada); os de 2016 a 2025 nao contam
+	if want := 100.0 - 30 - float64(recentes); !quase(itemDoMeio(t, d, "ITAU")["saldo"].(float64), want) {
+		t.Errorf("saldo = %v, esperado %v", itemDoMeio(t, d, "ITAU")["saldo"], want)
+	}
+	if f.lidosNoQuery > recentes+3+10 {
+		t.Errorf("o servidor leu %d itens da tabela; so os %d de 2026 em diante (mais os do cenario) deveriam ser lidos, e nao os %d anteriores", f.lidosNoQuery, recentes+3, antigos)
+	}
+	t.Logf("%d itens no historico antigo, %d de 2026: o Query leu %d", antigos, recentes, f.lidosNoQuery)
+}
+
+// carga de historico antigo (2016 a 2025) e de 2026 para o ITAU, e uns poucos do NUBANK, que nao tem inicio do controle configurado.
+func cargaComHistoricoAntigo(t *testing.T, f *bancoFake) (antigos, recentes int) {
+	t.Helper()
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#LISTAS", "banco": []any{"ITAU", "NUBANK"}, "version": 1.0})
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0,
+		"porBanco": map[string]any{"ITAU": map[string]any{"saldoInicial": 100.0, "dataInicio": "2026-01-01"}}})
+	for ano := 2016; ano <= 2026; ano++ {
+		for mes := 1; mes <= 9; mes++ {
+			for d := 1; d <= 28; d += 3 {
+				data := time.Date(ano, time.Month(mes), d, 12, 0, 0, 0, time.UTC).Format("2006-01-02T15:04:05.000Z")
+				id := fmt.Sprintf("h%019d", antigos+recentes)
+				f.colocar(t, doc{"PK": pkEspaco, "SK": dePrefixoTx + data + "#" + id, "id": id, "dataEvento": data, "status": "PAGO",
+					"tipo": "saida", "valor": 1.0, "banco": "ITAU", "criadoPor": "own"})
+				if ano < 2026 {
+					antigos++
+				} else {
+					recentes++
+				}
+			}
+		}
+	}
+	for i, data := range []string{"2025-03-10T12:00:00.000Z", "2026-02-10T12:00:00.000Z"} {
+		id := fmt.Sprintf("n%019d", i)
+		f.colocar(t, doc{"PK": pkEspaco, "SK": dePrefixoTx + data + "#" + id, "id": id, "dataEvento": data, "status": "PAGO",
+			"tipo": "entrada", "valor": 50.0, "banco": "NUBANK", "criadoPor": "own"})
+	}
+	return antigos, recentes
+}
+
+// Um meio sem inicio do controle precisa ler desde o comeco, mas isso nao pode obrigar os outros a ler: os meios com inicio leem so de la em diante.
+func TestSaldosMeioSemInicioNaoFazOsOutrosLerTudo(t *testing.T) {
+	relogioFixo(t)
+	f := cenario(t)
+	_, recentes := cargaComHistoricoAntigo(t, f)
+	f.lidosPorInicio = map[string]int{}
+	c, d := saldos(t, "own")
+	esperar(t, "saldos", c, 200)
+	if want := 100.0 - 30 - float64(recentes); !quase(itemDoMeio(t, d, "ITAU")["saldo"].(float64), want) {
+		t.Errorf("ITAU = %v, esperado %v", itemDoMeio(t, d, "ITAU")["saldo"], want)
+	}
+	if !quase(itemDoMeio(t, d, "NUBANK")["saldo"].(float64), 100) {
+		t.Errorf("NUBANK (sem inicio, soma tudo) = %v", itemDoMeio(t, d, "NUBANK")["saldo"])
+	}
+	if n := f.lidosPorInicio["TX#2026-01-01T03:00:00.000Z"]; n == 0 || n > recentes+3+5 {
+		t.Errorf("os meios com inicio deveriam ler so de 2026 em diante: %d itens (esperado perto de %d); leituras por inicio: %v", n, recentes+3, f.lidosPorInicio)
+	}
+}
+
+// Se a leitura do meio sem inicio falhar (por exemplo, a tabela limitar a leitura), os outros meios continuam, e esse volta marcado com erro: nao e um 500.
+func TestSaldosFalhaDeUmMeioNaoDerrubaOsOutros(t *testing.T) {
+	relogioFixo(t)
+	f := cenario(t)
+	_, recentes := cargaComHistoricoAntigo(t, f)
+	f.falharQuerySemInicio = errors.New("ProvisionedThroughputExceededException")
+	c, d := saldos(t, "own")
+	esperar(t, "saldos com um meio falhando", c, 200)
+	if want := 100.0 - 30 - float64(recentes); !quase(itemDoMeio(t, d, "ITAU")["saldo"].(float64), want) {
+		t.Errorf("ITAU = %v, esperado %v", itemDoMeio(t, d, "ITAU")["saldo"], want)
+	}
+	nu := itemDoMeio(t, d, "NUBANK")
+	if nu["erro"] != true {
+		t.Errorf("o meio que falhou volta com erro: %v", nu)
+	}
+	tot := d["total"].(map[string]any)
+	if tot["meios"] != 1.0 || tot["erros"] != 1.0 {
+		t.Errorf("o total so soma o que foi calculado e conta o erro: %v", tot)
 	}
 }

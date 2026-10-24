@@ -138,7 +138,7 @@ DynamoDB sem discutir com o dono.**
   (Tendências). **Primeiro da fila (2026-10-24):** vem antes do 33a e do 41, porque o front só deixa de tratar status quando para
   de somar. Escopo: saldo por banco e total de **Saldos** e conferência com o extrato (o `GET /saldos`, o cache só do
   servidor, `Conferir` só com o `real` e o ajuste criado pelo servidor); o resumo de Futuros fica com o item 41 e o total do Histórico sai da tela até o item 42 e as
-  faturas do cartão com o 33a. Fases: A (backend, só acrescenta; **com teste de volume de 10 anos**, porque a base vai de 2016 em diante), B (a aba Saldos, visual igual, **conferida lado a lado** com a
+  faturas do cartão com o 33a. Fases: A (backend, só acrescenta; **com teste de que o servidor lê só do início do controle em diante**: o histórico anterior à `dataInicio` de cada banco não entra na conta nem na leitura da tabela), B (a aba Saldos, visual igual, **conferida lado a lado** com a
   antiga no dev e na produção), C (remove `PUT /fechamentos`). Intent, plan e spec (rascunho) em
   [`.ai/specs/saldo-servidor/`](.ai/specs/saldo-servidor/intent.md). Detalhes em [`.ai/arquitetura.md`](.ai/arquitetura.md) e
   [`.ai/security.md`](.ai/security.md). Não cria campo no Dynamo por si; qualquer campo novo passa pelo dono. Absorve o

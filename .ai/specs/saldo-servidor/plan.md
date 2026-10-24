@@ -76,7 +76,7 @@ roteiro verificável é o [`spec.md`](spec.md).
 | Risco | Resposta |
 |---|---|
 | O saldo novo diferir do antigo e a pessoa ver o número mudar | A conferência lado a lado acima; função pura testada em tabela com as bordas (virada de mês em São Paulo, `dataInicio` no meio do mês, lançamento exatamente à meia-noite UTC) |
-| Ler a partição inteira a cada chamada pesar (a base vai de 2016 em diante) | Um passe só para todos os bancos, a partir do último ponto verificado; **teste de volume com 10 anos de dados fictícios** (estender `scripts/dados-ficticios.py`), medindo a primeira abertura depois do deploy (sem cache) e as seguintes (com cache), dentro do tempo da Lambda; sem chave nova; um GSI só se o dono aprovar |
+| Ler muito da tabela a cada chamada | **O saldo não é calculado desde o começo dos dados**: a leitura começa em `dataInicio` de cada banco (R4) ou no ponto verificado (conferido ou cache), e um passe só serve a todos os bancos. O que é anterior ao início do controle é histórico e não é lido (teste S-T25). Sem chave nova |
 | Caches de hoje (escritos pelo navegador) conterem números errados ou forjados | O prefixo `v2` na `base` os invalida no primeiro cálculo; nada é apagado do Dynamo |
 | O `conferidos` já gravado ter `saldo` vindo do navegador | Ficam como estão (são a conferência do dono com o extrato); só as novas gravam o `saldo` do servidor |
 | Criar o ajuste dentro do comando falhar no meio | O ajuste é gravado primeiro (uma transação do lançamento); se o conferir falhar depois, o ajuste fica e a mensagem diz isso; a pessoa repete a conferência sem criar outro |
