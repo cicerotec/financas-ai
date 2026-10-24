@@ -11,42 +11,14 @@ import (
 // Fatia 3 do item 32 (.ai/specs/arquitetura-camadas/spec-fatia-3.md): o fechamento e a trava de mes migraram para as
 // camadas sem mudar o contrato HTTP. Os testes de fechamento_test.go e fechamento_auto_test.go seguem como a rede da trava.
 
-// F3-T1: ler os fechamentos devolve os itens sem chaves internas, o mes atual do relogio e [] sem itens.
-func TestF3ListarFechamentos(t *testing.T) {
-	f := cenario(t)
-	c, d := chamar(t, "own", "GET", "spaces/s1/fechamentos", nil, "")
-	esperar(t, "sem itens", c, 200)
-	if l, ok := d["itens"].([]any); !ok || len(l) != 0 || d["mesAtual"] != "2026-02" {
-		t.Errorf("sem itens: %v", d)
-	}
-	f.colocar(t, doc{"PK": pkEspaco, "SK": "SALDO#ITAU", "banco": "ITAU", "version": 2.0, "caches": map[string]any{"2026-01": 10.0}})
-	relogioEm(t, 2026, 10, 5, 15, 0)
-	_, d = chamar(t, "mem", "GET", "spaces/s1/fechamentos", nil, "")
-	itens := d["itens"].([]any)
-	if len(itens) != 1 || itens[0].(map[string]any)["PK"] != nil || itens[0].(map[string]any)["SK"] != nil || d["mesAtual"] != "2026-10" {
-		t.Errorf("com item: %v", d)
-	}
-	f.falharLeitura = errors.New("fora do ar")
-	c, _ = chamar(t, "own", "GET", "spaces/s1/fechamentos", nil, "") // a leitura do papel falha primeiro
-	esperar(t, "erro de leitura", c, 500)
-}
-
 // F3-T2: a ordem de conferir/reabrir. (Item 40: o PUT do cache nao grava mais nada e nao ha mais conflito de version na conferencia,
 // porque o servidor compara o extrato com o saldo que ele calculou.)
 func TestF3ConflitosOrdemEMesNaoConferido(t *testing.T) {
-	f := cenario(t)
-	c, d := chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":7,"caches":{"2026-01":10}}`)
-	esperar(t, "PUT do cache e ignorado, sem conflito", c, 200)
-	if d["version"] != 0.0 {
-		t.Errorf("sem item, a resposta e {version:0}: %v", d)
-	}
-	if f.ler(t, pkEspaco, "SALDO#ITAU") != nil {
-		t.Error("o PUT do cache nao pode gravar nada")
-	}
+	cenario(t)
 
-	c, _ = conferir(t, "own", "ITAU", "2026-02", 0)
+	c, _ := conferir(t, "own", "ITAU", "2026-02", 0)
 	esperar(t, "conferir fevereiro", c, 200)
-	c, d = chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-01","real":1}`)
+	c, d := chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-01","real":1}`)
 	esperar(t, "conferir mes anterior ao ultimo", c, 409)
 	if d["codigo"] != "ordem" || d["erro"] != "o mes 2026-01 nao pode ser conferido: o ultimo conferido e 2026-02" {
 		t.Errorf("409 de ordem = %v", d)
@@ -68,25 +40,12 @@ func TestF3ConflitosOrdemEMesNaoConferido(t *testing.T) {
 	}
 }
 
-// F3-T3: validacoes, com a borda da diferenca de 0,005. (Item 40: o PUT do cache so exige o banco; o resto do corpo e ignorado.)
+// F3-T3: validacoes, com a borda da diferenca de 0,005. 
 func TestF3ValidacoesEBordas(t *testing.T) {
-	f := cenario(t)
-	c, d := chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"version":0,"caches":{}}`)
-	esperar(t, "sem banco", c, 400)
-	if d["erro"] != "banco obrigatorio" {
-		t.Errorf("erro = %v", d["erro"])
-	}
-	for _, corpo := range []string{`{"banco":"ITAU","caches":{"2026-13":1}}`, `{"banco":"ITAU","caches":{"x":1}}`, `{"banco":"ITAU","caches":{"2026-01":"a"}}`} {
-		c, _ = chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, corpo)
-		esperar(t, "o corpo do cache e ignorado "+corpo, c, 200)
-	}
-	if f.ler(t, pkEspaco, "SALDO#ITAU") != nil {
-		t.Error("nada pode ser gravado pelo PUT do cache")
-	}
-
+	cenario(t)
 	// o saldo do ITAU em fevereiro e -30 (tres saidas de 10 em janeiro); a borda e 0,005 de diferenca
 	// (a borda exata de 0,005 depende do ponto flutuante: por isso 0,006 e 0,004)
-	c, d = chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-02","real":-30.006}`)
+	c, d := chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-02","real":-30.006}`)
 	esperar(t, "diferenca 0,006 nao passa", c, 409)
 	if d["codigo"] != "diferenca" {
 		t.Errorf("diferenca 0,006: %v", d)
