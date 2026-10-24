@@ -37,13 +37,25 @@ func idsDe(d doc) string {
 	return strings.Join(ids, ",")
 }
 
-// criarTx cria um lancamento pela API e devolve o id.
+// criarTx cria um lancamento pela API e devolve o id. Desde a decisao 8 do plan, criar nao grava versao; estes testes
+// exercitam a restauracao e a busca sobre um lancamento que ja tem a v1 gravada na criacao, como os que existiam antes da
+// mudanca (e que continuam validos em producao), entao o auxiliar grava essa v1 antiga direto no banco falso.
 func criarTx(t *testing.T, quem, data, descricao string, valor int) string {
 	t.Helper()
 	c, d := chamar(t, quem, "POST", "spaces/s1/tx", nil,
 		fmt.Sprintf(`{"dataEvento":%q,"status":"PAGO","tipo":"saida","valor":%d,"banco":"ITAU","descricao":%q}`, data, valor, descricao))
 	esperar(t, "criar", c, 201)
-	return d["id"].(string)
+	id := d["id"].(string)
+	vivo := fakeAtual.ler(t, pkEspaco, chaveTx(data, id))
+	registro := doc{}
+	for k, v := range vivo {
+		if k != "PK" && k != "SK" {
+			registro[k] = v
+		}
+	}
+	criadoEm, _ := vivo["criadoEm"].(string)
+	hist(t, fakeAtual, id, 1, "insert", quem, criadoEm, registro)
+	return id
 }
 
 func editarTx(t *testing.T, quem, id, de, corpo string) {

@@ -188,7 +188,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 <ul>
 <li><b>Onde fica:</b> Configurar → Histórico de versões (menu ⋮ no celular, aba no computador). O nome "Histórico" continua sendo a lista de lançamentos de sempre.</li>
 <li><b>O mês é o da alteração, não o da data do lançamento.</b> Um lançamento de setembro editado hoje aparece em outubro. Para ver outro mês, troque o mês (setas ou o seletor nativo do celular). O padrão é o mês atual. A busca procura na descrição e na nota de qualquer versão do mês, então o nome antigo também acha o lançamento.</li>
-<li><b>Uma linha por lançamento</b>, com a última alteração do mês: o que foi (Criado, Alterado, Excluído ou Restaurado), quem e quando. Tocar abre as versões em tela cheia, com a seta ← para voltar; no computador, num painel ao lado.</li>
+<li><b>Uma linha por lançamento</b>, com a última alteração do mês: o que foi (Original, Alterado, Excluído ou Restaurado), quem e quando. Tocar abre as versões em tela cheia, com a seta ← para voltar; no computador, num painel ao lado.</li>
 <li><b>Cada versão mostra só o que mudou</b> (valor antes → depois). A primeira versão de um lançamento antigo mostra "autor desconhecido".</li>
 <li><b>Restaurar</b> pede confirmação e grava uma <b>versão nova</b>; as antigas continuam. Se o lançamento estava excluído, ele volta para as listas. Quem decide se pode restaurar é o servidor: o botão fica desabilitado com o motivo. Motivos: a versão é a própria exclusão; o lançamento já está nessa versão; mês conferido (veja <b>Salário setembro</b>); só o dono restaura um excluído (veja o papel Membro).</li>
 <li><b>Membro</b> só vê, e só restaura, o que ele mesmo criou.</li>
@@ -263,7 +263,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     return o;
   }
   function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
-  function rotuloAcao(v){return {insert:'Criado',update:'Alterado',delete:'Excluído',restore:'Restaurado'}[v.acao];}
+  function rotuloAcao(v){return {insert:'Original',update:'Alterado',delete:'Excluído',restore:'Restaurado'}[v.acao];}
   function pilula(v){return '<span class="pill'+(v.acao==='delete'?' ex':v.acao==='restore'?' rs':'')+'">'+rotuloAcao(v)+'</span>';}
   function quem(v){return v.por?PESSOAS[v.por]:'autor desconhecido';}
 

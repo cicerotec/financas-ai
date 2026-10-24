@@ -58,14 +58,14 @@ func TestCriarEmMesFechadoExigeConfirmacao(t *testing.T) {
 	esperar(t, "criar em agosto confirmando", c, 201)
 	vs := versoesDe(t, f, d["id"].(string))
 	if len(vs) != 1 || vs[0]["confirmouMesFechado"] != true || vs[0]["acao"] != "insert" {
-		t.Errorf("a versao 1 deveria registrar a confirmacao: %v", vs)
+		t.Errorf("criar que exigiu confirmacao grava a versao 1 com a confirmacao (unico caso em que criar grava versao): %v", vs)
 	}
 
 	// em mes aberto a confirmacao enviada sem necessidade nao e registrada
 	c, d = chamar(t, "own", "POST", "spaces/s1/tx", conf, corpoTx(dOutubro, "ITAU", 5))
 	esperar(t, "criar em outubro com confirmacao desnecessaria", c, 201)
-	if vs := versoesDe(t, f, d["id"].(string)); len(vs) != 1 || vs[0]["confirmouMesFechado"] != nil {
-		t.Errorf("confirmar sem precisar nao grava nada: %v", vs)
+	if vs := versoesDe(t, f, d["id"].(string)); len(vs) != 0 {
+		t.Errorf("criar sem precisar de confirmacao nao grava versao nem registra a confirmacao: %v", vs)
 	}
 }
 
@@ -252,8 +252,8 @@ func TestAnteriorAoInicioDoControleNaoExigeConfirmacao(t *testing.T) {
 		"porBanco": map[string]any{"ITAU": map[string]any{"saldoInicial": 100.0, "dataInicio": "2026-01-05"}}})
 	c, d := chamar(t, "own", "POST", "spaces/s1/tx", nil, corpoTx("2025-12-20T12:00:00.000Z", "ITAU", 9))
 	esperar(t, "historico anterior ao inicio", c, 201)
-	if vs := versoesDe(t, f, d["id"].(string)); len(vs) != 1 || vs[0]["confirmouMesFechado"] != nil {
-		t.Errorf("livre: sem confirmacao e sem marca: %v", vs)
+	if vs := versoesDe(t, f, d["id"].(string)); len(vs) != 0 {
+		t.Errorf("livre: sem confirmacao, e criar nao grava versao: %v", vs)
 	}
 	c, d = chamar(t, "own", "POST", "spaces/s1/tx", nil, corpoTx("2026-01-10T12:00:00.000Z", "ITAU", 9))
 	esperar(t, "do mes do inicio em diante", c, 409)

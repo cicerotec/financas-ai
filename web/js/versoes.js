@@ -9,7 +9,8 @@ let vsAberto = '', vsDados = null, vsErroVersoes = '', vsReqBusca = 0, vsReqVers
 // ---------- formatação (só texto) ----------
 const VS_CAMPOS = {descricao:'Descrição', valor:'Valor', tipo:'Tipo', status:'Status', banco:'Banco', dataEvento:'Data', nota:'Nota',
   tags:'Tags', oculto:'Oculto', excluirDoTotal:'Fora do total', faturaAjuste:'Fatura', excluidoEm:'Excluído em', aviso:'Aviso', serie:'Série'};
-const VS_ACAO = {insert:'Criado', update:'Alterado', delete:'Excluído', restore:'Restaurado'};
+// insert e a versao 1: o estado de antes da primeira alteracao (ou, nas gravadas antes de 2026-10-23, a criacao/importacao).
+const VS_ACAO = {insert:'Original', update:'Alterado', delete:'Excluído', restore:'Restaurado'};
 function vsQuando(iso){
   if(!iso) return '';
   const d = new Date(iso);

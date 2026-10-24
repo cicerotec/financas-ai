@@ -265,8 +265,12 @@ const (
 // srvTeste e o Servidor do cenario atual: montado com o banco falso, como o main monta com o DynamoDB.
 var srvTeste *Servidor
 
+// fakeAtual e o banco falso do cenario em andamento, para os auxiliares dos testes (criarTx) gravarem direto nele.
+var fakeAtual *bancoFake
+
 func cenario(t *testing.T) *bancoFake {
 	f := novoBancoFake()
+	fakeAtual = f
 	srvTeste = novoServidor(f, "", relogioTeste, notifTeste, "")
 	f.colocar(t, doc{"PK": "USER#own", "SK": "SPACE#s1", "role": "owner"})
 	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member"})
