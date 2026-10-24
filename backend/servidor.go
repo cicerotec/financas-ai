@@ -29,15 +29,18 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 	lancRepo := repository.NewLancamentos(db, table)
 	tags := service.NewTags(cfgRepo)
 	contador := service.NewContador(repository.NewContador(db, table))
-	fech := service.NewFechamento(repository.NewSaldos(db, table), cfgRepo, rel)
+	saldosRepo := repository.NewSaldos(db, table)
+	fech := service.NewFechamento(saldosRepo, cfgRepo, rel)
 	avisos := service.NewAvisos(repository.NewAvisos(db, table), lancRepo, cfgRepo, pessoas, espacos, notificador, rel, ambiente)
 	efeitos := service.NewEfeitos(fech, tags, avisos, contador)
+	lancSvc := service.NewLancamentos(lancRepo, efeitos, pessoas, rel)
+	saldos := service.NewSaldos(lancRepo, cfgRepo, saldosRepo, rel)
 	return &Servidor{
-		lanc:   controller.NewLancamentos(service.NewLancamentos(lancRepo, efeitos, pessoas, rel)),
+		lanc:   controller.NewLancamentos(lancSvc),
 		esp:    controller.NewEspacos(service.NewEspacos(espacos)),
 		cfg:    controller.NewConfig(service.NewConfig(cfgRepo), tags, contador),
 		perfil: controller.NewPerfil(service.NewPerfil(pessoas)),
-		fech:   controller.NewFechamento(fech),
+		fech:   controller.NewFechamento(fech, saldos, service.NewConferencia(saldos, fech, lancSvc)),
 		avisos: controller.NewAvisos(avisos),
 	}
 }

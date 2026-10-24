@@ -40,8 +40,8 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `cfg.ler` (listas, tags, combos, saldos, cartões) | sim | sim |
 | `cfg.escrever` (renomear/excluir tag, combos, bancos, status, flags, saldo inicial, início do controle, conferir fatura) | sim | **não** |
 | `tags.adicionar` | sim | sim, **só tags que ainda não existem** (o servidor só acrescenta) |
-| `fechamento.ler` | sim | sim |
-| `fechamento.escrever`, `.conferir`, `.reabrir` | sim | **não** (só vê) |
+| `fechamento.ler` (inclui `GET /saldos`, o saldo de cada meio calculado pelo servidor) | sim | sim |
+| `fechamento.escrever` (o `PUT /fechamentos` do cache: **ignorado desde o item 40, fase A**; a rota e a ação saem na fase C), `.conferir`, `.reabrir` | sim | **não** (só vê) |
 | `aparencia.ler` / `.escrever` | sim | sim, **só a dela** |
 | `perfil.editar` (o próprio nome e chat id do Telegram) | sim | sim |
 | `seq.ler` | sim | sim |
@@ -115,7 +115,7 @@ manual.
 | Sem MFA no login do app | Senha vazada basta para entrar | item 37 (prioridade alta) |
 | Histórico de versões só dos lançamentos, e sem tela de recuperação ainda (PITR só em prod, janela de 35 dias) | Configurações e fechamentos continuam sem versão; recuperar um lançamento ainda é pelo banco | item 31 (fases 2 e 3) |
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
-| **Saldo, cache de fechamento e conferência calculados no navegador e aceitos pelo servidor** (conferido no código em 2026-10-18): `SalvarCaches` grava qualquer número finito de mês passado e `Conferir` só compara `saldo` e `real`, ambos do cliente | Quem forja a requisição (owner) escolhe o saldo e trava o mês com esse valor; o número vira o ponto de partida da cascata. Fraude possível se houver mais de um dono ou usuários demais | item 40 (prioridade alta) |
+| **Saldo, cache de fechamento e conferência calculados no navegador** (brecha achada em 2026-10-18; **fechada no servidor na fase A do item 40, em 2026-10-24**): o servidor deixou de aceitar o cache e o `saldo` do cliente. `GET /saldos` calcula e grava o cache sozinho, e `Conferir` compara o `real` com o saldo que ele calculou (testes que forjam o cache e o saldo) | **Resta:** o navegador ainda calcula o saldo para mostrar (fase B tira) e o `PUT /fechamentos` ainda existe, só que ignorado (fase C remove). Até a B, um app que mostre um saldo diferente do servidor deve ser tratado como bug do navegador | item 40 (fases B e C) |
 | `excluirDoTotal` e o status do ajuste de conferência montados pelo front a partir do nome do status | O servidor grava a decisão do cliente | itens 33 e 40 |
 | Campos opcionais do lançamento gravados como vêm (ex. `faturaAjuste` sem validação) | Valor inesperado persiste | item 33 (regras no backend) |
 | Resumo do Telegram acima de 4096 caracteres | Nenhum aviso chega naquele dia (disponibilidade, não vazamento) | item 28, item 34 |
