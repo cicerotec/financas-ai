@@ -242,20 +242,20 @@ func TestConferirGravaOSaldoDoServidor(t *testing.T) {
 	if !quase(reg["saldo"].(float64), 70) || !quase(reg["real"].(float64), 70) || reg["por"] != "own" {
 		t.Errorf("registro da conferencia: %v", reg)
 	}
-	// o corpo antigo (banco, version, saldo) ainda e aceito
-	c, _ = conferirMeio(t, "own", `{"banco":"ITAU","mes":"2026-04","version":1,"saldo":70,"real":70}`)
-	esperar(t, "corpo antigo", c, 200)
+	// `banco` no lugar de `meio` ainda e aceito
+	c, _ = conferirMeio(t, "own", `{"banco":"ITAU","mes":"2026-04","real":70}`)
+	esperar(t, "com banco", c, 200)
 }
 
-// S-T15: o saldo do corpo e ignorado: quem forja saldo e real iguais nao trava o mes com o valor que quiser.
-func TestConferirIgnoraOSaldoDoCliente(t *testing.T) {
+// S-T15 (fase C): o saldo do corpo e recusado (400): quem forja saldo e real iguais nao trava o mes com o valor que quiser.
+func TestConferirRecusaOSaldoDoCliente(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
 	configuraSaldos(t, f)
 	c, d := conferirMeio(t, "own", `{"meio":"ITAU","mes":"2026-03","version":0,"saldo":5,"real":5}`)
-	esperar(t, "saldo forjado", c, 409)
-	if d["codigo"] != "diferenca" || !quase(d["calculado"].(float64), 70) || !quase(d["real"].(float64), 5) || !quase(d["diferenca"].(float64), -65) {
-		t.Errorf("a resposta traz o que o servidor calculou: %v", d)
+	esperar(t, "saldo forjado", c, 400)
+	if d["erro"] == nil {
+		t.Errorf("sem mensagem: %v", d)
 	}
 	if st := f.ler(t, pkEspaco, "SALDO#ITAU"); st != nil && st["conferidos"] != nil {
 		t.Errorf("nada pode ficar conferido: %v", st)
@@ -371,26 +371,27 @@ func TestRepetirConferenciaNaoCriaSegundoAjuste(t *testing.T) {
 	}
 }
 
-// S-T21: o cache vindo do cliente e ignorado (a rota continua, para o app de hoje nao quebrar).
-func TestCacheVindoDoClienteEIgnorado(t *testing.T) {
+// S-T21 (fase C): o PUT do cache saiu; um cache forjado no espaco nao vira ponto de partida, o servidor grava o que calcula.
+func TestRotasDoCacheDoClienteSairam(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
 	configuraSaldos(t, f)
-	c, _ := chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil,
-		`{"banco":"ITAU","version":0,"base":"v2|100|2026-01-01|CONTAS,PAGO/CREDITANDO,PREVISTO,TRANSFERINDO","caches":{"2026-01":99999,"2026-02":99999}}`)
-	esperar(t, "a rota responde como antes", c, 200)
+	for _, m := range []string{"GET", "PUT"} {
+		c, _ := chamar(t, "own", m, "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":0,"caches":{"2026-01":99999}}`)
+		if c == 200 {
+			t.Errorf("%s /fechamentos nao existe mais", m)
+		}
+	}
 	if st := f.ler(t, pkEspaco, "SALDO#ITAU"); st != nil && st["caches"] != nil {
-		t.Errorf("o cache do cliente nao pode ser gravado: %v", st)
+		t.Errorf("nada pode ser gravado: %v", st)
 	}
 	_, d := saldos(t, "own")
 	if !quase(itemDoMeio(t, d, "ITAU")["saldo"].(float64), 70) {
-		t.Errorf("o saldo nao pode sofrer o cache forjado: %v", itemDoMeio(t, d, "ITAU"))
+		t.Errorf("saldo: %v", itemDoMeio(t, d, "ITAU"))
 	}
 	if st := f.ler(t, pkEspaco, "SALDO#ITAU"); !quase(st["caches"].(map[string]any)["2026-01"].(float64), 70) {
 		t.Errorf("o cache que fica e o do servidor: %v", st["caches"])
 	}
-	c, _ = chamar(t, "mem", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":1,"caches":{}}`)
-	esperar(t, "member continua sem permissao", c, 403)
 }
 
 // Um corpo com `banco` e outro com `meio` dao o mesmo (de-para na entrada, R0 do spec da fatura).

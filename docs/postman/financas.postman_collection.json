@@ -129,12 +129,12 @@
           "response": []
         },
         {
-          "name": "Fechamento mensal",
+          "name": "Saldos",
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/spaces/{{spaceId}}/fechamentos", "host": ["{{baseUrl}}"], "path": ["spaces", "{{spaceId}}", "fechamentos"] },
-            "description": "Um item por banco, com os meses conferidos e o cache dos fechamentos. Só o dono confere ou reabre meses."
+            "url": { "raw": "{{baseUrl}}/spaces/{{spaceId}}/saldos", "host": ["{{baseUrl}}"], "path": ["spaces", "{{spaceId}}", "saldos"] },
+            "description": "O saldo de cada meio, os 12 últimos meses com o estado de cada um e o total, calculados pelo servidor. Só o dono confere ou reabre meses."
           },
           "response": []
         }

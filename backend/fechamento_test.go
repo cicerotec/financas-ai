@@ -206,19 +206,18 @@ func TestReabrirSoOMaisRecente(t *testing.T) {
 	}
 }
 
-func TestMemberLeFechamentosMasNaoEscreve(t *testing.T) {
+func TestMemberLeSaldosMasNaoConfere(t *testing.T) {
 	relogioFixo(t)
 	cenario(t)
 	conferir(t, "own", "ITAU", "2026-03", 0)
-	c, d := chamar(t, "mem", "GET", "spaces/s1/fechamentos", nil, "")
+	c, d := chamar(t, "mem", "GET", "spaces/s1/saldos", nil, "")
 	esperar(t, "member le", c, 200)
-	itens, _ := d["itens"].([]any)
-	if len(itens) != 1 || d["mesAtual"] != "2026-10" {
+	if d["mesAtual"] != "2026-10" {
 		t.Errorf("leitura inesperada: %v", d)
 	}
-	c, _ = chamar(t, "mem", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":1,"caches":{}}`)
-	esperar(t, "member nao grava cache", c, 403)
-	c, _ = chamar(t, "estranho", "GET", "spaces/s1/fechamentos", nil, "")
+	c, _ = chamar(t, "mem", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-04","real":0}`)
+	esperar(t, "member nao confere", c, 403)
+	c, _ = chamar(t, "estranho", "GET", "spaces/s1/saldos", nil, "")
 	esperar(t, "estranho nao le", c, 403)
 }
 
