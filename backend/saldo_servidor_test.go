@@ -173,8 +173,9 @@ func TestSaldosSemDataDeInicioNaoGravaCache(t *testing.T) {
 	}
 }
 
-// S-T10 e S-T25: muitos lancamentos (varias paginas do Query, dez anos) contam todos, sem o limite dos 1000.
-func TestSaldosVolumeDeDezAnos(t *testing.T) {
+// S-T10: muitos lancamentos (varias paginas do Query) contam todos, sem o limite dos 1000. O inicio do controle aqui e em 2016 so para
+// ter volume a ler; no uso real ele e recente e o que vem antes e historico (veja o teste seguinte, S-T25).
+func TestSaldosComVariasPaginasDoQuery(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0,
@@ -419,7 +420,7 @@ func TestSaldoPartindoDoMesConferidoEIgualAoCompleto(t *testing.T) {
 	}
 }
 
-// O inicio do controle existe para NAO calcular desde o comeco: com dez anos de historico e o controle comecando em 01/01/2026, o servidor le
+// S-T25: o inicio do controle existe para NAO calcular desde o comeco: com dez anos de historico e o controle comecando em 01/01/2026, o servidor le
 // so a partir dessa data (a chave de data limita o Query) e o que e anterior nao entra na conta nem na leitura da tabela.
 func TestSaldosLeSoDoInicioDoControleEmDiante(t *testing.T) {
 	relogioFixo(t)
