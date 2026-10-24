@@ -142,15 +142,22 @@ DynamoDB sem discutir com o dono.**
 - 41. [ ] <a id="item-41"></a>**[Próximo] Futuros: marcador `previsto` e status do backend:** decisões do dono de 2026-10-18, só a
   aba Futuros. Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` saem; o lançamento futuro nasce com o status real e um
   marcador `previsto` (campo novo no Dynamo, **nome a aprovar**) que o tira do saldo e do total do Histórico até ser
-  confirmado. O servidor entrega Futuros e Histórico prontos (o Histórico pode trazer previstos vencidos, para o aviso
-  "N previstos fora do saldo"); atraso é o marcador ligado depois da data e só alimenta o aviso do Telegram; os status
-  viram do backend (`salvarListas` segue gravando bancos, cores, aparência e ordens e ignora mudança em status;
-  `statusFuturo` deixa de ir ao front). Lançamentos antigos com os três status contam como marcador ligado até serem
-  editados, sem migração em massa. Sai do front o que olha status ou soma: `ehFuturo`, `afetaSaldo`, `resumoFuturos`,
+  confirmado. **Quem liga o marcador:** o servidor, em todo lançamento com data depois de hoje; o Prever e o "Repetir ao
+  lançar" também (2026-10-24). O servidor entrega Futuros e Histórico prontos: os vencidos **continuam em Atrasados,
+  dentro de Futuros**, e o Histórico só traz o que conta no saldo; o mesmo critério alimenta o aviso do Telegram; os
+  status viram do backend (`salvarListas` segue gravando bancos, cores, aparência e ordens e ignora mudança em status;
+  `statusFuturo` deixa de ir ao front). **Lançamentos antigos** com os três status **ficam como estão** (eram só
+  previsões): continuam em Futuros, os do passado em Atrasados, até alguém tratar; sem migração em massa e nada
+  regravado. **Confirmar** (demo aprovada em 2026-10-24, `.ai/demos/demo-confirmar-previsto.html`): janela com Valor,
+  Data e Status, cada um já preenchido e alterável, textos "Confirmar", "Já paguei" e "Já recebi", botão verde na
+  tabela, aviso de 6 s com Desfazer (restauração no servidor), data sugerida hoje em mês fechado; ao confirmar um
+  antigo, a janela abre com `PAGO`. Sai do front o que olha status ou soma: `ehFuturo`, `afetaSaldo`, `resumoFuturos`,
   `gruposFuturos`, a soma do Histórico, a inclusão automática de `CREDITANDO` em Listas e o "Status das cópias" do Prever
   (a decidir no spec). Fora daqui: desmembrar o `PAGO` (tipo e meio), o `CONTAS` e o `excluirDoTotal`, e o papel de
-  Admin. **Em aberto para o spec:** quem liga o marcador na criação, como os previstos vencidos aparecem no Histórico e o
-  gesto de confirmar (demo antes do código). Depende do item 40 para os totais.
+  Admin. **Em aberto para o spec:** o nome do campo (proposta `previsto`, booleano gravado só quando ligado; alternativa
+  `aConfirmar`; **a aprovar pelo dono**), como o servidor acha todos os previstos sem o limite dos 1000 lançamentos
+  mais recentes (só volta ao dono se pedir chave nova) e o que o Prever faz com o "Status das cópias". Demo antes do
+  código para qualquer tela além da de confirmar. Depende do item 40 para os totais.
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
