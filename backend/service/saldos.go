@@ -53,6 +53,13 @@ type calculoBanco struct {
 	semDe   bool               // sem inicio do controle nem ponto de partida: precisa ler desde o comeco
 }
 
+// leitura conta o que um calculo leu da tabela e quanto tempo isso levou. So vai para o log (numeros, nunca dados): serve para saber onde o tempo
+// de um GET /saldos e gasto (a leitura da tabela, o calculo ou a gravacao do cache) sem adivinhar.
+type leitura struct {
+	paginas, itens int
+	dur            time.Duration
+}
+
 // ResultadoBanco e o que um calculo devolve de um banco.
 type ResultadoBanco struct {
 	Saldo float64
@@ -76,25 +83,26 @@ func nomesDeBancos(listas domain.Doc) []string {
 
 // calcular le a configuracao, o item de cada banco e os lancamentos (uma passada, filtrando por banco se so um foi pedido) e faz a
 // cascata de cada um. A version de cada item e lida ANTES dos lancamentos: se alguem gravar no meio, o cache nao e gravado.
-func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map[string]*calculoBanco, domain.Doc, string, error) {
+func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map[string]*calculoBanco, domain.Doc, string, *leitura, error) {
 	listas, err := s.cfg.Ler(ctx, sid, "listas")
 	if err != nil {
 		log.Println("saldos: listas:", err)
-		return nil, nil, "", ErrInterno
+		return nil, nil, "", nil, ErrInterno
 	}
 	cfgSaldos, err := s.cfg.Ler(ctx, sid, "saldos")
 	if err != nil {
 		log.Println("saldos: cfg saldos:", err)
-		return nil, nil, "", ErrInterno
+		return nil, nil, "", nil, ErrInterno
 	}
 	atual := domain.MesAtual(s.rel.Agora())
 	por := map[string]*calculoBanco{}
+	leit := &leitura{}
 	var menor *time.Time
 	for _, nome := range bancos {
 		c := &calculoBanco{nome: nome, cfg: domain.ConfigBancoDe(cfgSaldos, nome)}
 		if c.item, err = s.saldos.Ler(ctx, sid, nome); err != nil {
 			log.Println("saldos: item:", err)
-			return nil, nil, "", ErrInterno
+			return nil, nil, "", nil, ErrInterno
 		}
 		c.versao = versaoDe(c.item)
 		c.base = domain.BaseCache(c.cfg, listas)
@@ -115,7 +123,7 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 		por[nome] = c
 	}
 	if len(bancos) == 0 {
-		return por, listas, atual, nil
+		return por, listas, atual, leit, nil
 	}
 	// Duas passadas: os meios com inicio do controle (ou ponto de partida) leem so de la em diante; os sem inicio leem desde o comeco, mas
 	// numa passada a parte, para um meio sem configuracao nao obrigar os outros a ler tudo.
@@ -126,15 +134,15 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 	if menor != nil {
 		f := base
 		f.De = menor.UTC().Format("2006-01-02T15:04:05.000Z")
-		if err := s.lerEAcumular(ctx, sid, f, por, false); err != nil {
+		if err := s.lerEAcumular(ctx, sid, f, por, false, leit); err != nil {
 			log.Println("saldos: listar:", err)
-			return nil, nil, "", ErrListar
+			return nil, nil, "", nil, ErrListar
 		}
 	}
 	for _, c := range por {
 		if c.semDe {
 			// uma falha aqui (a tabela limitando a leitura, por exemplo) marca so estes meios com erro; os outros seguem
-			if err := s.lerEAcumular(ctx, sid, base, por, true); err != nil {
+			if err := s.lerEAcumular(ctx, sid, base, por, true, leit); err != nil {
 				log.Println("saldos: listar (meios sem inicio):", err)
 				for _, x := range por {
 					if x.semDe {
@@ -158,17 +166,21 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 			c.mapa[m.Mes] = m.Fechamento
 		}
 	}
-	return por, listas, atual, nil
+	return por, listas, atual, leit, nil
 }
 
 // lerEAcumular le, em paginas, os lancamentos do filtro e soma cada um no acumulador do seu banco. soDeSemInicio: so soma nos meios que
 // precisam ler desde o comeco (a passada deles); nas outras passadas esses meios sao ignorados.
-func (s *Saldos) lerEAcumular(ctx context.Context, sid string, filtro domain.FiltroTx, por map[string]*calculoBanco, soDeSemInicio bool) error {
+func (s *Saldos) lerEAcumular(ctx context.Context, sid string, filtro domain.FiltroTx, por map[string]*calculoBanco, soDeSemInicio bool, leit *leitura) error {
 	for {
+		t0 := time.Now() // so para medir a leitura (vai para o log); a regra do saldo usa o Relogio
 		itens, proximo, err := s.lanc.Listar(ctx, sid, filtro)
+		leit.dur += time.Since(t0)
 		if err != nil {
 			return err
 		}
+		leit.paginas++
+		leit.itens += len(itens)
 		for _, l := range itens {
 			b, _ := l["banco"].(string)
 			if c := por[b]; c != nil && c.semDe == soDeSemInicio {
@@ -207,9 +219,9 @@ func mesesParaJSON(ms []domain.MesPainel) []domain.Doc {
 
 // gravarCache guarda no servidor os fechamentos dos meses encerrados, calculados por ele, com o controle otimista da version lida
 // antes dos lancamentos. Se nada mudou, ou se outra escrita chegou antes, nao grava (o saldo devolvido continua certo).
-func (s *Saldos) gravarCache(ctx context.Context, sid string, c *calculoBanco, atual string) {
+func (s *Saldos) gravarCache(ctx context.Context, sid string, c *calculoBanco, atual string) bool {
 	if c.cfg.DataInicio == "" {
-		return
+		return false
 	}
 	novo := map[string]any{}
 	for m, v := range domain.CachesValidos(c.item, c.cfg, c.base, atual) {
@@ -219,7 +231,7 @@ func (s *Saldos) gravarCache(ctx context.Context, sid string, c *calculoBanco, a
 		novo[m] = v
 	}
 	if len(novo) == 0 && c.item == nil {
-		return
+		return false
 	}
 	if c.item != nil {
 		antigo, _ := c.item["caches"].(map[string]any)
@@ -232,7 +244,7 @@ func (s *Saldos) gravarCache(ctx context.Context, sid string, c *calculoBanco, a
 			}
 		}
 		if igual {
-			return
+			return false
 		}
 	}
 	d := domain.Doc{"banco": c.nome}
@@ -241,9 +253,13 @@ func (s *Saldos) gravarCache(ctx context.Context, sid string, c *calculoBanco, a
 	}
 	d["caches"], d["base"] = novo, c.base
 	delete(d, "invalidoDe")
-	if _, err := s.saldos.Salvar(ctx, sid, c.nome, d, c.versao); err != nil && !errors.Is(err, domain.ErrConflitoConfig) {
-		log.Printf("saldos: gravar cache sid=%s banco=%s: %v", sid, c.nome, err)
+	if _, err := s.saldos.Salvar(ctx, sid, c.nome, d, c.versao); err != nil {
+		if !errors.Is(err, domain.ErrConflitoConfig) {
+			log.Printf("saldos: gravar cache sid=%s banco=%s: %v", sid, c.nome, err)
+		}
+		return false
 	}
+	return true
 }
 
 // Listar: GET /spaces/{sid}/saldos. O saldo de cada meio da lista, os 12 ultimos meses e o total.
@@ -254,10 +270,13 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 		return nil, ErrInterno
 	}
 	nomes := nomesDeBancos(listas)
-	por, _, atual, err := s.calcular(ctx, sid, nomes)
+	inicio := time.Now()
+	por, _, atual, leit, err := s.calcular(ctx, sid, nomes)
 	if err != nil {
 		return nil, err
 	}
+	tCalculo := time.Since(inicio)
+	cachesGravados := 0
 	itens := []domain.Doc{}
 	total, dentro, fora, erros := 0.0, 0, 0, 0
 	for _, nome := range nomes {
@@ -281,8 +300,12 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 			total += c.calculo.Saldo
 			dentro++
 		}
-		s.gravarCache(ctx, sid, c, atual)
+		if s.gravarCache(ctx, sid, c, atual) {
+			cachesGravados++
+		}
 	}
+	log.Printf("saldos: meios=%d paginas=%d itens=%d leitura=%dms calculo=%dms total=%dms caches_gravados=%d",
+		len(nomes), leit.paginas, leit.itens, leit.dur.Milliseconds(), tCalculo.Milliseconds(), time.Since(inicio).Milliseconds(), cachesGravados)
 	return domain.Doc{
 		"mesAtual": atual,
 		"total":    domain.Doc{"valor": domain.Arred(total), "meios": dentro, "fora": fora, "erros": erros},
@@ -292,7 +315,7 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 
 // Calcular devolve o saldo de um so meio, sem gravar cache (usado pela conferencia).
 func (s *Saldos) Calcular(ctx context.Context, sid, banco string) (ResultadoBanco, error) {
-	por, _, _, err := s.calcular(ctx, sid, []string{banco})
+	por, _, _, _, err := s.calcular(ctx, sid, []string{banco})
 	if err != nil {
 		return ResultadoBanco{}, err
 	}
