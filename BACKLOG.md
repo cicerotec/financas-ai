@@ -41,7 +41,7 @@ pendentes: nenhum.
 - [\[Backend\] - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
 - [\[Backend\] - **\[Depois\] Segurança e escala:**](#item-18)
 - [\[Backend\] - **\[Depois\] Tela de permissões por usuário:**](#item-27)
-- [\[Front\] - **\[Depois\] Pagar fatura: valor do boleto e vínculo com o pagamento:**](#item-35)
+- [\[Front\] - **\[Depois\] Pagar fatura: meio pagador, vencimento e vínculo com o pagamento:**](#item-35)
 - [\[Front\] - **\[Depois\] Cartão: valor pago e observação:**](#item-17)
 - [\[Front\] - **\[Depois\] Fechamento mensal, melhorias:**](#item-23)
 - [\[Front\] - **\[Depois\] Ideias:**](#item-20)
@@ -264,15 +264,27 @@ DynamoDB sem discutir com o dono.**
   mais antigo, um por vez); conferir meses anteriores ao último conferido sem reabrir os mais novos.
 - 17. [ ] <a id="item-17"></a>**[Depois] Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
   Evoluído no item 35.
-- 35. [ ] <a id="item-35"></a>**[Depois] Pagar fatura: valor do boleto e vínculo com o pagamento.** A fatura tem três valores (calculado,
-  da operadora e do boleto), e o pagamento nasce **da fatura**, não da soma dos lançamentos: o sistema propõe o valor da
-  fatura, o dono confirma ou corrige para o do boleto, e o lançamento do pagamento no banco fica ligado à fatura, com a
-  diferença à vista (hoje isso vira um lançamento de valor zero como nota solta). O **banco pagador é escolhido**
-  (cartão do SANTANDER pode ser pago pelo NUBANK), o pagamento mexe no saldo dele e **não conta de novo como gasto**: o
-  gasto já contou nos registros de `CREDITO`, que são reais, não afetam o saldo e não se pode perder o controle deles.
-  Caso real: estorno no dia do corte, fatura de um valor e pagamento de outro. **Pagamento mínimo ou parcial** (a maioria dos usuários usa; o dono não)
-  fica aqui: a fatura passa a ter mais de um pagamento. Formato dos dados a discutir antes de criar chave. Detalhes em
-  `.ai/arquitetura.md`.
+- 35. [ ] <a id="item-35"></a>**[Depois] Pagar fatura: meio pagador, vencimento e vínculo com o pagamento.** A **operadora manda**: o extrato dela
+  pode somar 3.000 e o boleto vir de 2.500, então o pagamento nasce **da fatura**, não da soma dos lançamentos do sistema
+  (decisões do dono, 2026-10-24).
+  - **Três valores por fatura:** calculado (a soma dos nossos registros de `CREDITO`), o da operadora (`valorBanco`) e o do boleto, que é
+    o que se paga. O sistema propõe, o dono confirma ou corrige, e a diferença fica à vista (hoje vira um lançamento de valor zero como nota solta).
+  - **Meio pagador:** escolhido na seção do cartão, na aba Cartão. Vale para o cartão inteiro como padrão e **pode ser trocado em cada fatura**,
+    porque ninguém sabe onde haverá saldo (cartão do SANTANDER pago pelo NUBANK, em débito).
+  - **Vencimento:** informado na seção do cartão (dia padrão e ajuste por fatura). É a data em que a fatura aparece em Futuros.
+  - **Em Futuros**, no meio pagador, até duas linhas por cartão, **calculadas pelo servidor** (não são previstos gravados):
+    **fatura fechada** (valor **congelado** no fechamento: só mudam o valor da operadora, o do boleto e ajuste ou estorno explícito;
+    passado o vencimento sem pagar, fica como **atrasada**) e **fatura aberta** (total vivo, muda a cada compra no crédito). Ao fechar,
+    no dia seguinte ao fechamento, a aberta vira fechada e a seguinte ganha a sua linha. Compra com data anterior lançada depois do
+    fechamento segue a regra de hoje: o `faturaAjuste` de ±1 a leva para a fatura vizinha; o valor congelado só muda por ajuste explícito.
+  - **Confirmar o pagamento** reaproveita o gesto de confirmar do Futuros (trocar meio, valor e status; demo
+    `.ai/demos/demo-confirmar-previsto.html`). Grava o lançamento no meio pagador, o liga à fatura, e a linha some.
+  - O pagamento mexe no saldo do meio pagador e **não conta de novo como gasto**: o gasto já contou nos registros de `CREDITO`, que são
+    reais, não afetam o saldo e não se pode perder o controle deles. Caso real: estorno no dia do corte, fatura de um valor e pagamento de outro.
+  - **Pagamento mínimo ou parcial** (a maioria dos usuários usa; o dono não) fica aqui: a fatura passa a ter mais de um pagamento.
+  - **Dados novos, a discutir antes de criar chave:** meio pagador padrão por cartão e por fatura, e vencimento (hoje `CFG#CARTOES` guarda só
+    fechamento e valor do banco). **Depende** do 33a (a fatura calculada no servidor), do 33b (cartão como entidade) e do 41 (Futuros, que
+    precisa prever a linha calculada). Demo da linha de fatura em Futuros e da seção do cartão antes de qualquer tela. Detalhes em `.ai/arquitetura.md`.
 - 20. [ ] <a id="item-20"></a>**[Depois] Ideias** (seção no fim deste arquivo).
 
 ### UX/UI (usabilidade do que já existe)
