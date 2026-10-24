@@ -30,8 +30,9 @@ diferença. O servidor só guarda `CFG#CARTOES` como o front manda. Isso tem os 
    aplicar. O front só mostra e, ao tocar, manda o `faturaAjuste` escolhido.
 4. **A configuração do cartão vira comandos do servidor** (adicionar, remover, início do controle, fechamento e valor do banco de
    cada fatura, conferir e desfazer), validados, no lugar de o front regravar `CFG#CARTOES` inteiro.
-5. **O servidor manda a lista de bancos pronta com a marca de cartão:** `bancos: [{ nome, cartao }]` em `GET /cfg/listas`. A linha
-   "Fatura" do Lançar aparece pelo banco escolhido (`cartao: true`), sem olhar status e sem chamada extra.
+5. **O servidor manda a lista de meios pronta com a marca de cartão:** `meios: [{ nome, cartao, ativo }]` em `GET /cfg/listas`. A linha "Fatura" do
+   Lançar aparece pelo meio escolhido (`cartao: true`), sem olhar status e sem chamada extra. **Meio de pagamento** é o novo nome, só de exibição, do
+   `banco` gravado (um de-para em `domain/`; o Dynamo não muda).
 6. **"Registrar a diferença como lançamento"** vira um comando do servidor (ele escolhe o status e monta o lançamento).
 7. **O servidor rejeita número derivado vindo do cliente** (`conferida`, total, `valorBanco` negativo, `faturaAjuste` fora de
    `-1`, `0`, `+1`). Um teste tenta forjar cada um.
@@ -53,7 +54,7 @@ diferença. O servidor só guarda `CFG#CARTOES` como o front manda. Isso tem os 
 
 - Cada tela da fatura é uma chamada ao servidor (hoje o navegador já tem os lançamentos carregados, e navegar entre faturas é
   instantâneo). O servidor lê os lançamentos do banco no período da fatura (de duas faturas antes a uma depois) a cada abertura.
-- O Lançar passa a depender de `bancos[].cartao` vindo de `GET /cfg/listas`, que já é lido na partida.
+- O Lançar passa a depender de `meios[].cartao` vindo de `GET /cfg/listas`, que já é lido na partida.
 - `PUT /cfg/cartoes` some: quem usava o app antigo precisa do front novo (o release só vai depois da fase B).
 
 ## Pronto quando

@@ -12,7 +12,7 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
   tem `afetaSaldoBanco[status] == true` em `CFG#LISTAS` (sem o campo, o padrão é `PAGO` e `CONTAS`) e **não é de evento futuro**
   (`EhStatusFuturo(listas, status)`, que o item 41 troca por `EhPrevisto`). Função pura `domain.ContaNoSaldo(l, listas)`.
 - **R1a.** Com o item 41, `ContaNoSaldo` deixa de ler `CFG#LISTAS` e passa a usar a propriedade `contaNoSaldo` (e `previsto`) da entrada do catálogo de
-  status **válida na data do evento**; a conta continua a mesma para os dados de hoje. Até lá, vale R1.
+  status do `status` do lançamento (uma entrada por nome); a conta continua a mesma para os dados de hoje. Até lá, vale R1.
 - **R2.** O valor com sinal é `+valor` para `entrada` e `-valor` para `saida`. Valor zero e negativo contam como vierem.
 - **R3.** O **mês** de um lançamento é o da `dataEvento` em São Paulo (`domain.MesDe`). Lançamento sem `banco` ou com data inválida não
   conta em nenhum banco.
@@ -35,9 +35,9 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
   sem os posteriores ao mês atual.
 
 **Total e consulta**
-- **R10.** O `total` é a soma dos `saldo` dos bancos **sem** `foraDoTotal` em `CFG#SALDOS`; devolve também `bancos` (quantos entraram) e
+- **R10.** O `total` é a soma dos `saldo` dos bancos **sem** `foraDoTotal` em `CFG#SALDOS`; devolve também `meios` (quantos entraram) e
   `fora` (quantos ficaram de fora).
-- **R11.** `GET /spaces/{sid}/saldos` devolve um item para cada banco de `CFG#LISTAS` (`banco`), na ordem da lista, mais `total` e
+- **R11.** `GET /spaces/{sid}/saldos` devolve um item para cada meio de `CFG#LISTAS` (`meio`, o `banco` gravado; R0 do item 33a), na ordem da lista, mais `total` e
   `mesAtual` (o do relógio do servidor). Banco sem configuração em `CFG#SALDOS` devolve `semInicio: true`. Não há limite de
   lançamentos e não há o campo `incompleto`.
 - **R12.** Depois de calcular, o servidor grava o cache (R7) em `SALDO#<banco>` com controle otimista (`version`): se outra escrita
@@ -46,7 +46,7 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
   antes, o corpo é ignorado). `PUT /cfg/saldos` continua gravando só dados de entrada (`saldoInicial`, `dataInicio`, `foraDoTotal`).
 
 **Conferir**
-- **R14.** `POST /spaces/{sid}/fechamentos/conferir` com `{ "banco", "mes", "real", "ajustar"? }`. Exige banco, mês `AAAA-MM`
+- **R14.** `POST /spaces/{sid}/fechamentos/conferir` com `{ "meio", "mes", "real", "ajustar"? }` (aceita `banco` no lugar de `meio`). Exige meio, mês `AAAA-MM`
   (o atual ou anterior) e `real` numérico. O servidor calcula o `saldo` do mês (R5) **sem ler o do corpo**.
 - **R15.** Se `|saldo − real| < 0,005`: grava `conferidos[mes] = { saldo, real, em, por }` (o `saldo` é o do servidor) e responde `200` com
   o item do banco. A ordem (`ErroOrdemFechamento`), o "só do mais recente" e a trava seguem como hoje.
@@ -78,17 +78,17 @@ curl -s "$API/spaces/$SID/saldos" "${H[@]}"
 ```json
 {
   "mesAtual": "2026-10",
-  "total": { "valor": 12480.55, "bancos": 2, "fora": 1 },
-  "bancos": [
-    { "banco": "BANCO-A", "saldo": 5000.25, "foraDoTotal": false, "semInicio": false,
+  "total": { "valor": 12480.55, "meios": 2, "fora": 1 },
+  "meios": [
+    { "meio": "BANCO-A", "saldo": 5000.25, "foraDoTotal": false, "semInicio": false,
       "inicio": { "dataInicio": "2026-01-01", "saldoInicial": 1000 },
       "meses": [
         { "mes": "2026-10", "valor": 5000.25, "estado": "aberto" },
         { "mes": "2026-09", "valor": 4800.0, "estado": "calculado" },
         { "mes": "2026-08", "valor": 4500.0, "estado": "conferido",
           "conferido": { "real": 4500.0, "ajuste": 0, "em": "2026-09-03T14:20:00.000Z", "por": "sub-demo-1" } } ] },
-    { "banco": "BANCO-B", "saldo": 7480.3, "foraDoTotal": false, "semInicio": false, "inicio": { "dataInicio": "2026-03-01", "saldoInicial": 0 }, "meses": [] },
-    { "banco": "CARTAO-A", "saldo": -312.4, "foraDoTotal": true, "semInicio": true, "meses": [] }
+    { "meio": "BANCO-B", "saldo": 7480.3, "foraDoTotal": false, "semInicio": false, "inicio": { "dataInicio": "2026-03-01", "saldoInicial": 0 }, "meses": [] },
+    { "meio": "CARTAO-A", "saldo": -312.4, "foraDoTotal": true, "semInicio": true, "meses": [] }
   ]
 }
 ```
@@ -97,7 +97,7 @@ curl -s "$API/spaces/$SID/saldos" "${H[@]}"
 
 Conferir agosto com o extrato, e o servidor calculando o saldo:
 ```bash
-curl -s -X POST "$API/spaces/$SID/fechamentos/conferir" "${H[@]}" -d '{ "banco": "BANCO-A", "mes": "2026-08", "real": 4500 }'
+curl -s -X POST "$API/spaces/$SID/fechamentos/conferir" "${H[@]}" -d '{ "meio": "BANCO-A", "mes": "2026-08", "real": 4500 }'
 ```
 Quando o extrato difere do que o servidor calculou (4 510,00 contra 4 500,00), sem `ajustar`:
 ```json

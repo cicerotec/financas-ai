@@ -50,7 +50,7 @@ feito e ideias).
 | [`demos/demo-confirmar-previsto.html`](demos/demo-confirmar-previsto.html) | Demo **aprovada em 2026-10-24** (ainda não implementada) do gesto de confirmar um lançamento previsto em Futuros (item 41 do BACKLOG): janela com Valor, Data e Status, vencidos em Atrasados, data sugerida hoje em mês fechado |
 | [`specs/saldo-servidor/`](specs/saldo-servidor/intent.md) | Intent, plan e spec do item 40: saldo, fechamento e conferência calculados e validados no servidor, o primeiro da fila (rascunho) |
 | [`specs/fatura-servidor/`](specs/fatura-servidor/intent.md) | Intent, plan e spec do item 33, fatia a: faturas do cartão, total, conferência e sugestões de ajuste no servidor, `bancos[].cartao` (rascunho) |
-| [`specs/futuros-previsto/`](specs/futuros-previsto/intent.md) | Intent, plan e spec do item 41: o marcador `previsto` no lugar dos status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO`, Futuros e Histórico prontos pelo servidor, Confirmar e status do backend (rascunho) |
+| [`specs/futuros-previsto/`](specs/futuros-previsto/intent.md) | Intent, plan e spec do item 41: o marcador `previsto` no lugar dos status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO`, o catálogo de status do backend sem data de corte global, o passado do usuário, Futuros e Histórico prontos pelo servidor e Confirmar (rascunho) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.

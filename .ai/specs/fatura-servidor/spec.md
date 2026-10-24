@@ -7,6 +7,12 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
 
 ## Regras
 
+**Nomes**
+- **R0.** O que o dono chama de **meio de pagamento** (conta, carteira, vale, cartão: o `banco` gravado em cada lançamento) chama-se **`meio`** nas rotas e
+  respostas **novas** deste e dos outros specs. É um **de-para em `domain/`** (`MeioDe` e `BancoDe`, aplicado no controller): o Dynamo **não muda** (o atributo
+  continua `banco`), é só exibição. As entradas aceitam `meio` ou `banco` durante a transição; `GET /tx` e os objetos de lançamento mantêm `banco` até o
+  item que renomeia a tela. O status se chama **forma de pagamento** na tela (o campo continua `status`).
+
 **Fechamento e período**
 - **R1.** O **fechamento da fatura `ym`** (`AAAA-MM`) de um cartão é: `faturas[ym].fechamento`, se existir; senão o **dia** do fechamento do
   mês mais recente anterior a `ym` (até 60 meses atrás) que tenha `fechamento` escolhido; senão `diaPadrao` (1 se não houver). O dia é
@@ -57,7 +63,7 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
   (anuidade, juros, IOF, compra não registrada, valor a mais ou duplicado) e `podeRegistrarDiferenca` (a diferença é negativa: falta valor).
 
 **Comandos (só o dono)**
-- **R17.** `POST /spaces/{sid}/cartoes` `{ banco, diaPadrao }`: o banco é da lista e ainda não é cartão; `diaPadrao` de 1 a 31. Grava
+- **R17.** `POST /spaces/{sid}/cartoes` `{ meio, diaPadrao }`: o meio é da lista e ainda não é cartão; `diaPadrao` de 1 a 31. Grava
   `porBanco[banco] = { diaPadrao, faturas: {} }`.
 - **R18.** `DELETE /spaces/{sid}/cartoes/{banco}` remove a configuração do cartão. Os lançamentos **não** mudam.
 - **R19.** `PUT /spaces/{sid}/cartoes/{banco}` `{ "inicio": "AAAA-MM" | null }`: define ou limpa o início do controle (formato `AAAA-MM`).
@@ -76,9 +82,10 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
   campos de R17 a R23**. A forma do item não muda. O cliente não define `conferida`, `total` nem `por`.
 - **R26.** Editar o `faturaAjuste` e corrigir o valor de uma compra estimada continuam sendo `PUT /spaces/{sid}/tx/{id}` (dados de entrada da pessoa).
 
-**Lista de bancos**
-- **R27.** `GET /spaces/{sid}/cfg/listas` devolve, além de `banco` (nomes, como hoje), `bancos: [{ "nome", "cartao": bool }]` na mesma ordem:
-  `cartao` é verdadeiro quando o banco é uma chave de `CFG#CARTOES.porBanco`. O servidor junta os dois itens; o front não faz chamada extra.
+**Lista de meios**
+- **R27.** `GET /spaces/{sid}/cfg/listas` devolve, além de `banco` (nomes, como hoje), `meios: [{ "nome", "cartao": bool, "ativo": bool }]` na mesma ordem:
+  `cartao` é verdadeiro quando o meio é uma chave de `CFG#CARTOES.porBanco`; `ativo` é sempre verdadeiro até o item 43 (meios) deixar o dono desativar um
+  meio. O servidor junta os dois itens; o front não faz chamada extra.
 
 **Legado (Fase A) e remoção (Fase C)**
 - **R28.** Na Fase A, `PUT /cfg/cartoes` continua funcionando, mas o servidor **mantém o `conferida` já gravado** e descarta o do corpo. Na
@@ -92,32 +99,32 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
 
 Erros seguem o formato de hoje. Variáveis como no spec do histórico: `API`, `SID`, `TOKEN`. Hoje é 24/10/2026; dados fictícios.
 
-### `GET /spaces/{sid}/cfg/listas` (a lista de bancos pronta para o Lançar)
+### `GET /spaces/{sid}/cfg/listas` (a lista de meios pronta para o Lançar)
 
-O servidor junta `CFG#LISTAS` e `CFG#CARTOES` e manda a marca de cartão em cada banco; o front não faz chamada extra nem olha status.
+O servidor junta `CFG#LISTAS` e `CFG#CARTOES` e manda a marca de cartão em cada meio; o front não faz chamada extra nem olha status.
 ```bash
 curl -s "$API/spaces/$SID/cfg/listas" "${H[@]}"
 ```
 ```json
 { "banco": ["BANCO-A", "BANCO-B", "CARTAO-A"],
-  "bancos": [ { "nome": "BANCO-A", "cartao": false }, { "nome": "BANCO-B", "cartao": false }, { "nome": "CARTAO-A", "cartao": true } ],
+  "meios": [ { "nome": "BANCO-A", "cartao": false, "ativo": true }, { "nome": "BANCO-B", "cartao": false, "ativo": true }, { "nome": "CARTAO-A", "cartao": true, "ativo": true } ],
   "statusCor": { "PAGO": "#639922" }, "version": 7 }
 ```
-No Lançar, escolher `CARTAO-A` mostra a linha "Fatura" (`"cartao": true`); escolher `BANCO-A` não mostra. Com o item 41, a mesma resposta também traz `status`.
+No Lançar, escolher o meio `CARTAO-A` mostra a linha "Fatura" (`"cartao": true`); escolher `BANCO-A` não mostra. Com o item 41, a mesma resposta também traz `status`.
 
 ### `GET /spaces/{sid}/cartoes`
 
 ```json
 { "total": 1842.35, "proximoFechamentoEmDias": 4,
-  "cartoes": [ { "banco": "CARTAO-A", "fatura": { "ym": "2026-10", "fechamento": "2026-10-28", "diasAteFechar": 4, "total": 1842.35 },
+  "cartoes": [ { "meio": "CARTAO-A", "fatura": { "ym": "2026-10", "fechamento": "2026-10-28", "diasAteFechar": 4, "total": 1842.35 },
                  "conferidasQueMudaram": 0 } ],
-  "disponiveis": [ { "banco": "BANCO-B", "temComprasNoCredito": false } ] }
+  "disponiveis": [ { "meio": "BANCO-B", "temComprasNoCredito": false } ] }
 ```
 
 ### `GET /spaces/{sid}/cartoes/CARTAO-A/faturas/2026-10`
 
 ```json
-{ "banco": "CARTAO-A", "ym": "2026-10", "rotulo": "Atual",
+{ "meio": "CARTAO-A", "ym": "2026-10", "rotulo": "Atual",
   "chips": [ { "ym": "2026-09", "rotulo": "Anterior" }, { "ym": "2026-10", "rotulo": "Atual" }, { "ym": "2026-11", "rotulo": "Próxima" } ],
   "anterior": "2026-09", "proxima": "2026-11",
   "periodo": { "ini": "2026-09-29", "fim": "2026-10-28" }, "fechada": false, "historico": false, "inicio": "2026-01",
@@ -165,7 +172,7 @@ Relógio fixo em 2026-10-24; dados fictícios; as funções puras são testadas 
 | F-T20 | `desconferir` sem conferida | `404` |
 | F-T21 | `POST .../diferenca` com falta positiva, zero e sem `valorBanco` | cria o lançamento certo (data do fechamento 12:00 SP, `faturaAjuste` 0); `400`; `400` |
 | F-T22 | `faturaAjuste` `2`, `"1"`, `null` em `POST /tx`, `PUT` e batch; em lançamento que não é de crédito | `400`; `400`; aceito como ausente; ignorado (não gravado) |
-| F-T23 | `GET /cfg/listas` com bancos, alguns em `CFG#CARTOES` | `bancos[].cartao` verdadeiro só nesses, na ordem da lista; `banco` de nomes continua |
+| F-T23 | `GET /cfg/listas` com meios, alguns em `CFG#CARTOES` | `meios[].cartao` verdadeiro só nesses, `ativo` verdadeiro, na ordem da lista; `banco` de nomes continua |
 | F-T24 | `authz`: as duas leituras para owner e member; os comandos só do dono; rota desconhecida | liberado; liberado e negado; `404` |
 | F-T25 | Comandos concorrentes em `CFG#CARTOES` (o controle otimista) | tenta de novo e grava; sem perda |
 | F-T26 | O teste de arquitetura e os de reflexão do histórico | continuam verdes |
@@ -177,7 +184,7 @@ Os testes que rejeitam (F-T16, F-T17, F-T19, F-T22) são escritos primeiro e dev
 
 - A aba Cartão lê `GET /cartoes` (a lista e o total do topo) e `GET .../faturas/{ym}` (o painel), e usa os comandos para cada ação. Os
   botões ‹ › e os chips pedem o `ym` que o servidor mandou, **sem aritmética de mês no front**.
-- O Lançar mostra a linha "Fatura" quando `bancos[nome].cartao` é verdadeiro, em vez de olhar o status.
+- O Lançar mostra a linha "Fatura" quando `meios[nome].cartao` é verdadeiro, em vez de olhar o status.
 - Saem `fechamentoDe`, `periodoFatura`, `faturaBase`, `faturaAtual`, `registrosCartao`, `totalFatura`, `ajusteEfetivo`, `ajustePadrao`,
   `candidatosFatura`, `conferenciaHtml` (o cálculo), `ehCredito`, `ehCreditoEX`, `ehCreditoIN`, `atualizarConfigCartoes`,
   `lerLancamentosBanco`, `carregarBancoCartao`, `desdeNecessario` e o status `CREDITO` procurado por nome na diferença.

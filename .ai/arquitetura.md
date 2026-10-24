@@ -254,7 +254,7 @@ Só a aba **Futuros** entra nesta rodada. Decisões:
 - **Cada aba recebe do servidor o que deve mostrar.** O front não olha status nem `statusFuturo`. **Futuros** traz todos
   os previstos, inclusive os vencidos, que ficam no grupo **Atrasados** como hoje (decisão de 2026-10-24). O **Histórico**
   só traz o que já aconteceu, nunca uma linha de previsto, e cada linha sai **resolvida pelas regras da data do evento**
-  (ver "Status com vigência" abaixo).
+  (ver "Status, meios de pagamento e o passado" abaixo).
 - **Quem liga o marcador:** o servidor, em todo lançamento criado com data **depois de hoje**; o Prever e o "Repetir ao
   lançar" também criam previstos (decisão de 2026-10-24). Um lançamento com data de hoje ou do passado não é previsto.
 - **Atraso** é o marcador ainda ligado antes de hoje. O servidor entrega o grupo Atrasados pronto (o front não calcula) e
@@ -273,8 +273,8 @@ Só a aba **Futuros** entra nesta rodada. Decisões:
   **devolve como veio** (o texto da opção, nunca um índice). Não há lista fixa no front (a de `app.js:5` deixa de existir), nem
   predicado por nome (`ehFuturo`, `afetaSaldo`, `ehCredito`...), nem cor ou regra escondida em nome. O texto do status de um
   lançamento antigo continua aparecendo como está gravado. Um teste de CI falha se um nome de status voltar a `web/`.
-- **O backend manda pronto o que antes o front deduzia do status:** `previsto`, o que é cartão (`bancos: [{nome, cartao}]` na
-  lista de bancos, sem chamada extra), `excluirDoTotal` (calculado pelo servidor), a fatura efetiva e o padrão do ajuste, e
+- **O backend manda pronto o que antes o front deduzia do status:** `previsto`, o que é cartão (`meios: [{nome, cartao, ativo}]` na
+  lista de meios, sem chamada extra), `excluirDoTotal` (calculado pelo servidor), a fatura efetiva e o padrão do ajuste, e
   a transferência entre bancos (um comando que cria as duas pontas).
 - **Lançamentos antigos** com `PREVISTO`, `TRANSFERINDO` ou `CREDITANDO` **ficam como estão** (eram só previsões, nada é
   regravado) e continuam em Futuros, os do passado em Atrasados, até alguém tratar. Ao confirmar um deles, a janela abre
@@ -287,24 +287,34 @@ Só a aba **Futuros** entra nesta rodada. Decisões:
   `aConfirmar`) e a aprovação do dono; como o servidor encontra todos os previstos sem depender dos 1000 lançamentos mais
   recentes (só se exigir chave nova no Dynamo volta ao dono); e o que o Prever faz com o "Status das cópias".
 
-## Status com vigência (fechada em 2026-10-24; não implementada)
+## Status, meios de pagamento e o passado (fechada em 2026-10-24; não implementada)
 
-O dono tem dados desde 2016 (ou antes) e o conjunto de status vai mudar com o tempo (`PIX`, `DREX`, `DEBITO`...). Por isso o **catálogo de
-status do backend** guarda **períodos**, e o servidor lê e grava **pela data do evento**:
+Três ideias separadas que estavam misturadas, e o que o dono decidiu:
 
-- Cada entrada tem `nome`, `desde`, `ate`, rótulo, cor padrão, as regras (conta no saldo, fora do total, crédito, ajuste padrão da fatura,
-  previsto) e se é **oferecido**. O mesmo nome pode ter vários períodos. **Nenhum status sai do catálogo**: o que deixa de valer ganha um
-  `ate`, porque o histórico é sempre lido pelas regras da época (um `CREDITO IN` de 2019 continua crédito com ajuste `−1`).
-- **Data do corte:** o dia em que o item 41 entra em produção. A partir dela só `PAGO` e `CREDITO` são oferecidos; `CREDITO IN`, `CREDITO EX`,
-  `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` valem até a véspera; `CONTAS` segue válido e é a transferência (um comando do servidor). O dono não
-  criou outros status, então o catálogo cobre todos os dados.
-- **Ao gravar**, só o que mexe em saldo (valor, tipo, banco, data, status, oculto) exige um status **válido para a data do resultado**, além das
-  travas de data (início do controle, mês fechado, mês conferido). Descrição, nota e tags são livres em qualquer data.
-- **Ao ler**, o Histórico sai resolvido pela data do evento: cada linha com o rótulo e a cor da época, a **lista de filtros de status do período
-  consultado** (inclusive os que já não são oferecidos) e o **resumo do filtro inteiro** (quantidade, total e por mês). O front só exibe.
-- A lista de **escolha** é a dos status oferecidos e válidos na data (`GET /cfg/listas` para hoje, `GET /status?data=` para outra data).
+| O quê | Hoje | Passa a ser | Onde mora |
+|---|---|---|---|
+| **Onde o dinheiro está** (conta, carteira, vale, cartão): `SODEXO-REF-IBM`, `DINHEIRO`, `CARTEIRA`... | o `banco` de cada lançamento (um vetor de nomes em `CFG#LISTAS`) | **meio de pagamento**, só um nome de exibição: um **de-para em `domain/`** (`MeioDe`/`BancoDe`); o Dynamo **não muda** | dado do espaço; o **dono** cria e desativa pelo app (item 43) |
+| **Como a movimentação foi feita** (`PIX`, `DEBITO`, `DREX`, `CRIPTO`, `CREDITO`) | o `status` (`PAGO`, `CREDITO IN`...) | **forma de pagamento**, só um rótulo; o campo e a API continuam `status` | catálogo do **produto**, em código (muda por release) |
+| **Já aconteceu ou é previsto** | `PREVISTO`, `TRANSFERINDO`, `CREDITANDO` | o marcador `previsto` | atributo do lançamento (item 41) |
 
-Spec: [`specs/futuros-previsto/`](specs/futuros-previsto/spec.md), regras R9 a R12c.
+`CRIPTO` e `DREX` são **formas** (são amplos: qual cripto, qual carteira); o saldo mora no meio onde o dinheiro está.
+
+Regras:
+- **O catálogo de status tem uma entrada por nome** (rótulo, cor, regras: conta no saldo, fora do total, crédito, ajuste padrão, previsto) e a marca
+  **selecionável**. **Nenhum status sai dele**: o que deixa de ser usado vira não selecionável e continua valendo onde já está gravado, porque o
+  histórico (desde 2016 ou antes) é lido pelas regras do status.
+- **Não há data de corte global.** Cada coisa tem a sua vigência: um meio (`SODEXO` acaba quando o dono sair da IBM) tem o seu fim, e um status pode ter
+  `desde` e `ate` **só para sugerir** a lista de escolha de uma data. A lista de escolha é do servidor; o front exibe, guarda a escolha e a devolve como veio.
+- **O passado é do usuário.** Ele pode reclassificar um registro antigo (um `PAGO` de 2018 pode virar `PIX` ou `DEBITO`): o servidor aceita qualquer
+  status selecionável em qualquer data. O que protege é a **trava de data pelo efeito no saldo** (trocar `PAGO` por `PIX`, que contam igual, não é
+  travado; trocar para um que não conta, ou mexer em valor, tipo, meio, data, oculto ou previsto, é) e o **histórico de versões** (toda troca é auditável e
+  reversível).
+- **Troca em massa** (o pedido de um dono novo que não gosta de `PAGO` e `CREDITO`, o desmembramento futuro do `PAGO`, a migração do `faturaAjuste`
+  explícito) é uma ferramenta **só do admin** (item 44), com simulação, versão por registro e as mesmas travas.
+- **Ao ler**, o Histórico sai do servidor pronto: cada linha com rótulo e cor, a **lista de filtros de status que aparecem no período consultado** (um 2019
+  mostra `CREDITO IN`; um 2018 reclassificado mostra `PIX`) e o **resumo do filtro inteiro** (quantidade, total e por mês).
+
+Spec: [`specs/futuros-previsto/`](specs/futuros-previsto/spec.md), regras R9 a R12c e R15.
 
 ## Ordem de execução proposta
 1. Histórico imutável de lançamentos, dentro da nova estrutura de camadas (item 31 sobre 32).

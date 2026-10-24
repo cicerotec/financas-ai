@@ -46,16 +46,17 @@ problemas que o dono apontou:
 5. **Lançamentos antigos ficam como estão.** Os que já estão gravados com `PREVISTO`, `TRANSFERINDO` ou `CREDITANDO` continuam
    em Futuros (os do passado em Atrasados) até alguém tratar. O servidor os reconhece por uma única função; **nada é regravado**
    no Dynamo e não há migração em massa. O texto do status deles continua aparecendo como está gravado.
-6. **O status é uma lista do backend, com vigência.** O app não cria nem edita status nem as caixas `statusReal`, `afetaSaldoBanco` e
-   `statusFuturo`; `salvarListas` continua gravando o resto (bancos, cores, aparência, ordens), e o servidor ignora qualquer mudança em
-   status. O front deixa de ler `statusFuturo`, `statusReal` e `afetaSaldoBanco`. O catálogo guarda **períodos** (`desde`, `ate`): nenhum
-   status sai dele, e o que deixa de valer só deixa de ser **oferecido** a partir de uma data. A **data do corte** é o dia em que este
-   item entra em produção. Ao gravar, o servidor aceita só um status válido **para a data do evento**, e só quando o que muda mexe em saldo
-   (valor, tipo, banco, data, status, oculto); descrição, nota e tags são livres.
+6. **O status é uma lista do backend, sem validar pela data.** O app não cria nem edita status nem as caixas `statusReal`, `afetaSaldoBanco` e
+   `statusFuturo`; `salvarListas` continua gravando o resto (bancos, cores, aparência, ordens), e o servidor ignora qualquer mudança em status. O front
+   deixa de ler `statusFuturo`, `statusReal` e `afetaSaldoBanco`. O catálogo tem uma entrada por nome, e **nenhum status sai dele**: o que deixa de ser usado
+   vira **não selecionável**. **Não há data de corte global** (decisão do dono, 2026-10-24): `desde` e `ate`, quando existem, só **sugerem** a lista
+   de escolha. **O passado é do usuário**: um `PAGO` de 2018 pode virar `PIX`, em qualquer data, por um registro por vez pelo app. O que protege são as
+   travas de data, que seguem o **efeito no saldo** (trocar `PAGO` por `PIX` não é travado) e o histórico de versões. Na tela o status se chama **forma de
+   pagamento**.
 7. **O aviso do Telegram** passa a seguir o marcador (e o mesmo critério de atraso), em vez do status.
-8. **O Histórico sai resolvido pela data do evento**, inclusive os filtros: cada linha com o rótulo e a cor da época, a lista de filtros de
-   status do período que se está vendo (em 2019, `CREDITO IN` e `CREDITO EX`; em 2027, o que existir) e o resumo (quantidade e total) do
-   filtro inteiro, tudo calculado no servidor. A base vai de 2016 em diante.
+8. **O Histórico sai do servidor pronto**, inclusive os filtros: cada linha com o rótulo e a cor, a lista de filtros de status **que aparecem no período**
+   que se está vendo (em 2019, `CREDITO IN` e `CREDITO EX`; um 2018 reclassificado para `PIX` mostra o `PIX`) e o resumo (quantidade e total) do filtro
+   inteiro, tudo calculado no servidor. A base vai de 2016 em diante.
 
 ## Limites (o que fica de fora)
 

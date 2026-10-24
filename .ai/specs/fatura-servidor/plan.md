@@ -18,7 +18,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 | "Mudou desde a conferência" compara o total de agora com `conferida.total` | `app.js:2977-2992, 3053` | Chega pronto (`mudouDesdeConferencia`, e a contagem por cartão) |
 | As compras que explicam a diferença são buscadas no navegador (até 30 compras perto do corte, combinações de 1 a 3, margem de 5 dias) | `app.js:2884-2922` (`candidatosFatura`) | O algoritmo é portado para Go, com os mesmos vetores de teste; a resposta traz a ação (`ajuste` por compra) e o rótulo |
 | A configuração de cartões é gravada pelo front inteira em `config/cartoes` (`PUT /cfg/cartoes`) | `app.js:2855` (`atualizarConfigCartoes`) | Viram comandos validados; a rota genérica deixa de aceitar `conferida` e depois deixa de existir |
-| A lista de bancos é um vetor de nomes; o front só descobre os cartões ao abrir a aba Cartão (`app.js:825`) e usa o status para saber quais bancos têm compras de crédito | `app.js:2769, 3065` | `GET /cfg/listas` devolve também `bancos: [{nome, cartao}]`, pronto |
+| A lista de bancos é um vetor de nomes; o front só descobre os cartões ao abrir a aba Cartão (`app.js:825`) e usa o status para saber quais bancos têm compras de crédito | `app.js:2769, 3065` | `GET /cfg/listas` devolve também `meios: [{nome, cartao, ativo}]`, pronto |
 | `faturaAjuste` é gravado como vem (sem validação) | `security.md` (pontos em aberto) | A validação (`-1`, `0`, `+1`) entra nesta fatia |
 | Os dias de uma compra e de "hoje" são calculados no fuso do **navegador** | `app.js:2739` (`chaveDia`) | O servidor usa São Paulo (`DiaBR`); para quem usa o app no Brasil dá o mesmo |
 
@@ -26,7 +26,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 
 - **Funções puras em `domain/`** (recebem o instante e os dados, sem I/O): `FechamentoDe(cartao, ym)`, `PeriodoFatura(cartao, ym)`,
   `FaturaBase(cartao, dia)`, `FaturaAtual(cartao, hoje)`, `AjusteEfetivo(l)`, `ContaNaFatura(l, banco)`, `TotalFatura(registros, ym)`,
-  `Candidatos(...)`. O que decide por nome de status (`EhCredito`, o padrão do ajuste) fica no **catálogo de status do backend** (item 41), com vigência: o `CREDITO IN` de 2019 continua sendo crédito com ajuste `−1` pela regra da época. Até o 41 chegar, é uma constante com os sete padrão (o dono não criou outros).
+  `Candidatos(...)`. O que decide por nome de status (`EhCredito`, o padrão do ajuste) fica no **catálogo de status do backend** (item 41), uma entrada por nome: `CREDITO IN` continua sendo crédito com ajuste `−1`, em qualquer data, enquanto estiver gravado. Até o 41 chegar, é uma constante com os sete padrão (o dono não criou outros).
 - **`service.Cartoes`:** lê `CFG#CARTOES` e os lançamentos do banco (um `Query` por intervalo de datas do espaço, filtrando o banco em
   Go, como o `Listar` de hoje faz) e devolve os corpos de `GET /cartoes` e `GET /cartoes/{banco}/faturas/{ym}`.
 - **Janela de leitura:** para a fatura `ym`, os lançamentos do banco entre o início do período de `ym−2` e o fim do período de `ym+1`
@@ -40,7 +40,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 - **Registrar a diferença:** o servidor calcula `falta = valorBanco − total`; se for maior que zero, cria o lançamento pelo
   `Lancamentos.Criar` (saída, `falta`, descrição `Ajuste da fatura <rótulo> (juros, anuidade ou IOF)`, no dia do fechamento às 12:00
   em São Paulo, `faturaAjuste` 0, `valorEstimado` falso, status de crédito do catálogo).
-- **`bancos[].cartao`:** `Config.Ler("listas")` junta `CFG#LISTAS` e `CFG#CARTOES` e devolve `bancos` além do `banco` de hoje (que
+- **`meios[].cartao`:** `Config.Ler("listas")` junta `CFG#LISTAS` e `CFG#CARTOES` e devolve `bancos` além do `banco` de hoje (que
   continua, para o front antigo, até a Fase C).
 - **Autorização:** `cartao.ler` (owner e member, como a leitura de configuração hoje) e `cartao.escrever` (só do dono). A ação genérica
   `cfg.escrever` deixa de valer para `cartoes`.
@@ -49,10 +49,10 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 ## Fases (cada uma é um PR)
 
 - **Fase A, backend, só acrescenta:** as funções puras e os testes, `GET /cartoes`, `GET /cartoes/{banco}/faturas/{ym}`, os comandos,
-  `bancos[]` em `GET /cfg/listas`, a validação de `faturaAjuste`, e a trava para `PUT /cfg/cartoes` **ignorar** `faturas[*].conferida`
+  `meios[]` em `GET /cfg/listas`, a validação de `faturaAjuste`, e a trava para `PUT /cfg/cartoes` **ignorar** `faturas[*].conferida`
   do corpo (a rota continua, para o app de hoje não quebrar). O release pode ir para a `main`.
 - **Fase B, a aba Cartão e a linha Fatura do Lançar (sem demo: o visual não muda):** a aba lê as duas rotas novas e usa os comandos; o
-  Lançar mostra a linha "Fatura" quando `bancos[].cartao`. **Antes de ligar**, a conferência lado a lado (abaixo). Saem do front as
+  Lançar mostra a linha "Fatura" quando `meios[].cartao`. **Antes de ligar**, a conferência lado a lado (abaixo). Saem do front as
   funções listadas no intent.
 - **Fase C, remover:** apaga `PUT /cfg/cartoes` e a ação `cfg.escrever` para `cartoes`; `banco[]` sem marca some da resposta quando o
   front só lê `bancos`; atualiza o `security.md` (sai a linha de `faturaAjuste` e a da conferência de fatura).
@@ -73,14 +73,16 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 | Cada abertura de fatura lê muitos lançamentos | Janela de 4 faturas; sem chave nova; medir no dev; um GSI só se o dono aprovar |
 | O front antigo ainda gravar `conferida` forjado depois da A | A Fase A faz `PUT /cfg/cartoes` ignorar `conferida`; a C remove a rota |
 | O app antigo parar de funcionar quando `PUT /cfg/cartoes` sumir | A Fase C só entra depois da B no ar nos dois ambientes |
-| Lançamento de crédito num banco sem cartão configurado | Não entra em fatura nenhuma (como hoje); `bancos[].cartao` é falso e a linha Fatura não aparece |
+| Lançamento de crédito num banco sem cartão configurado | Não entra em fatura nenhuma (como hoje); `meios[].cartao` é falso e a linha Fatura não aparece |
 
 ## Decisões que o plan fixou e o dono pode contestar
 
 1. O servidor **calcula e manda** os candidatos de ajuste (o front só mostra e aplica).
 2. Os comandos de cartão são **rotas próprias**, e `PUT /cfg/cartoes` é removida (na Fase C).
-3. `bancos: [{nome, cartao}]` em `GET /cfg/listas`, **sem chamada extra**; a linha Fatura do Lançar aparece pelo banco, não pelo status.
+3. `meios: [{nome, cartao, ativo}]` em `GET /cfg/listas`, **sem chamada extra**; a linha Fatura do Lançar aparece pelo meio, não pelo status.
    O servidor ignora `faturaAjuste` em lançamento que não é de crédito.
 4. **Conferir fatura com diferença** pede `aceitarDiferenca` (hoje é uma pergunta do front); sem `valorBanco`, também.
 5. A janela de leitura é de `ym−2` a `ym+1` faturas, sem limite de lançamentos.
 6. **A trava da fatura conferida fica na fatia b** (decisão anterior mantida; muda comportamento e precisa de demo).
+7. **Nomes:** nas rotas e respostas novas o `banco` gravado se chama **`meio`** (meio de pagamento), por um **de-para em `domain/`**; o Dynamo não muda e `GET /tx`
+   mantém `banco` até o item que renomeia a tela (R0 do spec). O status se chama **forma de pagamento** na tela.
