@@ -19,7 +19,7 @@ foi, quem o mudou nem voltar atrás.
    junto com o registro atual, uma versão com o **registro inteiro**, quem fez e quando. **Criar não gera versão** (decisão do
    dono de 2026-10-23): um lançamento é um lançamento, a criação não sobrescreve nada e quem criou e quando já estão no próprio
    registro (`criadoPor` e `criadoEm`). A versão 1 nasce **junto com a primeira alteração ou exclusão** do lançamento, com o
-   estado de antes, e a versão 2 com o estado de depois. Importar um `id` novo também não gera versão.
+   estado de antes, e a versão 2 com o estado de depois. Importar um `id` novo também não gera versão. **Exceção:** a criação ou importação que exigiu confirmação de mês fechado grava a versão 1 com a confirmação, para ela ficar no histórico.
 2. **Cada versão diz o que ocorreu**, num campo de evento (`acao`):
 
    | `acao` | Quando |

@@ -10,6 +10,7 @@ Fechado com o dono; o raciocínio está em [`specs/historico/plan.md`](specs/his
 - **A versão 1 nasce na primeira edição, exclusão ou sobrescrita**, com o estado de antes, junto da versão 2. Na tela ela
   chama-se **"Original"** (só o texto; o valor `insert` no banco não muda).
 - Importar um `id` que já existe é sobrescrita e continua gravando versão.
+- **Exceção (escolhida pelo dono):** a criação ou importação que exigiu confirmação de mês fechado grava a versão 1 com a confirmação.
 - **Ocultar** continua sendo edição e gerando versão. O que ocultar significa para o saldo fica para o item 40 do BACKLOG.
 - As versões `insert` de importações anteriores ficam; o dono pode apagá-las no DynamoDB, só as de lançamentos nunca alterados.
 - Perde-se o rastro de quem importou e quando. Não cria chave nem campo no DynamoDB.
