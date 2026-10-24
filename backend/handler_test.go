@@ -28,6 +28,7 @@ type bancoFake struct {
 	// fatia 2: falharPut faz o proximo PutItem falhar; falharContador faz o ADD seq falhar; antesDoPut roda no comeco de
 	// PutItem (simula outra pessoa gravando a mesma configuracao antes).
 	falharPut       error
+	lidosNoQuery    int // quantos itens os Query devolveram (a leitura que a tabela cobra)
 	falharContador  error
 	antesDoPut      func(*dynamodb.PutItemInput)
 }
@@ -225,6 +226,7 @@ func (f *bancoFake) Query(_ context.Context, in *dynamodb.QueryInput, _ ...func(
 			break
 		}
 		out.Items = append(out.Items, f.itens[k])
+		f.lidosNoQuery++
 	}
 	return out, nil
 }

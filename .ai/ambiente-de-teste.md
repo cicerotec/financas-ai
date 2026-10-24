@@ -97,59 +97,51 @@ front com `.\scripts\servir.ps1`. O modo local já responde o CORS de `localhost
 ## Comparar e medir o saldo do servidor (item 40, fase B)
 
 Antes de a aba Saldos passar a usar `GET /saldos`, o saldo do servidor tem de **bater com o da tela antiga** (a que calcula no navegador) e a
-**primeira abertura sem cache** tem de caber na Lambda e na leitura da tabela **como ela é hoje** (`specs/saldo-servidor/plan.md`, "A conferência lado a lado").
-Primeiro no `dev`, depois na produção.
+primeira abertura sem cache tem de caber na Lambda **com a tabela como ela é** (5 RCU, sem mexer na AWS). Primeiro no `dev`, depois na produção
+(`specs/saldo-servidor/plan.md`, "A conferência lado a lado").
 
 **Pré-requisito:** a fase A mergeada na `develop` e publicada no `dev` (o deploy é automático; confira o changeset e o status final da stack).
 
-### Por que são dois testes, e não um
-- **A tela antiga lê o histórico inteiro uma vez por banco.** Cada banco chama `GET /tx?banco=X`, e o servidor filtra o banco **depois** de ler a partição.
-  Com anos de dados e sem cache, são dezenas de MB lidos em paralelo. A tabela é **provisionada com 5 RCU**, então a leitura estoura e a API responde
-  `500` (`erro ao listar` ou `erro interno`). Isso acontece na tela antiga, com ou sem a fase A, e é o que aparece no console ao rodar `carregarSaldos`.
-- **Por isso a comparação de igualdade usa poucos dados** (a carga padrão, de 2025 em diante, uns 2,6 mil lançamentos, que a tela antiga aguenta) e o
-  **teste de volume usa dez anos, só no servidor** (`window.COMPARAR_SO_SERVIDOR = true`, que não roda a tela antiga).
+### O que limita a leitura: o início do controle
+O saldo **não é calculado desde o começo dos dados**: cada banco tem uma **data de início do controle** (`CFG#SALDOS`: saldo inicial e data) e o que é anterior é histórico, que não entra na conta
+nem na leitura da tabela (o servidor só lê a partir dessa data; há teste para isso). Por isso os dados de teste têm que ter o início do controle **recente**, como no uso real. O gerador faz isso:
+```powershell
+python scripts/dados-ficticios.py <space-id> --desde 2016              # simulação: dados desde 2016, controle começando 14 meses atrás
+python scripts/dados-ficticios.py <space-id> --desde 2016 --confirmar  # grava (5 WCU: leva mais de uma hora; 2016 é só para o histórico ficar grande)
+python scripts/dados-ficticios.py <space-id> --controle 2025-11-01 --confirmar   # outro início do controle
+```
+O padrão sem `--desde` (2025 em diante, uns 2,6 mil lançamentos) também serve. Se o dev já tem uma carga com o controle começando em 2020 (ou antes), rode o gerador de novo (ele sobrescreve a configuração de saldos)
+ou mude a "Data de início" de cada banco na própria aba Saldos.
 
-### A capacidade da AWS não é parte da solução
-O app tem de funcionar com a tabela **como ela está** (5 RCU), sem ninguém mexer na AWS: nem no dev, nem na produção, nem para quem usar o app amanhã. Subir a leitura só esconderia o
-problema. A causa é do desenho: sem cache, o `GET /saldos` lê o histórico inteiro de uma vez. **A correção proposta é ler em partes** (um orçamento de leitura por chamada, gravar o
-que já foi calculado e, se a tabela limitar a leitura, parar com calma em vez de dar `500`), descrita em `specs/saldo-servidor/` quando for aprovada. **Enquanto isso não existir, não
-faça o teste de volume (etapa 2)**: com dez anos de dados ele estoura a leitura.
-
-### Etapa 1: igualdade (poucos dados)
-1. Dados: `python scripts/dados-ficticios.py <space-id> --confirmar` (a carga padrão). Se o dev já tem dez anos, limpe antes: `python scripts/limpar-espaco.py <space-id> --dev --confirmar`.
-2. Abra o app do dev, entre como **dono** e espere a aba Saldos carregar.
-3. F12 → Console, cole o conteúdo de `scripts/comparar-saldos-console.js` e aperte Enter. O token fica no navegador; o script só faz `GET`.
-4. Ele calcula pela tela antiga, chama `GET /saldos` três vezes e mostra o **saldo e os meses de cada meio, antigo contra servidor**, e os **tempos**. Termina em `✓ IGUAL` ou `✗ DIFERENTE`.
+### Comparar e medir
+1. Abra o app do dev, entre como **dono** e espere a aba Saldos carregar.
+2. F12 → Console, cole o conteúdo de `scripts/comparar-saldos-console.js` e aperte Enter. O token fica no navegador; o script só faz `GET`.
+3. Ele calcula pela tela antiga, chama `GET /saldos` três vezes e mostra o **saldo e os meses de cada meio, antigo contra servidor**, e os **tempos**. Termina em `✓ IGUAL` ou `✗ DIFERENTE`.
    A primeira chamada é a sem cache; para repetir uma sem cache, mude e volte o saldo inicial de um banco na aba Saldos (isso muda a base do cache).
-   Se a tela antiga falhar com `500`, o script avisa e manda usar o modo só servidor.
-
-### Etapa 2: volume (dez anos, só o servidor) — só depois da leitura em partes
-1. Dados: `python scripts/dados-ficticios.py <space-id> --desde 2016 --confirmar` (uns 14 mil lançamentos; a tabela tem 5 WCU, então leva mais de uma hora, ou bem menos com 20 WCU).
-2. No console do app: `window.COMPARAR_SO_SERVIDOR = true` e Enter; depois cole o script. Ele chama `GET /saldos` três vezes e mostra o saldo de cada meio e os tempos.
-3. Meça o que o navegador não vê (próxima seção).
+   (Com `window.COMPARAR_SO_SERVIDOR = true` antes de colar, ele pula a tela antiga e só mede o servidor.)
 
 **Critérios para ligar a tela nova**
-- Etapa 1: `✓ IGUAL` em todos os meios e no total (a diferença aceita é menos de meio centavo).
-- Etapa 2: primeira chamada dentro do tempo da Lambda (o limite é 30 s; mire em menos de 10 s), as seguintes em menos de 1 s, nenhum `500` e nenhum `ReadThrottleEvents`.
+- `✓ IGUAL` em todos os meios e no total (a diferença aceita é menos de meio centavo).
+- Primeira chamada dentro do tempo da Lambda (o limite é 30 s; mire em menos de 10 s), as seguintes em menos de 1 s, e nenhum `500`.
 
 ### Medir o que o navegador não vê (CloudWatch)
 Precisa da sessão com MFA (`scripts/aws-mfa.ps1`); sem ela, a política `PermitirMFA` nega a leitura dos logs e das métricas.
 
-Erros e duração da Lambda (a função tem **128 MB** e 30 s) na última hora. Procure `listar:` (a mensagem do erro, por exemplo `ProvisionedThroughputExceededException`) e, nas linhas `REPORT`, `Duration` e `Max Memory Used`:
+Erros e duração da Lambda (a função tem **128 MB** e 30 s) na última hora. Procure `listar:` (a mensagem do erro) e, nas linhas `REPORT`, `Duration` e `Max Memory Used`:
 ```powershell
 $ini = [DateTimeOffset]::UtcNow.AddMinutes(-60).ToUnixTimeMilliseconds()
 aws logs filter-log-events --log-group-name /aws/lambda/financas-api-dev --region sa-east-1 --filter-pattern '"listar:"' --start-time $ini --query "events[].message" --output text
 aws logs filter-log-events --log-group-name /aws/lambda/financas-api-dev --region sa-east-1 --filter-pattern '"REPORT"' --start-time $ini --query "events[].message" --output text
 ```
-Leitura gasta e **throttling** da tabela:
+Leitura gasta e eventual **throttling** da tabela:
 ```powershell
 $ini = (Get-Date).AddMinutes(-60).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"); $fim = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 foreach ($m in "ConsumedReadCapacityUnits","ReadThrottleEvents") {
   aws cloudwatch get-metric-statistics --namespace AWS/DynamoDB --metric-name $m --dimensions Name=TableName,Value=FinancasApp-dev --region sa-east-1 --start-time $ini --end-time $fim --period 60 --statistics Sum --query "Datapoints[].[Timestamp,Sum]" --output text
 }
 ```
-`ReadThrottleEvents` maior que zero explica o `500`. Registre os números no PR.
+Registre os números no PR.
 
 ### Na produção (só leitura, pelo dono)
-Só depois de a etapa 1 dar `✓ IGUAL` no dev e de a leitura em partes existir (acima). Repita a etapa 1 no app de produção, num horário calmo: **o servidor grava o cache de fechamento** (os itens `SALDO#<banco>`) por conta própria
-na primeira chamada, e isso é esperado. Se algum meio divergir ou a primeira chamada falhar, **a tela nova não entra**: a tela antiga continua funcionando.
+Só depois de dar `✓ IGUAL` no dev. Repita o passo 2 no app de produção, num horário calmo: **o servidor grava o cache de fechamento** (os itens `SALDO#<banco>`) por conta própria na primeira chamada, e isso é esperado.
+Se algum meio divergir ou a primeira chamada falhar, **a tela nova não entra**: a tela antiga continua funcionando.

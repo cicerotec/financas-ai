@@ -418,3 +418,39 @@ func TestSaldoPartindoDoMesConferidoEIgualAoCompleto(t *testing.T) {
 		t.Errorf("marco deveria estar conferido: %v", ms)
 	}
 }
+
+// O inicio do controle existe para NAO calcular desde o comeco: com dez anos de historico e o controle comecando em 01/01/2026, o servidor le
+// so a partir dessa data (a chave de data limita o Query) e o que e anterior nao entra na conta nem na leitura da tabela.
+func TestSaldosLeSoDoInicioDoControleEmDiante(t *testing.T) {
+	relogioFixo(t)
+	f := cenario(t)
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0,
+		"porBanco": map[string]any{"ITAU": map[string]any{"saldoInicial": 100.0, "dataInicio": "2026-01-01"}}})
+	antigos, recentes := 0, 0
+	for ano := 2016; ano <= 2026; ano++ {
+		for mes := 1; mes <= 9; mes++ {
+			for d := 1; d <= 28; d += 3 {
+				data := time.Date(ano, time.Month(mes), d, 12, 0, 0, 0, time.UTC).Format("2006-01-02T15:04:05.000Z")
+				id := fmt.Sprintf("h%019d", antigos+recentes)
+				f.colocar(t, doc{"PK": pkEspaco, "SK": dePrefixoTx + data + "#" + id, "id": id, "dataEvento": data, "status": "PAGO",
+					"tipo": "saida", "valor": 1.0, "banco": "ITAU", "criadoPor": "own"})
+				if ano < 2026 {
+					antigos++
+				} else {
+					recentes++
+				}
+			}
+		}
+	}
+	f.lidosNoQuery = 0
+	c, d := saldos(t, "own")
+	esperar(t, "saldos", c, 200)
+	// 100 (inicial) - 30 (os tres do cenario, em janeiro) - os lancamentos de 2026 (1 cada); os de 2016 a 2025 nao contam
+	if want := 100.0 - 30 - float64(recentes); !quase(itemDoMeio(t, d, "ITAU")["saldo"].(float64), want) {
+		t.Errorf("saldo = %v, esperado %v", itemDoMeio(t, d, "ITAU")["saldo"], want)
+	}
+	if f.lidosNoQuery > recentes+3+10 {
+		t.Errorf("o servidor leu %d itens da tabela; so os %d de 2026 em diante (mais os do cenario) deveriam ser lidos, e nao os %d anteriores", f.lidosNoQuery, recentes+3, antigos)
+	}
+	t.Logf("%d itens no historico antigo, %d de 2026: o Query leu %d", antigos, recentes, f.lidosNoQuery)
+}

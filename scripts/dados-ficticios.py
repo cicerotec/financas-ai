@@ -4,7 +4,8 @@
 Cria as listas (status e bancos), a configuracao de saldos (saldo inicial e data de inicio de cada banco), centenas de tags,
 combos e uns 2 mil lancamentos de 2025 ate hoje, mais eventos futuros (PREVISTO, TRANSFERINDO, CREDITANDO) e transferencias entre
 bancos, num volume parecido com o uso real. Com --desde AAAA o historico comeca em janeiro desse ano (--desde 2016 faz uns 14 mil
-lancamentos: o teste de volume do item 40, que exige 10 anos).
+lancamentos). O INICIO DO CONTROLE de cada banco nao e o comeco dos dados: como no uso real, o saldo so conta de uma data recente em diante
+(por padrao, 14 meses atras) e o que e anterior e historico, que nao entra na conta. Para mudar: --controle AAAA-MM-DD.
 Os ids sao fixos (gerador com semente), entao rodar de novo sobrescreve os mesmos registros em vez de duplicar.
 Para recomecar do zero: python scripts/limpar-espaco.py <space-id> --dev --confirmar
 
@@ -12,9 +13,11 @@ Uso (com a sessao do MFA ativa no terminal; o espaco vem do scripts/seed.sh fina
   python scripts/dados-ficticios.py <space-id>               # simulacao: so conta o que seria gravado
   python scripts/dados-ficticios.py <space-id> --confirmar   # grava de verdade
   python scripts/dados-ficticios.py <space-id> --desde 2016 --confirmar   # dez anos de historico (leva um bom tempo: 5 WCU)
+  python scripts/dados-ficticios.py <space-id> --controle 2025-11-01 --confirmar   # outro inicio do controle
 """
 import json
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -35,6 +38,22 @@ def _inicio():
 
 
 INICIO = _inicio()
+
+
+def _inicio_controle():
+    """Data de inicio do controle de saldos: --controle AAAA-MM-DD, ou o dia 1 de 14 meses atras (nunca antes do primeiro dado)."""
+    if "--controle" in sys.argv:
+        i = sys.argv.index("--controle")
+        try:
+            return date.fromisoformat(sys.argv[i + 1])
+        except (IndexError, ValueError):
+            sys.exit("--controle pede uma data AAAA-MM-DD, por exemplo --controle 2025-11-01")
+    hoje = date.today()
+    mes = hoje.year * 12 + hoje.month - 1 - 14
+    return max(INICIO, date(mes // 12, mes % 12 + 1, 1))
+
+
+INICIO_CONTROLE = _inicio_controle()
 HOJE = date.today()
 FIM_FUTURO = HOJE + timedelta(days=150)
 
@@ -108,7 +127,7 @@ def gerar(space):
                   "afetaSaldoBanco": {"PAGO": True, "CONTAS": True}, "statusFuturo": FUTUROS})
     # saldo inicial e data de inicio de cada banco (sem isso a aba Saldos mostra "defina o saldo inicial" e nao ha cache de fechamento)
     itens.append({"PK": pk, "SK": "CFG#SALDOS", "version": 1, "porBanco": {
-        b: {"saldoInicial": float(500 * (n + 1)), "dataInicio": INICIO.isoformat()} for n, b in enumerate(BANCOS)}})
+        b: {"saldoInicial": float(500 * (n + 1)), "dataInicio": INICIO_CONTROLE.isoformat()} for n, b in enumerate(BANCOS)}})
     itens.append({"PK": pk, "SK": "CFG#TAGS", "version": 1, "usadas": tags})
     combos = [{"tags": [c, f"{c}-{a}"]} for c in ("mercado", "transporte", "casa") for a in ("mensal", "extra", "fixo")]
     itens.append({"PK": pk, "SK": "CFG#COMBOS", "version": 1, "lista": combos})
@@ -179,7 +198,7 @@ def gravar(itens):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--") and not a.isdigit()]
+    args = [a for a in sys.argv[1:] if not a.startswith("--") and not a.isdigit() and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", a)]
     if not args:
         sys.exit(__doc__)
     space = args[0].removeprefix("SPACE#")
@@ -193,7 +212,7 @@ def main():
     itens, seq = gerar(space)
     tx = [d for d in itens if d["SK"].startswith("TX#")]
     futuros = sum(1 for d in tx if d["status"] in FUTUROS)
-    print(f"Historico desde {INICIO.isoformat()}.")
+    print(f"Historico desde {INICIO.isoformat()}; inicio do controle de saldos em {INICIO_CONTROLE.isoformat()}.")
     print(f"Espaco {space} em {TABELA}: {len(tx)} lancamentos ({futuros} futuros), "
           f"{len(itens) - len(tx)} configuracoes, 1 contador seq.")
     if "--confirmar" not in sys.argv:
