@@ -136,7 +136,7 @@ DynamoDB sem discutir com o dono.**
   (Tendências). **Primeiro da fila (2026-10-24):** vem antes do 33a e do 41, porque o front só deixa de tratar status quando para
   de somar. Escopo: saldo por banco e total de **Saldos** e conferência com o extrato (o `GET /saldos`, o cache só do
   servidor, `Conferir` só com o `real` e o ajuste criado pelo servidor); os totais de Histórico e Futuros ficam com o item 41 e as
-  faturas do cartão com o 33a. Fases: A (backend, só acrescenta), B (a aba Saldos, visual igual, **conferida lado a lado** com a
+  faturas do cartão com o 33a. Fases: A (backend, só acrescenta; **com teste de volume de 10 anos**, porque a base vai de 2016 em diante), B (a aba Saldos, visual igual, **conferida lado a lado** com a
   antiga no dev e na produção), C (remove `PUT /fechamentos`). Intent, plan e spec (rascunho) em
   [`.ai/specs/saldo-servidor/`](.ai/specs/saldo-servidor/intent.md). Detalhes em [`.ai/arquitetura.md`](.ai/arquitetura.md) e
   [`.ai/security.md`](.ai/security.md). Não cria campo no Dynamo por si; qualquer campo novo passa pelo dono. Absorve o
@@ -145,11 +145,13 @@ DynamoDB sem discutir com o dono.**
   aba Futuros, **depois do 40 e do 33a** (2026-10-24). **Regra do dono: o front não trata status de forma nenhuma.** O
   backend manda a lista de status (`["PAGO", "CREDITO"]` no corte; no futuro `PIX`, `DREX`, `DEBITO`...), e o front só a
   exibe, guarda a escolha e a devolve como veio; a lista fixa de `app.js:5` deixa de existir e um teste de CI falha se um nome de
-  status voltar a `web/`. Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` saem; o lançamento futuro nasce com o status real e um
+  status voltar a `web/`. **Status com vigência** (2026-10-24): o catálogo guarda períodos (`desde`, `ate`), nenhum status sai dele, e o
+  servidor lê e grava **pela data do evento**; a **data do corte é o dia em que este item entra em produção**; o Histórico sai resolvido pela
+  data (rótulo e cor da época, filtros de status do período e resumo do filtro inteiro). O dono não criou status além dos sete padrão. Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` saem; o lançamento futuro nasce com o status real e um
   marcador `previsto` (campo novo no Dynamo, **nome a aprovar**) que o tira do saldo e do total do Histórico até ser
   confirmado. **Quem liga o marcador:** o servidor, em todo lançamento com data depois de hoje; o Prever e o "Repetir ao
   lançar" também (2026-10-24). O servidor entrega Futuros e Histórico prontos: os vencidos **continuam em Atrasados,
-  dentro de Futuros**, e o Histórico só traz o que conta no saldo; o mesmo critério alimenta o aviso do Telegram; os
+  dentro de Futuros**, e o Histórico só traz o que já aconteceu (nunca um previsto); o mesmo critério alimenta o aviso do Telegram; os
   status viram do backend (`salvarListas` segue gravando bancos, cores, aparência e ordens e ignora mudança em status;
   `statusFuturo` deixa de ir ao front). **Lançamentos antigos** com os três status **ficam como estão** (eram só
   previsões): continuam em Futuros, os do passado em Atrasados, até alguém tratar; sem migração em massa e nada

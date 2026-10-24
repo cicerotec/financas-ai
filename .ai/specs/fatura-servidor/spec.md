@@ -92,6 +92,19 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
 
 Erros seguem o formato de hoje. Variáveis como no spec do histórico: `API`, `SID`, `TOKEN`. Hoje é 24/10/2026; dados fictícios.
 
+### `GET /spaces/{sid}/cfg/listas` (a lista de bancos pronta para o Lançar)
+
+O servidor junta `CFG#LISTAS` e `CFG#CARTOES` e manda a marca de cartão em cada banco; o front não faz chamada extra nem olha status.
+```bash
+curl -s "$API/spaces/$SID/cfg/listas" "${H[@]}"
+```
+```json
+{ "banco": ["BANCO-A", "BANCO-B", "CARTAO-A"],
+  "bancos": [ { "nome": "BANCO-A", "cartao": false }, { "nome": "BANCO-B", "cartao": false }, { "nome": "CARTAO-A", "cartao": true } ],
+  "statusCor": { "PAGO": "#639922" }, "version": 7 }
+```
+No Lançar, escolher `CARTAO-A` mostra a linha "Fatura" (`"cartao": true`); escolher `BANCO-A` não mostra. Com o item 41, a mesma resposta também traz `status`.
+
 ### `GET /spaces/{sid}/cartoes`
 
 ```json

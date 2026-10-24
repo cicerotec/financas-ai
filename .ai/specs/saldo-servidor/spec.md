@@ -11,6 +11,8 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
 - **R1.** Um lançamento **conta no saldo** do seu `banco` quando: não está excluído (`excluidoEm`), **não está oculto**, o seu `status`
   tem `afetaSaldoBanco[status] == true` em `CFG#LISTAS` (sem o campo, o padrão é `PAGO` e `CONTAS`) e **não é de evento futuro**
   (`EhStatusFuturo(listas, status)`, que o item 41 troca por `EhPrevisto`). Função pura `domain.ContaNoSaldo(l, listas)`.
+- **R1a.** Com o item 41, `ContaNoSaldo` deixa de ler `CFG#LISTAS` e passa a usar a propriedade `contaNoSaldo` (e `previsto`) da entrada do catálogo de
+  status **válida na data do evento**; a conta continua a mesma para os dados de hoje. Até lá, vale R1.
 - **R2.** O valor com sinal é `+valor` para `entrada` e `-valor` para `saida`. Valor zero e negativo contam como vierem.
 - **R3.** O **mês** de um lançamento é o da `dataEvento` em São Paulo (`domain.MesDe`). Lançamento sem `banco` ou com data inválida não
   conta em nenhum banco.
@@ -133,6 +135,7 @@ Relógio fixo em 2026-10-24; dados fictícios; a função pura é testada em tab
 | S-T21 | `PUT /fechamentos` com `caches` forjados | Fase A: ignorado e nada gravado; Fase C: `404` |
 | S-T22 | `authz`: `GET /saldos` para owner e member; `conferir` e `reabrir` só do dono; rota desconhecida | liberado; liberado e negado; `404` |
 | S-T23 | O teste de arquitetura e os de reflexão do histórico | continuam verdes |
+| S-T25 | **Volume:** 10 anos de dados fictícios (centenas de milhares de lançamentos no teste de carga, ou o que a tabela de dev comportar), 3 bancos: a primeira chamada sem cache e a seguinte com cache | a primeira termina dentro do tempo da Lambda (o limite medido vai no PR); a segunda lê só os meses abertos; os saldos batem |
 | S-T24 | **Equivalência:** o mesmo conjunto de lançamentos e configuração calculado pela função pura e por uma implementação de referência escrita no teste, sem cache e com cache | iguais em todos os meses |
 
 Os testes que rejeitam (S-T15, S-T21) são escritos primeiro e devem **falhar antes da mudança**.

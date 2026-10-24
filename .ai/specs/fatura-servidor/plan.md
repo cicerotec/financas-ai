@@ -26,7 +26,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 
 - **Funções puras em `domain/`** (recebem o instante e os dados, sem I/O): `FechamentoDe(cartao, ym)`, `PeriodoFatura(cartao, ym)`,
   `FaturaBase(cartao, dia)`, `FaturaAtual(cartao, hoje)`, `AjusteEfetivo(l)`, `ContaNaFatura(l, banco)`, `TotalFatura(registros, ym)`,
-  `Candidatos(...)`. O que decide por nome de status (`EhCredito`, o padrão do ajuste) fica numa constante do backend, não no front.
+  `Candidatos(...)`. O que decide por nome de status (`EhCredito`, o padrão do ajuste) fica no **catálogo de status do backend** (item 41), com vigência: o `CREDITO IN` de 2019 continua sendo crédito com ajuste `−1` pela regra da época. Até o 41 chegar, é uma constante com os sete padrão (o dono não criou outros).
 - **`service.Cartoes`:** lê `CFG#CARTOES` e os lançamentos do banco (um `Query` por intervalo de datas do espaço, filtrando o banco em
   Go, como o `Listar` de hoje faz) e devolve os corpos de `GET /cartoes` e `GET /cartoes/{banco}/faturas/{ym}`.
 - **Janela de leitura:** para a fatura `ym`, os lançamentos do banco entre o início do período de `ym−2` e o fim do período de `ym+1`

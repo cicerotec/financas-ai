@@ -76,7 +76,7 @@ roteiro verificável é o [`spec.md`](spec.md).
 | Risco | Resposta |
 |---|---|
 | O saldo novo diferir do antigo e a pessoa ver o número mudar | A conferência lado a lado acima; função pura testada em tabela com as bordas (virada de mês em São Paulo, `dataInicio` no meio do mês, lançamento exatamente à meia-noite UTC) |
-| Ler a partição inteira a cada chamada pesar | Um passe só para todos os bancos, a partir do último ponto verificado; medir no dev; sem chave nova; um GSI só se o dono aprovar |
+| Ler a partição inteira a cada chamada pesar (a base vai de 2016 em diante) | Um passe só para todos os bancos, a partir do último ponto verificado; **teste de volume com 10 anos de dados fictícios** (estender `scripts/dados-ficticios.py`), medindo a primeira abertura depois do deploy (sem cache) e as seguintes (com cache), dentro do tempo da Lambda; sem chave nova; um GSI só se o dono aprovar |
 | Caches de hoje (escritos pelo navegador) conterem números errados ou forjados | O prefixo `v2` na `base` os invalida no primeiro cálculo; nada é apagado do Dynamo |
 | O `conferidos` já gravado ter `saldo` vindo do navegador | Ficam como estão (são a conferência do dono com o extrato); só as novas gravam o `saldo` do servidor |
 | Criar o ajuste dentro do comando falhar no meio | O ajuste é gravado primeiro (uma transação do lançamento); se o conferir falhar depois, o ajuste fica e a mensagem diz isso; a pessoa repete a conferência sem criar outro |
@@ -84,7 +84,7 @@ roteiro verificável é o [`spec.md`](spec.md).
 
 ## Decisões que o plan fixou e o dono pode contestar
 
-1. O servidor lê `afetaSaldoBanco` e `statusFuturo` de `CFG#LISTAS` **por enquanto** (para sair idêntico); o item 41 troca isso.
+1. O servidor lê `afetaSaldoBanco` e `statusFuturo` de `CFG#LISTAS` **por enquanto** (para sair idêntico). O item 41 troca isso pelo **catálogo de status com vigência**, e a regra passa a usar as propriedades da entrada válida na **data do evento**; o dono confirmou que não criou status além dos sete padrão, então as duas fontes coincidem.
 2. O **ajuste** da conferência é criado pelo servidor dentro do comando, e vale como a confirmação de mês fechado por data.
 3. `GET /saldos` devolve os **12 últimos meses** (como a tela de hoje) e não tem paginação.
 4. Sem `dataInicio`, o banco não grava cache e mostra o saldo desde o primeiro movimento, como hoje.

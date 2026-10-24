@@ -27,7 +27,7 @@ O raciocínio completo está em [`arquitetura.md`](arquitetura.md), nas seções
 - **Quem liga o marcador (2026-10-24):** o servidor, em todo lançamento com data depois de hoje; o Prever e o "Repetir ao
   lançar" também criam previstos.
 - **Atrasados (2026-10-24):** os previstos vencidos **continuam em Atrasados, dentro de Futuros**, como hoje. O Histórico só
-  mostra o que conta no saldo. O mesmo critério alimenta o aviso do Telegram. Saem do front o resumo "A pagar e A receber"
+  mostra o que já aconteceu (nunca um previsto). O mesmo critério alimenta o aviso do Telegram. Saem do front o resumo "A pagar e A receber"
   e o saldo por mês de Futuros que ele soma hoje; o servidor manda o que for mostrado.
 - **Confirmar (demo aprovada em 2026-10-24):** gesto A, com janela de **Valor**, **Data** e **Status**, cada um já preenchido
   e alterável. Textos: **Confirmar**, "Já paguei" (saída) e "Já recebi" (entrada). Botão verde na tabela do computador.
@@ -37,6 +37,11 @@ O raciocínio completo está em [`arquitetura.md`](arquitetura.md), nas seções
   (o texto da opção). A lista fixa de `app.js:5` deixa de existir e um teste de CI barra nomes de status em `web/`. O servidor
   manda pronto o que o front deduzia: `previsto`, `bancos[].cartao`, `excluirDoTotal`, a fatura efetiva. `CREDITO IN` e
   `CREDITO EX` não entram na lista de escolha (o `faturaAjuste` os substitui) e só aparecem, como texto, nos registros antigos.
+- **Status com vigência e data do corte (2026-10-24):** o catálogo guarda períodos (`desde`, `ate`) e nenhum status sai dele; o servidor lê e
+  grava **pela data do evento**. A **data do corte é o dia em que o item 41 entra em produção**. O dono **não criou status além dos sete
+  padrão**. Descrição, nota e tags são livres; valor, tipo, banco, data, status e oculto exigem um status válido para a data (e as travas de
+  data). O Histórico sai do servidor resolvido pela data do evento, com a lista de filtros de status do período e o resumo do filtro inteiro.
+  A base vai de 2016 em diante, então o item 40 exige um teste de volume de 10 anos. **O `PREVISTO` antigo continua previsto**, em Atrasados.
 - **Status e cores de status:** o app não cria nem edita status. A cor por status continua como está. `salvarListas` segue
   gravando bancos, cores, aparência e ordens; o servidor ignora o que mude em status.
 - **Ordem do trabalho (2026-10-24):** primeiro o item 40 (saldo, fechamento e conferência no servidor), depois o 33a (faturas do

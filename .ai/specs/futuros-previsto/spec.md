@@ -25,22 +25,62 @@ plan.
 - **R6.** `PUT /tx/{id}`: se o estado resultante tem data futura, o marcador fica ligado; se o lançamento já era previsto,
   **continua** previsto (só o Confirmar o tira). Um antigo (R1, só pelo status) deixa de ser previsto quando o status editado sai
   dos três nomes.
-- **R7.** Criar ou importar com `status` igual a um dos três nomes antigos é recusado (`400`, `status descontinuado`). Editar um
-  lançamento que já tem esse status **sem mudá-lo** é aceito.
+- **R7.** Criar com um `status` **não oferecido** (R9: qualquer dos antigos, inclusive `CREDITO IN`, `CREDITO EX` e os três nomes de
+  previsto) é recusado (`400`, `status descontinuado`). **Importar** aceita o status que for **válido para a data do evento** (R12), para
+  um backup antigo voltar como era. Editar um lançamento que já tem um status antigo **sem mudar** o status ou os campos de saldo é aceito.
 - **R8.** `POST /tx/batch`: o marcador é calculado como em R5 e **mantém** `previsto: true` que venha no item (o backup restaura
   fiel), mas nunca o desliga.
 
 **A lista de status e o que deriva dela (o front só exibe)**
-- **R9.** O catálogo de status é uma **constante do backend** (`domain.Catalogo`), na ordem de escolha; o primeiro é o padrão. No corte:
-  `["PAGO", "CREDITO"]`. Cada entrada do catálogo guarda as propriedades que o servidor usa (conta no saldo, fica fora do total, é
-  crédito, ajuste padrão da fatura); **o front nunca as vê**.
-- **R10.** `GET /cfg/listas` devolve `status` = a lista de **escolha** do catálogo (só os nomes, na ordem). O front a usa em todo
-  seletor, guarda o texto escolhido e o devolve como veio. **Não devolve** `statusFuturo`, `statusReal` nem `afetaSaldoBanco`.
+- **R9.** O catálogo de status é uma **constante do backend** (`domain.Catalogo`) e guarda **períodos**: cada entrada tem `nome`, `desde` e
+  `ate` (datas do **evento**; `ate` aberto quando ainda vale), `rotulo`, `corPadrao`, as propriedades que o servidor usa
+  (`contaNoSaldo`, `foraDoTotal`, `credito`, `ajustePadrao`, `previsto`) e `oferecido` (aparece na lista de escolha). O mesmo nome pode ter
+  mais de um período, com regras diferentes. **Nenhum status sai do catálogo**: o que deixa de valer só ganha um `ate`, porque o histórico
+  continua sendo lido pelas regras da época (um `CREDITO IN` de 2019 segue sendo crédito com ajuste `-1`, para sempre).
+  Catálogo do corte (`C` é a data do corte, R9b; os valores são os padrões de hoje):
+
+  | nome | desde | ate | oferecido | conta no saldo | fora do total | crédito | ajuste padrão | previsto |
+  |---|---|---|---|---|---|---|---|---|
+  | `PAGO` | início | aberto | sim | sim | não | não | 0 | não |
+  | `CREDITO` | início | aberto | sim | não | não | sim | 0 | não |
+  | `CONTAS` | início | aberto | não (é o comando de R14) | sim | sim | não | 0 | não |
+  | `CREDITO IN` | início | `C−1` | não | não | não | sim | `−1` | não |
+  | `CREDITO EX` | início | `C−1` | não | não | não | sim | `+1` | não |
+  | `PREVISTO` | início | `C−1` | não | não | não | não | 0 | sim |
+  | `TRANSFERINDO` | início | `C−1` | não | não | sim | não | 0 | sim |
+  | `CREDITANDO` | início | `C−1` | não | não | não | não | 0 | sim |
+
+  "Início" é a menor data possível (o histórico inteiro, desde 2016 ou antes).
+- **R9b.** A **data do corte `C` é o dia em que o item 41 entra em produção** (decisão do dono, 2026-10-24): uma constante
+  (`domain.DataCorteStatus`) definida no PR da Fase A do 41 com a data do deploy. Até lá (itens 40 e 33a), o catálogo não tem `ate`. O dono
+  confirmou que **não criou status além dos sete padrão**, então este catálogo cobre todos os dados; antes do deploy, uma **leitura** confere,
+  em cada espaço, que `afetaSaldoBanco`, `statusReal` e `statusFuturo` de `CFG#LISTAS` são iguais aos da tabela.
+- **R10.** `GET /cfg/listas` devolve `status` = as entradas **oferecidas** e **válidas hoje**, só os nomes, na ordem do catálogo (no corte:
+  `["PAGO", "CREDITO"]`). `GET /spaces/{sid}/status?data=<ISO>` devolve a mesma lista **para a data dada** (ação `cfg.ler`). O front usa a lista em
+  todo seletor, pede de novo quando a data do formulário muda, guarda o texto escolhido e o devolve como veio. `GET /cfg/listas` **não devolve**
+  `statusFuturo`, `statusReal` nem `afetaSaldoBanco`.
 - **R11.** `PUT /cfg/listas` **ignora** `status`, `statusReal`, `afetaSaldoBanco` e `statusFuturo` do corpo: o servidor mantém os do
   item gravado e grava o resto (bancos, `statusCor`, `estiloCor`, ordens). O item no Dynamo **não** perde os três nomes por isso.
-- **R12.** Um status que o servidor recebe e **não está** no catálogo nem é o que o lançamento já tem é recusado (`400`,
-  `status invalido`). Um lançamento antigo com `CREDITO IN`, `CREDITO EX`, `CONTAS` ou os três nomes antigos continua válido **desde
-  que o status não mude**.
+- **R12.** **Validade ao gravar.** Um status é **válido para um lançamento** quando está no catálogo com `desde ≤ dia do evento ≤ ate` (dia em São
+  Paulo, R2). Quando criar, importar, editar, confirmar ou restaurar **muda um campo que mexe em saldo** (os de `domain.CamposSaldo`, mais `oculto`
+  e `previsto`), o servidor exige um status válido **para a data do resultado** (a data nova, se ela mudou) **e** as travas de data de sempre
+  (anterior ao início do controle do banco é livre; mês fechado por data pede a confirmação do item 38; mês conferido recusa). Se mudam só
+  descrição, nota, tags e afins, **não há validação**: o status gravado fica como está, mesmo que já não valha. Status que não vale para a data:
+  `400` com `codigo: "status_invalido_para_a_data"` e `validos` (a lista de R10 para aquela data), para a pessoa escolher. Confirmar exige
+  também que o status seja **oferecido** (R9).
+- **R12a.** **Leitura resolvida pela data do evento.** `GET /tx` e `GET /futuros` devolvem cada lançamento com `rotulo` e `corPadrao` da entrada do
+  catálogo **válida na data do evento** (se o texto gravado não está no catálogo para essa data, `rotulo` é o texto gravado e a cor, neutra). O `status`
+  gravado nunca muda. O que a listagem usa (o que é crédito, o que fica fora do total, o ajuste padrão) é o da data do evento. O front exibe `rotulo`,
+  usa a `statusCor` da pessoa (se houver) ou `corPadrao`, e devolve o `status` gravado.
+- **R12b.** **Filtros do Histórico resolvidos pelo período.** `GET /tx` devolve `filtros: { "status": [...] }` = os status do catálogo cujo período
+  **intercepta** o período consultado (`de` a `ate`; sem os dois, todos), na ordem do catálogo, **inclusive os não oferecidos** (em 2019 aparecem
+  `CREDITO IN` e `CREDITO EX`; de `C` em diante, só os que valem). Num período que cruza `C`, a união. O parâmetro `status` filtra pelo **texto gravado**.
+  O front só exibe a lista e devolve a escolha.
+- **R12c.** **Resumo do Histórico pelo servidor.** `GET /tx` devolve `resumo: { n, total }` do **filtro inteiro**, não só da página: `total` é a soma com
+  sinal (`+valor` de entrada, `−valor` de saída) dos itens, a mesma conta da soma da lista exibida de hoje, arredondada a 2 casas, sem regra de
+  status. Os ocultos ficam fora, a não ser com `ocultos=1` (e então entram no `n` e no `total`). Com `agrupar=mes`, devolve também
+  `meses: [{ mes, n, total }]`. Os filtros que o servidor entende são período, banco, status, texto e ocultos; **tags e combos continuam no
+  navegador até o item 42**, então o resumo do servidor não os considera (ver "Aberto" no plan).
 - **R13.** `excluirDoTotal` **deixa de vir do cliente**: o servidor o calcula do catálogo (e do `transferParId`) em criar, editar e
   importar. O valor do corpo é descartado. (Depois que o front parar de enviá-lo, o corpo que o trouxer passa a ser `400`.)
 - **R14.** Transferência entre bancos é **um comando do servidor**: `POST /spaces/{sid}/transferencias` com
@@ -102,8 +142,31 @@ Erros seguem o formato de hoje. Variáveis como no spec do histórico: `API`, `S
 
 ### `GET /spaces/{sid}/cfg/listas` (o trecho novo)
 
+`bancos` vem do item 33a e `status` deste item; a resposta final traz os dois.
+```bash
+curl -s "$API/spaces/$SID/cfg/listas" "${H[@]}"
+```
 ```json
-{ "banco": ["BANCO-A", "BANCO-B", "CARTAO-A"], "status": ["PAGO", "CREDITO"], "statusCor": { "PAGO": "#639922" }, "version": 7 }
+{ "banco": ["BANCO-A", "BANCO-B", "CARTAO-A"],
+  "bancos": [ { "nome": "BANCO-A", "cartao": false }, { "nome": "BANCO-B", "cartao": false }, { "nome": "CARTAO-A", "cartao": true } ],
+  "status": ["PAGO", "CREDITO"], "statusCor": { "PAGO": "#639922" }, "version": 7 }
+```
+O Lançar mostra a linha "Fatura" quando o banco escolhido tem `"cartao": true` (`CARTAO-A`), e não mostra com `BANCO-A`.
+
+### `GET /spaces/{sid}/status?data=2019-03-10T15:00:00.000Z`
+
+```json
+{ "data": "2019-03-10T15:00:00.000Z", "status": ["PAGO", "CREDITO"] }
+```
+
+### `GET /spaces/{sid}/tx?de=2019-03-01&ate=2019-03-31&agrupar=mes` (os trechos novos)
+
+```json
+{ "itens": [ { "id": "c5m1x7q3w9e2r4t6y8u0", "descricao": "Notebook 1/6", "valor": 289.9, "tipo": "saida", "status": "CREDITO IN",
+               "rotulo": "CREDITO IN", "corPadrao": "#378ADD", "banco": "CARTAO-A", "dataEvento": "2019-03-10T15:00:00.000Z" } ],
+  "filtros": { "status": ["PAGO", "CREDITO", "CREDITO IN", "CREDITO EX", "CONTAS"] },
+  "resumo": { "n": 1, "total": -289.9 }, "meses": [ { "mes": "2019-03", "n": 1, "total": -289.9 } ],
+  "proximo": "" }
 ```
 
 ### `GET /spaces/{sid}/futuros`
@@ -206,8 +269,19 @@ Relógio fixo em 2026-10-24 (como o `cenario` já faz); dados fictícios.
 | P-T32 | `POST /tx` com status fora do catálogo (`FOO`); `PUT` de um antigo `CREDITO EX` sem mudar o status | `400 status invalido`; aceito |
 | P-T33 | `POST /transferencias` | duas pontas com o mesmo `transferParId`, `excluirDoTotal` derivado, uma transação; trava de mês nos dois bancos |
 | P-T34 | `POST /transferencias` com origem igual ao destino, valor zero ou banco vazio | `400`, nada gravado |
+| P-T35 | Vigência: `PAGO` válido em 2016 e hoje; `CREDITO IN` válido em 2019 e inválido de `C` em diante | como na tabela de R9 |
+| P-T36 | `POST /tx` com `CREDITO IN` (data de 2019) | `400 status descontinuado` (não oferecido); `POST /tx/batch` com o mesmo item aceita |
+| P-T37 | `PUT` mudando o valor de um `CREDITO IN` de 2019 | aceito (o status vale na data); passa pelas travas |
+| P-T38 | `PUT` movendo a data de um `CREDITO IN` de 2019 para depois de `C`, sem trocar o status | `400 status_invalido_para_a_data` com `validos` |
+| P-T39 | `PUT` só da descrição de um lançamento com status que já não vale na data | aceito, status intacto |
+| P-T40 | `confirmar` com `CREDITO IN` ou com status não oferecido | `400` |
+| P-T41 | `GET /tx` de 2019: `rotulo` e `corPadrao` de um `CREDITO IN`; texto gravado desconhecido | o do catálogo da data; o gravado e cor neutra |
+| P-T42 | `GET /tx` com `filtros.status` para 2019, para um mês depois de `C`, para um período que cruza `C` e sem período | inclui `CREDITO IN` e `CREDITO EX` em 2019; só os que valem depois; a união; todos |
+| P-T43 | `GET /tx` com 5 000 lançamentos: `resumo` do filtro inteiro, com banco e status, com e sem `ocultos=1`; `agrupar=mes` | `n` e `total` batem com a soma das páginas; ocultos só entram com o parâmetro; `meses` certos |
+| P-T44 | `GET /spaces/{sid}/status?data=` para 2019 e para hoje | `["PAGO", "CREDITO"]` nos dois (os antigos não são oferecidos) |
+| P-T45 | O catálogo contra os padrões de hoje: `afetaSaldoBanco` (`PAGO`, `CONTAS`), `statusReal` falso e `statusFuturo` verdadeiro nos três previstos, `excluirDoTotal` (`CONTAS`, `TRANSFERINDO`) | iguais |
 
-Cada teste que rejeita (P-T5, P-T6, P-T10, P-T18, P-T29, P-T30, P-T32, P-T34) é escrito primeiro e deve **falhar antes da mudança**;
+Cada teste que rejeita (P-T5, P-T6, P-T10, P-T18, P-T29, P-T30, P-T32, P-T34, P-T36, P-T38, P-T40) é escrito primeiro e deve **falhar antes da mudança**;
 quebre o código de propósito uma vez para vê-los falhar.
 
 ## O que muda no front (fases B e C; o front só exibe)

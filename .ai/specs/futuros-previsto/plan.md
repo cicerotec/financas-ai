@@ -40,11 +40,18 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
     **continua** (só o Confirmar o tira). Um antigo (status `PREVISTO`...) deixa de ser previsto quando o status editado sai
     dos três nomes, o que é o caminho que o app de hoje já usa.
   - `Confirmar` é a única rota que tira o marcador.
-- **A lista de status é do servidor:** o catálogo mora em `domain/` (constante, sem variável global). Para o corte é
-  `["PAGO", "CREDITO"]`, **na ordem de escolha; o primeiro é o padrão**. `GET /cfg/listas` devolve essa lista em `status`. O front a
-  usa em todo seletor (Lançar, Confirmar, filtro do Histórico, cores da Aparência), guarda o valor escolhido e o devolve **como
-  veio** (o texto da opção, não um índice: um índice aponta para outra opção se a lista mudar entre carregar e enviar). Se o
-  status atual de um lançamento não está na lista (um antigo), o seletor o mostra como uma opção a mais, sem interpretá-lo.
+- **O catálogo de status é do servidor e tem vigência** (`spec.md`, R9 a R12c): uma constante em `domain/` com **períodos** (`desde`, `ate`),
+  as regras de cada status e se ele é **oferecido**. Nenhum status sai do catálogo; o que deixa de valer ganha um `ate`, porque o histórico
+  (desde 2016 ou antes) é lido pelas regras da época. A **data do corte** é o dia em que este item entra no ar (decisão do dono, 2026-10-24).
+  Para o corte, o catálogo cobre os sete status padrão (o dono não criou outros); as caixas de `CFG#LISTAS` deixam de ser lidas e uma
+  conferência antes do deploy garante que elas coincidem com o catálogo.
+- **A lista de escolha é do servidor:** `GET /cfg/listas` devolve `status` = o que é **oferecido e válido hoje** (no corte, `["PAGO",
+  "CREDITO"]`, o primeiro é o padrão) e `GET /status?data=` devolve a lista **para uma data**. O front a usa em todo seletor, pede de novo
+  quando a data do formulário muda, guarda o texto escolhido e o devolve **como veio** (o texto da opção, não um índice). Se o status
+  gravado de um lançamento não está na lista (um antigo), o seletor o mostra como uma opção a mais e o devolve **inalterado**: editar só a
+  descrição nunca troca o status sozinho.
+- **Validar ao gravar pela data do evento (R12):** só quando muda um campo que mexe em saldo, o servidor exige um status válido para a data
+  do resultado, além das travas de sempre; descrição, nota e tags ficam livres.
 - **Rota nova de confirmação:** `POST /spaces/{sid}/tx/{id}/confirmar?de=<dataEvento atual>[&confirmaMesFechado=1]`, com
   `{ valor, dataEvento, status }`. O servidor valida (valor maior que zero, data que não seja futura, status que não seja um dos
   três antigos), tira o marcador, grava uma versão `update` (sem valor novo em `acao`) e devolve o lançamento, `desfazer` e
@@ -57,6 +64,9 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
   Tendências sem regra nova no front.
 - **Respostas de lançamento** levam `previsto: true` quando `EhPrevisto` (inclusive para os antigos, derivado), para o front
   nunca olhar o nome do status.
+- **O Histórico sai do servidor resolvido pela data do evento (R12a a R12c):** cada linha traz `rotulo` e `corPadrao` da época; `GET /tx` traz a
+  lista de filtros de status do **período consultado** (inclusive os não oferecidos, como `CREDITO IN` em 2019) e o **resumo do filtro inteiro**
+  (`n`, `total` e, agrupando, por mês). O front não soma, não decide o que existe em cada época e só exibe.
 - **Avisos:** `Rodar` usa `EhPrevisto(tx)`; o resto (item auxiliar, `MaxAtrasoAviso`) não muda.
 - **Listas:** `Config.Ler("listas")` devolve `status` (a lista do servidor) e **não** devolve `statusFuturo`, `statusReal` nem
   `afetaSaldoBanco` (os itens 40 e 33 já tiraram o último uso deles do front); `Config.Gravar("listas")` mantém esses campos do
@@ -97,6 +107,10 @@ parâmetro `semPrevistos=1` que só a B liga. Não está no spec; é só dizer.)
 | Confirmar vira hábito e perde o sentido | A versão guarda quem e quando; a trava de mês fechado continua valendo |
 | O cliente tenta ligar ou desligar o marcador | `previsto` vem descartado do corpo em criar, editar e importar; só `POST .../confirmar` o tira; testes que forjam |
 | A cópia de um Prever com data passada (série antiga) deixa de ser previsto | É a regra da data; a cópia vira lançamento comum e conta no saldo. Vai nas decisões abaixo |
+| `GET /futuros` lê a partição inteira (os `PREVISTO` antigos, de qualquer ano, continuam em Atrasados), e a base vai de 2016 em diante | Medir no dev com **10 anos de dados fictícios** (gerar mais lançamentos em `scripts/dados-ficticios.py`); sem chave nova; se pesar, um GSI só com a aprovação do dono |
+| `GET /tx` com `resumo` e `filtros` lê o filtro inteiro, não só a página | Mesmo teste de volume; o resumo usa a mesma leitura da lista; sem chave nova |
+| As caixas de `CFG#LISTAS` de algum espaço diferirem do catálogo (alguém mexeu num padrão) | A conferência de leitura antes do deploy (R9b); a divergência vira decisão do dono antes de ligar |
+| Um status criado em Listas que o dono esqueceu | O dono confirmou que não há; a conferência acima também lista qualquer status de `CFG#LISTAS` ou de lançamento fora do catálogo |
 
 ## Decisões que o plan fixou e o dono pode contestar
 
@@ -111,6 +125,21 @@ parâmetro `semPrevistos=1` que só a B liga. Não está no spec; é só dizer.)
 7. **Importar** recalcula o marcador pela data e **mantém** o `previsto: true` que vier num item (backup fiel), mas nunca o tira.
 8. A cópia de um Prever cuja data já passou **não é** previsto.
 9. `salvarListas` ignora os campos de status em vez de recusar (o front antigo continua gravando sem erro).
-10. **A lista de status é uma constante do backend**, `["PAGO", "CREDITO"]` no corte, com o primeiro como padrão. O front manda de
-    volta o **texto** da opção. Os nomes `CREDITO IN`, `CREDITO EX` e `CONTAS` não entram na lista de escolha (os dois primeiros são
-    substituídos pelo `faturaAjuste`; o `CONTAS` é a transferência e segue como regra do servidor até o desmembramento do `PAGO`).
+10. **O catálogo é uma constante do backend, com vigência** (`desde`, `ate`, `oferecido`); `["PAGO", "CREDITO"]` é o oferecido no corte, com o
+    primeiro como padrão, e o front devolve o **texto** da opção. `CREDITO IN` e `CREDITO EX` (substituídos pelo `faturaAjuste`), `CONTAS`
+    (a transferência, um comando do servidor) e os três nomes de previsto **não são oferecidos**, mas **continuam no catálogo** para ler o histórico.
+11. **A data do corte é o dia em que o item 41 entra em produção** (constante `DataCorteStatus`); antes dela os itens 40 e 33a usam o catálogo sem `ate`.
+12. **Validar só o que mexe em saldo:** descrição, nota e tags são livres; valor, tipo, banco, data, status e oculto exigem um status válido para
+    a data do resultado e as travas de data (início do controle, mês fechado, mês conferido).
+13. **O Histórico sai resolvido pela data do evento:** `rotulo`, `corPadrao`, a lista de filtros de status do período e o resumo do filtro inteiro vêm do
+    servidor. Os filtros que o servidor entende são período, banco, status, texto e ocultos.
+14. **Criar** com status não oferecido é recusado; **importar** aceita o status que vale para a data (backup antigo volta como era).
+15. O `PREVISTO` e os outros dois de antes do corte **continuam em Atrasados** (decisão do dono), mesmo com histórico desde 2016.
+
+## Aberto (a decidir com o dono antes de codar o 41)
+
+- **O total do Histórico com um filtro de tags ativo.** As tags e os combos são filtrados no navegador (o item 42 os leva ao servidor). Enquanto
+  isso, o resumo do servidor não os considera. Opções: o total **some da tela** quando há filtro de tags (minha sugestão: o front não soma) ou
+  o front continua somando só as linhas exibidas até o item 42. É uma mudança de tela, então precisa de demo.
+- **O nome do campo** (`previsto`, ou `aConfirmar`).
+

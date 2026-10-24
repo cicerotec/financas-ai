@@ -41,15 +41,21 @@ problemas que o dono apontou:
    status vem da lista do servidor e a data não pode ser futura). O servidor tira o marcador, grava a versão e devolve como
    **Desfazer** uma restauração.
 4. **Cada aba recebe do servidor o que deve mostrar.** Futuros traz todos os previstos, com os vencidos em **Atrasados** (como
-   hoje) e o resumo (a pagar, a receber, atrasados) já calculado. O Histórico só traz o que conta no saldo. O front não olha
+   hoje) e o resumo (a pagar, a receber, atrasados) já calculado. O Histórico só traz o que já aconteceu (nunca um previsto), com cada linha resolvida pelas regras da data do evento. O front não olha
    status nem `statusFuturo`.
 5. **Lançamentos antigos ficam como estão.** Os que já estão gravados com `PREVISTO`, `TRANSFERINDO` ou `CREDITANDO` continuam
    em Futuros (os do passado em Atrasados) até alguém tratar. O servidor os reconhece por uma única função; **nada é regravado**
    no Dynamo e não há migração em massa. O texto do status deles continua aparecendo como está gravado.
-6. **O status é uma lista do backend** (a regra acima). O app não cria nem edita status nem as caixas `statusReal`,
-   `afetaSaldoBanco` e `statusFuturo`; `salvarListas` continua gravando o resto (bancos, cores, aparência, ordens), e o servidor
-   ignora qualquer mudança em status. O front deixa de ler `statusFuturo`, `statusReal` e `afetaSaldoBanco`.
+6. **O status é uma lista do backend, com vigência.** O app não cria nem edita status nem as caixas `statusReal`, `afetaSaldoBanco` e
+   `statusFuturo`; `salvarListas` continua gravando o resto (bancos, cores, aparência, ordens), e o servidor ignora qualquer mudança em
+   status. O front deixa de ler `statusFuturo`, `statusReal` e `afetaSaldoBanco`. O catálogo guarda **períodos** (`desde`, `ate`): nenhum
+   status sai dele, e o que deixa de valer só deixa de ser **oferecido** a partir de uma data. A **data do corte** é o dia em que este
+   item entra em produção. Ao gravar, o servidor aceita só um status válido **para a data do evento**, e só quando o que muda mexe em saldo
+   (valor, tipo, banco, data, status, oculto); descrição, nota e tags são livres.
 7. **O aviso do Telegram** passa a seguir o marcador (e o mesmo critério de atraso), em vez do status.
+8. **O Histórico sai resolvido pela data do evento**, inclusive os filtros: cada linha com o rótulo e a cor da época, a lista de filtros de
+   status do período que se está vendo (em 2019, `CREDITO IN` e `CREDITO EX`; em 2027, o que existir) e o resumo (quantidade e total) do
+   filtro inteiro, tudo calculado no servidor. A base vai de 2016 em diante.
 
 ## Limites (o que fica de fora)
 
