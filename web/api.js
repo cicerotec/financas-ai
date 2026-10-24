@@ -413,9 +413,7 @@
 
   // Fechamento mensal por banco (so no app com servidor). Os 409 voltam como { status, body }
   // para a tela decidir (version velha = alguem gravou no meio; ordem = so o mais recente reabre).
-  const fechamentos = async () => (await api('GET', (await base()) + '/fechamentos')).body;
-  const salvarCaches = async (banco, version, baseCfg, caches) =>
-    api('PUT', (await base()) + '/fechamentos', { banco, version, base: baseCfg, caches });
+  const saldos = async () => (await api('GET', (await base()) + '/saldos')).body;
   const conferirMes = async (dados) => api('POST', (await base()) + '/fechamentos/conferir', dados);
   const reabrirMes = async (banco, mes) => api('POST', (await base()) + '/fechamentos/reabrir', { banco, mes });
 
@@ -444,8 +442,7 @@
   const dbShim = {
     importarLancamentos,
     adicionarTags,
-    fechamentos,
-    salvarCaches,
+    saldos,
     conferirMes,
     reabrirMes,
     historico,

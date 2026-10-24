@@ -60,6 +60,7 @@ roteiro verificável é o [`spec.md`](spec.md).
   cache gravado pelo servidor, testes e docs. **Sem remover nada**, então o release pode ir para a `main`.
 - **Fase B, a aba Saldos (sem demo: o visual não muda):** a tela chama `GET /saldos`, mostra o que veio, e conferir manda só `real`
   (e `ajustar`). Saem do front as funções listadas no intent. **Antes de ligar**, a conferência lado a lado (abaixo).
+  **Feita** (`feature/saldos-tela-servidor`): a aba lê `GET /saldos` (`db.saldos`), o total vem do servidor, conferir manda `meio`, `mes` e `real` e, no 409 `diferenca`, pergunta e repete com `ajustar`. Saíram `calcularSaldoBanco`, a cascata, `persistirCaches`, `cachesValidos`, `criarAjusteConferencia` e `db.fechamentos`/`db.salvarCaches`.
 - **Fase C, remover:** apaga `PUT /fechamentos`, `GET /fechamentos` e a ação `fechamento.escrever`; `Conferir` passa a recusar `saldo`
   no corpo (`400`); atualiza o `security.md` (sai a linha da brecha).
 

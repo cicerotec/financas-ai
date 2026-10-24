@@ -2321,14 +2321,8 @@ function agendarSalvarOrdem(){
   timerOrdem = setTimeout(()=>salvarListas(), 600);
 }
 function totalSaldos(){
-  let t = 0, n = 0, fora = 0, incompleto = false;
-  listas.banco.forEach(b=>{
-    const cfg = saldosConfig[b] || {};
-    const r = saldosAtuais[b];
-    if(cfg.foraDoTotal){ fora++; return; }
-    if(r){ t += r.saldo; n++; if(r.incompleto || r.erro) incompleto = true; }
-  });
-  return {t, n, fora, incompleto};
+  const t = saldosTotal;
+  return t ? {t:t.valor, n:t.meios, fora:t.fora, incompleto:t.erros>0} : {t:0, n:0, fora:0, incompleto:false};
 }
 function classeVal(r){ return 'sd-val' + (!r ? ' carr' : (saldosCarregando ? ' carr' : (r.saldo<0 ? ' neg' : ''))); }
 function textoVal(r){ return r ? (r.erro ? 'erro' : fmtMoeda(r.saldo)) + (r.incompleto ? ' ⚠' : '') : '···'; }
@@ -2345,7 +2339,7 @@ function painelSaldoHtml(i){
     <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;"><input type="checkbox" id="sEntra" style="width:auto;" ${d.entra?'checked':''}> Entra no total</label>
     <p class="muted" id="sMsg" style="margin-top:6px;">${esc(msgSaldo||'')}</p>
     <button class="primary" id="btnSalvarSaldo" data-i="${i}">Salvar</button>
-    ${ultimoConf(fechEstado[b]) ? `<p class="muted" style="margin-top:6px;">Os meses até ${rotuloMesCurto(ultimoConf(fechEstado[b]))} estão conferidos e não mudam: o saldo inicial só vale para os meses depois deles.</p>` : ''}
+    ${ultimoConf(saldosAtuais[b]) ? `<p class="muted" style="margin-top:6px;">Os meses até ${rotuloMesCurto(ultimoConf(saldosAtuais[b]))} estão conferidos e não mudam: o saldo inicial só vale para os meses depois deles.</p>` : ''}
     ${blocoFechamentoHtml(b)}
   </div>`;
 }
@@ -2402,8 +2396,7 @@ function renderSaldos(){
   el.querySelectorAll('[data-fm]').forEach(x=>x.addEventListener('click', ()=>acaoFechamento(x.dataset.fm, x.dataset.banco, x.dataset.mes)));
   const ci = document.getElementById('fmReal');
   if(ci){
-    ci.addEventListener('input', ()=>{ confRasc.val = ci.value; atualizarDifConf(); });
-    atualizarDifConf();
+    ci.addEventListener('input', ()=>{ confRasc.val = ci.value; });
   }
   const fo = document.getElementById('fmOk');
   if(fo) fo.addEventListener('click', conferirMesFluxo);
@@ -2442,18 +2435,13 @@ async function salvarConfigSaldo(i){
     saldosConfig = clonar(conferido.data().porBanco);
     rascunhoSaldo = null;
     msgSaldo = 'Salvo ✓';
-    saldosAtuais[banco] = await recalcularBancoFresco(banco);
-    saldosUltimaCalc = Date.now();
-    renderSaldos();
+    await carregarSaldos(true);
   }catch(e){
     msgEl.textContent = '⚠️ Erro ao salvar: ' + (e && (e.code||'')) + ' ' + (e && (e.message||e));
   }
 }
 // ===== FECHAMENTO MENSAL =====
-// O saldo de um banco é uma cascata: cada mês abre com o fechamento do anterior, desde a data de início.
-// O servidor guarda (1) o fechamento calculado dos meses encerrados, só para não reler o histórico
-// inteiro, e (2) os meses CONFERIDOS com o extrato, que ficam travados. Quem calcula é este navegador
-// (só ele sabe quais status mexem no saldo). Cada mês segue o fuso de Brasília, o mesmo do servidor.
+// O servidor calcula o saldo de cada meio (cascata mensal desde o início do controle) e guarda a conferência com o extrato.
 const FUSO_APP = 'America/Sao_Paulo';
 const fmtMesSP = new Intl.DateTimeFormat('en-CA', {timeZone:FUSO_APP, year:'numeric', month:'2-digit'});
 function mesDeISO(iso){
@@ -2465,156 +2453,34 @@ function somaMes(ym, n){
   const t = y*12 + (m-1) + n;
   return Math.floor(t/12) + '-' + String(t%12+1).padStart(2,'0');
 }
-function inicioMesISO(ym){ const [y,m] = ym.split('-').map(Number); return new Date(Date.UTC(y, m-1, 1, 3)).toISOString(); } // 00:00 em Brasília (UTC-3)
 function rotuloMesCurto(ym){ const [y,m] = ym.split('-'); return MESES_NOME[+m-1].slice(0,3) + '/' + y.slice(2); }
-function arred(v){ return Math.round(v*100)/100; }
 
-let fechEstado = {};   // banco -> item do servidor { version, caches, conferidos, invalidoDe, base }
+let saldosTotal = null; // o total que o servidor calculou (GET /saldos)
 let mesAtualSrv = '';
 let confRasc = null;   // conferência em andamento { banco, mes, val, msg }
-let fechFalhou = false; // a leitura dos fechamentos falhou (ex.: servidor ainda sem essas rotas)
+let fechFalhou = false; // a leitura de GET /saldos falhou
 let fechAberto = false; // a lista de meses começa recolhida, como as tags em Lançar
-function temFechamento(){ return !!db && typeof db.fechamentos === 'function'; }
 function mesAtualApp(){ return mesAtualSrv || mesDeISO(new Date().toISOString()); }
-function ultimoConf(st){ return Object.keys((st && st.conferidos) || {}).sort().pop() || ''; }
-function assinaturaStatus(){
-  const on = o=>Object.keys(o).filter(k=>o[k]===true).sort().join(',');
-  return on(afetaSaldoBanco) + '/' + on(statusFuturo);
-}
-// o cache só vale para esta configuração: saldo inicial, data de início e quais status mexem no saldo
-function baseCfg(cfg){ return (cfg.saldoInicial||0) + '|' + (cfg.dataInicio||'') + '|' + assinaturaStatus(); }
+function ultimoConf(r){ return ((r && r.historico) || []).filter(x=>x.estado==='conferido').map(x=>x.mes).sort().pop() || ''; }
 
-async function lerFechamentos(){
-  fechEstado = {}; fechFalhou = false;
-  if(!temFechamento()) return;
-  try{
-    const r = await db.fechamentos();
-    (r.itens||[]).forEach(i=>{ fechEstado[i.banco] = i; });
-    if(r.mesAtual) mesAtualSrv = r.mesAtual;
-  }catch(e){ console.error('Falha ao ler os fechamentos; calculando pelo histórico inteiro', e); fechEstado = {}; fechFalhou = true; }
-}
-
-function cachesValidos(banco, cfg){
-  const st = fechEstado[banco];
-  if(!st || !cfg.dataInicio || st.base !== baseCfg(cfg)) return {};
-  const ate = st.invalidoDe || '9999-99', ini = cfg.dataInicio.slice(0,7), atual = mesAtualApp(), out = {};
-  Object.keys(st.caches||{}).forEach(m=>{ if(m<ate && m<atual && m>=ini) out[m] = st.caches[m]; });
-  return out;
-}
-// de onde a conta recomeça: o fechamento mais recente que ainda vale (conferido ou cache)
-function pontoDePartida(banco, cfg){
-  const st = fechEstado[banco];
-  if(!st) return null;
-  let melhor = null;
-  const conf = st.conferidos || {};
-  Object.keys(conf).forEach(m=>{
-    if(cfg.dataInicio && m < cfg.dataInicio.slice(0,7)) return;
-    if(!melhor || m>melhor.mes) melhor = {mes:m, saldo:conf[m].saldo};
-  });
-  const c = cachesValidos(banco, cfg);
-  Object.keys(c).forEach(m=>{ if(!melhor || m>melhor.mes) melhor = {mes:m, saldo:c[m]}; });
-  return melhor;
-}
-
-async function calcularSaldoBanco(banco){
-  const cfg = saldosConfig[banco] || {saldoInicial:0, dataInicio:''};
-  const dataInicioMs = cfg.dataInicio ? new Date(cfg.dataInicio+"T00:00:00").getTime() : null;
-  const partida = pontoDePartida(banco, cfg);
-  const versao = (fechEstado[banco] && fechEstado[banco].version) || 0; // lida ANTES dos lançamentos
-  const limiteISO = partida ? inicioMesISO(somaMes(partida.mes,1)) : (dataInicioMs!=null ? new Date(dataInicioMs).toISOString() : null);
-  const deMs = limiteISO ? Math.max(dataInicioMs||0, new Date(limiteISO).getTime()) : null;
-  let docs = [], incompleto = false;
-  try{
-    const todos = new Map();
-    let cursor = null;
-    for(let i=0;i<500;i++){
-      let q = db.collection("lancamentos").where("banco","==",banco).orderBy("dataEvento","desc");
-      if(limiteISO) q = q.where("dataEvento",">=",limiteISO);
-      if(cursor) q = q.where("dataEvento","<=",cursor);
-      const snap = await q.limit(1000).get();
-      let novos = 0;
-      snap.docs.forEach(d=>{ if(!todos.has(d.id)){ todos.set(d.id, d.data()); novos++; } });
-      if(snap.docs.length<1000) break;
-      if(novos===0){ incompleto = true; break; }
-      cursor = snap.docs[snap.docs.length-1].data().dataEvento;
-    }
-    docs = [...todos.values()];
-  }catch(e){
-    console.error('Leitura paginada falhou, usando consulta simples', e);
-    const snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get();
-    docs = snap.docs.map(d=>d.data());
-    incompleto = snap.docs.length>=1000;
-  }
-  const porMes = {};
-  docs.forEach(l=>{
-    if(l.oculto) return;
-    if(!afetaSaldo(l.status)) return;
-    if(deMs!=null && new Date(l.dataEvento).getTime() < deMs) return;
-    const m = mesDeISO(l.dataEvento);
-    porMes[m] = (porMes[m]||0) + (l.tipo==='entrada' ? l.valor : -l.valor);
-  });
-  // a cascata: cada mês parte do fechamento do anterior
-  const atual = mesAtualApp(), movs = Object.keys(porMes).sort();
-  let acc = partida ? partida.saldo : (cfg.saldoInicial||0);
-  let m = partida ? somaMes(partida.mes,1) : (cfg.dataInicio ? cfg.dataInicio.slice(0,7) : (movs[0] || atual));
-  const fim = [atual, movs[movs.length-1] || ''].sort().pop();
-  const fechamentos = {}, meses = [];
-  for(; m<=fim; m=somaMes(m,1)){
-    acc = arred(acc + (porMes[m]||0));
-    if(m<atual && cfg.dataInicio) fechamentos[m] = acc;
-    meses.push({mes:m, fechamento:acc});
-  }
-  return {saldo:acc, incompleto, fechamentos, meses, versao};
-}
-
-// grava no servidor os fechamentos novos (só o dono). Se alguém gravou no meio, o servidor recusa (409)
-// e fica o que acabou de ser lido: o saldo mostrado está certo, só o cache não é atualizado agora.
-async function persistirCaches(banco, r){
-  const cfg = saldosConfig[banco] || {};
-  if(!ehOwner() || !temFechamento() || !cfg.dataInicio) return;
-  const st = fechEstado[banco] || {};
-  const novo = Object.assign({}, cachesValidos(banco, cfg), r.fechamentos);
-  const antigo = st.caches || {};
-  const igual = st.base===baseCfg(cfg) && !st.invalidoDe && Object.keys(novo).length===Object.keys(antigo).length && Object.keys(novo).every(k=>antigo[k]===novo[k]);
-  if(igual) return;
-  try{
-    const resp = await db.salvarCaches(banco, st.version||0, baseCfg(cfg), novo);
-    if(resp.status===200){ fechEstado[banco] = resp.body; r.versao = resp.body.version; }
-    else if(resp.status===409){ r.velho = true; if(resp.body.atual) fechEstado[banco] = resp.body.atual; }
-  }catch(e){ console.error('Não consegui guardar os fechamentos de '+banco, e); }
-}
-
-// tudo que a tela mostra de um banco: saldo atual + os últimos meses com seu estado
-function historicoMeses(banco, r){
-  const cfg = saldosConfig[banco] || {};
-  const st = fechEstado[banco] || {};
-  const conf = st.conferidos || {}, ult = ultimoConf(st), atual = mesAtualApp();
-  const mapa = Object.assign({}, cachesValidos(banco, cfg));
-  r.meses.forEach(x=>{ mapa[x.mes] = x.fechamento; });
-  Object.keys(conf).forEach(m=>{ mapa[m] = conf[m].saldo; });
-  r.mapa = mapa;
-  return Object.keys(mapa).filter(m=>m<=atual).sort().reverse().slice(0,12).map(m=>({
-    mes:m, valor:mapa[m], conf:conf[m] || null,
-    estado: conf[m] ? 'conferido' : (m<=ult ? 'travado' : (m===atual ? 'aberto' : 'calculado'))
-  }));
-}
-async function calcularSaldoCompleto(banco){
-  const r = await calcularSaldoBanco(banco);
-  await persistirCaches(banco, r);
-  r.historico = temFechamento() ? historicoMeses(banco, r) : [];
-  return r;
-}
+// O servidor calcula o saldo, a cascata dos meses e o fechamento (GET /saldos); aqui só se mostra o que ele mandou.
 async function carregarSaldos(forcar){
   if(!db || saldosCarregando) return;
   if(!forcar && Date.now()-saldosUltimaCalc<30000) return;
-  saldosCarregando = true; renderSaldos();
+  saldosCarregando = true; fechFalhou = false; renderSaldos();
   try{
-    await lerFechamentos();
-    await Promise.all(listas.banco.map(async b=>{
-      try{ saldosAtuais[b] = await calcularSaldoCompleto(b); }
-      catch(e){ console.error('Falha ao calcular saldo de '+b, e); saldosAtuais[b] = {saldo:0, erro:true}; }
-    }));
+    const r = await db.saldos();
+    if(r.mesAtual) mesAtualSrv = r.mesAtual;
+    saldosTotal = r.total || null;
+    const novos = {};
+    (r.meios||[]).forEach(m=>{
+      novos[m.meio] = m.erro ? {saldo:0, erro:true} : {saldo:m.saldo, historico:(m.meses||[]).map(x=>({mes:x.mes, valor:x.valor, conf:x.conferido||null, estado:x.estado}))};
+    });
+    saldosAtuais = novos;
     saldosUltimaCalc = Date.now();
+  }catch(e){
+    console.error('Falha ao ler os saldos do servidor', e);
+    fechFalhou = true;
   } finally {
     saldosCarregando = false; renderSaldos();
   }
@@ -2624,10 +2490,10 @@ document.getElementById('btnRecalcularSaldos').addEventListener('click', recalcu
 
 // ----- conferência com o extrato -----
 function blocoFechamentoHtml(banco){
-  if(temFechamento() && fechFalhou) return '<div class="fm"><b>Fechamento mensal</b><p class="muted" style="margin:6px 0;">Indisponível agora: não consegui falar com o servidor dos fechamentos. O saldo continua certo, só que calculado pelo histórico inteiro. Se acabou de atualizar o app, falta publicar o servidor.</p></div>';
+  if(fechFalhou) return '<div class="fm"><b>Fechamento mensal</b><p class="muted" style="margin:6px 0;">Indisponível agora: não consegui ler os saldos do servidor. Toque em Atualizar para tentar de novo.</p></div>';
   const r = saldosAtuais[banco];
-  if(!temFechamento() || !r || !r.historico || !r.historico.length) return '';
-  const ult = ultimoConf(fechEstado[banco]);
+  if(!r || !r.historico || !r.historico.length) return '';
+  const ult = ultimoConf(r);
   const pend = r.historico.filter(x=>x.estado==='calculado').length;
   const aberto = fechAberto || (confRasc && confRasc.banco===banco); // conferindo: não esconde o painel
   const resumo = pend ? ` · <span class="muted">${pend} sem conferir</span>` : '';
@@ -2644,36 +2510,13 @@ function blocoFechamentoHtml(banco){
     if(confRasc && confRasc.banco===banco && confRasc.mes===x.mes){
       h += `<div class="fm-conf"><label>Saldo no extrato do banco ao fim de ${rotuloMesCurto(x.mes)}</label>
         <input type="number" step="0.01" id="fmReal" value="${esc(confRasc.val)}" placeholder="0,00">
-        <p class="muted" style="margin:4px 0;">O sistema calculou ${fmtMoeda(x.valor)}. <span id="fmDif"></span></p>
+        <p class="muted" style="margin:4px 0;">O sistema calculou ${fmtMoeda(x.valor)}.</p>
         <p class="muted" style="margin:4px 0;color:var(--expense);">${esc(confRasc.msg||'')}</p>
         <div style="display:flex;gap:8px;"><button class="primary" id="fmOk">Conferir</button><button class="ghost" data-fm="cancelar" data-banco="${esc(banco)}" data-mes="${x.mes}">Cancelar</button></div></div>`;
     }
   });
   return h + '</div>';
 }
-function atualizarDifConf(){
-  const el = document.getElementById('fmDif');
-  if(!el || !confRasc) return;
-  const r = saldosAtuais[confRasc.banco];
-  const calc = r && r.mapa ? r.mapa[confRasc.mes] : null;
-  const real = parseFloat(String(confRasc.val).replace(',','.'));
-  if(calc==null || !Number.isFinite(real)){ el.textContent = ''; return; }
-  const d = arred(real - calc);
-  el.textContent = Math.abs(d)<0.005 ? 'Bate com o extrato ✓' : 'Diferença de ' + fmtMoeda(d) + '.';
-}
-async function criarAjusteConferencia(banco, mes, diff){
-  const status = ['PAGO'].concat(listas.status).find(s=>afetaSaldo(s));
-  if(!status) throw new Error('Nenhum status mexe no saldo: configure em Listas antes de criar o ajuste.');
-  const [y,m] = mes.split('-').map(Number);
-  const dia = new Date(Date.UTC(y, m, 0, 15)).toISOString(); // último dia do mês, 12:00 em Brasília
-  await db.collection("lancamentos").add({
-    status, tipo: diff>0 ? 'entrada' : 'saida', valor: Math.abs(arred(diff)),
-    descricao: 'Ajuste de conferência ' + mes, nota: 'Criado ao conferir o mês com o extrato do banco.',
-    dataEvento: dia, banco, tags: [], excluirDoTotal: /^CONTAS$|^TRANSFERINDO$/i.test(status),
-    criadoEm: new Date().toISOString()
-  });
-}
-async function recalcularBancoFresco(banco){ await lerFechamentos(); return calcularSaldoCompleto(banco); }
 async function conferirMesFluxo(){
   const c = confRasc;
   if(!c) return;
@@ -2681,21 +2524,14 @@ async function conferirMesFluxo(){
   if(!Number.isFinite(real)){ c.msg = 'Digite o saldo do extrato primeiro'; renderSaldos(); return; }
   await comBotaoOcupado(document.getElementById('fmOk'), 'Conferindo…', async ()=>{
     try{
-      let r = await recalcularBancoFresco(c.banco);
-      if(fechFalhou) throw new Error('Não consegui falar com o servidor dos fechamentos, então nada foi alterado. Se acabou de atualizar o app, falta publicar o servidor.');
-      let calc = r.mapa[c.mes], ajuste = 0;
-      if(calc==null) throw new Error('Mês fora do período calculado');
-      const diff = arred(real - calc);
-      if(Math.abs(diff) >= 0.005){
-        const ok = await confirmarModal(`O sistema calculou ${fmtMoeda(calc)} e o extrato diz ${fmtMoeda(real)} (diferença de ${fmtMoeda(diff)}). Criar um lançamento de ajuste de ${fmtMoeda(Math.abs(diff))} em ${rotuloMesCurto(c.mes)} para o saldo bater?`);
+      // o servidor compara o extrato com o saldo que ele calculou; se não bater, devolve 409 com os números e a pessoa decide pelo ajuste
+      let resp = await db.conferirMes({meio:c.banco, mes:c.mes, real});
+      if(resp.status===409 && resp.body && resp.body.codigo==='diferenca'){
+        const d = resp.body;
+        const ok = await confirmarModal(`O sistema calculou ${fmtMoeda(d.calculado)} e o extrato diz ${fmtMoeda(d.real)} (diferença de ${fmtMoeda(d.diferenca)}). Criar um lançamento de ajuste de ${fmtMoeda(Math.abs(d.diferenca))} em ${rotuloMesCurto(c.mes)} para o saldo bater?`);
         if(!ok){ c.msg = 'O mês segue sem conferir. Revise os lançamentos e tente de novo.'; return; }
-        await criarAjusteConferencia(c.banco, c.mes, diff);
-        ajuste = diff;
-        r = await recalcularBancoFresco(c.banco);
-        calc = r.mapa[c.mes];
+        resp = await db.conferirMes({meio:c.banco, mes:c.mes, real, ajustar:true});
       }
-      if(r.velho || calc==null || Math.abs(real - calc) >= 0.005){ c.msg = 'Alguém alterou lançamentos agora. Tente de novo.'; return; }
-      const resp = await db.conferirMes({banco:c.banco, mes:c.mes, version:r.versao, saldo:real, real, ajuste});
       if(resp.status!==200){ c.msg = (resp.body && resp.body.erro) || 'Não foi possível conferir. Tente de novo.'; return; }
       confRasc = null;
       toast('✓ ' + rotuloMesCurto(c.mes) + ' conferido: ' + fmtMoeda(real));
