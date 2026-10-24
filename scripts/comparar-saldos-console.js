@@ -7,6 +7,10 @@
 // O token nunca sai do navegador: o script le a sessao que o proprio app ja guardou. Ele so le (GET); a unica gravacao e o cache de
 // fechamento que o servidor guarda por conta propria na primeira chamada.
 //
+// Modo SO SERVIDOR (para o teste de volume, com muitos anos de dados): antes de colar o script, digite
+//   window.COMPARAR_SO_SERVIDOR = true
+// e ele NAO roda a tela antiga (que le o historico inteiro uma vez por banco e estoura a leitura da tabela), so mede o GET /saldos.
+//
 // Em Node (sem navegador) so a funcao compararSaldos existe, para o teste scripts/comparar-saldos-console.test.js.
 
 var TOLERANCIA = 0.005; // meio centavo: o saldo e arredondado a 2 casas a cada mes (var: da para colar o script de novo no mesmo console)
@@ -44,16 +48,26 @@ async function rodarComparacao() {
   if (!sessao || !sessao.espaco) { console.error('Nao achei o espaco da sessao: espere o app carregar e tente de novo.'); return; }
   if (sessao.espaco.role !== 'owner') { console.error('Entre como DONO: o membro nao ve a aba Saldos completa.'); return; }
   const url = cfg.apiUrl.replace(/\/$/, '') + '/spaces/' + sessao.espaco.id + '/saldos';
+  const soServidor = window.COMPARAR_SO_SERVIDOR === true;
 
-  console.log('1/3 Calculando no navegador (tela antiga)...');
-  const t0 = performance.now();
-  await carregarSaldos(true);
-  const msAntigo = Math.round(performance.now() - t0);
-  const antigo = {};
-  listas.banco.forEach((b) => { if (saldosAtuais[b] && !saldosAtuais[b].erro) antigo[b] = { saldo: saldosAtuais[b].saldo, mapa: saldosAtuais[b].mapa }; });
-  const totalAntigo = Math.round(totalSaldos().t * 100) / 100;
+  let antigo = {}, totalAntigo = 0, msAntigo = 0;
+  if (soServidor) {
+    console.log('Modo so servidor: a tela antiga nao sera calculada.');
+  } else {
+    console.log('1/3 Calculando no navegador (tela antiga)...');
+    const t0 = performance.now();
+    await carregarSaldos(true);
+    msAntigo = Math.round(performance.now() - t0);
+    const comErro = listas.banco.filter((b) => saldosAtuais[b] && saldosAtuais[b].erro);
+    if (comErro.length) {
+      console.error('A tela antiga falhou em ' + comErro.join(', ') + ' (a leitura do historico deu erro: veja a aba Rede). Nao da para comparar assim; use o modo so servidor (window.COMPARAR_SO_SERVIDOR = true).');
+      return;
+    }
+    listas.banco.forEach((b) => { if (saldosAtuais[b]) antigo[b] = { saldo: saldosAtuais[b].saldo, mapa: saldosAtuais[b].mapa }; });
+    totalAntigo = Math.round(totalSaldos().t * 100) / 100;
+  }
 
-  console.log('2/3 Chamando GET /saldos tres vezes (a primeira pode ser a sem cache)...');
+  console.log((soServidor ? '' : '2/3 ') + 'Chamando GET /saldos tres vezes (a primeira pode ser a sem cache)...');
   const tempos = [];
   let resposta = null;
   for (let i = 1; i <= 3; i++) {
@@ -63,6 +77,14 @@ async function rodarComparacao() {
     tempos.push({ chamada: i, status: r.status, ms: Math.round(performance.now() - t) });
     if (!r.ok) { console.table(tempos); console.error('O servidor respondeu ' + r.status + ': ' + (corpo.erro || '')); return; }
     resposta = corpo;
+  }
+
+  if (soServidor) {
+    console.table(resposta.meios.map((m) => ({ meio: m.meio, saldo: m.saldo, 'meses devolvidos': m.meses.length, 'sem inicio': m.semInicio })));
+    console.log('Total do servidor: ' + resposta.total.valor + ' (' + resposta.total.meios + ' meios, ' + resposta.total.fora + ' fora do total).');
+    console.log('Tempos (navegador ate a resposta; a Lambda e o DynamoDB ficam no CloudWatch):');
+    console.table(tempos);
+    return resposta;
   }
 
   console.log('3/3 Comparando...');
