@@ -9,3 +9,5 @@ samconfig.toml
 web/config.js
 web/config.dev.js
 *.exe
+# backups com dados reais gerados por scripts/limpar-versoes-iniciais.py
+backup-versoes-*.jsonl
