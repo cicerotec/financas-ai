@@ -48,6 +48,7 @@ feito e ideias).
 | [`demos/demo-configuracoes.html`](demos/demo-configuracoes.html) | Demo da aba Configurações (antes Importar), só do dono, com as seções recolhidas Cartão, Importar e Exportar (aprovada e implementada em 2026-10-23; seção "Configurações (tela)" de `padrao-de-telas.md`) |
 | [`demos/demo-versoes-periodo.html`](demos/demo-versoes-periodo.html) | Demo do Histórico de versões por período (30d, 90d, 180d e calendário, pela data da alteração), busca por descrição, nota e tag, "Buscar em tudo" sem aviso de custo e o aviso de "mais versões"; só lançamentos alterados, com a v1 "Original" dentro das versões (aprovada pelo dono e implementada em 2026-10-23) |
 | [`demos/demo-confirmar-previsto.html`](demos/demo-confirmar-previsto.html) | Demo **aprovada em 2026-10-24** (ainda não implementada) do gesto de confirmar um lançamento previsto em Futuros (item 41 do BACKLOG): janela com Valor, Data e Status, vencidos em Atrasados, data sugerida hoje em mês fechado |
+| [`specs/futuros-previsto/`](specs/futuros-previsto/intent.md) | Intent, plan e spec do item 41: o marcador `previsto` no lugar dos status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO`, Futuros e Histórico prontos pelo servidor, Confirmar e status do backend (rascunho) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.

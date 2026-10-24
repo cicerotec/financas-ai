@@ -157,7 +157,8 @@ DynamoDB sem discutir com o dono.**
   Admin. **Em aberto para o spec:** o nome do campo (proposta `previsto`, booleano gravado só quando ligado; alternativa
   `aConfirmar`; **a aprovar pelo dono**), como o servidor acha todos os previstos sem o limite dos 1000 lançamentos
   mais recentes (só volta ao dono se pedir chave nova) e o que o Prever faz com o "Status das cópias". Demo antes do
-  código para qualquer tela além da de confirmar. Depende do item 40 para os totais.
+  código para qualquer tela além da de confirmar. Depende do item 40 para os totais. Intent, plan e spec (rascunho, 2026-10-24) em
+  [`.ai/specs/futuros-previsto/`](.ai/specs/futuros-previsto/intent.md): fases A (backend), B (Futuros e Confirmar) e C (Listas, Lançar e Prever).
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo

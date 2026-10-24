@@ -270,7 +270,7 @@ Só a aba **Futuros** entra nesta rodada. Decisões:
   O front só exibe o texto do status do lançamento.
 - **Lançamentos antigos** com `PREVISTO`, `TRANSFERINDO` ou `CREDITANDO` **ficam como estão** (eram só previsões, nada é
   regravado) e continuam em Futuros, os do passado em Atrasados, até alguém tratar. Ao confirmar um deles, a janela abre
-  com `PAGO` escolhido e a pessoa troca por `CREDITO` se for o caso; os três nomes antigos não aparecem na lista de
+  com `PAGO` escolhido e a pessoa troca por `CREDITO IN` ou `CREDITO EX` se for o caso; os três nomes antigos não aparecem na lista de
   status da janela. Editar e excluir seguem como hoje. Não há migração em massa; o backend tem uma única função que
   responde "isto é futuro?".
 - **Fora desta rodada:** o desmembramento do `PAGO` por tipo e meio (recebimento, débito, pix, drex, cripto), o destino
