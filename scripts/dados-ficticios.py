@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """Carrega dados FICTICIOS no ambiente de teste (tabela FinancasApp-dev). Nunca toca na tabela de producao.
 
-Cria as listas (status e bancos), centenas de tags, combos e uns 2 mil lancamentos de 2025 ate hoje, mais eventos
-futuros (PREVISTO, TRANSFERINDO, CREDITANDO) e transferencias entre bancos, num volume parecido com o uso real.
+Cria as listas (status e bancos), a configuracao de saldos (saldo inicial e data de inicio de cada banco), centenas de tags,
+combos e uns 2 mil lancamentos de 2025 ate hoje, mais eventos futuros (PREVISTO, TRANSFERINDO, CREDITANDO) e transferencias entre
+bancos, num volume parecido com o uso real. Com --desde AAAA o historico comeca em janeiro desse ano (--desde 2016 faz uns 14 mil
+lancamentos: o teste de volume do item 40, que exige 10 anos).
 Os ids sao fixos (gerador com semente), entao rodar de novo sobrescreve os mesmos registros em vez de duplicar.
 Para recomecar do zero: python scripts/limpar-espaco.py <space-id> --dev --confirmar
 
 Uso (com a sessao do MFA ativa no terminal; o espaco vem do scripts/seed.sh financas-dev <email-dono>):
   python scripts/dados-ficticios.py <space-id>               # simulacao: so conta o que seria gravado
   python scripts/dados-ficticios.py <space-id> --confirmar   # grava de verdade
+  python scripts/dados-ficticios.py <space-id> --desde 2016 --confirmar   # dez anos de historico (leva um bom tempo: 5 WCU)
 """
 import json
 import random
@@ -21,7 +24,17 @@ from datetime import date, datetime, timedelta, timezone
 TABELA = "FinancasApp-dev"   # fixo de proposito: este script nao tem como escrever na producao
 AWS = shutil.which("aws") or "aws"
 ALFA = "abcdefghijklmnopqrstuvwxyz0123456789"
-INICIO = date(2025, 1, 1)
+def _inicio():
+    """Janeiro do ano de --desde AAAA (padrao 2025)."""
+    if "--desde" in sys.argv:
+        i = sys.argv.index("--desde")
+        if i + 1 >= len(sys.argv) or not sys.argv[i + 1].isdigit() or not 2000 <= int(sys.argv[i + 1]) <= date.today().year:
+            sys.exit("--desde pede um ano, por exemplo --desde 2016")
+        return date(int(sys.argv[i + 1]), 1, 1)
+    return date(2025, 1, 1)
+
+
+INICIO = _inicio()
 HOJE = date.today()
 FIM_FUTURO = HOJE + timedelta(days=150)
 
@@ -93,6 +106,9 @@ def gerar(space):
     itens.append({"PK": pk, "SK": "CFG#LISTAS", "version": 1, "status": STATUS, "banco": BANCOS,
                   "statusReal": {"PREVISTO": False, "TRANSFERINDO": False, "CREDITANDO": False},
                   "afetaSaldoBanco": {"PAGO": True, "CONTAS": True}, "statusFuturo": FUTUROS})
+    # saldo inicial e data de inicio de cada banco (sem isso a aba Saldos mostra "defina o saldo inicial" e nao ha cache de fechamento)
+    itens.append({"PK": pk, "SK": "CFG#SALDOS", "version": 1, "porBanco": {
+        b: {"saldoInicial": float(500 * (n + 1)), "dataInicio": INICIO.isoformat()} for n, b in enumerate(BANCOS)}})
     itens.append({"PK": pk, "SK": "CFG#TAGS", "version": 1, "usadas": tags})
     combos = [{"tags": [c, f"{c}-{a}"]} for c in ("mercado", "transporte", "casa") for a in ("mensal", "extra", "fixo")]
     itens.append({"PK": pk, "SK": "CFG#COMBOS", "version": 1, "lista": combos})
@@ -163,7 +179,7 @@ def gravar(itens):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    args = [a for a in sys.argv[1:] if not a.startswith("--") and not a.isdigit()]
     if not args:
         sys.exit(__doc__)
     space = args[0].removeprefix("SPACE#")
@@ -177,6 +193,7 @@ def main():
     itens, seq = gerar(space)
     tx = [d for d in itens if d["SK"].startswith("TX#")]
     futuros = sum(1 for d in tx if d["status"] in FUTUROS)
+    print(f"Historico desde {INICIO.isoformat()}.")
     print(f"Espaco {space} em {TABELA}: {len(tx)} lancamentos ({futuros} futuros), "
           f"{len(itens) - len(tx)} configuracoes, 1 contador seq.")
     if "--confirmar" not in sys.argv:

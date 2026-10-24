@@ -93,3 +93,51 @@ e, **nesse mesmo terminal**, `code .` (ou feche e reabra o VS Code por ele). Cre
 
 Para o front usar a API local, troque o `apiUrl` do `web/config.dev.js` (que também fica fora do git) por `http://127.0.0.1:8090` e suba o
 front com `.\scripts\servir.ps1`. O modo local já responde o CORS de `localhost`.
+
+## Comparar e medir o saldo do servidor (item 40, fase B)
+
+Antes de a aba Saldos passar a usar `GET /saldos`, o saldo do servidor tem de **bater com o da tela antiga** (a que calcula no navegador) e a
+**primeira abertura sem cache** tem de caber na Lambda (`specs/saldo-servidor/plan.md`, "A conferência lado a lado"). Primeiro no `dev`, depois na produção.
+
+**Pré-requisito:** a fase A (PR do item 40) mergeada na `develop` e publicada no `dev` (o deploy é automático; confira o changeset e o status final da stack, como no guardrails).
+
+### 1. Dados com volume (só no dev)
+O dono tem dados desde 2016. Carregue dez anos de dados fictícios (uns 14 mil lançamentos, com `CFG#SALDOS` de cada banco):
+```powershell
+python scripts/dados-ficticios.py <space-id> --desde 2016              # simulação: só conta
+python scripts/dados-ficticios.py <space-id> --desde 2016 --confirmar  # grava (a tabela tem 5 WCU: leva mais de uma hora)
+```
+Para acelerar, suba a escrita do dev por um tempo (o always-free são 25 RCU/WCU no total e a produção usa 5/5, então o dev pode ir a 20) e **volte depois**:
+```powershell
+aws dynamodb update-table --table-name FinancasApp-dev --region sa-east-1 --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=20
+```
+(O próximo deploy da stack volta a tabela para 5/5, porque o template manda.)
+
+### 2. Comparar e medir pelo navegador
+1. Abra o app do dev, entre como **dono** e espere a aba Saldos carregar.
+2. F12 → Console, cole o conteúdo de `scripts/comparar-saldos-console.js` e aperte Enter. O token fica no navegador; o script só faz `GET`.
+3. Ele calcula pela tela antiga, chama `GET /saldos` três vezes e mostra duas tabelas: **saldo e meses de cada meio, antigo contra servidor**, e os **tempos** de cada chamada. Termina com `✓ IGUAL` ou `✗ DIFERENTE`.
+4. A **primeira chamada** é a sem cache (o servidor ainda não gravou nada com a base `v2`). Para repetir uma chamada sem cache, mude e volte o saldo inicial de um banco na própria aba Saldos (muda a base do cache). As outras duas já usam o cache.
+
+**Critérios para ligar a tela nova**
+- `✓ IGUAL` em todos os meios e no total (a diferença aceita é menos de meio centavo).
+- Primeira chamada dentro do tempo da Lambda (o limite é 30 s; mire em menos de 10 s) e as seguintes em menos de 1 s.
+- Nenhum erro `500` nem `ReadThrottleEvents` (veja o item 3).
+
+### 3. Medir o que o navegador não vê (CloudWatch)
+Duração e memória da Lambda (a função tem **128 MB** e 30 s) nos últimos 15 minutos; procure `Duration` e `Max Memory Used` nas linhas `REPORT`:
+```powershell
+$ini = [DateTimeOffset]::UtcNow.AddMinutes(-15).ToUnixTimeMilliseconds()
+aws logs filter-log-events --log-group-name /aws/lambda/financas-api-dev --region sa-east-1 --filter-pattern '"REPORT"' --start-time $ini --query "events[].message" --output text
+```
+Leitura gasta e **throttling** da tabela (a tabela é provisionada com **5 RCU**: a primeira chamada sem cache lê o histórico inteiro e pode estourar a capacidade):
+```powershell
+$ini = (Get-Date).AddMinutes(-30).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"); $fim = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+foreach ($m in "ConsumedReadCapacityUnits","ReadThrottleEvents") {
+  aws cloudwatch get-metric-statistics --namespace AWS/DynamoDB --metric-name $m --dimensions Name=TableName,Value=FinancasApp-dev --region sa-east-1 --start-time $ini --end-time $fim --period 60 --statistics Sum --query "Datapoints[].[Timestamp,Sum]" --output text
+}
+```
+Se `ReadThrottleEvents` aparecer, o `GET /saldos` sem cache pode falhar com `500`. Os caminhos são: subir a leitura do dev (e, depois, decidir sobre a produção) ou fazer o servidor ler o histórico em partes. **É decisão do dono**; registre os números no PR.
+
+### 4. Na produção (só leitura, pelo dono)
+Repita o passo 2 no app de produção, num horário calmo. O `GET /saldos` **grava o cache de fechamento** (os itens `SALDO#<banco>`) por conta própria na primeira chamada, e isso é esperado. Se algum meio divergir ou a primeira chamada falhar, **a tela nova não entra**: a tela antiga continua funcionando.
