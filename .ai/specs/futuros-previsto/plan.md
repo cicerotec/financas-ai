@@ -13,7 +13,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 |---|---|---|
 | "Futuro" é o nome do status, lido de `statusFuturo` em `CFG#LISTAS` (ou do padrão `PREVISTO`, `TRANSFERINDO`, `CREDITANDO`) | `domain/aviso_envio.go` (`EhStatusFuturo`, `StatusFuturoPadrao`), `web/js/app.js:8-12` | O servidor só usa isso nos avisos; o resto é do navegador. A função única "isto é previsto?" nasce em `domain/` e troca as duas |
 | A lista de status é o padrão fixo do front (`app.js:5`) mais o que está em `CFG#LISTAS`; o app a edita (`app.js:895-935, 1008-1035, 1312-1317`) | `web/js/app.js`, `web/index.html:213-217` | O servidor passa a mandar a lista; o front só a exibe e devolve a escolha |
-| O saldo, o resumo e os grupos de Futuros são somados no navegador a partir de `lancamentosCache` (1000 mais recentes) | `app.js` (`calcularSaldoBanco`, `resumoFuturos`, `gruposFuturos`, `renderHistorico`) | O saldo sai do navegador no item 40 e as faturas no item 33. Aqui falta o resumo e os grupos de Futuros (rota própria) e o total do Histórico |
+| O saldo, o resumo e os grupos de Futuros são somados no navegador a partir de `lancamentosCache` (1000 mais recentes) | `app.js` (`calcularSaldoBanco`, `resumoFuturos`, `gruposFuturos`, `renderHistorico`) | O saldo sai do navegador no item 40 e as faturas no item 33. Aqui falta o resumo e os grupos de Futuros (rota própria); o total do Histórico **sai da tela até o item 42** |
 | `GET /tx` lista por data e filtra banco, status e texto em Go, depois do `Query` | `repository/lancamento.go:239` | Excluir previstos é um `continue` a mais; achar **todos** os previstos é uma leitura da partição inteira filtrada em Go, sem expressão nova |
 | `Editar` só chama a trava quando `MudaSaldo`, e confere o alvo de antes e o de depois | `service/lancamento.go:169`, `domain/saldo.go:41` | `previsto` entra em `CamposSaldo`, e **o alvo de um estado previsto não conta** (não mexe no saldo): é isso que deixa confirmar um previsto de mês fechado sem pedir confirmação quando a data nova é hoje |
 | `Protegidos` descarta do corpo os campos que só o servidor define | `domain/lancamento.go:93` | `previsto` entra na lista; `Importar` não usa `Protegidos` e precisa do mesmo cuidado |
@@ -26,7 +26,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 ## Desenho
 
 - **O campo:** `previsto` (booleano), **gravado só quando ligado**, no lançamento e, por consequência, nas versões do histórico
-  (que guardam o lançamento inteiro). Sem chave nova, sem índice, sem item novo. **Nome e tipo a aprovar pelo dono.**
+  (que guardam o lançamento inteiro). Sem chave nova, sem índice, sem item novo. Nome (`previsto`) e tipo (booleano) **aprovados pelo dono em 2026-10-24**.
 - **Funções puras em `domain/`** (recebem o instante como parâmetro, nada de relógio global):
   - `EhPrevisto(l)`: `l["previsto"] == true` **ou** o status é um dos três nomes antigos (constante `StatusAntigosPrevistos`,
     um lugar só). É o que os avisos, a listagem, o saldo (item 40) e a fatura (item 33) usam.
@@ -64,9 +64,9 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
   Tendências sem regra nova no front.
 - **Respostas de lançamento** levam `previsto: true` quando `EhPrevisto` (inclusive para os antigos, derivado), para o front
   nunca olhar o nome do status.
-- **O Histórico sai do servidor pronto (R12a a R12c):** cada linha traz `rotulo` e `corPadrao`; `GET /tx` traz a lista de filtros de status **que
-  aparecem no período consultado** (inclusive os antigos, como `CREDITO IN` em 2019, e os reclassificados) e o **resumo do filtro inteiro** (`n`, `total`
-  e, agrupando, por mês). O front não soma, não decide o que existe em cada época e só exibe.
+- **O Histórico sai do servidor pronto (R12a e R12b) e sem total (R12c):** cada linha traz `rotulo` e `corPadrao`; `GET /tx` traz a lista de filtros de status **que
+  aparecem no período consultado** (inclusive os antigos, como `CREDITO IN` em 2019, e os reclassificados). **O total da lista e a soma por mês saem da tela até o item 42**
+  (decisão do dono, 2026-10-24: o resumo do filtro inteiro precisa do filtro de tags no servidor). O front não soma, não decide o que existe em cada época e só exibe.
 - **Avisos:** `Rodar` usa `EhPrevisto(tx)`; o resto (item auxiliar, `MaxAtrasoAviso`) não muda.
 - **Listas:** `Config.Ler("listas")` devolve `status` (a lista do servidor) e **não** devolve `statusFuturo`, `statusReal` nem
   `afetaSaldoBanco` (os itens 40 e 33 já tiraram o último uso deles do front); `Config.Gravar("listas")` mantém esses campos do
@@ -108,14 +108,13 @@ parâmetro `semPrevistos=1` que só a B liga. Não está no spec; é só dizer.)
 | O cliente tenta ligar ou desligar o marcador | `previsto` vem descartado do corpo em criar, editar e importar; só `POST .../confirmar` o tira; testes que forjam |
 | A cópia de um Prever com data passada (série antiga) deixa de ser previsto | É a regra da data; a cópia vira lançamento comum e conta no saldo. Vai nas decisões abaixo |
 | `GET /futuros` lê a partição inteira (os `PREVISTO` antigos, de qualquer ano, continuam em Atrasados), e a base vai de 2016 em diante | Medir no dev com **10 anos de dados fictícios** (gerar mais lançamentos em `scripts/dados-ficticios.py`); sem chave nova; se pesar, um GSI só com a aprovação do dono |
-| `GET /tx` com `resumo` e `filtros` lê o filtro inteiro, não só a página | Mesmo teste de volume; o resumo usa a mesma leitura da lista; sem chave nova |
 | As caixas de `CFG#LISTAS` de algum espaço diferirem do catálogo (alguém mexeu num padrão) | A conferência de leitura antes do deploy (R9b); a divergência vira decisão do dono antes de ligar |
 | Reclassificar o passado por engano | Cada troca é uma versão do histórico (quem, quando), reversível pela restauração; a trava de data segue o efeito no saldo; a troca em massa é só do admin (item 44) |
 | Um status criado em Listas que o dono esqueceu | O dono confirmou que não há; a conferência acima também lista qualquer status de `CFG#LISTAS` ou de lançamento fora do catálogo |
 
 ## Decisões que o plan fixou e o dono pode contestar
 
-1. O campo se chama **`previsto`**, booleano, gravado só quando ligado (alternativa: `aConfirmar`).
+1. O campo se chama **`previsto`**, booleano, gravado só quando ligado (**aprovado pelo dono em 2026-10-24**).
 2. **Hoje não é previsto:** o marcador liga quando o **dia** da data (em São Paulo) é posterior a hoje.
 3. **Confirmar** exige valor maior que zero, data **não futura** e status que não seja um dos três antigos; a versão gravada é um
    `update` comum.
@@ -133,17 +132,14 @@ parâmetro `semPrevistos=1` que só a B liga. Não está no spec; é só dizer.)
 12. **A escolha do status é livre em qualquer data** (o passado é do usuário), desde que o status seja selecionável. Criar ou confirmar com um não selecionável
     é recusado; editar sem mudar o status e importar backup aceitam o gravado.
 13. **A trava de data segue o efeito no saldo**, não o nome dos campos: `PAGO` para `PIX` (os dois contam) não é travado.
-14. **O Histórico sai do servidor pronto:** `rotulo`, `corPadrao`, os filtros de status **do uso no período** e o resumo do filtro inteiro. Os filtros que o servidor
-    entende são período, meio, status, texto e ocultos.
+14. **O Histórico sai do servidor pronto, sem total:** `rotulo`, `corPadrao` e os filtros de status **do uso no período**. O total da lista e a soma por mês **saem da tela até o
+    item 42** (pedido do dono, sem demo). Os filtros que o servidor entende são período, meio, status, texto e ocultos.
 15. O `PREVISTO` e os outros dois **continuam em Atrasados** (decisão do dono), mesmo com histórico desde 2016.
 16. **A troca em massa do passado** (por exemplo, `PAGO` de 2018 para `PIX`, ou o pedido de um dono novo) é uma ferramenta **só do admin**, em outro item (44);
     aqui o usuário reclassifica um registro por vez, pelo app, com as travas.
 17. O status é mostrado como **forma de pagamento**; o campo e a API continuam `status`. `CRIPTO` e `DREX` são formas (o saldo mora no meio onde o dinheiro está).
 
-## Aberto (a decidir com o dono antes de codar o 41)
+## Resolvido pelo dono (2026-10-24)
 
-- **O total do Histórico com um filtro de tags ativo.** As tags e os combos são filtrados no navegador (o item 42 os leva ao servidor). Enquanto
-  isso, o resumo do servidor não os considera. Opções: o total **some da tela** quando há filtro de tags (minha sugestão: o front não soma) ou
-  o front continua somando só as linhas exibidas até o item 42. É uma mudança de tela, então precisa de demo.
-- **O nome do campo** (`previsto`, ou `aConfirmar`).
-
+- **O total do Histórico** sai da tela até o item 42 (o total e a soma por mês); o item 42 o traz de volta calculado no servidor junto com o filtro de tags.
+- **O nome do campo** é `previsto` (booleano, gravado só quando ligado).

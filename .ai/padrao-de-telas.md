@@ -279,7 +279,7 @@ fileira de botões dentro da linha.
 **O valor monetário nunca quebra** (`white-space:nowrap`): se faltar espaço, a linha cresce, e não o número. Três
 blocos iguais lado a lado só no computador (padrão abaixo).
 
-**10b. Total da lista no Histórico** (aprovado em 2026-10-11). Na linha do contador, à direita, só o valor (13 px,
+**10b. Total da lista no Histórico** (aprovado em 2026-10-11; **retirado da tela até o item 42**, pedido do dono em 2026-10-24, sem demo: o front não soma, e o total só volta calculado no servidor junto com o filtro de tags; a soma do mês na busca também sai). Na linha do contador, à direita, só o valor (13 px,
 negrito, `nowrap`) com sinal e cor (`+` em `--income`, `-` em `--danger`, zero em `--muted`): a **soma de renda menos
 gasto** dos lançamentos exibidos, com o mesmo sinal de cada linha (500,00 de renda e 550,00 de gasto dão `-R$ 50,00`).
 Vale na **busca por texto** e no **mês aberto**, e acompanha Status, Banco, Tags, "mostrar ocultos" e "incluir eventos

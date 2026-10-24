@@ -247,7 +247,7 @@ cliente, são iguais entre si. Quem forja a requisição escolhe o saldo, e esse
 Só a aba **Futuros** entra nesta rodada. Decisões:
 - **Marcador `previsto` no lançamento** substitui os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO`. O lançamento
   futuro nasce com o **status real** (`PAGO`, `CREDITO`...) e o marcador ligado. O marcador é um **campo novo no DynamoDB**:
-  nome e tipo ainda dependem da aprovação do dono (princípio 3).
+  nome (`previsto`) e tipo (booleano) foram aprovados pelo dono em 2026-10-24 (princípio 3).
 - **Enquanto o marcador existir, o lançamento fica fora do saldo e fora do total do Histórico**, mesmo já estando no
   Histórico (data chegada). Por isso o saldo só muda por escrita (confirmar, criar, editar), e o cache e a cascata do
   fechamento continuam válidos; nada muda à meia-noite sem uma gravação.
@@ -283,8 +283,7 @@ Só a aba **Futuros** entra nesta rodada. Decisões:
   responde "isto é futuro?".
 - **Fora desta rodada:** o desmembramento do `PAGO` por tipo e meio (recebimento, débito, pix, drex, cripto), o destino
   do `CONTAS` e do `excluirDoTotal` como regra do servidor, e um papel de Admin (complemento ao dono).
-- **Aberto para o spec:** o nome final do campo (proposta: `previsto`, booleano gravado só quando ligado; a alternativa é
-  `aConfirmar`) e a aprovação do dono; como o servidor encontra todos os previstos sem depender dos 1000 lançamentos mais
+- **Aberto para o spec:** como o servidor encontra todos os previstos sem depender dos 1000 lançamentos mais
   recentes (só se exigir chave nova no Dynamo volta ao dono); e o que o Prever faz com o "Status das cópias".
 
 ## Status, meios de pagamento e o passado (fechada em 2026-10-24; não implementada)
@@ -312,7 +311,7 @@ Regras:
 - **Troca em massa** (o pedido de um dono novo que não gosta de `PAGO` e `CREDITO`, o desmembramento futuro do `PAGO`, a migração do `faturaAjuste`
   explícito) é uma ferramenta **só do admin** (item 44), com simulação, versão por registro e as mesmas travas.
 - **Ao ler**, o Histórico sai do servidor pronto: cada linha com rótulo e cor, a **lista de filtros de status que aparecem no período consultado** (um 2019
-  mostra `CREDITO IN`; um 2018 reclassificado mostra `PIX`) e o **resumo do filtro inteiro** (quantidade, total e por mês).
+  mostra `CREDITO IN`; um 2018 reclassificado mostra `PIX`) O **total da lista e a soma por mês saem da tela até o item 42** (decisão do dono, 2026-10-24).
 
 Spec: [`specs/futuros-previsto/`](specs/futuros-previsto/spec.md), regras R9 a R12c e R15.
 

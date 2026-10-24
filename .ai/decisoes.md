@@ -22,7 +22,7 @@ O raciocínio completo está em [`arquitetura.md`](arquitetura.md), nas seções
   derivado vindo do cliente. Motivo: o navegador fica no computador de quem usa, e qualquer um pode trocar a conta.
 - **Marcador `previsto` no lançamento** no lugar dos status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO`. O lançamento
   futuro tem o status real; o marcador só o tira do saldo e do total do Histórico até ser confirmado. **Campo novo no
-  Dynamo, nome a aprovar.** Foi descartado manter o status `PREVISTO` (a tela de Futuros não mostraria o status real) e
+  Dynamo: `previsto`, booleano gravado só quando ligado (aprovado em 2026-10-24).** Foi descartado manter o status `PREVISTO` (a tela de Futuros não mostraria o status real) e
   descartado ter data de congelamento (a tela não precisa; o servidor entrega cada aba pronta).
 - **Quem liga o marcador (2026-10-24):** o servidor, em todo lançamento com data depois de hoje; o Prever e o "Repetir ao
   lançar" também criam previstos.
@@ -43,7 +43,7 @@ O raciocínio completo está em [`arquitetura.md`](arquitetura.md), nas seções
   não é travado) e o histórico de versões torna tudo reversível. A **troca em massa é só do admin** (item 44). O status é mostrado como **forma de pagamento**
   (`PIX`, `DEBITO`, `DREX`, `CRIPTO` são formas; o saldo mora no meio). O `banco` é mostrado como **meio de pagamento** por um de-para em `domain/`, sem mudar o
   Dynamo; **o dono cria e desativa meios** pelo app (item 43). O dono **não criou status além dos sete padrão**. O Histórico sai do servidor pronto: rótulo e cor, filtros
-  de status **do uso no período** e resumo do filtro inteiro. A base vai de 2016 em diante, então o item 40 exige um teste de volume de 10 anos. **O `PREVISTO`
+  de status **do uso no período**, **sem total** (o total da lista e a soma por mês saem da tela até o item 42). A base vai de 2016 em diante, então o item 40 exige um teste de volume de 10 anos. **O `PREVISTO`
   antigo continua previsto**, em Atrasados.
 - **Status e cores de status:** o app não cria nem edita status. A cor por status continua como está. `salvarListas` segue
   gravando bancos, cores, aparência e ordens; o servidor ignora o que mude em status.
@@ -59,8 +59,9 @@ O raciocínio completo está em [`arquitetura.md`](arquitetura.md), nas seções
   (transferência entre bancos, `transferParId`) entra nesse desmembramento, fora de Futuros.
 - **Admin** é um complemento ao dono (poderes reduzidos em tela, acesso total internamente); não é decidido agora. Poder
   de mexer em catálogo de status e módulos (PIX, DREX, cripto) seria dele no futuro.
-- **Em aberto para o spec:** o nome do campo (proposta `previsto`, a aprovar) e como o servidor encontra todos os
-  previstos sem depender dos 1000 lançamentos mais recentes; o que o Prever faz com o "Status das cópias".
+- **Em aberto para o spec:** como o servidor encontra todos os previstos sem depender dos 1000 lançamentos mais recentes; o que o Prever faz com o "Status das cópias".
+- **Aprovado em 2026-10-24:** o nome do campo do marcador é `previsto`; o atributo `ativoAte` (data AAAA-MM-DD, ausente = ativo) em `CFG#SALDOS.porBanco[meio]` para o item 43; o
+  **total do Histórico sai até o item 42**.
 
 ## Outras decisões
 - Descartado: bloquear duplicidade por conteúdo (a mesma compra pode ter outro horário e outra descrição).

@@ -137,7 +137,7 @@ DynamoDB sem discutir com o dono.**
   rejeição ganha um teste que tenta forjar o valor e que falha antes da mudança. Calcular no front só vale para exibir
   (Tendências). **Primeiro da fila (2026-10-24):** vem antes do 33a e do 41, porque o front só deixa de tratar status quando para
   de somar. Escopo: saldo por banco e total de **Saldos** e conferência com o extrato (o `GET /saldos`, o cache só do
-  servidor, `Conferir` só com o `real` e o ajuste criado pelo servidor); os totais de Histórico e Futuros ficam com o item 41 e as
+  servidor, `Conferir` só com o `real` e o ajuste criado pelo servidor); o resumo de Futuros fica com o item 41 e o total do Histórico sai da tela até o item 42 e as
   faturas do cartão com o 33a. Fases: A (backend, só acrescenta; **com teste de volume de 10 anos**, porque a base vai de 2016 em diante), B (a aba Saldos, visual igual, **conferida lado a lado** com a
   antiga no dev e na produção), C (remove `PUT /fechamentos`). Intent, plan e spec (rascunho) em
   [`.ai/specs/saldo-servidor/`](.ai/specs/saldo-servidor/intent.md). Detalhes em [`.ai/arquitetura.md`](.ai/arquitetura.md) e
@@ -149,8 +149,8 @@ DynamoDB sem discutir com o dono.**
   exibe, guarda a escolha e a devolve como veio; a lista fixa de `app.js:5` deixa de existir e um teste de CI falha se um nome de
   status voltar a `web/`. **Sem data de corte global** (2026-10-24): o catálogo tem uma entrada por nome e a marca `selecionavel` (nenhum status sai dele); o
   usuário pode reclassificar o passado (um `PAGO` de 2018 pode virar `PIX`) e a trava de data segue o efeito no saldo; o Histórico sai do servidor pronto
-  (rótulo e cor, filtros de status do uso no período, resumo do filtro inteiro). O dono não criou status além dos sete padrão. Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` saem; o lançamento futuro nasce com o status real e um
-  marcador `previsto` (campo novo no Dynamo, **nome a aprovar**) que o tira do saldo e do total do Histórico até ser
+  (rótulo e cor, filtros de status do uso no período; **sem total**: o total da lista e a soma por mês saem da tela até o item 42, pedido do dono). O dono não criou status além dos sete padrão. Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` saem; o lançamento futuro nasce com o status real e um
+  marcador `previsto` (campo novo no Dynamo, booleano gravado só quando ligado, **aprovado em 2026-10-24**) que o tira do saldo e do total do Histórico até ser
   confirmado. **Quem liga o marcador:** o servidor, em todo lançamento com data depois de hoje; o Prever e o "Repetir ao
   lançar" também (2026-10-24). O servidor entrega Futuros e Histórico prontos: os vencidos **continuam em Atrasados,
   dentro de Futuros**, e o Histórico só traz o que já aconteceu (nunca um previsto); o mesmo critério alimenta o aviso do Telegram; os
@@ -163,8 +163,7 @@ DynamoDB sem discutir com o dono.**
   antigo, a janela abre com o primeiro status da lista do servidor (hoje `PAGO`). Sai do front o que olha status ou soma: `ehFuturo`, `afetaSaldo`, `resumoFuturos`,
   `gruposFuturos`, a soma do Histórico, a inclusão automática de `CREDITANDO` em Listas e o "Status das cópias" do Prever
   (a decidir no spec). Fora daqui: desmembrar o `PAGO` (tipo e meio), o `CONTAS` e o `excluirDoTotal`, e o papel de
-  Admin. **Em aberto para o spec:** o nome do campo (proposta `previsto`, booleano gravado só quando ligado; alternativa
-  `aConfirmar`; **a aprovar pelo dono**), como o servidor acha todos os previstos sem o limite dos 1000 lançamentos
+  Admin. **Em aberto para o spec:** como o servidor acha todos os previstos sem o limite dos 1000 lançamentos
   mais recentes (só volta ao dono se pedir chave nova) e o que o Prever faz com o "Status das cópias". Demo antes do
   código para qualquer tela além da de confirmar. Depende dos itens 40 e 33a (o navegador já não soma com status). Intent, plan e spec (rascunho, 2026-10-24) em
   [`.ai/specs/futuros-previsto/`](.ai/specs/futuros-previsto/intent.md): fases A (backend), B (Futuros e Confirmar) e C (Listas, Lançar e Prever).
@@ -197,8 +196,8 @@ DynamoDB sem discutir com o dono.**
   `SODEXO-REF-IBM`, `DINHEIRO`, `CARTEIRA`...) é o `banco` gravado, com um **de-para só de exibição em `domain/`** (o Dynamo não muda, o campo continua `banco`).
   **O dono cria e desativa meios pelo app** (dado do espaço, não do produto); o front nunca conhece os nomes. Um meio desativado (por exemplo, o `SODEXO` quando o dono sair da
   IBM) **continua nos lançamentos e no saldo do passado** e deixa de ser sugerido a partir de uma data; "ver todos" mostra também os inativos, porque o passado é do
-  usuário. `CRIPTO` e `DREX` são **formas** (status), não meios. Pede **um atributo novo no Dynamo** (proposta: a data em que o meio deixa de valer, em
-  `CFG#SALDOS.porBanco[meio]`, ausente = ativo; **a aprovar pelo dono**) e a lista `meios: [{nome, cartao, ativo}]` que o item 33a já entrega com `ativo` sempre verdadeiro.
+  usuário. `CRIPTO` e `DREX` são **formas** (status), não meios. Pede **um atributo novo no Dynamo** (a data em que o meio deixa de valer, `ativoAte` (AAAA-MM-DD) em
+  `CFG#SALDOS.porBanco[meio]`, ausente = ativo; **aprovado pelo dono em 2026-10-24**) e a lista `meios: [{nome, cartao, ativo}]` que o item 33a já entrega com `ativo` sempre verdadeiro.
   Intent, plan e spec depois da conversa sobre o 40, o 33a e o 41. Demo antes de qualquer tela.
 - 44. [ ] <a id="item-44"></a>**[Depois] Reclassificação em massa (admin) (rascunho, 2026-10-24):** ferramenta **só do admin** (o dono do serviço; poderes reduzidos na tela, acesso
   total por dentro), sem tela no app: troca o status (forma de pagamento) ou o meio de muitos registros de uma vez, filtrando por período, meio, tag ou status. **Simula antes** (quantos
@@ -297,6 +296,9 @@ DynamoDB sem discutir com o dono.**
   - [ ] **c) Histórico passa a usar o filtro**, ganhando o filtro avançado de tags. É a tela do saldo real: demo e cuidado extra.
   - [ ] **d) Futuros:** ler o que ele filtra hoje e decidir se adota o componente.
   - [ ] **e) "Abrir no Histórico" a partir da Tendências**, levando a consulta e o mês, para quem quiser editar ou ocultar. Depende do c.
+  - [ ] **g) O total e a soma por mês do Histórico, de volta** (2026-10-24): o item 41 **retira** da tela do Histórico o total da lista e a soma por mês (pedido do dono: o front não soma). Este
+    item decide como eles voltam: **calculados no servidor**, o que exige que o filtro de tags e combos (hoje só no navegador, "nada é enviado ao servidor") **passe a ser entendido pelo servidor**, e o
+    resumo do filtro inteiro (`n`, `total`, por mês) volta junto. Demo antes do código.
   - [ ] **f) Detalhes já vistos** (o aviso de que o mês mais antigo pode estar incompleto foi feito em 2026-10-23; o corte em si continua): gráfico parado nos meses antigos ao girar o celular ou redimensionar a janela; decidir se Gastos/Receitas/Resultado deve ser lembrado
     (hoje volta a Gastos ao recarregar); o gráfico longo é limitado aos 1000 lançamentos mais recentes carregados.
 

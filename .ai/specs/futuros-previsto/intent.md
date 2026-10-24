@@ -8,8 +8,7 @@ nenhuma**. As decisões vêm das conversas de 2026-10-18 e 2026-10-24 (registrad
 [`arquitetura.md`](../../arquitetura.md)); a demo do gesto de confirmar foi aprovada em 2026-10-24
 ([`demo-confirmar-previsto.html`](../../demos/demo-confirmar-previsto.html)). **Ordem de execução:** este item vem **depois** dos
 itens 40 ([`saldo-servidor`](../saldo-servidor/intent.md)) e 33 fatiado ([`fatura-servidor`](../fatura-servidor/intent.md)), que
-tiram do navegador as contas que ainda usam status. **Pendente do dono:** o nome e o tipo do campo novo no DynamoDB (proposta:
-`previsto`, booleano gravado só quando ligado).
+tiram do navegador as contas que ainda usam status. **Aprovado pelo dono em 2026-10-24:** o campo novo no DynamoDB se chama `previsto` (booleano, gravado só quando ligado).
 
 ## A regra que organiza tudo
 
@@ -55,8 +54,7 @@ problemas que o dono apontou:
    pagamento**.
 7. **O aviso do Telegram** passa a seguir o marcador (e o mesmo critério de atraso), em vez do status.
 8. **O Histórico sai do servidor pronto**, inclusive os filtros: cada linha com o rótulo e a cor, a lista de filtros de status **que aparecem no período**
-   que se está vendo (em 2019, `CREDITO IN` e `CREDITO EX`; um 2018 reclassificado para `PIX` mostra o `PIX`) e o resumo (quantidade e total) do filtro
-   inteiro, tudo calculado no servidor. A base vai de 2016 em diante.
+   que se está vendo (em 2019, `CREDITO IN` e `CREDITO EX`; um 2018 reclassificado para `PIX` mostra o `PIX`) tudo calculado no servidor. **O total da lista e a soma por mês saem da tela até o item 42** (decisão do dono, 2026-10-24). A base vai de 2016 em diante.
 
 ## Limites (o que fica de fora)
 
@@ -65,7 +63,7 @@ problemas que o dono apontou:
 - **O desmembramento do `PAGO`** (tipo e meio: recebimento, débito, pix, drex, cripto), o destino do **`CONTAS`** e do
   `excluirDoTotal`, e o papel de **Admin** ficam para depois.
 - Não cria chave, índice nem item novo no DynamoDB: só **um atributo opcional** no lançamento (e nas versões do histórico, que
-  guardam o lançamento inteiro). O nome e o tipo dependem da aprovação do dono (princípio 3 da arquitetura).
+  guardam o lançamento inteiro). O nome (`previsto`) e o tipo (booleano) foram aprovados pelo dono em 2026-10-24 (princípio 3 da arquitetura).
 - Não muda a trava de mês conferido nem a de mês fechado por data (item 38): confirmar um previsto passa pelas duas.
 - Não muda o aviso por Telegram além do gatilho (`avisos.md`).
 
@@ -74,7 +72,7 @@ problemas que o dono apontou:
 - Confirmar custa três toques no celular (a linha, Confirmar, Confirmar na janela), mais um por campo trocado.
 - Quem esquece de confirmar deixa o lançamento em Atrasados e **fora do saldo**: o saldo pode destoar do extrato até alguém
   confirmar (o aviso do Telegram continua).
-- O Histórico deixa de mostrar previstos, e o filtro "Incluir eventos futuros" da busca some.
+- O Histórico deixa de mostrar previstos, o filtro "Incluir eventos futuros" da busca some, e o **total da lista e a soma por mês saem da tela até o item 42**.
 - Prever e Estender precisam achar os previstos existentes (duplicados e última ocorrência da série) pela lista de Futuros, não
   mais pelos 1000 lançamentos carregados.
 - A lista de Futuros lê o espaço inteiro a cada chamada (sem chave nova). Se pesar, um índice é decisão do dono.

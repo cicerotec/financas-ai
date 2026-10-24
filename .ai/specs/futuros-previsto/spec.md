@@ -4,7 +4,7 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
 (`P-T<n>` para o backend da fase A), para o PR dizer exatamente o que cobriu. Quando este texto e o do intent divergirem, vale o
 plan.
 
-**Estado:** rascunho para aprovação, revisto em 2026-10-24. Nada implementado. O nome do campo (`previsto`) depende do dono. Vem
+**Estado:** rascunho para aprovação, revisto em 2026-10-24. Nada implementado. O nome do campo, **`previsto`** (booleano), foi aprovado pelo dono em 2026-10-24. Vem
 **depois** dos itens 40 ([`saldo-servidor`](../saldo-servidor/spec.md)) e 33 fatiado ([`fatura-servidor`](../fatura-servidor/spec.md)).
 
 ## Regras
@@ -74,11 +74,9 @@ plan.
   encolheria para o que já está escolhido), na ordem do catálogo, com os textos fora do catálogo no fim. Assim `CREDITO IN` aparece em 2019 e um `PAGO`
   de 2018 reclassificado para `PIX` aparece no filtro de 2018. O parâmetro `status` filtra pelo **texto gravado**. O front só exibe a lista e devolve
   a escolha.
-- **R12c.** **Resumo do Histórico pelo servidor.** `GET /tx` devolve `resumo: { n, total }` do **filtro inteiro**, não só da página: `total` é a soma com
-  sinal (`+valor` de entrada, `−valor` de saída) dos itens, a mesma conta da soma da lista exibida de hoje, arredondada a 2 casas, sem regra de
-  status. Os ocultos ficam fora, a não ser com `ocultos=1` (e então entram no `n` e no `total`). Com `agrupar=mes`, devolve também
-  `meses: [{ mes, n, total }]`. Os filtros que o servidor entende são período, banco (meio), status, texto e ocultos; **tags e combos continuam no
-  navegador até o item 42**, então o resumo do servidor não os considera (ver "Aberto" no plan).
+- **R12c.** **O Histórico não mostra total até o item 42** (decisão do dono, 2026-10-24). O **total da lista exibida** e a **soma por mês** saem da tela, e `GET /tx` **não**
+  devolve `resumo` nem `meses`: o front deixa de somar no Histórico (`somaLista` e as somas por mês). O resumo do filtro inteiro, com o filtro de tags no servidor, volta
+  com o item 42.
 - **R13.** `excluirDoTotal` **deixa de vir do cliente**: o servidor o calcula do catálogo (e do `transferParId`) em criar, editar e
   importar. O valor do corpo é descartado. (Depois que o front parar de enviá-lo, o corpo que o trouxer passa a ser `400`.)
 - **R14.** Transferência entre bancos é **um comando do servidor**: `POST /spaces/{sid}/transferencias` com
@@ -125,7 +123,7 @@ plan.
 - **R26.** A rotina diária de avisos só avisa um lançamento que `EhPrevisto` e não esteja oculto (no lugar de
   `EhStatusFuturo(listas, status)`). Confirmar, ocultar ou excluir encerra o aviso. O item auxiliar `AVISOS#ATIVOS` não muda.
 
-## Dados (a aprovar pelo dono)
+## Dados (aprovados pelo dono em 2026-10-24)
 
 Um **atributo opcional** no lançamento, sem chave nova, sem índice e sem item novo:
 
@@ -161,13 +159,12 @@ O Lançar mostra a linha "Fatura" quando o meio escolhido tem `"cartao": true` (
 { "data": "2018-03-10T15:00:00.000Z", "todos": true, "status": ["PAGO", "CREDITO"] }
 ```
 
-### `GET /spaces/{sid}/tx?de=2019-03-01&ate=2019-03-31&agrupar=mes` (os trechos novos)
+### `GET /spaces/{sid}/tx?de=2019-03-01&ate=2019-03-31` (os trechos novos)
 
 ```json
 { "itens": [ { "id": "c5m1x7q3w9e2r4t6y8u0", "descricao": "Notebook 1/6", "valor": 289.9, "tipo": "saida", "status": "CREDITO IN",
                "rotulo": "CREDITO IN", "corPadrao": "#378ADD", "banco": "CARTAO-A", "dataEvento": "2019-03-10T15:00:00.000Z" } ],
   "filtros": { "status": ["PAGO", "CREDITO IN", "CREDITO EX"] },
-  "resumo": { "n": 1, "total": -289.9 }, "meses": [ { "mes": "2019-03", "n": 1, "total": -289.9 } ],
   "proximo": "" }
 ```
 
@@ -279,7 +276,7 @@ Relógio fixo em 2026-10-24 (como o `cenario` já faz); dados fictícios.
 | P-T40 | `confirmar` com `CREDITO IN` ou com outro status não selecionável | `400` |
 | P-T41 | `GET /tx`: `rotulo` e `corPadrao` de um `CREDITO IN` e de um texto fora do catálogo | os do catálogo; o gravado e cor neutra |
 | P-T42 | `GET /tx` com `filtros.status`: período de 2019 (com `CREDITO IN` e `CREDITO EX` gravados), mês recente, com `status=PAGO` ativo, e um texto fora do catálogo | só o que aparece no período; a lista **não** encolhe com o filtro de status; o texto de fora no fim |
-| P-T43 | `GET /tx` com 5 000 lançamentos: `resumo` do filtro inteiro, com meio e status, com e sem `ocultos=1`; `agrupar=mes` | `n` e `total` batem com a soma das páginas; ocultos só entram com o parâmetro; `meses` certos |
+| P-T43 | `GET /tx` com 5 000 lançamentos, várias páginas | devolve `itens`, `filtros` e `proximo`; **não** devolve `resumo` nem `meses` |
 | P-T44 | `GET /spaces/{sid}/status?data=` para 2019 e para hoje, e com `todos=1`; uma entrada com `desde` no futuro | a sugerida para a data; todas as selecionáveis; a de `desde` futuro some da sugestão e aparece em `todos=1` |
 | P-T45 | O catálogo contra os padrões de hoje: `afetaSaldoBanco` (`PAGO`, `CONTAS`), `statusReal` falso e `statusFuturo` verdadeiro nos três previstos, `excluirDoTotal` (`CONTAS`, `TRANSFERINDO`) | iguais |
 | P-T46 | **Reclassificar o passado** com um catálogo de teste que tem `PIX` e `DEBITO` contando no saldo: `PAGO` de 2018 para `PIX`, em mês conferido, em mês fechado e antes do início | aceito nos três (o efeito não muda; a trava não é tocada); a versão guarda quem e quando |
@@ -290,7 +287,7 @@ quebre o código de propósito uma vez para vê-los falhar.
 
 ## O que muda no front (fases B e C; o front só exibe)
 
-- **Fase B:** a aba Futuros lê `GET /futuros` (resumo e Atrasados prontos, sem saldo por mês); a ação **Confirmar**
+- **Fase B:** **o total da lista e a soma por mês saem do Histórico** (R12c, pedido do dono; sem demo); a aba Futuros lê `GET /futuros` (resumo e Atrasados prontos, sem saldo por mês); a ação **Confirmar**
   (janela de baixo com Valor, Data e Status e o botão verde da tabela), o aviso de 6 s com Desfazer (chama a restauração) e os
   textos "Já paguei" e "Já recebi" da demo aprovada; o Histórico passa a receber só o que `GET /tx` devolve. O seletor de Status da
   janela usa a lista do servidor: vem com o status atual escolhido e, se ele não está na lista (um antigo), com o **primeiro** da
