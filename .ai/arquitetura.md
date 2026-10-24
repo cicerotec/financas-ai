@@ -267,10 +267,17 @@ Só a aba **Futuros** entra nesta rodada. Decisões:
 - **Status são do backend.** `status`, `statusReal`, `afetaSaldoBanco` e `statusFuturo` deixam de ser editáveis pelo app
   e `statusFuturo` não vai mais ao front. `salvarListas` continua gravando o resto de `config/listas` (bancos, cores
   e `statusCor`, `estiloCor`, aparência e ordem dos saldos) e o servidor ignora qualquer mudança nos campos de status.
-  O front só exibe o texto do status do lançamento.
+  **Regra do dono (2026-10-24): o front não trata status de forma nenhuma.** O backend **manda a lista de status** (no corte,
+  `["PAGO", "CREDITO"]`; no futuro `PIX`, `DREX`, `DEBITO`...), e o front só a exibe, guarda a escolha da pessoa e a
+  **devolve como veio** (o texto da opção, nunca um índice). Não há lista fixa no front (a de `app.js:5` deixa de existir), nem
+  predicado por nome (`ehFuturo`, `afetaSaldo`, `ehCredito`...), nem cor ou regra escondida em nome. O texto do status de um
+  lançamento antigo continua aparecendo como está gravado. Um teste de CI falha se um nome de status voltar a `web/`.
+- **O backend manda pronto o que antes o front deduzia do status:** `previsto`, o que é cartão (`bancos: [{nome, cartao}]` na
+  lista de bancos, sem chamada extra), `excluirDoTotal` (calculado pelo servidor), a fatura efetiva e o padrão do ajuste, e
+  a transferência entre bancos (um comando que cria as duas pontas).
 - **Lançamentos antigos** com `PREVISTO`, `TRANSFERINDO` ou `CREDITANDO` **ficam como estão** (eram só previsões, nada é
   regravado) e continuam em Futuros, os do passado em Atrasados, até alguém tratar. Ao confirmar um deles, a janela abre
-  com `PAGO` escolhido e a pessoa troca por `CREDITO IN` ou `CREDITO EX` se for o caso; os três nomes antigos não aparecem na lista de
+  com o **primeiro status da lista do servidor** escolhido (hoje `PAGO`) e a pessoa troca se for o caso; os três nomes antigos não aparecem na lista de
   status da janela. Editar e excluir seguem como hoje. Não há migração em massa; o backend tem uma única função que
   responde "isto é futuro?".
 - **Fora desta rodada:** o desmembramento do `PAGO` por tipo e meio (recebimento, débito, pix, drex, cripto), o destino
@@ -281,13 +288,17 @@ Só a aba **Futuros** entra nesta rodada. Decisões:
 
 ## Ordem de execução proposta
 1. Histórico imutável de lançamentos, dentro da nova estrutura de camadas (item 31 sobre 32).
-2. Fatura do cartão calculada no backend, com a trava de fatura conferida (item 33).
-3. Regras de futuro, real e afeta saldo aplicadas pelo backend (item 33). **Revisto em 2026-10-18:** em vez das caixas de
-   Listas, o catálogo de status é do backend e o futuro é o marcador `previsto`. Antes disso vem o saldo calculado no
-   servidor, que fecha a brecha descrita acima (item 40); os dois andam juntos com o item 41.
-4. Avisos pelo despachante e canais (item 34).
-5. Pagar fatura com valor do boleto e vínculo (item 35).
-6. Remover `financas-app.html`, que só o README cita (item 36).
+2. **Saldo, fechamento e conferência calculados e validados no servidor (item 40)**, que fecha a brecha descrita acima. **Revisto em
+   2026-10-24:** é o primeiro da fila, porque o front só deixa de tratar status quando para de somar. Spec em
+   [`specs/saldo-servidor/`](specs/saldo-servidor/spec.md).
+3. **Fatura do cartão calculada no backend (item 33, fatia a)**; a trava de fatura conferida e o cartão como entidade própria
+   ficam na fatia b. Spec em [`specs/fatura-servidor/`](specs/fatura-servidor/spec.md).
+4. **Futuros, marcador `previsto` e status do backend (item 41)**, com a lista de status mandada pelo servidor e o front sem
+   status. Spec em [`specs/futuros-previsto/`](specs/futuros-previsto/spec.md). (Em 2026-10-18 isto estava no item 33 com as caixas
+   de Listas; mudou.)
+5. Avisos pelo despachante e canais (item 34).
+6. Pagar fatura com valor do boleto e vínculo (item 35).
+7. Remover `financas-app.html`, que só o README cita (item 36).
 
 Cada passo é uma fatia vertical (front, controller, service, domain, adapter) de uma regra por vez, com o app seguindo
 no ar. Nenhum passo cria chave no DynamoDB sem aprovação do dono.

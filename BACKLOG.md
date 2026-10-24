@@ -24,8 +24,8 @@ pendentes: nenhum.
 
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
 - [\[Backend\] - **\[Próximo\] Saldo, fechamento e conferência calculados e validados no servidor (segurança):**](#item-40)
-- [\[Backend\] - **\[Próximo\] Futuros: marcador `previsto` e status do backend:**](#item-41)
-- [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe:**](#item-33)
+- [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe (fatia a: faturas do cartão; fatia b depois):**](#item-33)
+- [\[Backend\] - **\[Próximo\] Futuros: marcador `previsto` e status do backend (depois do 40 e do 33a):**](#item-41)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
 - [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
@@ -133,14 +133,19 @@ DynamoDB sem discutir com o dono.**
   bancos e os totais de Futuros e do Histórico (relógio e fuso dele); o cache é gravado só por ele; `Conferir` recebe só o
   saldo do extrato e compara com o que o servidor calculou; campo derivado vindo do cliente é **rejeitado**. Cada
   rejeição ganha um teste que tenta forjar o valor e que falha antes da mudança. Calcular no front só vale para exibir
-  (Tendências). Sugestão de ordem: (1) saldo por banco, total e fechamento, rodando o cálculo antigo e o novo lado a
-  lado com os dados fictícios; (2) totais de Histórico e Futuros (junto com o item 41); (3) faturas do cartão (item 33);
-  (4) conferência e o lançamento de ajuste, que o servidor passa a montar. Os passos 1, 3 e 4 não mudam a aparência das
-  telas; o 2 muda, e vale a regra da demo. Detalhes em [`.ai/arquitetura.md`](.ai/arquitetura.md) e
+  (Tendências). **Primeiro da fila (2026-10-24):** vem antes do 33a e do 41, porque o front só deixa de tratar status quando para
+  de somar. Escopo: saldo por banco e total de **Saldos** e conferência com o extrato (o `GET /saldos`, o cache só do
+  servidor, `Conferir` só com o `real` e o ajuste criado pelo servidor); os totais de Histórico e Futuros ficam com o item 41 e as
+  faturas do cartão com o 33a. Fases: A (backend, só acrescenta), B (a aba Saldos, visual igual, **conferida lado a lado** com a
+  antiga no dev e na produção), C (remove `PUT /fechamentos`). Intent, plan e spec (rascunho) em
+  [`.ai/specs/saldo-servidor/`](.ai/specs/saldo-servidor/intent.md). Detalhes em [`.ai/arquitetura.md`](.ai/arquitetura.md) e
   [`.ai/security.md`](.ai/security.md). Não cria campo no Dynamo por si; qualquer campo novo passa pelo dono. Absorve o
   trecho de saldos do item 14.
 - 41. [ ] <a id="item-41"></a>**[Próximo] Futuros: marcador `previsto` e status do backend:** decisões do dono de 2026-10-18, só a
-  aba Futuros. Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` saem; o lançamento futuro nasce com o status real e um
+  aba Futuros, **depois do 40 e do 33a** (2026-10-24). **Regra do dono: o front não trata status de forma nenhuma.** O
+  backend manda a lista de status (`["PAGO", "CREDITO"]` no corte; no futuro `PIX`, `DREX`, `DEBITO`...), e o front só a
+  exibe, guarda a escolha e a devolve como veio; a lista fixa de `app.js:5` deixa de existir e um teste de CI falha se um nome de
+  status voltar a `web/`. Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` saem; o lançamento futuro nasce com o status real e um
   marcador `previsto` (campo novo no Dynamo, **nome a aprovar**) que o tira do saldo e do total do Histórico até ser
   confirmado. **Quem liga o marcador:** o servidor, em todo lançamento com data depois de hoje; o Prever e o "Repetir ao
   lançar" também (2026-10-24). O servidor entrega Futuros e Histórico prontos: os vencidos **continuam em Atrasados,
@@ -151,13 +156,13 @@ DynamoDB sem discutir com o dono.**
   regravado. **Confirmar** (demo aprovada em 2026-10-24, `.ai/demos/demo-confirmar-previsto.html`): janela com Valor,
   Data e Status, cada um já preenchido e alterável, textos "Confirmar", "Já paguei" e "Já recebi", botão verde na
   tabela, aviso de 6 s com Desfazer (restauração no servidor), data sugerida hoje em mês fechado; ao confirmar um
-  antigo, a janela abre com `PAGO`. Sai do front o que olha status ou soma: `ehFuturo`, `afetaSaldo`, `resumoFuturos`,
+  antigo, a janela abre com o primeiro status da lista do servidor (hoje `PAGO`). Sai do front o que olha status ou soma: `ehFuturo`, `afetaSaldo`, `resumoFuturos`,
   `gruposFuturos`, a soma do Histórico, a inclusão automática de `CREDITANDO` em Listas e o "Status das cópias" do Prever
   (a decidir no spec). Fora daqui: desmembrar o `PAGO` (tipo e meio), o `CONTAS` e o `excluirDoTotal`, e o papel de
   Admin. **Em aberto para o spec:** o nome do campo (proposta `previsto`, booleano gravado só quando ligado; alternativa
   `aConfirmar`; **a aprovar pelo dono**), como o servidor acha todos os previstos sem o limite dos 1000 lançamentos
   mais recentes (só volta ao dono se pedir chave nova) e o que o Prever faz com o "Status das cópias". Demo antes do
-  código para qualquer tela além da de confirmar. Depende do item 40 para os totais. Intent, plan e spec (rascunho, 2026-10-24) em
+  código para qualquer tela além da de confirmar. Depende dos itens 40 e 33a (o navegador já não soma com status). Intent, plan e spec (rascunho, 2026-10-24) em
   [`.ai/specs/futuros-previsto/`](.ai/specs/futuros-previsto/intent.md): fases A (backend), B (Futuros e Confirmar) e C (Listas, Lançar e Prever).
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
@@ -173,6 +178,11 @@ DynamoDB sem discutir com o dono.**
   `porBanco` e o lançamento de crédito liga ao cartão pelo campo `banco`, mas o cartão não é um banco (pode não ter
   nenhum, e o banco que paga a fatura é uma escolha). Passa a ser por cartão, com o vínculo ao lançamento e a migração
   a discutir antes de criar qualquer campo. Absorve o item 14.
+  **Fatiado em 2026-10-24 (vem depois do 40 e antes do 41):** a **fatia a** é a fatura, o total e a conferência no servidor
+  (`GET /cartoes`, `GET .../faturas/{ym}`, comandos de cartão, as sugestões de ajuste portadas para Go, `bancos[].cartao` em
+  `GET /cfg/listas`, validação de `faturaAjuste`, `PUT /cfg/cartoes` removida), com a aba Cartão **conferida lado a lado**; a
+  **fatia b** (o cartão como entidade própria, a trava da fatura conferida e a migração do `faturaAjuste` explícito) segue a discutir.
+  Intent, plan e spec (rascunho) da fatia a em [`.ai/specs/fatura-servidor/`](.ai/specs/fatura-servidor/intent.md).
 - 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
