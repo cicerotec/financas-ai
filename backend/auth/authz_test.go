@@ -133,6 +133,11 @@ func TestRotaParaAcao(t *testing.T) {
 		{"GET", []string{"seq"}, AcaoLerSeq, true},
 		{"POST", []string{"seq"}, "", false},
 		{"GET", []string{"fechamentos"}, AcaoLerFech, true},
+		{"GET", []string{"saldos"}, AcaoLerFech, true}, // o saldo de cada meio, calculado pelo servidor (item 40)
+		{"POST", []string{"saldos"}, "", false},
+		{"PUT", []string{"saldos"}, "", false},
+		{"DELETE", []string{"saldos"}, "", false},
+		{"GET", []string{"saldos", "x"}, "", false},
 		{"PUT", []string{"fechamentos"}, AcaoEscreverFech, true},
 		{"POST", []string{"fechamentos", "conferir"}, AcaoConferirMes, true},
 		{"POST", []string{"fechamentos", "reabrir"}, AcaoReabrirMes, true},

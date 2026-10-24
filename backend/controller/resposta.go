@@ -32,6 +32,7 @@ func respostaErro(err error) (Resp, error) {
 	var fechado *domain.ErroMesFechado
 	var confl *service.ErroConflitoConfig
 	var ordem *service.ErroOrdemFechamento
+	var dif *service.ErroDiferenca
 	switch {
 	case errors.As(err, &ev):
 		return Erro(http.StatusBadRequest, ev.Error())
@@ -41,6 +42,8 @@ func respostaErro(err error) (Resp, error) {
 		return Out(http.StatusConflict, domain.Doc{"erro": confl.Error(), "atual": confl.Atual})
 	case errors.As(err, &ordem): // conferir ou reabrir fora da sequencia
 		return Out(http.StatusConflict, domain.Doc{"erro": ordem.Error(), "codigo": "ordem"})
+	case errors.As(err, &dif): // o extrato nao bate com o saldo que o servidor calculou
+		return Out(http.StatusConflict, domain.Doc{"erro": dif.Error(), "codigo": "diferenca", "calculado": dif.Calculado, "real": dif.Real, "diferenca": dif.Diferenca})
 	case errors.Is(err, service.ErrTelegramNaoConfigurado):
 		return Erro(http.StatusServiceUnavailable, err.Error())
 	case errors.Is(err, service.ErrTelegramRecusou):

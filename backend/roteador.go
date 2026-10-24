@@ -93,6 +93,9 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 	case auth.AcaoLerSeq:
 		return s.cfg.GetSeq(ctx, sid)
 	case auth.AcaoLerFech:
+		if p[2] == "saldos" {
+			return s.fech.GetSaldos(ctx, sid)
+		}
 		return s.fech.GetFechamentos(ctx, sid)
 	case auth.AcaoEscreverFech:
 		return s.fech.PutFechamentos(ctx, sid, body)

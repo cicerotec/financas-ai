@@ -109,6 +109,8 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		case "PUT":
 			return AcaoEscreverFech, true
 		}
+	case len(rest) == 1 && rest[0] == "saldos" && metodo == "GET": // o saldo de cada meio, calculado pelo servidor (item 40)
+		return AcaoLerFech, true
 	case len(rest) == 2 && rest[0] == "fechamentos" && rest[1] == "conferir" && metodo == "POST":
 		return AcaoConferirMes, true
 	case len(rest) == 2 && rest[0] == "fechamentos" && rest[1] == "reabrir" && metodo == "POST":

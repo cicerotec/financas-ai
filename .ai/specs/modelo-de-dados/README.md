@@ -25,7 +25,7 @@ justamente porque o conteúdo é inventado.
 | `SPACE#<sid>` | `CFG#COMBOS` | Combos de tags | `main.go` |
 | `SPACE#<sid>` | `CFG#SALDOS` | Início do controle por banco (`dataInicio`, `saldoInicial`) | `fechamento.go` |
 | `SPACE#<sid>` | `CFG#CARTOES` | **Hoje por banco** (`porBanco[banco]`): `diaPadrao`, `inicio` e `faturas["AAAA-MM"]` (`fechamento`, `valorBanco`, `conferida`). **Dívida:** o cartão não é um banco (pode não ter nenhum, e quem paga a fatura é uma escolha); deve virar uma entidade própria, por cartão, no item 33 do BACKLOG | front (`atualizarConfigCartoes`) |
-| `SPACE#<sid>` | `SALDO#<banco>` | Fechamento mensal do banco: `caches`, `conferidos`, `invalidoDe`, `base` | `fechamento.go` |
+| `SPACE#<sid>` | `SALDO#<banco>` | Fechamento mensal do banco: `caches`, `conferidos`, `invalidoDe`, `base` (gravados **só pelo servidor**, ver abaixo) | `service/saldos.go`, `service/fechamento.go` |
 | `SPACE#<sid>` | `USER#<sub>#CFG#APARENCIA` | Aparência da própria pessoa (cores, estilo) | `main.go` |
 | `SPACE#<sid>` | `TX#<dataEvento>#<id>` | Um lançamento. Excluído logicamente, ganha `excluidoEm` (histórico, Fase 1) | `repository/lancamento.go` (`Salvar`), `repository/dynamo.go` (`TxSK`) |
 | `HIST#<sid>` | `TX#<id>#<versão com 8 dígitos>` | Uma versão de um lançamento (histórico, Fase 1) | `repository/lancamento.go` (`Salvar`, `HistSK`); veja [`specs/historico/`](../historico/spec.md) |
@@ -68,6 +68,16 @@ O histórico só recebe versões novas, gravadas junto com o lançamento na mesm
 Sem migração: a versão 1 nasce na primeira edição ou exclusão de **qualquer** lançamento que ainda não tem versão (desde 2026-10-23, criar e importar `id` novo não gravam versão, exceto quando exigiram confirmação de mês fechado). A vida de um lançamento (versão
 1 preguiçosa, edição, exclusão) está em [`hist-versao_insert.json`](dynamodb-single-table/hist-versao_insert.json),
 [`_update`](dynamodb-single-table/hist-versao_update.json) e [`_delete`](dynamodb-single-table/hist-versao_delete.json).
+
+## Fechamento do banco (`SALDO#<banco>`)
+Desde o item 40 (fase A) o **servidor** calcula o saldo e grava este item; o navegador não manda mais nenhum número.
+- `caches`: o fechamento (saldo ao fim do mês) de cada mês **encerrado** (anterior ao atual), só para não reler o histórico inteiro. Gravado por `GET /saldos`
+  com o controle otimista da `version` lida **antes** dos lançamentos; só existe com `dataInicio` configurada.
+- `base`: a assinatura da configuração com a qual os caches foram calculados: `v2|<saldoInicial>|<dataInicio>|<status que afetam o saldo>/<status de evento futuro>`
+  (os nomes ligados, em ordem alfabética). Um cache com outra `base` não vale. O prefixo `v2` invalidou, de uma vez, os caches que o navegador gravava antes.
+- `invalidoDe`: o mês mais antigo alterado desde o último cache; a partir dele o cache não vale. Qualquer escrita que mexe no saldo o marca e muda a `version`.
+- `conferidos[AAAA-MM]`: `{ saldo, real, em, por, ajuste? }`. `saldo` é o que o **servidor** calculou na conferência (não o do cliente); `real` é o extrato; `ajuste`, o lançamento
+  de ajuste que a própria conferência criou (com sinal). Exemplo: [`space-saldo.json`](dynamodb-single-table/space-saldo.json).
 
 ## Regra para mexer neste modelo
 Nenhuma chave ou campo novo no DynamoDB sem discutir antes com o dono (veja [`guardrails.md`](../../guardrails.md)).
