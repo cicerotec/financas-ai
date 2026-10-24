@@ -123,7 +123,7 @@ Aprovado pelo dono em 2026-10-16 ([`demos/demo-historico-versoes.html`](demos/de
   atual, que é o padrão) e o campo de texto com o botão Buscar (Enter também busca). O texto olha a descrição e a nota de qualquer
   versão do mês.
 - **Lista (padrão 8):** uma linha por lançamento com a última alteração do mês: descrição (até 2 linhas), data · banco, a pílula
-  (Original, Alterado, Excluído ou Restaurado; "Original" é a versão 1, o estado de antes da primeira alteração; a tela ainda diz "Criado" até a Fase 1b do histórico), quem e quando, o valor e "versão N". Mês sem alteração mostra o estado vazio, e
+  (Original, Alterado, Excluído ou Restaurado; "Original" é a versão 1, o estado de antes da primeira alteração), quem e quando, o valor e "versão N". Mês sem alteração mostra o estado vazio, e
   `truncado` mostra a faixa "Há mais versões do que a tela mostra. Refine a busca ou escolha outro mês."
 - **Versões:** tocar abre a **tela cheia** com ← (padrão 2); a mais nova primeiro, cada uma só com o que mudou (valor antes → depois).
   A v1 (de qualquer lançamento, desde 2026-10-23) diz "Estado antes da primeira alteração registrada."

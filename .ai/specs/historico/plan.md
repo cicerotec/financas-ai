@@ -183,6 +183,7 @@ surpresa:
   `DeleteItem` em `HIST#` negada.
 
 ### Fase 1b: versão só na alteração (decisão 8, 2026-10-23)
+**Estado: implementada** (branch `feature/historico-versao-so-na-alteracao`). Escolha do dono: a criação que **exigiu confirmação de mês fechado** continua gravando a versão 1, com a confirmação, para a promessa "a confirmação fica gravada no histórico" valer; só nesse caso criar ou importar `id` novo grava versão.
 - `Criar` e o ramo "`id` novo" do `Importar` passam a gravar só o lançamento (sem versão). Editar, excluir, restaurar e a
   sobrescrita na importação ficam como estão (a v1 preguiçosa já existe em `VersoesDaEscrita`).
 - Testes: o de criar e o de importar `id` novo passam a afirmar que **não há versão** e **falham antes da mudança**; os de

@@ -82,7 +82,7 @@ DynamoDB sem discutir com o dono.**
   do registro atual (`TransactWriteItems`) e com checagem de versão contra edição concorrente. Excluir passa a ser
   lógico, com o campo `excluidoEm` só nos excluídos; restaurar cria versão nova; o histórico nunca é editado nem
   apagado (sem método no repositório e `Deny` por IAM em `HIST#*`). **Só lançamentos** nesta entrega; configurações e
-  fechamentos ficam para depois. **Sem migração:** a versão 1 nasce na primeira edição ou exclusão do lançamento. **Ajuste de 2026-10-23 (Fase 1b, a fazer):** criar e importar `id` novo deixam de gravar versão e a v1 passa a se chamar "Original" na tela; roteiro em [`.ai/specs/historico/`](.ai/specs/historico/).
+  fechamentos ficam para depois. **Sem migração:** a versão 1 nasce na primeira edição ou exclusão do lançamento. **Ajuste de 2026-10-23 (Fase 1b, implementada):** criar e importar `id` novo deixam de gravar versão e a v1 passa a se chamar "Original" na tela; roteiro em [`.ai/specs/historico/`](.ai/specs/historico/).
   Decisões fechadas com o dono em 2026-10-15; PITR já está ligado em prod. Pontos que valem: as rotas atuais de `/tx`
   mantêm o contrato e passam sempre pelo service (só as rotas de histórico são novas); a tela "Histórico de versões"
   busca por **mês de alteração**; o GSI por data entra depois, quando a leitura pesar; a capacidade da tabela (5 WCU)

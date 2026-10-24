@@ -5,9 +5,9 @@ cada teste tem um id (`F<fase>-T<n>`), para o PR dizer exatamente o que cobriu. 
 divergirem, vale o plan, que registra as decisões do dono de 2026-10-15.
 
 **Estado:** aprovado pelo dono. Fases 0 a 2 implementadas e verificadas em dev (PRs #100, #102 e #106); a 3 (tela) implementada
-(PR #111), falta conferir no app de dev. **Ajuste de 2026-10-23 (Fase 1b, a implementar):** criar e importar `id` novo não gravam
-versão; a versão só nasce na alteração. As regras R2, R4, R5 e R10, os testes F1-T1, F1-T3, F1-T8, F1-T13, F1-T14 e F2-T10 e os exemplos 1, 2 e 6
-deste documento já descrevem o comportamento novo; o código ainda faz o antigo até a Fase 1b.
+(PR #111), falta conferir no app de dev. **Ajuste de 2026-10-23 (Fase 1b, implementada):** criar e importar `id` novo não gravam
+versão; a versão só nasce na alteração (exceção: a criação ou importação que exigiu confirmação de mês fechado grava a versão 1, com a confirmação). As regras R2, R4, R5 e R10, os testes F1-T1, F1-T3, F1-T8, F1-T13, F1-T14 e F2-T10 e os exemplos 1, 2 e 6
+deste documento descrevem o comportamento novo.
 
 **Como usar:** uma fase por PR, na ordem. Cada fase só termina quando todos os seus testes passam e o "Pronto quando"
 está marcado. Teste de regra de negócio é teste de backend (`go test ./...` em `backend/`); o front não decide nada.
@@ -56,7 +56,7 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
   **Criar (e importar `id` novo) grava só o item vivo, sem versão.**
 - **R3.** `versao` = (maior versão do `id`) + 1. Duas escritas concorrentes disputam a mesma `SK`: a segunda recebe
   `409` com `codigo: "conflito_versao"` e nada é gravado.
-- **R4.** **Criar não grava versão** (nem pelo app, nem por importação de `id` novo): o item vivo nasce com `criadoPor` e `criadoEm`. **Editar** (inclui ocultar, ajustar fatura e mudar a data)
+- **R4.** **Criar não grava versão** (nem pelo app, nem por importação de `id` novo): o item vivo nasce com `criadoPor` e `criadoEm`. **Exceção:** se a criação exigiu confirmação de mês fechado por data (item 38), grava a versão 1 `insert` com `confirmouMesFechado = true`, porque essa é a única forma de a confirmação ficar no histórico. **Editar** (inclui ocultar, ajustar fatura e mudar a data)
   grava uma versão `update`; mudar a data gera **uma** versão, não duas.
 - **R5. Versão 1 preguiçosa (a única origem da v1).** Se o lançamento não tem nenhuma versão (qualquer lançamento ainda não alterado, antigo ou novo) e vai ser editado ou excluído, a mesma
   transação grava duas versões: **v1** = estado de antes (`insert`, `porSub` vazio) e **v2** = estado de depois.
@@ -345,7 +345,8 @@ Entrega: `HIST#`, R2 a R11, `excluidoEm`, `Deny` no `template.yaml`. Capacidade 
 | F1-T15 | Repository: nenhuma expressão de escrita de versão sem `attribute_not_exists(SK)` | O teste falha se alguma faltar |
 | F1-T16 | Repository e service | Não existe método de editar ou apagar versão (teste de reflexão sobre a interface) |
 | F1-T17 | Nenhuma rota monta `HIST#` a partir do corpo ou da query | Teste varre os controllers |
-| F1-T18 | Importar um lote só com `id` novos | Nenhum item em `HIST#` (falha antes da Fase 1b) |
+| F1-T18 | Importar um lote só com `id` novos, sem exigir confirmação | Nenhum item em `HIST#` (falha antes da Fase 1b) |
+| F1-T19 | Criar ou importar `id` novo que exigiu confirmação de mês fechado | Grava a versão 1 `insert` com `confirmouMesFechado = true` (único caso em que criar grava versão) |
 
 **Verificação em dev (manual, registrada no PR):**
 1. `sam deploy` na stack `financas-dev`.
@@ -367,7 +368,7 @@ Entrega: `HIST#`, R2 a R11, `excluidoEm`, `Deny` no `template.yaml`. Capacidade 
           dynamodb:LeadingKeys: ['HIST#*']
 ```
 
-**Pronto quando:** F1-T1 a F1-T18 passam; a verificação em dev está colada no PR; `security.md` e
+**Pronto quando:** F1-T1 a F1-T19 passam; a verificação em dev está colada no PR; `security.md` e
 `specs/modelo-de-dados/` (chave `HIST#`, `excluidoEm`, exemplo fictício) atualizados.
 
 ### Fase 2: busca por mês, diff e restauração (API)
