@@ -97,7 +97,7 @@ front com `.\scripts\servir.ps1`. O modo local já responde o CORS de `localhost
 ## Comparar e medir o saldo do servidor (item 40, fase B)
 
 Antes de a aba Saldos passar a usar `GET /saldos`, o saldo do servidor tem de **bater com o da tela antiga** (a que calcula no navegador) e a
-**primeira abertura sem cache** tem de caber na Lambda e na leitura da tabela (`specs/saldo-servidor/plan.md`, "A conferência lado a lado").
+**primeira abertura sem cache** tem de caber na Lambda e na leitura da tabela **como ela é hoje** (`specs/saldo-servidor/plan.md`, "A conferência lado a lado").
 Primeiro no `dev`, depois na produção.
 
 **Pré-requisito:** a fase A mergeada na `develop` e publicada no `dev` (o deploy é automático; confira o changeset e o status final da stack).
@@ -109,18 +109,11 @@ Primeiro no `dev`, depois na produção.
 - **Por isso a comparação de igualdade usa poucos dados** (a carga padrão, de 2025 em diante, uns 2,6 mil lançamentos, que a tela antiga aguenta) e o
   **teste de volume usa dez anos, só no servidor** (`window.COMPARAR_SO_SERVIDOR = true`, que não roda a tela antiga).
 
-### Capacidade de leitura do dev (antes do teste de volume)
-A leitura de 5 RCU não comporta uma partição de dez anos nem em uma chamada sem cache (a conta é de dezenas de MB ≈ centenas ou milhares de RCU; o estoque
-de "burst" é de 300 s × 5 RCU = 1 500). Para o teste, suba o dev por um tempo (o always-free são 25 RCU/WCU no total e a produção usa 5/5, então o dev pode ir a 20
-sem custo) e **volte depois**:
-```powershell
-aws dynamodb update-table --table-name FinancasApp-dev --region sa-east-1 --provisioned-throughput ReadCapacityUnits=20,WriteCapacityUnits=20
-# ... testes ...
-aws dynamodb update-table --table-name FinancasApp-dev --region sa-east-1 --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
-```
-(O próximo deploy da stack também volta a tabela para 5/5, porque o template manda. A AWS limita as reduções de capacidade por dia.)
-**Decidir o que fazer na produção é do dono**: ela também é 5/5 e tem dados desde 2016. Os caminhos são subir a leitura, usar cobrança sob demanda ou fazer o servidor guardar os totais por mês
-para não reler o histórico (uma mudança maior). Os números deste teste dizem qual.
+### A capacidade da AWS não é parte da solução
+O app tem de funcionar com a tabela **como ela está** (5 RCU), sem ninguém mexer na AWS: nem no dev, nem na produção, nem para quem usar o app amanhã. Subir a leitura só esconderia o
+problema. A causa é do desenho: sem cache, o `GET /saldos` lê o histórico inteiro de uma vez. **A correção proposta é ler em partes** (um orçamento de leitura por chamada, gravar o
+que já foi calculado e, se a tabela limitar a leitura, parar com calma em vez de dar `500`), descrita em `specs/saldo-servidor/` quando for aprovada. **Enquanto isso não existir, não
+faça o teste de volume (etapa 2)**: com dez anos de dados ele estoura a leitura.
 
 ### Etapa 1: igualdade (poucos dados)
 1. Dados: `python scripts/dados-ficticios.py <space-id> --confirmar` (a carga padrão). Se o dev já tem dez anos, limpe antes: `python scripts/limpar-espaco.py <space-id> --dev --confirmar`.
@@ -130,7 +123,7 @@ para não reler o histórico (uma mudança maior). Os números deste teste dizem
    A primeira chamada é a sem cache; para repetir uma sem cache, mude e volte o saldo inicial de um banco na aba Saldos (isso muda a base do cache).
    Se a tela antiga falhar com `500`, o script avisa e manda usar o modo só servidor.
 
-### Etapa 2: volume (dez anos, só o servidor)
+### Etapa 2: volume (dez anos, só o servidor) — só depois da leitura em partes
 1. Dados: `python scripts/dados-ficticios.py <space-id> --desde 2016 --confirmar` (uns 14 mil lançamentos; a tabela tem 5 WCU, então leva mais de uma hora, ou bem menos com 20 WCU).
 2. No console do app: `window.COMPARAR_SO_SERVIDOR = true` e Enter; depois cole o script. Ele chama `GET /saldos` três vezes e mostra o saldo de cada meio e os tempos.
 3. Meça o que o navegador não vê (próxima seção).
@@ -158,5 +151,5 @@ foreach ($m in "ConsumedReadCapacityUnits","ReadThrottleEvents") {
 `ReadThrottleEvents` maior que zero explica o `500`. Registre os números no PR.
 
 ### Na produção (só leitura, pelo dono)
-Só depois de a etapa 1 dar `✓ IGUAL` no dev e de decidir a capacidade (acima). Repita a etapa 1 no app de produção, num horário calmo: **o servidor grava o cache de fechamento** (os itens `SALDO#<banco>`) por conta própria
+Só depois de a etapa 1 dar `✓ IGUAL` no dev e de a leitura em partes existir (acima). Repita a etapa 1 no app de produção, num horário calmo: **o servidor grava o cache de fechamento** (os itens `SALDO#<banco>`) por conta própria
 na primeira chamada, e isso é esperado. Se algum meio divergir ou a primeira chamada falhar, **a tela nova não entra**: a tela antiga continua funcionando.
