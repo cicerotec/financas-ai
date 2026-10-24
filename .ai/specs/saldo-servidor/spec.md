@@ -39,7 +39,8 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
   `fora` (quantos ficaram de fora).
 - **R11.** `GET /spaces/{sid}/saldos` devolve um item para cada meio de `CFG#LISTAS` (`meio`, o `banco` gravado; R0 do item 33a), na ordem da lista, mais `total` e
   `mesAtual` (o do relógio do servidor). Banco sem configuração em `CFG#SALDOS` devolve `semInicio: true`. Não há limite de
-  lançamentos e não há o campo `incompleto`.
+  lançamentos e não há o campo `incompleto`. **Leitura em duas passadas:** os meios com início do controle (ou ponto de partida) leem só de lá em diante; os meios **sem** início leem desde o começo, numa passada à parte, para um meio sem configuração não obrigar os outros a
+  ler tudo. Se a leitura desses meios falhar (por exemplo, a tabela limitando a leitura), eles voltam com `erro: true`, ficam fora do total (`total.erros`) e **os outros meios não são afetados**; não é um `500`.
 - **R12.** Depois de calcular, o servidor grava o cache (R7) em `SALDO#<banco>` com controle otimista (`version`): se outra escrita
   mudou o item no meio, **não grava** e devolve o que calculou. Falha de gravação só vai ao log.
 - **R13.** O cliente **não** define `saldo`, `caches`, `base` nem `invalidoDe`. `PUT /spaces/{sid}/fechamentos` **não existe** (Fase C;
