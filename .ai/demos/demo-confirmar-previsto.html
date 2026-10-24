@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Demo aprovada em 2026-10-24: gesto de confirmar um lancamento previsto em Futuros. Gesto A (janela com valor, data e status); o B (direto) foi descartado e fica so para comparar. Vencidos em Atrasados, data sugerida hoje em mes fechado. Ainda nao implementada. Guia: ../padrao-de-telas.md -->
+<title>Confirmar previsto</title>
+<style>
+:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--faint:#8c938d;--line:#e4e2dc;--ck:#d3d6d2;--accent:#0f6b4f;--onaccent:#ffffff;--accent-bg:#dcefe5;--danger:#a3321f;--danger-bg:#f8e6e2;--ok:#1d6b45;--pv-bg:#e8d5b5;--pv-fg:#3b2f17;--cr-bg:#f0c9bd;--cr-fg:#5a2417}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;--pv-bg:#4a3d22;--pv-fg:#f0dfb8;--cr-bg:#5a2a20;--cr-fg:#f6d0c4;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;--pv-bg:#4a3d22;--pv-fg:#f0dfb8;--cr-bg:#5a2a20;--cr-fg:#f6d0c4;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.4;padding-inline:16px;padding-block:18px;margin:0}
+.pg{max-width:1360px;margin-inline:auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.ctl .lb{flex-basis:100%;font-size:12px;color:var(--muted);margin-top:4px}
+.ctl button{padding:8px 12px;border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:10px;font-size:14px;font-family:inherit}
+.ctl button[aria-pressed="true"]{background:var(--card);border-color:var(--accent);color:var(--accent);font-weight:600}
+.read{font-size:13px;color:var(--muted);margin:6px 0 10px;min-height:20px}
+.read b{color:var(--fg)}
+.vpw{overflow:hidden;border-radius:14px;border:1px solid var(--line)}
+.vp{position:relative;background:var(--bg2);transform-origin:top left;box-sizing:border-box}
+.vp.fone{height:680px;overflow:hidden}
+.vp.fone .scr{position:absolute;inset:0;overflow-y:auto}
+.scr{padding:14px 12px 28px}
+.vp:not(.fone) .scr{padding:16px 24px 28px;min-height:520px}
+.col{margin-inline:auto}
+.pill{display:inline-block;padding:2px 8px;border-radius:8px;font-weight:700;font-size:14px;background:color-mix(in srgb,var(--cor) 32%,transparent);color:var(--fg);white-space:nowrap}
+/* realce ao passar o mouse (e ao tocar): a cor do status misturada com o fundo do cartao */
+.dt,.ev{transition:background .12s}
+.vp:not(.sh) .dt:hover,.vp:not(.sh) .dt:focus-within,.vp:not(.sh) .ev:hover,.vp:not(.sh) .ev:active,.vp:not(.sh) .ev:focus-visible{background:color-mix(in srgb,var(--cor) 16%,var(--card))}
+.vp .dt.h:hover{background:transparent}
+.pal{display:flex;gap:8px;align-items:center;flex-basis:100%;margin-top:2px}
+.pal button{width:28px;height:28px;min-width:28px;padding:0;border-radius:50%;border:2px solid var(--line);background:var(--c)}
+.pal button[aria-pressed="true"]{border-color:var(--fg)}
+/* resumo */
+.sum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 10px}
+.sum div{background:var(--card);border-radius:14px;padding:10px 12px;min-width:0}
+.sum small{display:block;color:var(--muted);font-size:12px}
+.sum b{font-size:18px;font-weight:600;display:block;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sum .at{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sum .at b{font-size:16px;color:var(--danger)}
+.sum .at.bad{background:var(--danger-bg)}
+.sum.tres{grid-template-columns:repeat(3,minmax(0,1fr));max-width:600px}
+.sum.tres b{font-size:16px}
+.sum.tres .at{display:block}
+.opt{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;color:var(--muted);font-size:13px}
+.sw{width:44px;height:26px;border-radius:13px;background:var(--ck);position:relative;flex:none}
+.sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+.gt{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;color:var(--muted);margin:10px 4px 6px}
+.gt.bad{color:var(--danger)}
+.gt .sd{flex:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+.gt .sd.in{color:var(--ok)}
+.gt .sd.out{color:var(--danger)}
+.card{background:var(--card);border-radius:16px;overflow:hidden;margin:0 0 6px}
+/* lista: linha toda abre a janela de acoes; "..." mostra que ha acoes */
+.ev{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;row-gap:2px;width:100%;box-sizing:border-box;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);color:var(--fg);font:inherit;padding:11px 8px 11px 14px;min-height:62px;cursor:pointer}
+.ev:first-child{border-top:0}
+.ev .l{flex:1 1 120px;min-width:0}
+.ev .d{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-weight:600}
+.ev.sem-corte .d{display:block;overflow:visible}
+.ev .m{display:block;color:var(--muted);font-size:12.5px;margin-top:1px;overflow-wrap:anywhere}
+.ev .r{text-align:right;flex:0 0 auto;margin-left:auto}
+.ev .v{font-weight:600;display:block;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ev .p{display:block;font-size:12px;color:var(--muted)}
+.mais{flex:none;width:28px;height:36px;display:grid;place-items:center;color:var(--muted)}
+.mais svg{display:block}
+.out{color:var(--danger)}
+.in{color:var(--ok)}
+.bad{color:var(--danger);font-weight:600}
+.ic{font-size:13px;color:var(--accent);flex:none}
+/* tabela */
+.dt{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 316px;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);background:var(--card)}
+.tb.hj .dt{grid-template-columns:92px minmax(170px,1fr) 90px 140px 112px 128px 316px}
+.dt .v small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+.dt .v small.bad{color:var(--danger);font-weight:600}
+.tb.hj .dt .tx{display:block;overflow:visible}
+.dt.h{font-size:12px;color:var(--faint);background:transparent;border-top:0;padding-block:4px}
+.dt .dd{min-width:0}
+.dt .dl{display:flex;align-items:flex-start;gap:6px}
+.dt .tx{font-weight:600;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.dt .sb{display:block;font-size:12.5px;color:var(--muted)}
+.dt .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dt .pz{font-size:12.5px;color:var(--muted)}
+.acts{display:flex;gap:4px;justify-content:flex-end;opacity:.25;transition:opacity .12s}
+.dt:hover .acts,.dt:focus-within .acts{opacity:1}
+.acts button{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;padding:5px 8px;font-size:12.5px;font-family:inherit;white-space:nowrap}
+.acts button.danger{color:var(--danger)}
+.gtw{border-radius:14px;overflow:hidden;margin:0 0 8px}
+/* janela de acoes */
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end}
+.sheet{background:var(--card);width:100%;max-width:640px;margin-inline:auto;border-radius:22px 22px 0 0;padding:14px 8px 10px;box-sizing:border-box}
+.sheet h3{margin:0 8px 2px;font-size:16px;font-weight:600;overflow-wrap:anywhere}
+.sheet .mm{margin:0 8px 8px;color:var(--muted);font-size:13px}
+.ac{display:flex;align-items:center;width:100%;background:transparent;border:0;border-top:1px solid var(--line);color:var(--fg);font:inherit;padding:0 10px;min-height:52px;text-align:left}
+.ac.danger{color:var(--danger)}
+.toast{position:absolute;left:14px;right:14px;bottom:14px;background:var(--fg);color:var(--bg);border-radius:12px;padding:11px 14px;font-size:13px;z-index:2}
+.dec{margin-top:16px;border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--muted);max-width:760px}
+.dec b{color:var(--fg);font-weight:600}
+.dec ul{margin:6px 0 0;padding-left:18px}
+@media (prefers-reduced-motion:reduce){.acts,.dt,.ev{transition:none}}
+</style>
+</head>
+<body>
+<!-- menu-app:inicio (padrao do menu do app; igual em todas as demos. Celular e janela < 1160 px: menu ⋮. Janela larga ou "Computador": abas em botoes, como hoje) -->
+<style>
+.mn{position:sticky;top:0;z-index:60;margin-inline:-16px;padding:0 16px 8px;background:var(--bg);border-bottom:1px solid var(--line,var(--border));margin-bottom:12px}
+.mn *{box-sizing:border-box}
+.mn .mn-pills{display:none}
+.mn .mn-t{font-size:18px;font-weight:700;margin:10px 0 8px}
+.mn .mn-pills{gap:6px;overflow-x:auto;padding-bottom:2px}
+.mn .mn-pills button{border:1px solid var(--line,var(--border));background:var(--card);color:var(--fg,var(--text));padding:7px 12px;border-radius:20px;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
+.mn .mn-pills button.on{background:var(--accent);color:var(--onaccent,#fff);border-color:var(--accent)}
+.mn .mn-bar{display:flex;align-items:center;gap:8px;min-height:52px}
+.mn .mn-nome{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.mn .mn-app{font-size:11px;color:var(--muted)}
+.mn .mn-tela{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mn .mn-ib{width:48px;height:48px;border:0;background:transparent;color:var(--fg,var(--text));border-radius:50%;cursor:pointer;display:grid;place-items:center;flex:none;padding:0}
+.mn .mn-ib[aria-expanded="true"]{background:var(--accent-bg,rgba(95,185,138,.2))}
+.mn .mn-ib svg{width:24px;height:24px}
+.mn .mn-shade{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:61}
+.mn .mn-drop{position:absolute;top:52px;right:10px;width:240px;max-width:calc(100vw - 20px);background:var(--card);color:var(--fg,var(--text));border:1px solid var(--line,var(--border));border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:6px;z-index:62}
+.mn .mn-grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px}
+.mn .mn-grp:first-child{padding-top:6px}
+.mn .mn-it{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;border:0;background:transparent;color:inherit;font:inherit;font-size:15px;text-align:left;padding:0 10px;border-radius:10px;cursor:pointer}
+.mn .mn-it:hover,.mn .mn-it.on{background:var(--accent-bg,rgba(95,185,138,.2))}
+.mn .mn-it.on{font-weight:600}
+.mn .mn-ic{width:22px;text-align:center;font-size:17px;flex:none}
+.mn .mn-ck{margin-left:auto;color:var(--accent);font-weight:700}
+.mn hr{border:0;border-top:1px solid var(--line,var(--border));margin:4px 6px}
+.mn .mn-nota{font-size:11px;color:var(--muted);padding:6px 10px 4px;line-height:1.35}
+.mn[hidden],.mn [hidden]{display:none!important}
+/* largura da janela de computador: abas em botoes, sem o menu */
+@media (min-width:1160px){.mn.mn-auto .mn-bar{display:none}.mn.mn-auto .mn-pills{display:flex}}
+.mn.mn-largo .mn-bar{display:none}.mn.mn-largo .mn-pills{display:flex}
+</style>
+<header class="mn mn-auto" id="mn" data-tela="futuros"></header>
+<script>
+(function(){
+  var el=document.getElementById('mn'); if(!el) return;
+  var T=[['lancar','Lançar','✏️','Dia a dia'],['historico','Histórico','🕘','Dia a dia'],['futuros','Futuros','📅','Dia a dia'],
+         ['cartao','Cartão','💳','Acompanhar'],['saldos','Saldos','🏦','Acompanhar'],['tendencias','Tendências','📈','Acompanhar'],
+         ['listas','Listas','🏷️','Configurar'],['configuracoes','Configurações','⚙️','Configurar']];
+  var atual=el.getAttribute('data-tela')||'lancar';
+  var MAIS='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+  function nome(){for(var i=0;i<T.length;i++)if(T[i][0]===atual)return T[i][1];return '';}
+  function fechar(){var d=el.querySelector('.mn-drop'),s=el.querySelector('.mn-shade'),b=el.querySelector('.mn-ib');
+    if(d)d.hidden=true;if(s)s.hidden=true;if(b)b.setAttribute('aria-expanded','false');}
+  function montar(){
+    var g='',m='';
+    T.forEach(function(t){
+      if(t[3]!==g){if(g)m+='<hr>';m+='<div class="mn-grp">'+t[3]+'</div>';g=t[3];}
+      var on=t[0]===atual;
+      m+='<button type="button" class="mn-it'+(on?' on':'')+'" role="menuitem" data-id="'+t[0]+'"><span class="mn-ic">'+t[2]+'</span>'+t[1]+(on?'<span class="mn-ck">✓</span>':'')+'</button>';
+    });
+    el.innerHTML=
+      '<div class="mn-t">💰 Finanças da Família</div>'+
+      '<div class="mn-pills">'+T.map(function(t){return '<button type="button" data-id="'+t[0]+'" class="'+(t[0]===atual?'on':'')+'">'+t[1]+'</button>';}).join('')+'</div>'+
+      '<div class="mn-bar"><div class="mn-nome"><span class="mn-app">💰 Finanças da Família</span><span class="mn-tela">'+nome()+'</span></div>'+
+      '<button type="button" class="mn-ib" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">'+MAIS+'</button></div>'+
+      '<div class="mn-shade" hidden></div>'+
+      '<div class="mn-drop" role="menu" aria-label="Telas do app" hidden>'+m+'<div class="mn-nota">Na demo, trocar de tela só muda o destaque do menu.</div></div>';
+    el.querySelector('.mn-t').style.display='';
+    var ib=el.querySelector('.mn-ib'),d=el.querySelector('.mn-drop'),s=el.querySelector('.mn-shade');
+    ib.onclick=function(){var abrir=d.hidden;fechar();if(abrir){d.hidden=false;s.hidden=false;ib.setAttribute('aria-expanded','true');}};
+    s.onclick=fechar;
+    el.querySelectorAll('[data-id]').forEach(function(b){b.onclick=function(){atual=b.getAttribute('data-id');montar();};});
+  }
+  // o "Computador" das demos liga body.wide: nessa visao valem as abas em botoes mesmo numa janela estreita
+  function largo(){el.classList.toggle('mn-largo',document.body.classList.contains('wide'));}
+  new MutationObserver(largo).observe(document.body,{attributes:true,attributeFilter:['class']});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')fechar();});
+  montar();largo();
+})();
+</script>
+<style>.mn .mn-t{display:none}@media (min-width:1160px){.mn.mn-auto .mn-t{display:block}}.mn.mn-largo .mn-t{display:block}</style>
+<!-- menu-app:fim -->
+<style>
+.ac.pri{color:var(--accent);font-weight:600}
+.ac .st{display:block}
+.ac small{display:block;color:var(--muted);font-weight:400;font-size:12.5px}
+.fr{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:0 14px;border-top:1px solid var(--line)}
+.fr label{font-weight:600}
+.fr select,.fr input{background:transparent;color:var(--fg);border:0;font:inherit;text-align:right;min-width:0;max-width:60%;padding:8px 0}
+.note{margin:8px 14px 0;color:var(--muted);font-size:13px}
+.warn{margin:8px 14px 0;padding:8px 10px;border-radius:10px;background:var(--danger-bg);color:var(--danger);font-size:13px}
+.btns{display:flex;gap:10px;padding:12px 14px 6px}
+.btns button{flex:1;min-height:52px;border:0;border-radius:14px;font:inherit;font-weight:600}
+.btns .no{background:var(--ck);color:var(--fg)}
+.btns .ok{background:var(--accent);color:var(--onaccent)}
+.ov.c{align-items:center;justify-content:center}
+.sheet.c{border-radius:18px;max-width:460px;padding-bottom:12px}
+.toast{display:flex;justify-content:space-between;align-items:center;gap:10px;overflow:hidden}
+.toast button{background:transparent;border:0;color:inherit;font:inherit;font-weight:700;text-decoration:underline;min-height:36px;padding:0 4px}
+.toast .bar{position:absolute;left:0;bottom:0;height:3px;background:var(--accent);animation:barra 6s linear forwards}
+@keyframes barra{from{width:100%}to{width:0}}
+@media (prefers-reduced-motion:reduce){.toast .bar{animation:none;width:100%}}
+.acts button.pri{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
+.dt{grid-template-columns:92px minmax(170px,1fr) 90px 110px 128px 400px}
+.dt.h .acts{opacity:1}
+.vazio{padding:22px 16px;color:var(--muted);text-align:center;font-size:14px}
+.dia{display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--muted);margin:10px 4px 6px}
+.nota-h{color:var(--muted);font-size:13px;margin:0 4px 8px}
+.tl{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+</style>
+<div class="pg">
+<h1>Confirmar um lançamento previsto</h1>
+<p class="sub">Demonstração. Hoje, aqui, é 24/10/2026 e setembro já fechou. Toque numa linha (ou, na tela larga, no botão da linha) e escolha <b>Confirmar</b>. Nada é salvo no app. Valores e nomes são fictícios.</p>
+<div class="ctl" role="group" aria-label="Largura da janela">
+  <span class="lb">Largura da janela</span>
+  <button type="button" data-w="320">320 px · celular pequeno</button>
+  <button type="button" data-w="390">390 px · celular</button>
+  <button type="button" data-w="1130">1130 px · lista</button>
+  <button type="button" data-w="1400">1400 px · tabela</button>
+</div>
+<div class="ctl" role="group" aria-label="Opções da demonstração">
+  <span class="lb">Tela</span>
+  <button type="button" id="bFut" aria-pressed="true">Futuros</button>
+  <button type="button" id="bHist" aria-pressed="false">Histórico (o que já conta no saldo)</button>
+  <span class="lb">Gesto de confirmar</span>
+  <button type="button" id="bA" aria-pressed="true">A · com janela (valor, data e status)</button>
+  <button type="button" id="bB" aria-pressed="false">B · direto, um toque</button>
+  <span class="lb">Estado</span>
+  <button type="button" id="bRes">Recomeçar</button>
+</div>
+<div class="read" id="read" role="status"></div>
+<div class="vpw" id="vpw"><div class="vp" id="vp"></div></div>
+<div class="dec"><b>A regra proposta, para você confirmar</b>
+<ul>
+<li><b>Confirmar é uma ação da linha</b> (a primeira da janela de ações no celular; botão verde na tabela do computador). Em <b>saída</b> o texto é "Já paguei"; em <b>entrada</b>, "Já recebi".</li>
+<li><b>Gesto A (com janela, escolhido):</b> pergunta o <b>valor</b> (já vem o previsto, e dá para trocar: multa e juros de um boleto atrasado), a <b>data</b> do pagamento e o <b>status real</b> (já vem o que o lançamento tem, e dá para trocar). <b>Gesto B (direto, só para comparar):</b> confirma na hora com os valores de sempre; para mudar algum, o caminho é Editar.</li>
+<li><b>Depois de confirmar</b> a linha sai de Futuros, entra no Histórico e passa a contar no saldo. Aparece o aviso de 6 s com <b>Desfazer</b>, que devolve o lançamento a Futuros (no servidor é uma restauração, como no padrão 11b).</li>
+<li><b>Os vencidos continuam em "Atrasados", dentro de Futuros</b>, como hoje. O Histórico nunca mostra uma linha que não conta no saldo.</li>
+<li><b>Data sugerida:</b> a que estava prevista. Se ela cai num <b>mês já fechado</b>, a sugestão é hoje (veja o Condomínio, de 10/09). Voltar para uma data de mês fechado mostra o aviso em vermelho e o servidor pede a confirmação a mais, como em qualquer edição de mês fechado. Mês conferido com o extrato não aceita.</li>
+</ul>
+<b>O que esta proposta faz perder</b>
+<ul>
+<li><b>Custo de toques:</b> no celular são três (a linha, Confirmar, Confirmar na janela), e mais um para cada campo que você troca. O gesto B tira o terceiro, mas deixa de perguntar valor, data e status.</li>
+<li><b>Quem esquece de confirmar</b> fica com o lançamento em Atrasados e <b>fora do saldo</b> (o aviso do Telegram continua avisando). O saldo mostrado pode ficar diferente do extrato até alguém confirmar.</li>
+<li><b>"Futuros" passa a ter linha do passado</b> (os atrasados), como já tem hoje.</li>
+</ul></div>
+</div>
+<script>
+var HOJE=new Date(2026,9,24);
+function PAD(n){return String(n).padStart(2,'0')}
+function D(y,m,d){return new Date(y,m-1,d)}
+function iso(d){return d.getFullYear()+'-'+PAD(d.getMonth()+1)+'-'+PAD(d.getDate())}
+function mk(d){return d.getFullYear()+'-'+PAD(d.getMonth()+1)}
+function fechado(d){return mk(d)<'2026-10'}
+function novos(){return {
+ fut:[
+  {id:1,d:'Condomínio',v:540,tipo:'saida',data:D(2026,9,10),st:'PAGO',banco:'BANCO-A',aviso:true,serie:'9 de 12',previsto:true},
+  {id:2,d:'Internet fibra e 2 linhas de celular, débito automático',v:119.9,tipo:'saida',data:D(2026,10,20),st:'PAGO',banco:'BANCO-B',aviso:true,serie:null,previsto:true},
+  {id:3,d:'Boleto da escola',v:780,tipo:'saida',data:D(2026,10,24),st:'PAGO',banco:'BANCO-A',aviso:false,serie:null,previsto:true},
+  {id:4,d:'Parcela do notebook',v:289.9,tipo:'saida',data:D(2026,11,1),st:'CREDITO',banco:'CARTAO-A',aviso:false,serie:'3 de 6',previsto:true},
+  {id:5,d:'Salário',v:7200,tipo:'entrada',data:D(2026,11,5),st:'PAGO',banco:'BANCO-A',aviso:false,serie:null,previsto:true},
+  {id:6,d:'Aluguel',v:1650,tipo:'saida',data:D(2026,11,5),st:'PAGO',banco:'BANCO-A',aviso:true,serie:null,previsto:true},
+  {id:7,d:'Seguro do carro',v:230.5,tipo:'saida',data:D(2026,11,30),st:'PAGO',banco:'BANCO-B',aviso:true,serie:'3 de 12',previsto:true}],
+ hist:[
+  {id:101,d:'Mercado',v:187.5,tipo:'saida',data:D(2026,10,23),st:'CREDITO',banco:'CARTAO-A',previsto:false},
+  {id:102,d:'Farmácia',v:64.2,tipo:'saida',data:D(2026,10,23),st:'PAGO',banco:'BANCO-B',previsto:false},
+  {id:103,d:'Venda de bicicleta',v:350,tipo:'entrada',data:D(2026,10,22),st:'PAGO',banco:'BANCO-A',previsto:false},
+  {id:104,d:'Combustível',v:210,tipo:'saida',data:D(2026,10,21),st:'CREDITO',banco:'CARTAO-A',previsto:false}]}}
+var S=novos();
+var COR={PAGO:'#639922',CREDITO:'#378ADD'};
+var STATUS=['PAGO','CREDITO'];
+var ui={w:390,tela:'fut',gesto:'A',aberto:null,conf:null,toast:null,data:null};
+var tmr=null,undo=null;
+var vp=document.getElementById('vp'),vpw=document.getElementById('vpw'),readEl=document.getElementById('read');
+function moeda(v){return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function dt(d){return PAD(d.getDate())+'/'+PAD(d.getMonth()+1)+'/'+d.getFullYear()}
+function dias(d){return Math.round((d-HOJE)/86400000)}
+function prazo(it){var n=dias(it.data);if(n<0)return {t:'atrasado '+(-n)+(n===-1?' dia':' dias'),bad:true};if(n===0)return {t:'hoje',bad:false};return {t:'em '+n+(n===1?' dia':' dias'),bad:false}}
+function mes(d){var m=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][d.getMonth()];return m.charAt(0).toUpperCase()+m.slice(1)+' de '+d.getFullYear()}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function item(id){return S.fut.filter(function(i){return i.id===id})[0]}
+function pend(){return S.fut.filter(function(i){return i.previsto})}
+function feitos(){return S.fut.filter(function(i){return !i.previsto}).concat(S.hist)}
+function dataPadrao(it){return fechado(it.data)?new Date(HOJE):it.data}
+function modoTabela(){return ui.w>=1160}
+function resumo(tres){
+  var p=0,r=0,a=0,sa=0;
+  pend().forEach(function(i){if(i.tipo==='saida')p+=i.v;else r+=i.v;if(dias(i.data)<0){a++;sa+=i.v}});
+  return '<div class="sum'+(tres?' tres':'')+'"><div><small>A pagar</small><b>'+moeda(p)+'</b></div><div><small>A receber</small><b>'+moeda(r)+'</b></div>'+
+   (a?'<div class="at bad"><small>Atrasados</small><b>'+a+' · '+moeda(sa)+'</b></div>':'')+'</div>';
+}
+function grupos(){
+  var ord=pend().sort(function(a,b){return a.data-b.data||a.id-b.id});
+  var out=[{k:'Atrasados',bad:true,l:ord.filter(function(i){return dias(i.data)<0})}];
+  ord.filter(function(i){return dias(i.data)>=0}).forEach(function(i){var k=mes(i.data),g=out.filter(function(x){return x.k===k})[0];if(!g){g={k:k,l:[]};out.push(g)}g.l.push(i)});
+  return out.filter(function(g){return g.l.length});
+}
+var PONTOS='<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.7" fill="currentColor"/><circle cx="10" cy="10" r="1.7" fill="currentColor"/><circle cx="16" cy="10" r="1.7" fill="currentColor"/></svg>';
+function sinal(it){return (it.tipo==='saida'?'-':'+')+moeda(it.v)}
+function linha(it,acao){
+  var p=prazo(it),sino=it.aviso?'<span class="ic" aria-label="Com aviso no Telegram">&#128276;</span> ':'';
+  return '<button class="ev" style="--cor:'+COR[it.st]+'" type="button"'+(acao?' data-a="abrir" data-id="'+it.id+'" aria-label="Ações de '+esc(it.d)+'"':'')+'>'+
+   '<span class="l"><span class="d">'+esc(it.d)+'</span><span class="m">'+sino+dt(it.data)+' · '+it.st+' · '+it.banco+(it.serie?' · série '+it.serie:'')+'</span></span>'+
+   '<span class="r"><span class="v '+(it.tipo==='saida'?'out':'in')+'">'+sinal(it)+'</span>'+(acao?'<span class="p'+(p.bad?' bad':'')+'">'+p.t+'</span>':'')+'</span>'+
+   (acao?'<span class="mais">'+PONTOS+'</span>':'')+'</button>';
+}
+function lista(){
+  var h='<div class="col lista">'+resumo(false);
+  var g=grupos();
+  if(!g.length)h+='<div class="card"><div class="vazio">Nenhum lançamento previsto. Tudo o que estava aqui já foi confirmado e está no Histórico.</div></div>';
+  g.forEach(function(x){h+='<div class="gt'+(x.bad?' bad':'')+'"><span>'+x.k+'</span></div><div class="card">'+x.l.map(function(i){return linha(i,true)}).join('')+'</div>'});
+  return h+'</div>';
+}
+function linhaTab(it){
+  var p=prazo(it),sino=it.aviso?'<span class="ic" aria-label="Com aviso no Telegram">&#128276;</span>':'';
+  var sub=it.serie?'<span class="sb">série '+it.serie+'</span>':'';
+  var k=function(n,c){return '<button type="button"'+(c?' class="'+c+'"':'')+' data-a="dk" data-id="'+it.id+'" data-k="'+n+'">'+n+'</button>'};
+  return '<div class="dt" tabindex="0" style="--cor:'+COR[it.st]+'"><span>'+dt(it.data)+'</span>'+
+   '<span class="dd"><span class="dl"><span class="tx">'+esc(it.d)+'</span>'+sino+'</span>'+sub+'</span>'+
+   '<span>'+it.banco+'</span><span><span class="pill">'+it.st+'</span></span>'+
+   '<span class="v '+(it.tipo==='saida'?'out':'in')+'">'+sinal(it)+'<small'+(p.bad?' class="bad"':'')+'>'+p.t+'</small></span>'+
+   '<span class="acts">'+k('Confirmar','pri')+k('Editar')+k('Copiar')+k(it.serie?'Estender':'Prever')+k('Ocultar')+k('Excluir','danger')+'</span></div>';
+}
+function tabela(){
+  var h=resumo(true)+'<div class="tb"><div class="dt h"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>';
+  var g=grupos();
+  if(!g.length)h+='<div class="gtw"><div class="vazio">Nenhum lançamento previsto. Tudo o que estava aqui já foi confirmado e está no Histórico.</div></div>';
+  g.forEach(function(x){h+='<div class="gt'+(x.bad?' bad':'')+'"><span>'+x.k+'</span></div><div class="gtw">'+x.l.map(linhaTab).join('')+'</div>'});
+  return h+'</div>';
+}
+function historico(){
+  var l=feitos().sort(function(a,b){return b.data-a.data||b.id-a.id}),h='<div class="col lista"><p class="nota-h">Só o que já aconteceu e conta no saldo. Nenhuma linha daqui fica de fora das contas.</p>',k='';
+  l.forEach(function(i){var d=dt(i.data);if(d!==k){if(k)h+='</div>';h+='<div class="dia"><span>'+d+'</span></div><div class="card">';k=d}h+=linha(i,false)});
+  return h+(k?'</div>':'')+'</div>';
+}
+function sheet(){
+  var it=item(ui.aberto),ent=it.tipo==='entrada';
+  function ac(k,t,c,sub){return '<button class="ac'+(c?' '+c:'')+'" type="button" data-a="ac" data-k="'+k+'"><span class="st">'+t+(sub?'<small>'+sub+'</small>':'')+'</span></button>'}
+  return '<div class="ov" data-a="fecha"><div class="sheet" role="dialog" aria-label="Ações de '+esc(it.d)+'"><h3>'+esc(it.d)+'</h3><p class="mm">'+moeda(it.v)+' · '+dt(it.data)+' · '+it.banco+'</p>'+
+   ac('Confirmar','Confirmar','pri',ent?'Já recebi · passa a contar no saldo':'Já paguei · passa a contar no saldo')+
+   ac('Editar','Editar')+ac('Copiar','Copiar')+ac('Prever',it.serie?'Estender série':'Prever próximas datas')+ac('Ocultar','Ocultar')+ac('Excluir','Excluir','danger')+'</div></div>';
+}
+function avisoData(d){return fechado(d)?mes(d)+' já fechou. Com essa data o servidor vai pedir uma confirmação a mais e o saldo desse mês muda.':''}
+function janela(){
+  var it=item(ui.conf),ent=it.tipo==='entrada',d=ui.data||dataPadrao(it),c=modoTabela();
+  var nota='Passa a contar no saldo de '+it.banco+'.'+(fechado(it.data)?' A data prevista, '+dt(it.data)+', é de um mês já fechado, então a sugestão é hoje.':'');
+  var av=avisoData(d);
+  return '<div class="ov'+(c?' c':'')+'" data-a="fecha"><div class="sheet'+(c?' c':'')+'" role="dialog" aria-label="Confirmar '+esc(it.d)+'"><h3>Confirmar: '+esc(it.d)+'</h3>'+
+   '<p class="mm">'+sinal(it)+' · '+it.banco+' · previsto para '+dt(it.data)+'</p>'+
+   '<div class="fr"><label for="cfVl">'+(ent?'Valor recebido':'Valor pago')+'</label><input type="number" step="0.01" min="0.01" inputmode="decimal" id="cfVl" value="'+it.v.toFixed(2)+'"></div>'+
+   '<p class="note" id="cfVlNote" hidden>O valor previsto era '+moeda(it.v)+'. Vale o que você informar aqui.</p>'+
+   '<div class="fr"><label for="cfDt">'+(ent?'Data do recebimento':'Data do pagamento')+'</label><input type="date" id="cfDt" value="'+iso(d)+'"></div>'+
+   '<div class="fr"><label for="cfSt">Status</label><select id="cfSt">'+STATUS.map(function(s){return '<option'+(s===it.st?' selected':'')+'>'+s+'</option>'}).join('')+'</select></div>'+
+   '<p class="note">'+nota+'</p><p class="warn" id="cfWarn"'+(av?'':' hidden')+'>'+av+'</p>'+
+   '<div class="btns"><button type="button" class="no" data-a="cancelaC">Cancelar</button><button type="button" class="ok" data-a="okC">Confirmar</button></div></div></div>';
+}
+function toastHtml(){
+  if(!ui.toast)return '';
+  return '<div class="toast" role="status"><span>'+ui.toast.txt+'</span>'+(ui.toast.desfaz?'<button type="button" data-a="desfaz">Desfazer</button><i class="bar"></i>':'')+'</div>';
+}
+function aviso(txt,desfaz){
+  clearTimeout(tmr);ui.toast={txt:txt,desfaz:!!desfaz};render();
+  tmr=setTimeout(function(){ui.toast=null;undo=null;render()},desfaz?6000:2200);
+}
+function confirmar(it,st,data,valor){
+  undo={id:it.id,st:it.st,data:it.data,v:it.v};
+  it.previsto=false;it.st=st;it.data=data;it.v=valor;ui.aberto=null;ui.conf=null;ui.data=null;
+  aviso(esc(it.d)+' confirmado. Já conta no saldo de '+it.banco+'.',true);
+}
+function pedir(it,k){
+  if(k==='Confirmar'){
+    if(ui.gesto==='B'){confirmar(it,it.st,dataPadrao(it),it.v);return}
+    ui.aberto=null;ui.conf=it.id;ui.data=null;render();return;
+  }
+  ui.aberto=null;aviso('Demonstração: abriria "'+k+'".',false);
+}
+function render(){
+  var fone=ui.w<600;
+  var y=vp.querySelector('.scr')?vp.querySelector('.scr').scrollTop:0;
+  vp.style.width=ui.w+'px';
+  vp.className='vp'+(fone?' fone':'');
+  var corpo=ui.tela==='fut'?(modoTabela()?tabela():lista()):historico();
+  var ov=ui.tela==='fut'?(ui.conf!==null?janela():(ui.aberto!==null?sheet():'')):'';
+  vp.innerHTML='<div class="scr">'+corpo+'</div>'+ov+toastHtml();
+  if(vp.querySelector('.scr'))vp.querySelector('.scr').scrollTop=y;
+  var av=vpw.parentElement.clientWidth,e2=av>0?Math.min(1,av/ui.w):1;
+  vp.style.transform='scale('+e2+')';
+  vpw.style.width=Math.round(ui.w*e2)+'px';
+  vpw.style.height=Math.round(vp.offsetHeight*e2)+'px';
+  Array.prototype.forEach.call(document.querySelectorAll('[data-w]'),function(b){b.setAttribute('aria-pressed',String(+b.dataset.w===ui.w))});
+  document.getElementById('bFut').setAttribute('aria-pressed',String(ui.tela==='fut'));
+  document.getElementById('bHist').setAttribute('aria-pressed',String(ui.tela==='hist'));
+  document.getElementById('bA').setAttribute('aria-pressed',String(ui.gesto==='A'));
+  document.getElementById('bB').setAttribute('aria-pressed',String(ui.gesto==='B'));
+  medir(e2);
+}
+function medir(e2){
+  var t='<b>'+ui.w+' px</b> · '+(ui.tela==='fut'?(modoTabela()?'tabela':'lista'):'Histórico')+(e2<1?' · mostrada a '+Math.round(e2*100)+'% do tamanho real':'');
+  if(ui.tela==='fut'){
+    t+=' · '+pend().length+' previsto(s), '+feitos().filter(function(i){return i.id<100}).length+' já confirmado(s)';
+    if(modoTabela()){
+      var a=vp.querySelectorAll('.dt:not(.h) .acts'),ruim=0,i;
+      for(i=0;i<a.length;i++){if(a[i].scrollWidth>a[i].clientWidth+1)ruim++}
+      var dd=vp.querySelectorAll('.dt:not(.h) .dd'),r2=0;
+      for(i=0;i<dd.length;i++){if(dd[i].scrollWidth>dd[i].clientWidth+1)r2++}
+      t+=' · coluna das ações: '+(a.length?a[0].clientWidth+' px, '+(ruim?ruim+' linha(s) cortada(s)':'nenhum botão cortado'):'sem linhas');
+    }
+  }
+  readEl.innerHTML=t;
+}
+vp.addEventListener('click',function(e){
+  var b=e.target.closest('[data-a]');if(!b)return;
+  var a=b.dataset.a;
+  if(a==='abrir'){ui.aberto=parseInt(b.dataset.id,10);render();return}
+  if(a==='fecha'){if(e.target===b){ui.aberto=null;ui.conf=null;ui.data=null;render()}return}
+  if(a==='ac'){pedir(item(ui.aberto),b.dataset.k);return}
+  if(a==='dk'){pedir(item(parseInt(b.dataset.id,10)),b.dataset.k);return}
+  if(a==='cancelaC'){ui.conf=null;ui.data=null;render();return}
+  if(a==='okC'){
+    var it=item(ui.conf),p=document.getElementById('cfDt').value.split('-'),vl=parseFloat(document.getElementById('cfVl').value),wn=document.getElementById('cfWarn');
+    if(!(vl>0)){wn.hidden=false;wn.textContent='Informe um valor maior que zero.';return}
+    if(p.length!==3||!p[0]){wn.hidden=false;wn.textContent='Escolha a data.';return}
+    confirmar(it,document.getElementById('cfSt').value,new Date(+p[0],+p[1]-1,+p[2]),Math.round(vl*100)/100);return;
+  }
+  if(a==='desfaz'&&undo){
+    var u=item(undo.id);u.previsto=true;u.st=undo.st;u.data=undo.data;u.v=undo.v;undo=null;aviso('Voltou para Futuros.',false);
+  }
+});
+vp.addEventListener('input',function(e){
+  if(e.target.id!=='cfVl')return;
+  var it=item(ui.conf),v=parseFloat(e.target.value);
+  document.getElementById('cfVlNote').hidden=!(it&&v>0&&Math.abs(v-it.v)>=0.005);
+});
+vp.addEventListener('change',function(e){
+  if(e.target.id!=='cfDt')return;
+  var p=e.target.value.split('-'),w=document.getElementById('cfWarn');
+  if(p.length!==3||!p[0]){ui.data=null;w.hidden=true;return}
+  ui.data=new Date(+p[0],+p[1]-1,+p[2]);
+  var t=avisoData(ui.data);w.textContent=t;w.hidden=!t;
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-w]'),function(b){b.onclick=function(){ui.w=+b.dataset.w;ui.aberto=null;ui.conf=null;render()}});
+document.getElementById('bFut').onclick=function(){ui.tela='fut';render()};
+document.getElementById('bHist').onclick=function(){ui.tela='hist';ui.aberto=null;ui.conf=null;render()};
+document.getElementById('bA').onclick=function(){ui.gesto='A';render()};
+document.getElementById('bB').onclick=function(){ui.gesto='B';render()};
+document.getElementById('bRes').onclick=function(){S=novos();undo=null;clearTimeout(tmr);ui.toast=null;ui.aberto=null;ui.conf=null;ui.data=null;render()};
+window.addEventListener('resize',render);
+render();
+</script>
+</body>
+</html>

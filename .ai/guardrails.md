@@ -14,8 +14,10 @@ Referência: [`arquitetura.md`](arquitetura.md) (decisões de 2026-10-10).
   que venha do cliente, e quem sabe forjar a requisição não ganha nada. Antes de aceitar um campo novo na API, pergunte
   se o servidor consegue recalculá-lo; se sim, ele não entra no corpo. Detalhes e o que falta fazer em
   [`arquitetura.md`](arquitetura.md) e [`security.md`](security.md).
-- **Status é do backend (2026-10-18).** O catálogo de status e o que cada um significa não são editáveis pelo app; a tela
-  só exibe o texto do status do lançamento. Ver [`decisoes.md`](decisoes.md).
+- **Status é do backend; o front não trata status de forma nenhuma (2026-10-24).** O backend **manda a lista** de status; o front só a
+  exibe, guarda a escolha da pessoa e a devolve como veio. Nada de nome de status, lista fixa, predicado por nome (`ehFuturo`,
+  `afetaSaldo`, `ehCredito`...), cor ou regra escondida em nome, nem `excluirDoTotal` calculado no navegador. Ver
+  [`decisoes.md`](decisoes.md).
 - Camadas `controller` → `service` → `domain`, adaptadores atrás de interfaces e dependências por construtor, sem
   globais. Em `backend/` cada camada é uma pasta (`controller/`, `service/`, `repository/`, `auth/`, `domain/`) e o
   teste `arquitetura_test.go` falha se um pacote importar o que não pode (por exemplo, `service` importando a AWS).
@@ -37,7 +39,7 @@ e para ajustes em telas que já existem.
     própria janela; contador de limite visível; um evento por linha, com as ações numa janela de baixo; resumo com dois
     blocos e uma faixa de atraso (só quando há atraso), valores que nunca quebram; saldo do mês à direita do título
     de cada mês (só o valor, com sinal e cor); total da lista no Histórico à direita do contador (soma de renda
-    menos gasto do que está exibido); linhas de pelo menos 56 px; excluir e salvar uma edição pedem confirmação e
+    menos gasto do que está exibido; **retirado até o item 42**); linhas de pelo menos 56 px; excluir e salvar uma edição pedem confirmação e
     depois mostram um aviso de 6 s com Desfazer (padrão 11b, provisório até o histórico de versões).
   - **Lançar** (demo `demo-lancar-layout.html`): valor grande primeiro, Data/Banco/Status com seletor nativo, Tags em janela de baixo e Salvar fixo no celular; IA e Tags à direita no computador; Transferência é um modo no topo.
   - **Histórico** (demos `demo-historico-layout.html` e `demo-historico-periodo.html`): período 30d · 90d · 180d · 📅 (um mês) no topo, abrindo em 30d; busca só no que está marcado, com "Buscar em tudo" e aviso; Filtros numa janela com fichas; linha como a de Futuros agrupada por dia (por mês, com soma, na busca e na tabela de períodos longos); nota só em ícone e tags em uma linha.

@@ -24,8 +24,8 @@ pendentes: nenhum.
 
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
 - [\[Backend\] - **\[Próximo\] Saldo, fechamento e conferência calculados e validados no servidor (segurança):**](#item-40)
-- [\[Backend\] - **\[Próximo\] Futuros: marcador `previsto` e status do backend:**](#item-41)
-- [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe:**](#item-33)
+- [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe (fatia a: faturas do cartão; fatia b depois):**](#item-33)
+- [\[Backend\] - **\[Próximo\] Futuros: marcador `previsto` e status do backend (depois do 40 e do 33a):**](#item-41)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
 - [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
@@ -34,6 +34,8 @@ pendentes: nenhum.
 - [\[Infra\] - **\[Depois\] AWS Budget de US$ 1 e backup periódico:**](#item-11)
 - [\[Backend\] - **\[Depois\] Saldos e faturas do cartão calculados na Lambda:**](#item-14)
 - [\[Backend\] - **\[Depois\] Open Finance (visão):**](#item-39)
+- [\[Backend\] - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
+- [\[Backend\] - **\[Depois\] Reclassificação em massa (admin):**](#item-44)
 - [\[Backend\] - **\[Depois\] Colaboração, Fase 1:**](#item-12)
 - [\[Backend\] - **\[Depois\] Colaboração, Fase 2:**](#item-13)
 - [\[Backend\] - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
@@ -133,24 +135,38 @@ DynamoDB sem discutir com o dono.**
   bancos e os totais de Futuros e do Histórico (relógio e fuso dele); o cache é gravado só por ele; `Conferir` recebe só o
   saldo do extrato e compara com o que o servidor calculou; campo derivado vindo do cliente é **rejeitado**. Cada
   rejeição ganha um teste que tenta forjar o valor e que falha antes da mudança. Calcular no front só vale para exibir
-  (Tendências). Sugestão de ordem: (1) saldo por banco, total e fechamento, rodando o cálculo antigo e o novo lado a
-  lado com os dados fictícios; (2) totais de Histórico e Futuros (junto com o item 41); (3) faturas do cartão (item 33);
-  (4) conferência e o lançamento de ajuste, que o servidor passa a montar. Os passos 1, 3 e 4 não mudam a aparência das
-  telas; o 2 muda, e vale a regra da demo. Detalhes em [`.ai/arquitetura.md`](.ai/arquitetura.md) e
+  (Tendências). **Primeiro da fila (2026-10-24):** vem antes do 33a e do 41, porque o front só deixa de tratar status quando para
+  de somar. Escopo: saldo por banco e total de **Saldos** e conferência com o extrato (o `GET /saldos`, o cache só do
+  servidor, `Conferir` só com o `real` e o ajuste criado pelo servidor); o resumo de Futuros fica com o item 41 e o total do Histórico sai da tela até o item 42 e as
+  faturas do cartão com o 33a. Fases: A (backend, só acrescenta; **com teste de volume de 10 anos**, porque a base vai de 2016 em diante), B (a aba Saldos, visual igual, **conferida lado a lado** com a
+  antiga no dev e na produção), C (remove `PUT /fechamentos`). Intent, plan e spec (rascunho) em
+  [`.ai/specs/saldo-servidor/`](.ai/specs/saldo-servidor/intent.md). Detalhes em [`.ai/arquitetura.md`](.ai/arquitetura.md) e
   [`.ai/security.md`](.ai/security.md). Não cria campo no Dynamo por si; qualquer campo novo passa pelo dono. Absorve o
   trecho de saldos do item 14.
 - 41. [ ] <a id="item-41"></a>**[Próximo] Futuros: marcador `previsto` e status do backend:** decisões do dono de 2026-10-18, só a
-  aba Futuros. Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` saem; o lançamento futuro nasce com o status real e um
-  marcador `previsto` (campo novo no Dynamo, **nome a aprovar**) que o tira do saldo e do total do Histórico até ser
-  confirmado. O servidor entrega Futuros e Histórico prontos (o Histórico pode trazer previstos vencidos, para o aviso
-  "N previstos fora do saldo"); atraso é o marcador ligado depois da data e só alimenta o aviso do Telegram; os status
-  viram do backend (`salvarListas` segue gravando bancos, cores, aparência e ordens e ignora mudança em status;
-  `statusFuturo` deixa de ir ao front). Lançamentos antigos com os três status contam como marcador ligado até serem
-  editados, sem migração em massa. Sai do front o que olha status ou soma: `ehFuturo`, `afetaSaldo`, `resumoFuturos`,
+  aba Futuros, **depois do 40 e do 33a** (2026-10-24). **Regra do dono: o front não trata status de forma nenhuma.** O
+  backend manda a lista de status (`["PAGO", "CREDITO"]` no corte; no futuro `PIX`, `DREX`, `DEBITO`...), e o front só a
+  exibe, guarda a escolha e a devolve como veio; a lista fixa de `app.js:5` deixa de existir e um teste de CI falha se um nome de
+  status voltar a `web/`. **Sem data de corte global** (2026-10-24): o catálogo tem uma entrada por nome e a marca `selecionavel` (nenhum status sai dele); o
+  usuário pode reclassificar o passado (um `PAGO` de 2018 pode virar `PIX`) e a trava de data segue o efeito no saldo; o Histórico sai do servidor pronto
+  (rótulo e cor, filtros de status do uso no período; **sem total**: o total da lista e a soma por mês saem da tela até o item 42, pedido do dono). O dono não criou status além dos sete padrão. Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` saem; o lançamento futuro nasce com o status real e um
+  marcador `previsto` (campo novo no Dynamo, booleano gravado só quando ligado, **aprovado em 2026-10-24**) que o tira do saldo e do total do Histórico até ser
+  confirmado. **Quem liga o marcador:** o servidor, em todo lançamento com data depois de hoje; o Prever e o "Repetir ao
+  lançar" também (2026-10-24). O servidor entrega Futuros e Histórico prontos: os vencidos **continuam em Atrasados,
+  dentro de Futuros**, e o Histórico só traz o que já aconteceu (nunca um previsto); o mesmo critério alimenta o aviso do Telegram; os
+  status viram do backend (`salvarListas` segue gravando bancos, cores, aparência e ordens e ignora mudança em status;
+  `statusFuturo` deixa de ir ao front). **Lançamentos antigos** com os três status **ficam como estão** (eram só
+  previsões): continuam em Futuros, os do passado em Atrasados, até alguém tratar; sem migração em massa e nada
+  regravado. **Confirmar** (demo aprovada em 2026-10-24, `.ai/demos/demo-confirmar-previsto.html`): janela com Valor,
+  Data e Status, cada um já preenchido e alterável, textos "Confirmar", "Já paguei" e "Já recebi", botão verde na
+  tabela, aviso de 6 s com Desfazer (restauração no servidor), data sugerida hoje em mês fechado; ao confirmar um
+  antigo, a janela abre com o primeiro status da lista do servidor (hoje `PAGO`). Sai do front o que olha status ou soma: `ehFuturo`, `afetaSaldo`, `resumoFuturos`,
   `gruposFuturos`, a soma do Histórico, a inclusão automática de `CREDITANDO` em Listas e o "Status das cópias" do Prever
   (a decidir no spec). Fora daqui: desmembrar o `PAGO` (tipo e meio), o `CONTAS` e o `excluirDoTotal`, e o papel de
-  Admin. **Em aberto para o spec:** quem liga o marcador na criação, como os previstos vencidos aparecem no Histórico e o
-  gesto de confirmar (demo antes do código). Depende do item 40 para os totais.
+  Admin. **Em aberto para o spec:** como o servidor acha todos os previstos sem o limite dos 1000 lançamentos
+  mais recentes (só volta ao dono se pedir chave nova) e o que o Prever faz com o "Status das cópias". Demo antes do
+  código para qualquer tela além da de confirmar. Depende dos itens 40 e 33a (o navegador já não soma com status). Intent, plan e spec (rascunho, 2026-10-24) em
+  [`.ai/specs/futuros-previsto/`](.ai/specs/futuros-previsto/intent.md): fases A (backend), B (Futuros e Confirmar) e C (Listas, Lançar e Prever).
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
@@ -165,12 +181,29 @@ DynamoDB sem discutir com o dono.**
   `porBanco` e o lançamento de crédito liga ao cartão pelo campo `banco`, mas o cartão não é um banco (pode não ter
   nenhum, e o banco que paga a fatura é uma escolha). Passa a ser por cartão, com o vínculo ao lançamento e a migração
   a discutir antes de criar qualquer campo. Absorve o item 14.
+  **Fatiado em 2026-10-24 (vem depois do 40 e antes do 41):** a **fatia a** é a fatura, o total e a conferência no servidor
+  (`GET /cartoes`, `GET .../faturas/{ym}`, comandos de cartão, as sugestões de ajuste portadas para Go, `bancos[].cartao` em
+  `GET /cfg/listas`, validação de `faturaAjuste`, `PUT /cfg/cartoes` removida), com a aba Cartão **conferida lado a lado**; a
+  **fatia b** (o cartão como entidade própria, a trava da fatura conferida e a migração do `faturaAjuste` explícito) segue a discutir.
+  Intent, plan e spec (rascunho) da fatia a em [`.ai/specs/fatura-servidor/`](.ai/specs/fatura-servidor/intent.md).
 - 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
   4096 caracteres do item 28. **Ponto de partida (item 32, fatia 4):** o `Avisador` já existe com o nome `service.Notificador`
   (`Enviar(destino, texto)`), o canal Telegram é o primeiro arquivo de `adapter/notificacao/`, e a rotina diária está em
   `service.Avisos`; falta o despachante por assinatura e os outros canais.
+- 43. [ ] <a id="item-43"></a>**[Depois] Meios de pagamento: o dono cria e desativa (rascunho, 2026-10-24):** o que o dono chama de **meio de pagamento** (conta, carteira, vale, cartão:
+  `SODEXO-REF-IBM`, `DINHEIRO`, `CARTEIRA`...) é o `banco` gravado, com um **de-para só de exibição em `domain/`** (o Dynamo não muda, o campo continua `banco`).
+  **O dono cria e desativa meios pelo app** (dado do espaço, não do produto); o front nunca conhece os nomes. Um meio desativado (por exemplo, o `SODEXO` quando o dono sair da
+  IBM) **continua nos lançamentos e no saldo do passado** e deixa de ser sugerido a partir de uma data; "ver todos" mostra também os inativos, porque o passado é do
+  usuário. `CRIPTO` e `DREX` são **formas** (status), não meios. Pede **um atributo novo no Dynamo** (a data em que o meio deixa de valer, `ativoAte` (AAAA-MM-DD) em
+  `CFG#SALDOS.porBanco[meio]`, ausente = ativo; **aprovado pelo dono em 2026-10-24**) e a lista `meios: [{nome, cartao, ativo}]` que o item 33a já entrega com `ativo` sempre verdadeiro.
+  Intent, plan e spec depois da conversa sobre o 40, o 33a e o 41. Demo antes de qualquer tela.
+- 44. [ ] <a id="item-44"></a>**[Depois] Reclassificação em massa (admin) (rascunho, 2026-10-24):** ferramenta **só do admin** (o dono do serviço; poderes reduzidos na tela, acesso
+  total por dentro), sem tela no app: troca o status (forma de pagamento) ou o meio de muitos registros de uma vez, filtrando por período, meio, tag ou status. **Simula antes** (quantos
+  registros mudam, quais travas pegam), grava **uma versão do histórico por registro** com o autor e respeita as travas de data pelo efeito no saldo (mês conferido recusa,
+  mês fechado pede confirmação). Serve a quatro usos: o pedido de um dono novo que não gosta de `PAGO` e `CREDITO`, o desmembramento futuro do `PAGO`, a migração do `faturaAjuste`
+  explícito nos lançamentos antigos (fatia b do item 33) e trocar o passado de uma vez (um `PAGO` de 2018 para `PIX`). Depende dos itens 31 (histórico) e 41.
 - 39. [ ] <a id="item-39"></a>**[Depois] Open Finance: lançamentos e saldos vindos do banco (visão):** visão do dono
   (2026-10-16): o app deixa de depender de lançar e conferir à mão; os lançamentos e o saldo de cada conta vêm do banco.
   (a) O lançamento vindo do banco é a **fonte da verdade**: valor, tipo, data e banco **não editáveis**; a pessoa edita a
@@ -263,6 +296,9 @@ DynamoDB sem discutir com o dono.**
   - [ ] **c) Histórico passa a usar o filtro**, ganhando o filtro avançado de tags. É a tela do saldo real: demo e cuidado extra.
   - [ ] **d) Futuros:** ler o que ele filtra hoje e decidir se adota o componente.
   - [ ] **e) "Abrir no Histórico" a partir da Tendências**, levando a consulta e o mês, para quem quiser editar ou ocultar. Depende do c.
+  - [ ] **g) O total e a soma por mês do Histórico, de volta** (2026-10-24): o item 41 **retira** da tela do Histórico o total da lista e a soma por mês (pedido do dono: o front não soma). Este
+    item decide como eles voltam: **calculados no servidor**, o que exige que o filtro de tags e combos (hoje só no navegador, "nada é enviado ao servidor") **passe a ser entendido pelo servidor**, e o
+    resumo do filtro inteiro (`n`, `total`, por mês) volta junto. Demo antes do código.
   - [ ] **f) Detalhes já vistos** (o aviso de que o mês mais antigo pode estar incompleto foi feito em 2026-10-23; o corte em si continua): gráfico parado nos meses antigos ao girar o celular ou redimensionar a janela; decidir se Gastos/Receitas/Resultado deve ser lembrado
     (hoje volta a Gastos ao recarregar); o gráfico longo é limitado aos 1000 lançamentos mais recentes carregados.
 
@@ -336,3 +372,5 @@ arquitetura, segurança e permissões, fluxo de versões, hospedagem, ambiente d
   data no lugar de um marcador "legado" por status. Candidato para o item 33 (`CREDITO IN`/`EX`, `TRANSFERINDO`,
   `PREVISTO`) e para o rótulo de `PAGO` (Pago/Recebido). A decidir: qual data compara (`dataEvento` ou `criadoEm`), corte
   em início de mês (alinhado ao fechamento), um corte global ou um por regra, e onde guardar o campo.
+  **Superado em 2026-10-24:** não haverá corte global. O catálogo de status tem uma entrada por nome e a marca `selecionavel`; `desde` e `ate` só sugerem a lista de uma
+  data; o passado é do usuário (pode reclassificar); a troca em massa é do admin (item 44) e a vigência dos meios é do item 43. Ver itens 41, 43 e 44.
