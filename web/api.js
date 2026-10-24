@@ -420,9 +420,12 @@
   const reabrirMes = async (banco, mes) => api('POST', (await base()) + '/fechamentos/reabrir', { banco, mes });
 
   // Historico de versoes (.ai/specs/historico). Quem decide o que aparece, o diff e se uma versao pode ser restaurada e o servidor.
-  // Busca por mes da alteracao (e texto): { mes, truncado, itens }.
-  const historicoMes = async (mes, q) => {
-    const p = new URLSearchParams({ mes });
+  // Busca por periodo da alteracao (e texto): periodo = {mes:'AAAA-MM'} | {dias:N} | {tudo:true}. Devolve { truncado, itens, mes|dias|tudo }.
+  const historico = async (periodo, q) => {
+    const p = new URLSearchParams();
+    if (periodo.mes) p.set('mes', periodo.mes);
+    else if (periodo.dias) p.set('dias', String(periodo.dias));
+    else if (periodo.tudo) p.set('tudo', '1');
     if (q) p.set('q', q);
     return (await api('GET', (await base()) + '/historico?' + p)).body;
   };
@@ -445,7 +448,7 @@
     salvarCaches,
     conferirMes,
     reabrirMes,
-    historicoMes,
+    historico,
     versoesDoLancamento,
     restaurarVersao,
     collection: (nome) => {

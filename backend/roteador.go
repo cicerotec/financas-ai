@@ -79,7 +79,7 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 		return s.lanc.DelTx(ctx, sid, p[3], qs["de"], u.Sub, confirma)
 	case auth.AcaoLerHistorico:
 		if p[2] == "historico" {
-			return s.lanc.GetHistorico(ctx, sid, qs["mes"], qs["q"], u.Sub, dec == auth.SoDono)
+			return s.lanc.GetHistorico(ctx, sid, qs, u.Sub, dec == auth.SoDono)
 		}
 		return s.lanc.GetVersoes(ctx, sid, p[3], qs["de"], u.Sub, dec == auth.SoDono)
 	case auth.AcaoRestaurar:

@@ -33,7 +33,7 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 	avisos := service.NewAvisos(repository.NewAvisos(db, table), lancRepo, cfgRepo, pessoas, espacos, notificador, rel, ambiente)
 	efeitos := service.NewEfeitos(fech, tags, avisos, contador)
 	return &Servidor{
-		lanc:   controller.NewLancamentos(service.NewLancamentos(lancRepo, efeitos, pessoas)),
+		lanc:   controller.NewLancamentos(service.NewLancamentos(lancRepo, efeitos, pessoas, rel)),
 		esp:    controller.NewEspacos(service.NewEspacos(espacos)),
 		cfg:    controller.NewConfig(service.NewConfig(cfgRepo), tags, contador),
 		perfil: controller.NewPerfil(service.NewPerfil(pessoas)),

@@ -3,6 +3,7 @@
 // Carregado depois do app.js e usa os globais dele (db, esc, fmtMoeda, toast, confirmarModal, comBotaoOcupado, mesAtualApp, somaMes, rotuloMes).
 
 let vsMes = '', vsBusca = '', vsLista = [], vsTrunc = false, vsCarregando = false, vsErro = '';
+let vsPer = '30d', vsTudo = false, vsAsc = false; // periodo ('30d' | '90d' | '180d' | 'mes'), busca em todo o historico e ordem
 let vsAberto = '', vsDados = null, vsErroVersoes = '', vsReqBusca = 0, vsReqVersoes = 0; // contadores separados: uma resposta velha nao pode apagar a outra
 
 // ---------- formatação (só texto) ----------
@@ -36,16 +37,56 @@ function vsPilula(acao){
 function vsQuem(v){ return v.porNome || (v.porSub ? 'alguém' : 'autor desconhecido'); }
 
 // ---------- peças ----------
+// Período (demo: .ai/demos/demo-versoes-periodo.html): 30d, 90d, 180d ou um mês, sempre pela data da ALTERAÇÃO.
+// A busca vale no que está marcado; "Buscar em tudo" amplia sem aviso de custo, porque a leitura do servidor é a mesma em qualquer período.
+const VS_DIAS = {'30d':30, '90d':90, '180d':180};
+const VS_CAL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+function vsEmTudo(){ return !!(vsBusca && vsTudo); }
+function vsEmMes(){ return vsPer === 'mes' && !vsEmTudo(); }
+// o que vai para a API
+function vsPeriodoApi(){
+  if(vsEmTudo()) return {tudo:true};
+  if(vsPer === 'mes') return {mes:vsMes};
+  return {dias:VS_DIAS[vsPer]};
+}
+// "em setembro de 2026" / "nos últimos 90 dias" / "em todo o histórico"
+function vsEmTxt(){
+  if(vsEmTudo()) return 'em todo o histórico';
+  if(vsPer === 'mes') return 'em ' + rotuloMes(vsMes).toLowerCase();
+  return 'nos últimos ' + VS_DIAS[vsPer] + ' dias';
+}
+function vsMesAbrev(ym){ const [y, m] = ym.split('-'); return rotuloMes(ym).slice(0, 3).toLowerCase() + '/' + y; }
 function vsBarraHtml(){
-  const max = mesAtualApp();
-  return `<div class="vs-mes"><button type="button" class="vs-nv" data-vs="ant" aria-label="Mês anterior">‹</button>
+  const max = mesAtualApp(), emMes = vsEmMes(), tudo = vsEmTudo();
+  const seg = '<div class="seg2" role="group" aria-label="Período">' +
+    ['30d', '90d', '180d'].map(p=>{ const on = !tudo && vsPer === p; return `<button type="button" data-vs="per" data-p="${p}" aria-pressed="${on}" class="${on ? 'on' : ''}">${p}</button>`; }).join('') +
+    `<label class="cal${emMes ? ' on' : ''}" title="Escolher o mês da alteração">${VS_CAL}${emMes ? '<span>' + esc(vsMesAbrev(vsMes)) + '</span>' : ''}<input type="month" id="vsCalIn" value="${esc(vsMes)}" max="${esc(max)}" aria-label="Escolher o mês da alteração"></label></div>`;
+  const ord = `<button type="button" class="hm-ord" data-vs="ord" aria-label="Ordem: ${vsAsc ? 'mais antigas' : 'mais recentes'} primeiro. Toque para inverter.">Data ${vsAsc ? '↑' : '↓'}</button>`;
+  const linhaMes = emMes ? `<div class="vs-mes"><button type="button" class="vs-nv" data-vs="ant" aria-label="Mês anterior">‹</button>
     <input type="month" id="vsMesIn" value="${esc(vsMes)}" max="${esc(max)}" aria-label="Mês da alteração">
-    <button type="button" class="vs-nv" data-vs="prox" aria-label="Próximo mês"${vsMes >= max ? ' disabled' : ''}>›</button></div>
-    <div class="vs-busca"><input type="search" id="vsQIn" placeholder="Buscar na descrição ou nota" value="${esc(vsBusca)}" aria-label="Buscar"><button type="button" class="vs-bt" data-vs="buscar">Buscar</button></div>`;
+    <button type="button" class="vs-nv" data-vs="prox" aria-label="Próximo mês"${vsMes >= max ? ' disabled' : ''}>›</button></div>` : '';
+  const ph = vsLargo() ? 'Buscar neste ' + (vsPer === 'mes' ? 'mês' : 'período') + ' (descrição, nota ou tag)' : 'Descrição, nota ou tag';
+  return `<div class="vs-per perbar">${seg}${ord}</div>${linhaMes}
+    <div class="vs-busca"><input type="search" id="vsQIn" placeholder="${esc(ph)}" value="${esc(vsBusca)}" aria-label="Buscar"><button type="button" class="vs-bt" data-vs="buscar">Buscar</button></div>`;
+}
+// Faixa do escopo da busca: onde se buscou, com o botão para ampliar ou voltar.
+function vsEscopoHtml(){
+  if(!vsBusca) return '';
+  if(vsTudo) return `<div class="escopo"><span class="t">Resultado de <b>todo o histórico</b></span><button type="button" data-vs="escopo-voltar">Voltar a ${vsPer === 'mes' ? esc(vsMesAbrev(vsMes)) : vsPer}</button></div>`;
+  const onde = vsPer === 'mes' ? 'de <b>' + esc(rotuloMes(vsMes).toLowerCase()) + '</b>' : 'dos <b>últimos ' + VS_DIAS[vsPer] + ' dias</b>';
+  return `<div class="escopo"><span class="t">Resultado ${onde}</span><button type="button" data-vs="tudo">Buscar em tudo</button></div>`;
 }
 function vsResumoHtml(){
   const n = vsLista.length;
-  return `<div class="vs-cont">${n === 1 ? '1 lançamento mudou' : n + ' lançamentos mudaram'} em ${esc(rotuloMes(vsMes).toLowerCase())}</div>`;
+  if(vsBusca) return `<div class="vs-cont">${n} lançamento(s) no resultado da busca</div>`;
+  return `<div class="vs-cont">${n === 1 ? '1 lançamento mudou' : n + ' lançamentos mudaram'} ${esc(vsEmTxt())}</div>`;
+}
+// Celular: um título por dia da alteração (por mês, na busca). Computador: uma faixa por mês quando o período passa de um mês.
+function vsDiaChave(x){ return vsData(x.em); }
+function vsMesChave(x){ return vsData(x.em).slice(3); } // mm/aaaa
+function vsTituloMes(chave, n){
+  const [m, a] = chave.split('/');
+  return rotuloMes(a + '-' + m).toLowerCase() + ' · ' + n + (n === 1 ? ' alteração' : ' alterações');
 }
 function vsLinhaHtml(x){
   const sinal = x.tipo === 'entrada' ? '+' : '-';
@@ -90,6 +131,40 @@ function vsVersoesHtml(){
 }
 function vsLargo(){ return !!(window.matchMedia && window.matchMedia('(min-width:1160px)').matches); }
 
+function vsTabelaHtml(){
+  const qtd = {};
+  vsLista.forEach(x=>{ const k = vsMesChave(x); qtd[k] = (qtd[k] || 0) + 1; });
+  let corpo = '', anterior = null;
+  vsLista.forEach(x=>{
+    const k = vsMesChave(x);
+    if(!vsEmMes() && k !== anterior){ anterior = k; corpo += `<tr class="vs-mh"><td colspan="5">${esc(vsTituloMes(k, qtd[k]))}</td></tr>`; }
+    corpo += vsLinhaTabela(x);
+  });
+  return `<table class="vs-tab"><thead><tr><th>Alterado em</th><th>Lançamento</th><th>O que houve</th><th>Quem</th><th class="num">Valor</th></tr></thead><tbody>${corpo}</tbody></table>`;
+}
+function vsTituloDia(x){
+  const w = new Date(x.em).toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo', weekday:'short'}).replace('.', '');
+  return w.charAt(0).toUpperCase() + w.slice(1) + ' ' + vsData(x.em);
+}
+function vsCelularHtml(){
+  const qtd = {};
+  vsLista.forEach(x=>{ const k = vsMesChave(x); qtd[k] = (qtd[k] || 0) + 1; });
+  let h = '', chave = null, aberto = false;
+  vsLista.forEach(x=>{
+    const k = vsBusca ? vsMesChave(x) : vsDiaChave(x);
+    if(k !== chave){
+      if(aberto) h += '</div>';
+      chave = k; aberto = true;
+      h += `<div class="fut-titulo"><span>${esc(vsBusca ? vsTituloMes(k, qtd[k]) : vsTituloDia(x))}</span></div><div class="card vs-card">`;
+    }
+    h += vsLinhaHtml(x);
+  });
+  if(aberto) h += '</div>';
+  const prox = vsPer === '30d' ? '90d' : vsPer === '90d' ? '180d' : '';
+  return h + '<div class="vs-fim">' + (!vsBusca && prox ? `<button type="button" data-vs="per" data-p="${prox}">Ver ${prox}</button>` : '') +
+    '<button type="button" data-vs="topo">↑ Topo</button></div>';
+}
+
 // ---------- tela ----------
 function vsRender(){
   const sec = document.getElementById('tab-versoes');
@@ -97,13 +172,12 @@ function vsRender(){
   let lista;
   if(vsErro) lista = `<div class="vs-aviso">${esc(vsErro)}</div>`;
   else if(vsCarregando) lista = '<div class="vs-vazio">Buscando…</div>';
-  else if(!vsLista.length) lista = `<div class="card"><div class="vs-vazio">Nenhuma alteração em ${esc(rotuloMes(vsMes).toLowerCase())}${vsBusca ? ' para essa busca' : ''}.</div></div>`;
+  else if(!vsLista.length) lista = `<div class="card"><div class="vs-vazio">Nenhuma alteração ${esc(vsEmTxt())}${vsBusca ? ' para essa busca' : ''}.</div></div>`;
   else {
     const aviso = vsTrunc ? '<div class="vs-aviso" role="status">Há mais versões do que a tela mostra. Refine a busca ou escolha outro mês.</div>' : '';
-    lista = vsResumoHtml() + aviso + (vsLargo()
-      ? `<table class="vs-tab"><thead><tr><th>Alterado em</th><th>Lançamento</th><th>O que houve</th><th>Quem</th><th class="num">Valor</th></tr></thead><tbody>${vsLista.map(vsLinhaTabela).join('')}</tbody></table>`
-      : `<div class="card vs-card">${vsLista.map(vsLinhaHtml).join('')}</div>`);
+    lista = vsResumoHtml() + aviso + (vsLargo() ? vsTabelaHtml() : vsCelularHtml());
   }
+  if(!vsErro && !vsCarregando) lista = vsEscopoHtml() + lista; // a faixa do escopo aparece também quando a busca não acha nada
   const painel = vsLargo()
     ? `<div class="vs-painel"><div class="vs-ph">Versões</div>${vsAberto ? vsVersoesHtml() : '<div class="vs-vazio">Escolha um lançamento para ver as versões.</div>'}</div>` : '';
   sec.innerHTML = vsBarraHtml() + (vsLargo() ? `<div class="vs-desk"><div>${lista}</div>${painel}</div>` : lista);
@@ -129,10 +203,11 @@ async function vsBuscar(){
   vsCarregando = true; vsErro = '';
   vsRender();
   try{
-    if(!db || typeof db.historicoMes !== 'function') throw new Error('O histórico de versões só funciona no app com servidor.');
-    const r = await db.historicoMes(vsMes, vsBusca);
+    if(!db || typeof db.historico !== 'function') throw new Error('O histórico de versões só funciona no app com servidor.');
+    const r = await db.historico(vsPeriodoApi(), vsBusca);
     if(req !== vsReqBusca) return;
-    vsLista = r.itens || []; vsTrunc = !!r.truncado;
+    vsLista = r.itens || []; if(vsAsc) vsLista = vsLista.slice().reverse(); // o servidor devolve a mais nova primeiro
+    vsTrunc = !!r.truncado;
   }catch(err){
     if(req !== vsReqBusca) return;
     console.error(err); vsLista = []; vsTrunc = false;
@@ -177,7 +252,7 @@ async function vsRestaurar(n, btn){
 }
 function vsMudarMes(ym){
   if(!/^\d{4}-\d{2}$/.test(ym) || ym > mesAtualApp()) return;
-  vsMes = ym; vsAberto = ''; vsDados = null;
+  vsMes = ym; vsPer = 'mes'; vsTudo = false; vsAberto = ''; vsDados = null;
   vsBuscar();
 }
 function abrirVersoes(){
@@ -189,17 +264,25 @@ function vsPreparar(){
   if(!sec || sec.dataset.pronto) return;
   sec.dataset.pronto = '1';
   sec.addEventListener('click', e=>{
+    // abre o seletor de mês mesmo quando o campo está escondido sob o botão do calendário
+    if(e.target.matches && e.target.matches('input[type=month]')){ try{ e.target.showPicker(); }catch(_){} return; }
     const b = e.target.closest('[data-vs]'); if(!b) return;
     const a = b.dataset.vs;
     if(a === 'ant') return vsMudarMes(somaMes(vsMes, -1));
     if(a === 'prox') return vsMudarMes(somaMes(vsMes, 1));
-    if(a === 'buscar'){ vsBusca = document.getElementById('vsQIn').value.trim(); vsAberto = ''; vsDados = null; return vsBuscar(); }
+    if(a === 'buscar'){ vsBusca = document.getElementById('vsQIn').value.trim(); if(!vsBusca) vsTudo = false; vsAberto = ''; vsDados = null; return vsBuscar(); }
+    if(a === 'per'){ vsPer = b.dataset.p; vsTudo = false; vsAberto = ''; vsDados = null; return vsBuscar(); }
+    if(a === 'tudo'){ vsTudo = true; vsAberto = ''; vsDados = null; return vsBuscar(); }
+    if(a === 'escopo-voltar'){ vsTudo = false; vsAberto = ''; vsDados = null; return vsBuscar(); }
+    if(a === 'ord'){ vsAsc = !vsAsc; vsLista = vsLista.slice().reverse(); return vsRender(); }
+    if(a === 'topo'){ if(window.scrollTo) window.scrollTo({top:0, behavior:'smooth'}); return; }
     if(a === 'abrir'){ vsAberto = b.dataset.id; return vsCarregarVersoes(); }
   });
-  sec.addEventListener('change', e=>{ if(e.target.id === 'vsMesIn') vsMudarMes(e.target.value); });
+  sec.addEventListener('change', e=>{ if(e.target.id === 'vsMesIn' || e.target.id === 'vsCalIn') vsMudarMes(e.target.value); });
+
   sec.addEventListener('keydown', e=>{
     if(e.key !== 'Enter') return;
-    if(e.target.id === 'vsQIn'){ vsBusca = e.target.value.trim(); vsAberto = ''; vsDados = null; vsBuscar(); }
+    if(e.target.id === 'vsQIn'){ vsBusca = e.target.value.trim(); if(!vsBusca) vsTudo = false; vsAberto = ''; vsDados = null; vsBuscar(); }
     else if(e.target.matches && e.target.matches('tr[data-vs="abrir"]')){ vsAberto = e.target.dataset.id; vsCarregarVersoes(); }
   });
   // a tela cheia (celular) e o painel (computador) tem os mesmos botoes de versao
