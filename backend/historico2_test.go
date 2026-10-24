@@ -37,13 +37,25 @@ func idsDe(d doc) string {
 	return strings.Join(ids, ",")
 }
 
-// criarTx cria um lancamento pela API e devolve o id.
+// criarTx cria um lancamento pela API e devolve o id. Desde a decisao 8 do plan, criar nao grava versao; estes testes
+// exercitam a restauracao e a busca sobre um lancamento que ja tem a v1 gravada na criacao, como os que existiam antes da
+// mudanca (e que continuam validos em producao), entao o auxiliar grava essa v1 antiga direto no banco falso.
 func criarTx(t *testing.T, quem, data, descricao string, valor int) string {
 	t.Helper()
 	c, d := chamar(t, quem, "POST", "spaces/s1/tx", nil,
 		fmt.Sprintf(`{"dataEvento":%q,"status":"PAGO","tipo":"saida","valor":%d,"banco":"ITAU","descricao":%q}`, data, valor, descricao))
 	esperar(t, "criar", c, 201)
-	return d["id"].(string)
+	id := d["id"].(string)
+	vivo := fakeAtual.ler(t, pkEspaco, chaveTx(data, id))
+	registro := doc{}
+	for k, v := range vivo {
+		if k != "PK" && k != "SK" {
+			registro[k] = v
+		}
+	}
+	criadoEm, _ := vivo["criadoEm"].(string)
+	hist(t, fakeAtual, id, 1, "insert", quem, criadoEm, registro)
+	return id
 }
 
 func editarTx(t *testing.T, quem, id, de, corpo string) {
@@ -500,5 +512,71 @@ func TestRestaurarVersaoOuLancamentoInexistente(t *testing.T) {
 	for _, n := range []string{"0", "-1", "x", "1.5"} {
 		c, _ = chamar(t, "own", "POST", "spaces/s1/tx/"+id+"/versoes/"+n+"/restaurar", nil, "")
 		esperar(t, "numero de versao "+n, c, 400)
+	}
+}
+
+// Periodo no historico (demo-versoes-periodo): dias, tudo e a validacao dos tres modos.
+func TestHistoricoAceitaPeriodoEmDiasETudo(t *testing.T) {
+	relogioEm(t, 2026, 10, 19, 15, 0) // 12h em Sao Paulo
+	f := cenario(t)
+	hist(t, f, "idhoje0001", 2, "update", "own", "2026-10-18T15:00:00.000Z", reg("idhoje0001", "ontem", 1, "own"))
+	hist(t, f, "idlimite001", 2, "update", "own", "2026-09-19T12:00:00.000Z", reg("idlimite001", "no limite", 2, "own")) // 19/09 = hoje - 30 dias
+	hist(t, f, "idantes0001", 2, "update", "own", "2026-09-18T20:00:00.000Z", reg("idantes0001", "um dia antes", 3, "own"))
+	hist(t, f, "idvelho0001", 2, "update", "own", "2025-03-01T12:00:00.000Z", reg("idvelho0001", "ano passado", 4, "own"))
+
+	_, d := chamar(t, "own", "GET", "spaces/s1/historico", map[string]string{"dias": "30"}, "")
+	if idsDe(d) != "idhoje0001,idlimite001" || d["dias"] != 30.0 || d["mes"] != nil {
+		t.Errorf("30 dias: esperava ontem e o do limite (a janela comeca no inicio do dia, em Sao Paulo), veio %s / %v", idsDe(d), d)
+	}
+	_, d = chamar(t, "own", "GET", "spaces/s1/historico", map[string]string{"dias": "90"}, "")
+	if idsDe(d) != "idhoje0001,idlimite001,idantes0001" {
+		t.Errorf("90 dias = %s", idsDe(d))
+	}
+	_, d = chamar(t, "own", "GET", "spaces/s1/historico", map[string]string{"tudo": "1"}, "")
+	if idsDe(d) != "idhoje0001,idlimite001,idantes0001,idvelho0001" || d["tudo"] != true {
+		t.Errorf("tudo = %s / %v", idsDe(d), d)
+	}
+	_, d = chamar(t, "own", "GET", "spaces/s1/historico", map[string]string{"dias": "30", "q": "ontem"}, "")
+	if idsDe(d) != "idhoje0001" {
+		t.Errorf("a busca vale dentro do periodo: %s", idsDe(d))
+	}
+}
+
+func TestHistoricoPeriodoInvalidoOuAmbiguoDa400(t *testing.T) {
+	cenario(t)
+	invalidos := []map[string]string{
+		nil, {"dias": "0"}, {"dias": "-5"}, {"dias": "abc"}, {"dias": "4000"}, {"dias": ""}, {"tudo": "0"}, {"tudo": "sim"},
+		{"mes": "2026-09", "dias": "30"}, {"mes": "2026-09", "tudo": "1"}, {"dias": "30", "tudo": "1"},
+	}
+	for _, qs := range invalidos {
+		c, d := chamar(t, "own", "GET", "spaces/s1/historico", qs, "")
+		esperar(t, fmt.Sprintf("periodo %v", qs), c, 400)
+		if d["erro"] == nil {
+			t.Errorf("%v: deveria explicar o erro: %v", qs, d)
+		}
+	}
+}
+
+func TestHistoricoBuscaPorTagESemAcento(t *testing.T) {
+	f := cenario(t)
+	comTag := func(id, desc string, tags ...any) doc {
+		r := reg(id, desc, 1, "own")
+		r["tags"] = tags
+		return r
+	}
+	hist(t, f, "idtag00001", 2, "update", "own", "2026-09-05T15:00:00.000Z", comTag("idtag00001", "Drogasil", "saúde", "mensal"))
+	hist(t, f, "idacento01", 2, "update", "own", "2026-09-06T15:00:00.000Z", comTag("idacento01", "Farmácia Popular"))
+	hist(t, f, "idoutro001", 2, "update", "own", "2026-09-07T15:00:00.000Z", comTag("idoutro001", "Posto", "carro"))
+	busca := func(q string) string {
+		_, d := chamar(t, "own", "GET", "spaces/s1/historico", map[string]string{"mes": "2026-09", "q": q}, "")
+		return idsDe(d)
+	}
+	for q, quer := range map[string]string{
+		"saude": "idtag00001", "SAÚDE": "idtag00001", "#saude": "idtag00001", "  mensal ": "idtag00001", "merc": "",
+		"farmacia": "idacento01", "FARMÁCIA": "idacento01", "popular": "idacento01", "carro": "idoutro001", "#": "idoutro001,idacento01,idtag00001",
+	} {
+		if got := busca(q); got != quer {
+			t.Errorf("busca %q = %q, esperado %q", q, got, quer)
+		}
 	}
 }

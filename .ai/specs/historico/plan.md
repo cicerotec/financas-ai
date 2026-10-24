@@ -80,6 +80,12 @@ Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave n
    DynamoDB (o `Deny` vale para o app, não para o administrador). **Ocultar** continua sendo edição e gerando versão; o
    tratamento do oculto fica para o item 40 do BACKLOG. Não cria chave nem campo no DynamoDB.
 
+9. **Período na tela Histórico de versões (fechada pelo dono em 2026-10-23).** A tela passa a ter o grupo **30d · 90d · 180d · 📅** pela
+   data da alteração (padrão 30d), a busca por descrição, nota e **tag** sem acento, a faixa do escopo com **Buscar em tudo** (sem aviso de
+   custo: a leitura é a mesma em qualquer período) e o aviso `truncado`. Demo: `demos/demo-versoes-periodo.html`. A rota aceita `mes`, `dias` ou
+   `tudo` (um só). Não cria chave nem campo no DynamoDB; o limite de 5.000 versões lidas continua, e fica leve porque, sem versão na criação
+   e na importação (decisão 8), o histórico é pequeno.
+
 ## Desenho
 
 ### Tipos e interfaces (em pastas por responsabilidade, ver `arquitetura.md`)
@@ -183,6 +189,7 @@ surpresa:
   `DeleteItem` em `HIST#` negada.
 
 ### Fase 1b: versão só na alteração (decisão 8, 2026-10-23)
+**Estado: implementada** (branch `feature/historico-versao-so-na-alteracao`). Escolha do dono: a criação que **exigiu confirmação de mês fechado** continua gravando a versão 1, com a confirmação, para a promessa "a confirmação fica gravada no histórico" valer; só nesse caso criar ou importar `id` novo grava versão.
 - `Criar` e o ramo "`id` novo" do `Importar` passam a gravar só o lançamento (sem versão). Editar, excluir, restaurar e a
   sobrescrita na importação ficam como estão (a v1 preguiçosa já existe em `VersoesDaEscrita`).
 - Testes: o de criar e o de importar `id` novo passam a afirmar que **não há versão** e **falham antes da mudança**; os de
@@ -191,6 +198,10 @@ surpresa:
   `demo-historico-versoes.html` acompanham na mesma entrega.
 - **Pronto quando:** os testes acima passam, `go test ./...` segue verde, e o spec, o intent e o modelo de dados já estão em
   dia (esta documentação).
+
+### Fase 3b: período e busca por tag no Histórico de versões (decisão 9, 2026-10-23)
+**Estado: implementada** (branch `feature/versoes-periodo`). Servidor: `service.PeriodoDaConsulta`, `domain.Periodo`, `domain.EmDentroDeDias`, `domain.Normalizar` e `domain.TermoBusca`; `NewLancamentos` recebe o relógio. Tela: `web/js/versoes.js` e `web/api.js` (`db.historico(periodo, q)`).
+Testes: F2-T3 (validação), F2-T24 (dias e tudo), F2-T25 (tag e acento), unitários de domínio e `web/versoes.test.js`.
 
 ### Fase 2: busca por mês, diff e restauração (API)
 - Rotas novas, `authz.go` com teste (o que não está liberado é negado), diff e `restauravel` calculados no backend.

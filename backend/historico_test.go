@@ -60,23 +60,22 @@ func confereVersao(t *testing.T, v doc, numero float64, acao, porSub string) {
 
 func chaveTx(data, id string) string { return dePrefixoTx + data + "#" + id }
 
-// F1-T1
-func TestCriarGravaOLancamentoEAVersao1(t *testing.T) {
+// F1-T1: criar nao grava versao (decisao 8 do plan, 2026-10-23). Quem criou e quando ficam no proprio lancamento.
+func TestCriarNaoGravaVersao(t *testing.T) {
 	f := cenario(t)
 	c, d := chamar(t, "mem", "POST", "spaces/s1/tx", nil,
 		`{"dataEvento":"2026-02-01T10:00:00.000Z","status":"PAGO","tipo":"saida","valor":5,"banco":"ITAU","descricao":"novo"}`)
 	esperar(t, "criar", c, 201)
 	id, _ := d["id"].(string)
-	if f.ler(t, pkEspaco, chaveTx("2026-02-01T10:00:00.000Z", id)) == nil {
+	vivo := f.ler(t, pkEspaco, chaveTx("2026-02-01T10:00:00.000Z", id))
+	if vivo == nil {
 		t.Fatal("o lancamento vivo deveria existir")
 	}
-	vs := versoesDe(t, f, id)
-	if len(vs) != 1 {
-		t.Fatalf("esperava 1 versao, vieram %d", len(vs))
+	if vivo["criadoPor"] != "mem" || vivo["criadoEm"] == nil {
+		t.Errorf("quem criou e quando ficam no lancamento: %v", vivo)
 	}
-	confereVersao(t, vs[0], 1, "insert", "mem")
-	if r := registroDe(vs[0]); r["id"] != id || r["valor"] != 5.0 || r["criadoPor"] != "mem" || vs[0]["em"] != r["criadoEm"] {
-		t.Errorf("registro da versao 1 = %v (em %v)", r, vs[0]["em"])
+	if vs := versoesDe(t, f, id); len(vs) != 0 {
+		t.Fatalf("criar nao grava versao, vieram %d", len(vs))
 	}
 }
 
@@ -95,7 +94,7 @@ func TestEditarComHistoricoGravaAProximaVersao(t *testing.T) {
 	if len(vs) != 3 {
 		t.Fatalf("esperava 3 versoes, vieram %d", len(vs))
 	}
-	confereVersao(t, vs[0], 1, "insert", "own")
+	confereVersao(t, vs[0], 1, "insert", "") // a v1 nasce na primeira edicao, com o estado de antes e sem autor
 	confereVersao(t, vs[1], 2, "update", "own")
 	confereVersao(t, vs[2], 3, "update", "own")
 	for i, quer := range []string{"v1", "v2", "v3"} {
@@ -304,7 +303,7 @@ func corpoImport(id, data, descricao string) string {
 }
 
 // F1-T13
-func TestImportarGravaInsertEUpdateNumaTransacao(t *testing.T) {
+func TestImportarIdNovoNaoGravaVersaoEIdExistenteSim(t *testing.T) {
 	f := cenario(t)
 	lote := `{"itens":[` + corpoImport("idnovo0001", "2026-03-05T10:00:00.000Z", "novo") + `,` + corpoImport("iddono", dataDono, "reimportado") + `]}`
 	c, d := chamar(t, "own", "POST", "spaces/s1/tx/batch", nil, lote)
@@ -312,11 +311,12 @@ func TestImportarGravaInsertEUpdateNumaTransacao(t *testing.T) {
 	if d["gravados"] != 2.0 || len(d["pendentes"].([]any)) != 0 || len(d["rejeitados"].([]any)) != 0 {
 		t.Fatalf("resposta = %v", d)
 	}
-	novo := versoesDe(t, f, "idnovo0001")
-	if len(novo) != 1 {
-		t.Fatalf("id novo: 1 versao insert, vieram %d", len(novo))
+	if novo := versoesDe(t, f, "idnovo0001"); len(novo) != 0 {
+		t.Fatalf("id novo nao grava versao, vieram %d", len(novo))
 	}
-	confereVersao(t, novo[0], 1, "insert", "own")
+	if f.ler(t, pkEspaco, chaveTx("2026-03-05T10:00:00.000Z", "idnovo0001")) == nil {
+		t.Fatal("o lancamento novo deveria ter sido gravado")
+	}
 	velho := versoesDe(t, f, "iddono")
 	if len(velho) != 2 {
 		t.Fatalf("id existente e legado: v1 de antes e v2 update, vieram %d", len(velho))
@@ -325,6 +325,22 @@ func TestImportarGravaInsertEUpdateNumaTransacao(t *testing.T) {
 	confereVersao(t, velho[1], 2, "update", "own")
 	if registroDe(velho[0])["descricao"] != "original" || registroDe(velho[1])["descricao"] != "reimportado" {
 		t.Errorf("a reimportacao deve guardar o estado anterior: %v / %v", registroDe(velho[0])["descricao"], registroDe(velho[1])["descricao"])
+	}
+}
+
+// F1-T18: um lote so com ids novos nao deixa nenhum item em HIST#.
+func TestImportarSoIdsNovosNaoDeixaNadaNoHistorico(t *testing.T) {
+	f := cenario(t)
+	lote := `{"itens":[` + corpoImport("idnovo0001", "2026-03-05T10:00:00.000Z", "a") + `,` + corpoImport("idnovo0002", "2026-03-06T10:00:00.000Z", "b") + `]}`
+	c, d := chamar(t, "own", "POST", "spaces/s1/tx/batch", nil, lote)
+	esperar(t, "importar", c, 200)
+	if d["gravados"] != 2.0 {
+		t.Fatalf("resposta = %v", d)
+	}
+	for k := range f.itens {
+		if strings.HasPrefix(k, pkHist+"|") {
+			t.Errorf("nao deveria haver item em HIST#: %s", k)
+		}
 	}
 }
 
@@ -341,8 +357,16 @@ func TestImportarRejeitaItemEmMesConferidoEGravaOResto(t *testing.T) {
 	if d["gravados"] != 1.0 || len(rej) != 1 || !strings.Contains(fmt.Sprint(rej[0]), "mes conferido e travado") {
 		t.Fatalf("resposta = %v", d)
 	}
-	if len(versoesDe(t, f, "idtravado1")) != 0 || len(versoesDe(t, f, "idlivre001")) != 1 {
-		t.Error("so o item aceito deve ter versao")
+	if len(versoesDe(t, f, "idtravado1")) != 0 {
+		t.Error("o rejeitado nao grava nada")
+	}
+	// id novo nao grava versao, exceto quando a importacao exigiu confirmacao de mes fechado (junho, com o relogio em
+	// outubro): ai a versao 1 guarda a confirmacao
+	if vs := versoesDe(t, f, "idlivre001"); len(vs) != 1 || vs[0]["confirmouMesFechado"] != true {
+		t.Errorf("o aceito de mes fechado confirmado grava a versao 1 com a confirmacao: %v", vs)
+	}
+	if f.ler(t, pkEspaco, chaveTx("2026-06-20T10:00:00.000Z", "idlivre001")) == nil {
+		t.Error("o item aceito deveria estar gravado")
 	}
 }
 

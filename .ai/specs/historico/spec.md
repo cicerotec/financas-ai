@@ -5,9 +5,9 @@ cada teste tem um id (`F<fase>-T<n>`), para o PR dizer exatamente o que cobriu. 
 divergirem, vale o plan, que registra as decisões do dono de 2026-10-15.
 
 **Estado:** aprovado pelo dono. Fases 0 a 2 implementadas e verificadas em dev (PRs #100, #102 e #106); a 3 (tela) implementada
-(PR #111), falta conferir no app de dev. **Ajuste de 2026-10-23 (Fase 1b, a implementar):** criar e importar `id` novo não gravam
-versão; a versão só nasce na alteração. As regras R2, R4, R5 e R10, os testes F1-T1, F1-T3, F1-T8, F1-T13, F1-T14 e F2-T10 e os exemplos 1, 2 e 6
-deste documento já descrevem o comportamento novo; o código ainda faz o antigo até a Fase 1b.
+(PR #111), falta conferir no app de dev. **Ajuste de 2026-10-23 (Fase 1b, implementada):** criar e importar `id` novo não gravam
+versão; a versão só nasce na alteração (exceção: a criação ou importação que exigiu confirmação de mês fechado grava a versão 1, com a confirmação). As regras R2, R4, R5 e R10, os testes F1-T1, F1-T3, F1-T8, F1-T13, F1-T14 e F2-T10 e os exemplos 1, 2 e 6
+deste documento descrevem o comportamento novo.
 
 **Como usar:** uma fase por PR, na ordem. Cada fase só termina quando todos os seus testes passam e o "Pronto quando"
 está marcado. Teste de regra de negócio é teste de backend (`go test ./...` em `backend/`); o front não decide nada.
@@ -56,7 +56,7 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
   **Criar (e importar `id` novo) grava só o item vivo, sem versão.**
 - **R3.** `versao` = (maior versão do `id`) + 1. Duas escritas concorrentes disputam a mesma `SK`: a segunda recebe
   `409` com `codigo: "conflito_versao"` e nada é gravado.
-- **R4.** **Criar não grava versão** (nem pelo app, nem por importação de `id` novo): o item vivo nasce com `criadoPor` e `criadoEm`. **Editar** (inclui ocultar, ajustar fatura e mudar a data)
+- **R4.** **Criar não grava versão** (nem pelo app, nem por importação de `id` novo): o item vivo nasce com `criadoPor` e `criadoEm`. **Exceção:** se a criação exigiu confirmação de mês fechado por data (item 38), grava a versão 1 `insert` com `confirmouMesFechado = true`, porque essa é a única forma de a confirmação ficar no histórico. **Editar** (inclui ocultar, ajustar fatura e mudar a data)
   grava uma versão `update`; mudar a data gera **uma** versão, não duas.
 - **R5. Versão 1 preguiçosa (a única origem da v1).** Se o lançamento não tem nenhuma versão (qualquer lançamento ainda não alterado, antigo ou novo) e vai ser editado ou excluído, a mesma
   transação grava duas versões: **v1** = estado de antes (`insert`, `porSub` vazio) e **v2** = estado de depois.
@@ -101,11 +101,11 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
 
 Erros seguem o formato de hoje (`{"erro": "...", "codigo": "..."}`).
 
-### `GET /spaces/{sid}/historico?mes=AAAA-MM&q=` (ação `historico.ler`)
+### `GET /spaces/{sid}/historico?mes=AAAA-MM|dias=N|tudo=1&q=` (ação `historico.ler`)
 
-- `mes` é obrigatório e deve ser um mês válido (`400` se faltar ou for inválido). `q` é opcional.
-- Lê as versões do espaço (`Query` em `HIST#<sid>`, `begins_with(SK, "TX#")`), filtra por `em` no mês (R12) e agrupa
-  por `id`. Casa `q` (sem diferenciar maiúsculas) em `descricao` e `nota` de **qualquer versão do mês**.
+- **Período (2026-10-23, Fase 3b):** **exatamente um** de `mes` (AAAA-MM válido), `dias` (inteiro de 1 a 3650) ou `tudo=1`; senão `400` com a explicação. Tudo é pela data da **alteração** (`em`). `dias=N` vai do **início do dia, em São Paulo, de hoje menos N**, até agora (a mesma janela do Histórico de lançamentos). A resposta traz a chave do período usado (`mes`, `dias` ou `tudo: true`). `q` é opcional.
+- Lê as versões do espaço (`Query` em `HIST#<sid>`, `begins_with(SK, "TX#")`), filtra por `em` no período (R12 para o mês) e agrupa
+  por `id`. Casa `q` em `descricao`, `nota` e **`tags`** de **qualquer versão do período**, sem diferenciar maiúsculas **nem acento** (`domain.TermoBusca` e `domain.Normalizar`); um `#` no começo do termo é ignorado. A leitura é a mesma em qualquer período (a data não está na chave), então o período limita o que aparece, não o que o servidor lê.
 - **Teto de 5.000 versões lidas.** Passou: para de ler e devolve `"truncado": true`.
 - Member: só os `id` cujo `registro.criadoPor` é o próprio `sub`.
 
@@ -345,7 +345,8 @@ Entrega: `HIST#`, R2 a R11, `excluidoEm`, `Deny` no `template.yaml`. Capacidade 
 | F1-T15 | Repository: nenhuma expressão de escrita de versão sem `attribute_not_exists(SK)` | O teste falha se alguma faltar |
 | F1-T16 | Repository e service | Não existe método de editar ou apagar versão (teste de reflexão sobre a interface) |
 | F1-T17 | Nenhuma rota monta `HIST#` a partir do corpo ou da query | Teste varre os controllers |
-| F1-T18 | Importar um lote só com `id` novos | Nenhum item em `HIST#` (falha antes da Fase 1b) |
+| F1-T18 | Importar um lote só com `id` novos, sem exigir confirmação | Nenhum item em `HIST#` (falha antes da Fase 1b) |
+| F1-T19 | Criar ou importar `id` novo que exigiu confirmação de mês fechado | Grava a versão 1 `insert` com `confirmouMesFechado = true` (único caso em que criar grava versão) |
 
 **Verificação em dev (manual, registrada no PR):**
 1. `sam deploy` na stack `financas-dev`.
@@ -367,7 +368,7 @@ Entrega: `HIST#`, R2 a R11, `excluidoEm`, `Deny` no `template.yaml`. Capacidade 
           dynamodb:LeadingKeys: ['HIST#*']
 ```
 
-**Pronto quando:** F1-T1 a F1-T18 passam; a verificação em dev está colada no PR; `security.md` e
+**Pronto quando:** F1-T1 a F1-T19 passam; a verificação em dev está colada no PR; `security.md` e
 `specs/modelo-de-dados/` (chave `HIST#`, `excluidoEm`, exemplo fictício) atualizados.
 
 ### Fase 2: busca por mês, diff e restauração (API)
@@ -381,11 +382,13 @@ maior que zero responde `400`; versão inexistente, `404`.
 |---|---|---|
 | F2-T1 | `rotaParaAcao` | Reconhece as 3 rotas; método errado ou caminho extra: `ok=false` |
 | F2-T2 | `permitido` (tabela de permissões) | Exatamente a matriz acima; papel ou ação desconhecidos: `negado` |
-| F2-T3 | `GET /historico` sem `mes` ou `mes=2026-13` | `400` |
+| F2-T3 | `GET /historico` sem período, `mes=2026-13`, `dias` fora de 1 a 3650 ou não numérico, `tudo` diferente de `1`, ou mais de um período | `400` com a explicação |
 | F2-T4 | Versões em setembro e outubro | `mes=2026-09` só devolve as de setembro |
 | F2-T5 | Alteração às 22h30 de 30/09 (SP), `em` já é 01/10 em UTC | Entra em **setembro** (R12) |
 | F2-T6 | Um lançamento com 3 versões no mês | Uma linha, com a última |
 | F2-T7 | `q` casa o nome **antigo** de um item renomeado no mês | O item aparece |
+| F2-T24 | `dias=30` com o relógio em 19/10/2026 | Entra a alteração de 19/09 (início do dia em São Paulo) e fica fora a de 18/09; `dias=90` e `tudo=1` ampliam; `q` vale dentro do período |
+| F2-T25 | `q` por tag e sem acento | `saude`, `SAÚDE` e `#saude` acham a tag `saúde`; `farmacia` acha "Farmácia"; `#` sozinho não filtra |
 | F2-T8 | Mais de 5.000 versões | Para a leitura e devolve `truncado: true` |
 | F2-T9 | Member em `/historico` e `/versoes` | Só o que criou; o de outro: vazio e `403` |
 | F2-T10 | `GET /versoes` de lançamento nunca editado (antigo ou novo) | `semHistorico: true`, `atual` preenchido |

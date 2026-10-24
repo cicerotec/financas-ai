@@ -73,10 +73,11 @@ type Lancamentos struct {
 	repo    Repositorio
 	ef      Efeitos
 	pessoas Pessoas
+	rel     Relogio // o instante "agora" da busca por dias no historico
 }
 
-func NewLancamentos(repo Repositorio, ef Efeitos, pessoas Pessoas) *Lancamentos {
-	return &Lancamentos{repo: repo, ef: ef, pessoas: pessoas}
+func NewLancamentos(repo Repositorio, ef Efeitos, pessoas Pessoas, rel Relogio) *Lancamentos {
+	return &Lancamentos{repo: repo, ef: ef, pessoas: pessoas, rel: rel}
 }
 
 const formatoTempo = "2006-01-02T15:04:05.000Z"
@@ -119,8 +120,13 @@ func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.La
 		}
 		exigiu = ex
 	}
-	versoes := domain.VersoesDaEscrita(0, nil, body, domain.AcaoInsert, sub, agora)
-	marcarConfirmacao(versoes, exigiu)
+	// Criar nao grava versao (decisao 8 do plan): o lancamento ja guarda criadoPor e criadoEm, e a versao 1 nasce na primeira
+	// alteracao. Unica excecao: a criacao que exigiu confirmacao de mes fechado, para a confirmacao ficar gravada no historico.
+	var versoes []domain.Versao
+	if exigiu {
+		versoes = domain.VersoesDaEscrita(0, nil, body, domain.AcaoInsert, sub, agora)
+		marcarConfirmacao(versoes, exigiu)
+	}
 	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Depois: body, Versoes: versoes}); err != nil {
 		return nil, escrita("post tx", ErrSalvar, err)
 	}
@@ -308,20 +314,25 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 			log.Println("importar: buscar:", err)
 			return nil, ErrInterno
 		}
-		ultima, visto := ultimas[id]
-		if !visto {
-			if ultima, err = s.repo.UltimaVersao(ctx, sid, id); err != nil {
-				log.Println("importar: ultima versao:", err)
-				return nil, ErrInterno
+		// id novo nao grava versao (decisao 8 do plan), a menos que a importacao tenha exigido confirmacao de mes fechado.
+		// id que ja existe e sobrescrita: grava versao (e, se ainda nao tinha, a v1 com o estado de antes).
+		var versoes []domain.Versao
+		if antigo != nil || exigiu {
+			ultima, visto := ultimas[id]
+			if !visto {
+				if ultima, err = s.repo.UltimaVersao(ctx, sid, id); err != nil {
+					log.Println("importar: ultima versao:", err)
+					return nil, ErrInterno
+				}
 			}
+			acao := domain.AcaoInsert
+			if antigo != nil {
+				acao = domain.AcaoUpdate
+			}
+			versoes = domain.VersoesDaEscrita(ultima, antigo, d, acao, sub, agora)
+			marcarConfirmacao(versoes, exigiu)
+			ultimas[id] = versoes[len(versoes)-1].Numero
 		}
-		acao := domain.AcaoInsert
-		if antigo != nil {
-			acao = domain.AcaoUpdate
-		}
-		versoes := domain.VersoesDaEscrita(ultima, antigo, d, acao, sub, agora)
-		marcarConfirmacao(versoes, exigiu)
-		ultimas[id] = versoes[len(versoes)-1].Numero
 		mudancas = append(mudancas, domain.Mudanca{Antes: antigo, Depois: d, DataAnterior: data, Versoes: versoes})
 		aceitos = append(aceitos, d)
 		if temAlvo {
