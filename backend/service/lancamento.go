@@ -73,10 +73,11 @@ type Lancamentos struct {
 	repo    Repositorio
 	ef      Efeitos
 	pessoas Pessoas
+	rel     Relogio // o instante "agora" da busca por dias no historico
 }
 
-func NewLancamentos(repo Repositorio, ef Efeitos, pessoas Pessoas) *Lancamentos {
-	return &Lancamentos{repo: repo, ef: ef, pessoas: pessoas}
+func NewLancamentos(repo Repositorio, ef Efeitos, pessoas Pessoas, rel Relogio) *Lancamentos {
+	return &Lancamentos{repo: repo, ef: ef, pessoas: pessoas, rel: rel}
 }
 
 const formatoTempo = "2006-01-02T15:04:05.000Z"

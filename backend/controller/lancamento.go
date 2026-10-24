@@ -50,9 +50,14 @@ func (c *Lancamentos) DelTx(ctx context.Context, sid, id, de, sub string, confir
 	return Out(200, d)
 }
 
-// GetHistorico: GET /spaces/{sid}/historico?mes=AAAA-MM&q=. restrito: so o que a pessoa criou (member).
-func (c *Lancamentos) GetHistorico(ctx context.Context, sid, mes, q, sub string, restrito bool) (Resp, error) {
-	d, err := c.svc.Historico(ctx, sid, mes, q, sub, restrito)
+// GetHistorico: GET /spaces/{sid}/historico?mes=AAAA-MM|dias=N|tudo=1&q=. Exatamente um dos tres periodos, pela data da
+// alteracao. restrito: so o que a pessoa criou (member).
+func (c *Lancamentos) GetHistorico(ctx context.Context, sid string, qs map[string]string, sub string, restrito bool) (Resp, error) {
+	per, err := service.PeriodoDaConsulta(qs["mes"], qs["dias"], qs["tudo"])
+	if err != nil {
+		return respostaErro(err)
+	}
+	d, err := c.svc.Historico(ctx, sid, per, qs["q"], sub, restrito)
 	if err != nil {
 		return respostaErro(err)
 	}

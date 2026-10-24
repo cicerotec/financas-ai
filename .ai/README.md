@@ -46,7 +46,7 @@ feito e ideias).
 | [`demos/demo-menu-usuario.html`](demos/demo-menu-usuario.html) | Demo do menu do usuário: nome e Sair saem da linha de cima e vão para o menu (aprovada em 2026-10-17) |
 | [`demos/demo-historico-periodo.html`](demos/demo-historico-periodo.html) | Demo da aba Histórico por período (30d, 90d, 180d e calendário de um mês, abre em 30d), com a busca limitada ao que está marcado e o aviso de "Buscar em tudo" (aprovada pelo dono e implementada em 2026-10-20) |
 | [`demos/demo-configuracoes.html`](demos/demo-configuracoes.html) | Demo da aba Configurações (antes Importar), só do dono, com as seções recolhidas Cartão, Importar e Exportar (aprovada e implementada em 2026-10-23; seção "Configurações (tela)" de `padrao-de-telas.md`) |
-| [`demos/demo-versoes-periodo.html`](demos/demo-versoes-periodo.html) | Demo do Histórico de versões por período (30d, 90d, 180d e calendário, pela data da alteração), busca por descrição, nota e tag, "Buscar em tudo" sem aviso de custo e o aviso de "mais versões"; só lançamentos alterados, com a v1 "Original" dentro das versões (aprovada pelo dono em 2026-10-23; ainda não implementada) |
+| [`demos/demo-versoes-periodo.html`](demos/demo-versoes-periodo.html) | Demo do Histórico de versões por período (30d, 90d, 180d e calendário, pela data da alteração), busca por descrição, nota e tag, "Buscar em tudo" sem aviso de custo e o aviso de "mais versões"; só lançamentos alterados, com a v1 "Original" dentro das versões (aprovada pelo dono e implementada em 2026-10-23) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.

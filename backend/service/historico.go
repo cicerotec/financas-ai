@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 
 	"financas/domain"
@@ -52,30 +53,74 @@ func (a *apelidos) de(sub string) string {
 
 func texto(x any) string { s, _ := x.(string); return s }
 
+// contem olha descricao, nota e tags, sem diferenciar maiuscula nem acento. q ja vem de domain.TermoBusca.
 func contem(registro domain.Lancamento, q string) bool {
-	return strings.Contains(strings.ToLower(texto(registro["descricao"])+" "+texto(registro["nota"])), q)
+	return strings.Contains(domain.Normalizar(texto(registro["descricao"])+" "+texto(registro["nota"])+" "+tagsTexto(registro["tags"])), q)
+}
+
+func tagsTexto(x any) string {
+	var partes []string
+	switch t := x.(type) {
+	case []any:
+		for _, v := range t {
+			partes = append(partes, texto(v))
+		}
+	case []string:
+		partes = t
+	}
+	return strings.Join(partes, " ")
+}
+
+// PeriodoDaConsulta le os parametros mes, dias e tudo da rota do historico: exatamente um deles, e valido.
+func PeriodoDaConsulta(mes, dias, tudo string) (domain.Periodo, error) {
+	usados := 0
+	for _, v := range []string{mes, dias, tudo} {
+		if v != "" {
+			usados++
+		}
+	}
+	const dica = "informe o periodo: mes=AAAA-MM, dias=1 a 3650 ou tudo=1 (so um deles)"
+	if usados != 1 {
+		return domain.Periodo{}, &ErroValidacao{dica}
+	}
+	switch {
+	case mes != "":
+		if !domain.MesValido(mes) {
+			return domain.Periodo{}, &ErroValidacao{"mes obrigatorio, no formato AAAA-MM"}
+		}
+		return domain.Periodo{Mes: mes}, nil
+	case dias != "":
+		n, err := strconv.Atoi(dias)
+		if err != nil || n < 1 || n > domain.MaxDiasHistorico {
+			return domain.Periodo{}, &ErroValidacao{"dias deve ser um numero de 1 a 3650"}
+		}
+		return domain.Periodo{Dias: n}, nil
+	default:
+		if tudo != "1" {
+			return domain.Periodo{}, &ErroValidacao{"tudo deve ser 1"}
+		}
+		return domain.Periodo{Tudo: true}, nil
+	}
 }
 
 // Historico lista os lancamentos que mudaram no mes (excluidos e alterados juntos): uma linha por lancamento, com a
 // ultima versao do mes. O mes e o da alteracao (fuso de Sao Paulo). q procura em descricao e nota de qualquer versao do
 // mes. restrito: so os lancamentos que a pessoa criou (member).
-func (s *Lancamentos) Historico(ctx context.Context, sid, mes, q, sub string, restrito bool) (domain.Doc, error) {
-	if !domain.MesValido(mes) {
-		return nil, &ErroValidacao{"mes obrigatorio, no formato AAAA-MM"}
-	}
+func (s *Lancamentos) Historico(ctx context.Context, sid string, per domain.Periodo, q, sub string, restrito bool) (domain.Doc, error) {
+	agora := s.rel.Agora()
 	vs, truncado, err := s.repo.VersoesDoEspaco(ctx, sid, LimiteVersoesLidas)
 	if err != nil {
 		log.Println("historico: ler versoes:", err)
 		return nil, ErrInterno
 	}
-	q = strings.ToLower(strings.TrimSpace(q))
+	q = domain.TermoBusca(q)
 	type grupo struct {
 		ultima domain.Versao
 		casa   bool
 	}
 	grupos := map[string]*grupo{}
 	for _, v := range vs {
-		if domain.MesDe(v.Em) != mes || (restrito && !domain.EhDono(v.Registro, sub)) {
+		if !per.Contem(v.Em, agora) || (restrito && !domain.EhDono(v.Registro, sub)) {
 			continue
 		}
 		g := grupos[v.ID]
@@ -112,7 +157,16 @@ func (s *Lancamentos) Historico(ctx context.Context, sid, mes, q, sub string, re
 		}
 		return texto(itens[i]["id"]) < texto(itens[j]["id"])
 	})
-	return domain.Doc{"mes": mes, "truncado": truncado, "itens": itens}, nil
+	resp := domain.Doc{"truncado": truncado, "itens": itens}
+	switch {
+	case per.Tudo:
+		resp["tudo"] = true
+	case per.Dias > 0:
+		resp["dias"] = per.Dias
+	default:
+		resp["mes"] = per.Mes
+	}
+	return resp, nil
 }
 
 // alvosDe junta, sem repetir, os alvos (banco e mes) de dois estados do lancamento.

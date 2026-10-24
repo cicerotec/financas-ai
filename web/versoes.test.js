@@ -40,7 +40,7 @@ const ctx = {
 };
 ctx.window.document = ctx.document;
 vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(path.join(__dirname, 'js', 'versoes.js'), 'utf8') + '\nthis.__v = {abrirVersoes, vsPreparar, vsMudarMes, vsRender, get s(){return {vsMes,vsLista,vsAberto,vsDados,vsErro,vsTrunc};}};', ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, 'js', 'versoes.js'), 'utf8') + '\nthis.__v = {abrirVersoes, vsPreparar, vsMudarMes, vsRender, get s(){return {vsPer,vsTudo,vsAsc,vsMes,vsLista,vsAberto,vsDados,vsErro,vsTrunc};}};', ctx);
 const V = ctx.__v;
 
 // ---------- API falsa (formatos do spec) ----------
@@ -63,7 +63,7 @@ const versoesDoItem = {
 };
 let respostaRestaurar = { status: 200, body: { id: ID, _seq: 9 } };
 ctx.db = {
-  async historicoMes(mes, q) { chamadas.push({ historico: [mes, q] }); return mes === '2026-10' ? { mes, truncado: false, itens: itensOutubro } : { mes, truncado: mes === '2026-07', itens: [] }; },
+  async historico(p, q) { chamadas.push({ historico: [p, q] }); const mes = p.mes || (p.dias ? '2026-10' : 'tudo'); return mes === '2026-10' || p.tudo ? Object.assign({ truncado: false, itens: itensOutubro }, p) : Object.assign({ truncado: mes === '2026-07', itens: [] }, p); },
   async versoesDoLancamento(id) { chamadas.push({ versoes: id }); return versoesDoItem; },
   async restaurarVersao(id, n, confirma) { chamadas.push({ restaurar: [id, n], confirma }); return respostaRestaurar; }
 };
@@ -73,15 +73,24 @@ const cliqueDoc = (a, d) => escuta.doc.click({ target: { closest: () => ({ datas
 const html = () => elemento('tab-versoes').innerHTML;
 const tela = () => (elementos.vsTc || {}).innerHTML || '';
 const espera = () => new Promise((r) => setTimeout(r, 5));
+const igual = (a, b, msg) => assert.strictEqual(JSON.stringify(a), JSON.stringify(b), msg); // objetos do vm tem outro prototipo
 
 (async () => {
   V.vsPreparar(); // o DOMContentLoaded do navegador
 
   // celular: lista do mes atual
   V.abrirVersoes(); await espera();
+  assert.strictEqual(V.s.vsPer, '30d', 'abre em 30d');
+  igual(chamadas[0].historico, [{ dias: 30 }, '']);
+  assert(html().includes('2 lançamentos mudaram nos últimos 30 dias'), 'resumo');
+  assert(html().includes('data-p="30d"') && html().includes('data-p="90d"') && html().includes('data-p="180d"') && html().includes('type="month"'), 'grupo 30d 90d 180d e calendario');
+  assert(/data-p="30d"[^>]*aria-pressed="true"/.test(html().replace(/\s+/g, ' ')), '30d marcado');
+  assert(!html().includes('data-vs="prox"'), 'a linha de mes so aparece com um mes escolhido');
+  assert(html().includes('placeholder="Descrição, nota ou tag"'), 'placeholder da busca no celular');
+  V.vsMudarMes('2026-10'); await espera();
   assert.strictEqual(V.s.vsMes, '2026-10');
-  assert.deepStrictEqual(chamadas[0].historico, ['2026-10', '']);
-  assert(html().includes('2 lançamentos mudaram em outubro de 2026'), 'resumo');
+  igual(chamadas[1].historico, [{ mes: '2026-10' }, '']);
+  assert(html().includes('2 lançamentos mudaram em outubro de 2026'), 'resumo do mes');
   assert(html().includes('vs-pill ex">Excluído'), 'pilula de excluido');
   assert(html().includes('Restaurado') && html().includes('versão 4'), 'restaurado e versao');
   assert(html().includes('Mercado &lt;b&gt;do bairro&lt;/b&gt;') && !html().includes('<b>do bairro</b>'), 'descricao escapada');
@@ -150,7 +159,7 @@ const espera = () => new Promise((r) => setTimeout(r, 5));
   // mes anterior e mes vazio / truncado
   chamadas.length = 0;
   clique('ant'); await espera();
-  assert.deepStrictEqual(chamadas[0].historico, ['2026-09', '']);
+  igual(chamadas[0].historico, [{ mes: '2026-09' }, '']);
   assert(html().includes('Nenhuma alteração em setembro de 2026'), 'mes vazio');
   V.vsMudarMes('2026-07'); await espera();
   V.vsMudarMes('2026-11'); await espera(); // futuro: ignorado
@@ -162,7 +171,33 @@ const espera = () => new Promise((r) => setTimeout(r, 5));
   global.document = ctx.document; ctx.document.getElementById = ((orig) => (id) => id === 'vsQIn' ? elementos.vsQIn : orig(id))(ctx.document.getElementById);
   chamadas.length = 0;
   clique('buscar'); await espera();
-  assert.deepStrictEqual(chamadas[0].historico, ['2026-10', 'mercado']);
+  igual(chamadas[0].historico, [{ mes: '2026-10' }, 'mercado']);
+  assert(html().includes('Resultado de <b>outubro de 2026</b>') && html().includes('data-vs="tudo"'), 'faixa do escopo com Buscar em tudo');
+
+  // periodo: 90d, 180d, calendario, ordem, e "Buscar em tudo" (sem aviso de custo) e voltar
+  chamadas.length = 0;
+  clique('per', { p: '90d' }); await espera();
+  assert.strictEqual(V.s.vsPer, '90d');
+  igual(chamadas[0].historico, [{ dias: 90 }, 'mercado'], 'a busca vale no periodo marcado');
+  assert(html().includes('Resultado dos <b>últimos 90 dias</b>'), 'faixa do periodo');
+  chamadas.length = 0;
+  clique('tudo'); await espera();
+  igual(chamadas[0].historico, [{ tudo: true }, 'mercado']);
+  assert(html().includes('Resultado de <b>todo o histórico</b>') && html().includes('data-vs="escopo-voltar"'), 'faixa de tudo com botao de voltar');
+  assert(!chamadas.some((c) => c.confirmou), 'sem janela de aviso de custo');
+  chamadas.length = 0;
+  clique('escopo-voltar'); await espera();
+  igual(chamadas[0].historico, [{ dias: 90 }, 'mercado'], 'voltar refaz a busca no periodo');
+  chamadas.length = 0;
+  clique('per', { p: '180d' }); await espera();
+  igual(chamadas[0].historico, [{ dias: 180 }, 'mercado']);
+  elemento('vsQIn').value = ''; clique('buscar'); await espera(); // limpar a busca
+  assert(!html().includes('data-vs="escopo-voltar"') && !html().includes('Buscar em tudo'), 'sem busca, sem faixa de escopo');
+  assert(html().indexOf('Mercado &lt;b&gt;') < html().indexOf('Ingresso cancelado'), 'mais recentes primeiro');
+  clique('ord'); await espera();
+  assert(html().indexOf('Ingresso cancelado') < html().indexOf('Mercado &lt;b&gt;'), 'a ordem inverte sem nova chamada ao servidor');
+  clique('ord'); await espera();
+  V.vsMudarMes('2026-10'); await espera();
 
   // computador: tabela e painel
   largo = true; chamadas.length = 0;
@@ -173,13 +208,13 @@ const espera = () => new Promise((r) => setTimeout(r, 5));
   largo = false;
 
   // erro de rede
-  ctx.db.historicoMes = async () => { throw new Error('Failed to fetch'); };
+  ctx.db.historico = async () => { throw new Error('Failed to fetch'); };
   V.vsMudarMes('2026-08'); await espera();
   assert(html().includes('vs-aviso') && html().includes('Failed to fetch'), 'erro aparece na tela');
 
   // resposta velha nao apaga a nova (corrida)
   let soltarVelha;
-  ctx.db.historicoMes = (mes) => mes === '2026-06'
+  ctx.db.historico = ({ mes }) => mes === '2026-06'
     ? new Promise((r) => { soltarVelha = () => r({ mes, truncado: false, itens: itensOutubro }); })
     : Promise.resolve({ mes, truncado: false, itens: [] });
   V.vsMudarMes('2026-06');

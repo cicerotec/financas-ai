@@ -434,6 +434,11 @@ body[data-aba="futuros"] main{max-width:1600px;}
 .vs-pill{display:inline-block;border-radius:10px;padding:1px 8px;font-size:12px;font-weight:600;background:var(--ck);color:var(--text);margin-right:6px;}
 .vs-pill.ex{background:var(--danger-bg);color:var(--danger);}
 .vs-pill.rs{background:var(--accent-bg);color:var(--accent);}
+.vs-per{margin:0 0 8px;}
+.vs-fim{display:flex;gap:6px;margin:12px 0 0;}
+.vs-fim button{flex:1;min-height:48px;border:0;border-radius:12px;background:var(--card);color:var(--text);padding:0 14px;font-size:14px;cursor:pointer;}
+.vs-fim button[data-vs="topo"]{flex:none;color:var(--muted);font-size:13px;}
+.vs-mh td{background:var(--bg);color:var(--muted);font-size:12.5px;font-weight:600;padding:8px 12px;}
 .vs-ctx{padding:6px 4px 8px;font-size:13px;color:var(--muted);overflow-wrap:anywhere;}
 .vs-ctx b{color:var(--text);}
 .vs-ver{background:var(--card);border-radius:16px;margin:0 0 10px;padding:12px 16px 14px;}

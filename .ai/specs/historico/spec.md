@@ -101,11 +101,11 @@ está marcado. Teste de regra de negócio é teste de backend (`go test ./...` e
 
 Erros seguem o formato de hoje (`{"erro": "...", "codigo": "..."}`).
 
-### `GET /spaces/{sid}/historico?mes=AAAA-MM&q=` (ação `historico.ler`)
+### `GET /spaces/{sid}/historico?mes=AAAA-MM|dias=N|tudo=1&q=` (ação `historico.ler`)
 
-- `mes` é obrigatório e deve ser um mês válido (`400` se faltar ou for inválido). `q` é opcional.
-- Lê as versões do espaço (`Query` em `HIST#<sid>`, `begins_with(SK, "TX#")`), filtra por `em` no mês (R12) e agrupa
-  por `id`. Casa `q` (sem diferenciar maiúsculas) em `descricao` e `nota` de **qualquer versão do mês**.
+- **Período (2026-10-23, Fase 3b):** **exatamente um** de `mes` (AAAA-MM válido), `dias` (inteiro de 1 a 3650) ou `tudo=1`; senão `400` com a explicação. Tudo é pela data da **alteração** (`em`). `dias=N` vai do **início do dia, em São Paulo, de hoje menos N**, até agora (a mesma janela do Histórico de lançamentos). A resposta traz a chave do período usado (`mes`, `dias` ou `tudo: true`). `q` é opcional.
+- Lê as versões do espaço (`Query` em `HIST#<sid>`, `begins_with(SK, "TX#")`), filtra por `em` no período (R12 para o mês) e agrupa
+  por `id`. Casa `q` em `descricao`, `nota` e **`tags`** de **qualquer versão do período**, sem diferenciar maiúsculas **nem acento** (`domain.TermoBusca` e `domain.Normalizar`); um `#` no começo do termo é ignorado. A leitura é a mesma em qualquer período (a data não está na chave), então o período limita o que aparece, não o que o servidor lê.
 - **Teto de 5.000 versões lidas.** Passou: para de ler e devolve `"truncado": true`.
 - Member: só os `id` cujo `registro.criadoPor` é o próprio `sub`.
 
@@ -382,11 +382,13 @@ maior que zero responde `400`; versão inexistente, `404`.
 |---|---|---|
 | F2-T1 | `rotaParaAcao` | Reconhece as 3 rotas; método errado ou caminho extra: `ok=false` |
 | F2-T2 | `permitido` (tabela de permissões) | Exatamente a matriz acima; papel ou ação desconhecidos: `negado` |
-| F2-T3 | `GET /historico` sem `mes` ou `mes=2026-13` | `400` |
+| F2-T3 | `GET /historico` sem período, `mes=2026-13`, `dias` fora de 1 a 3650 ou não numérico, `tudo` diferente de `1`, ou mais de um período | `400` com a explicação |
 | F2-T4 | Versões em setembro e outubro | `mes=2026-09` só devolve as de setembro |
 | F2-T5 | Alteração às 22h30 de 30/09 (SP), `em` já é 01/10 em UTC | Entra em **setembro** (R12) |
 | F2-T6 | Um lançamento com 3 versões no mês | Uma linha, com a última |
 | F2-T7 | `q` casa o nome **antigo** de um item renomeado no mês | O item aparece |
+| F2-T24 | `dias=30` com o relógio em 19/10/2026 | Entra a alteração de 19/09 (início do dia em São Paulo) e fica fora a de 18/09; `dias=90` e `tudo=1` ampliam; `q` vale dentro do período |
+| F2-T25 | `q` por tag e sem acento | `saude`, `SAÚDE` e `#saude` acham a tag `saúde`; `farmacia` acha "Farmácia"; `#` sozinho não filtra |
 | F2-T8 | Mais de 5.000 versões | Para a leitura e devolve `truncado: true` |
 | F2-T9 | Member em `/historico` e `/versoes` | Só o que criou; o de outro: vazio e `403` |
 | F2-T10 | `GET /versoes` de lançamento nunca editado (antigo ou novo) | `semHistorico: true`, `atual` preenchido |
