@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,10 +10,6 @@ import (
 
 // Fatia 3 do item 32 (.ai/specs/arquitetura-camadas/spec-fatia-3.md): o fechamento e a trava de mes migraram para as
 // camadas sem mudar o contrato HTTP. Os testes de fechamento_test.go e fechamento_auto_test.go seguem como a rede da trava.
-
-func fecha(banco string, ver float64, saldo, real float64) string {
-	return fmt.Sprintf(`{"banco":"%s","mes":"2026-02","version":%v,"saldo":%v,"real":%v}`, banco, ver, saldo, real)
-}
 
 // F3-T1: ler os fechamentos devolve os itens sem chaves internas, o mes atual do relogio e [] sem itens.
 func TestF3ListarFechamentos(t *testing.T) {
@@ -36,25 +31,22 @@ func TestF3ListarFechamentos(t *testing.T) {
 	esperar(t, "erro de leitura", c, 500)
 }
 
-// F3-T2: conflito de versao nas tres escritas e a ordem de conferir/reabrir.
+// F3-T2: a ordem de conferir/reabrir. (Item 40: o PUT do cache nao grava mais nada e nao ha mais conflito de version na conferencia,
+// porque o servidor compara o extrato com o saldo que ele calculou.)
 func TestF3ConflitosOrdemEMesNaoConferido(t *testing.T) {
-	cenario(t)
-	c, d := chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":7,"caches":{}}`)
-	esperar(t, "PUT com version errada (sem item)", c, 409)
-	atual, _ := d["atual"].(map[string]any)
-	if d["erro"] != "alterado por outra pessoa" || atual["version"] != 0.0 {
-		t.Errorf("409 sem item deve trazer atual {version:0}: %v", d)
+	f := cenario(t)
+	c, d := chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":7,"caches":{"2026-01":10}}`)
+	esperar(t, "PUT do cache e ignorado, sem conflito", c, 200)
+	if d["version"] != 0.0 {
+		t.Errorf("sem item, a resposta e {version:0}: %v", d)
 	}
-	c, d = chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":0,"caches":{"2026-01":10}}`)
-	esperar(t, "primeiro PUT", c, 200)
-	c, _ = chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":0,"caches":{}}`)
-	esperar(t, "PUT com version velha", c, 409)
-	c, _ = chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, fecha("ITAU", 0, 100, 100))
-	esperar(t, "conferir com version velha", c, 409)
+	if f.ler(t, pkEspaco, "SALDO#ITAU") != nil {
+		t.Error("o PUT do cache nao pode gravar nada")
+	}
 
-	c, _ = chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, fecha("ITAU", 1, 100, 100))
+	c, _ = conferir(t, "own", "ITAU", "2026-02", 0)
 	esperar(t, "conferir fevereiro", c, 200)
-	c, d = chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"banco":"ITAU","mes":"2026-01","version":2,"saldo":1,"real":1}`)
+	c, d = chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-01","real":1}`)
 	esperar(t, "conferir mes anterior ao ultimo", c, 409)
 	if d["codigo"] != "ordem" || d["erro"] != "o mes 2026-01 nao pode ser conferido: o ultimo conferido e 2026-02" {
 		t.Errorf("409 de ordem = %v", d)
@@ -76,7 +68,7 @@ func TestF3ConflitosOrdemEMesNaoConferido(t *testing.T) {
 	}
 }
 
-// F3-T3: validacoes, com a borda da diferenca de 0,005 e o descarte do mes em andamento e dos futuros.
+// F3-T3: validacoes, com a borda da diferenca de 0,005. (Item 40: o PUT do cache so exige o banco; o resto do corpo e ignorado.)
 func TestF3ValidacoesEBordas(t *testing.T) {
 	f := cenario(t)
 	c, d := chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"version":0,"caches":{}}`)
@@ -85,37 +77,24 @@ func TestF3ValidacoesEBordas(t *testing.T) {
 		t.Errorf("erro = %v", d["erro"])
 	}
 	for _, corpo := range []string{`{"banco":"ITAU","caches":{"2026-13":1}}`, `{"banco":"ITAU","caches":{"x":1}}`, `{"banco":"ITAU","caches":{"2026-01":"a"}}`} {
-		c, d = chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, corpo)
-		esperar(t, "cache invalido "+corpo, c, 400)
-		if d["erro"] != "caches invalidos" {
-			t.Errorf("erro = %v", d["erro"])
-		}
+		c, _ = chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, corpo)
+		esperar(t, "o corpo do cache e ignorado "+corpo, c, 200)
 	}
-	// hoje e 05/02/2026: janeiro entra no cache; fevereiro (em andamento) e marco (futuro) sao descartados
-	c, d = chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":0,"base":"2026-01","caches":{"2026-01":10,"2026-02":20,"2026-03":30}}`)
-	esperar(t, "gravar cache", c, 200)
-	caches, _ := d["caches"].(map[string]any)
-	if len(caches) != 1 || caches["2026-01"] != 10.0 || d["base"] != "2026-01" {
-		t.Errorf("so janeiro deveria entrar: %v", d)
-	}
-	if got := f.ler(t, pkEspaco, "SALDO#ITAU"); got == nil || got["PK"] != pkEspaco {
-		t.Errorf("item gravado = %v", got)
+	if f.ler(t, pkEspaco, "SALDO#ITAU") != nil {
+		t.Error("nada pode ser gravado pelo PUT do cache")
 	}
 
-	ver := 1.0
-	for _, c := range []struct {
-		nome       string
-		saldo, rel float64
-		quer       int
-	}{{"diferenca 0,004 passa", 100, 100.004, 200}, {"diferenca 0,006 nao passa", 100, 100.006, 400}} {
-		// (a borda exata de 0,005 depende do ponto flutuante: 100,005 - 100 da 0,00499...; por isso 0,004 e 0,006)
-		st, dd := chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, fecha("ITAU", ver, c.saldo, c.rel))
-		esperar(t, c.nome, st, c.quer)
-		if st == 400 && dd["erro"] != "o saldo calculado nao bate com o extrato: lance o ajuste antes de conferir" {
-			t.Errorf("%s: %v", c.nome, dd["erro"])
-		}
+	// o saldo do ITAU em fevereiro e -30 (tres saidas de 10 em janeiro); a borda e 0,005 de diferenca
+	// (a borda exata de 0,005 depende do ponto flutuante: por isso 0,006 e 0,004)
+	c, d = chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-02","real":-30.006}`)
+	esperar(t, "diferenca 0,006 nao passa", c, 409)
+	if d["codigo"] != "diferenca" {
+		t.Errorf("diferenca 0,006: %v", d)
 	}
-	c2, d2 := chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"banco":"ITAU","mes":"2026-03","version":2,"saldo":1,"real":1}`)
+	c, _ = chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-02","real":-30.004}`)
+	esperar(t, "diferenca 0,004 passa", c, 200)
+
+	c2, d2 := chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-03","real":1}`)
 	esperar(t, "mes futuro", c2, 400)
 	if d2["erro"] != "so da para conferir o mes atual ou meses anteriores" {
 		t.Errorf("erro = %v", d2["erro"])

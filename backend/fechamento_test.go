@@ -18,9 +18,18 @@ func corpoTx(data, banco string, valor float64) string {
 // conf e a confirmacao explicita de mes fechado por data (query confirmaMesFechado=1).
 var conf = map[string]string{"confirmaMesFechado": "1"}
 
+// conferir confere o mes com o extrato igual ao que o servidor calcula (item 40: o servidor compara o real com o saldo dele). A
+// primeira chamada, com um extrato impossivel, so pergunta quanto o servidor calculou; o parametro ver e do tempo em que o
+// cliente mandava a version e nao e mais usado.
 func conferir(t *testing.T, quem, banco, mes string, ver float64) (int, doc) {
-	return chamar(t, quem, "POST", "spaces/s1/fechamentos/conferir", nil,
-		fmt.Sprintf(`{"banco":"%s","mes":"%s","version":%v,"saldo":100,"real":100}`, banco, mes, ver))
+	t.Helper()
+	c, d := chamar(t, quem, "POST", "spaces/s1/fechamentos/conferir", nil,
+		fmt.Sprintf(`{"meio":"%s","mes":"%s","real":123456789.01}`, banco, mes))
+	if c == 409 && d["codigo"] == "diferenca" {
+		return chamar(t, quem, "POST", "spaces/s1/fechamentos/conferir", nil,
+			fmt.Sprintf(`{"meio":"%s","mes":"%s","real":%v}`, banco, mes, d["calculado"]))
+	}
+	return c, d
 }
 
 func TestMesPeloFusoDeSaoPaulo(t *testing.T) {
@@ -110,19 +119,16 @@ func TestImportacaoRejeitaMesConferido(t *testing.T) {
 	}
 }
 
-func TestEscritaInvalidaCacheEBarraCacheVelho(t *testing.T) {
+// Qualquer escrita que mexe no saldo invalida o cache do servidor a partir do mes dela e muda a version (item 40: o cache e gravado
+// so pelo servidor; aqui ele e semeado direto no banco).
+func TestEscritaInvalidaOCacheDoServidor(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
-	c, d := chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil,
-		`{"banco":"ITAU","version":0,"base":"100|2026-01-01","caches":{"2026-01":90,"2026-02":80,"2026-10":70}}`)
-	esperar(t, "gravar cache", c, 200)
-	caches, _ := d["caches"].(map[string]any)
-	if len(caches) != 2 || caches["2026-10"] != nil {
-		t.Errorf("o mes em andamento nao pode virar cache: %v", caches)
-	}
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "SALDO#ITAU", "banco": "ITAU", "version": 1.0, "base": "x",
+		"caches": map[string]any{"2026-01": 90.0, "2026-02": 80.0}})
 
 	// um lancamento novo em fevereiro: cache de fevereiro em diante deixa de valer e a version muda
-	c, _ = chamar(t, "own", "POST", "spaces/s1/tx", conf, corpoTx("2026-02-20T12:00:00.000Z", "ITAU", 3))
+	c, _ := chamar(t, "own", "POST", "spaces/s1/tx", conf, corpoTx("2026-02-20T12:00:00.000Z", "ITAU", 3))
 	esperar(t, "lancar em fevereiro", c, 201)
 	st := f.ler(t, pkEspaco, "SALDO#ITAU")
 	if st["invalidoDe"] != "2026-02" || st["version"] != 2.0 {
@@ -134,25 +140,12 @@ func TestEscritaInvalidaCacheEBarraCacheVelho(t *testing.T) {
 	if got := f.ler(t, pkEspaco, "SALDO#ITAU")["invalidoDe"]; got != "2026-01" {
 		t.Errorf("invalidoDe deveria ser o mes mais antigo alterado, veio %v", got)
 	}
-
-	// cache calculado antes da escrita (version 1) nao pode ser gravado
-	c, d = chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":1,"base":"x","caches":{"2026-01":1}}`)
-	esperar(t, "cache velho", c, 409)
-	if atual, _ := d["atual"].(map[string]any); atual["version"] != 4.0 {
-		t.Errorf("o 409 deveria trazer o estado atual: %v", d["atual"])
-	}
-	// com a version certa, grava e limpa o invalidoDe
-	c, _ = chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":4,"base":"x","caches":{"2026-01":1}}`)
-	esperar(t, "cache atual", c, 200)
-	if f.ler(t, pkEspaco, "SALDO#ITAU")["invalidoDe"] != nil {
-		t.Error("gravar o cache novo deveria limpar o invalidoDe")
-	}
 }
 
 func TestEditarTextoNaoInvalidaCache(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
-	chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":0,"base":"x","caches":{"2026-01":90}}`)
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "SALDO#ITAU", "banco": "ITAU", "version": 1.0, "base": "x", "caches": map[string]any{"2026-01": 90.0}})
 	c, _ := chamar(t, "own", "PUT", "spaces/s1/tx/iddono", map[string]string{"de": dataDono}, `{"descricao":"outro texto"}`)
 	esperar(t, "editar texto", c, 200)
 	if st := f.ler(t, pkEspaco, "SALDO#ITAU"); st["invalidoDe"] != nil || st["version"] != 1.0 {
@@ -169,17 +162,22 @@ func TestValidacoesDaConferencia(t *testing.T) {
 	esperar(t, "mes futuro", c, 400)
 	c, _ = conferir(t, "own", "ITAU", "03/2026", 0)
 	esperar(t, "mes mal formado", c, 400)
-	c, _ = chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil,
-		`{"banco":"ITAU","mes":"2026-03","version":0,"saldo":100,"real":99.5}`)
-	esperar(t, "nao bate com o extrato", c, 400)
+	c, d := chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-03","real":99.5}`)
+	esperar(t, "nao bate com o extrato", c, 409)
+	if d["codigo"] != "diferenca" {
+		t.Errorf("deveria ser diferenca: %v", d)
+	}
 	c, _ = conferir(t, "own", "ITAU", "2026-10", 0)
 	esperar(t, "o mes atual pode ser conferido", c, 200)
-	c, _ = conferir(t, "own", "ITAU", "2026-03", 1)
+	c, d = conferir(t, "own", "ITAU", "2026-03", 1)
 	esperar(t, "conferir mes anterior ao ultimo conferido", c, 409)
-	c, d := conferir(t, "own", "ITAU", "2026-09", 0)
-	esperar(t, "version velha", c, 409)
-	if d["atual"] == nil {
-		t.Error("o 409 deveria trazer o estado atual")
+	if d["codigo"] != "ordem" {
+		t.Errorf("deveria ser ordem: %v", d)
+	}
+	c, d = conferir(t, "own", "ITAU", "2026-09", 0)
+	esperar(t, "setembro tambem e anterior ao ultimo conferido", c, 409)
+	if d["codigo"] != "ordem" {
+		t.Errorf("deveria ser ordem: %v", d)
 	}
 }
 
@@ -229,7 +227,7 @@ func TestHistoricoAnteriorAoInicioNaoTravaNemInvalida(t *testing.T) {
 	f := cenario(t)
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0,
 		"porBanco": map[string]any{"ITAU": map[string]any{"saldoInicial": 100.0, "dataInicio": "2026-01-05"}}})
-	chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":0,"base":"x","caches":{"2026-01":90,"2026-02":80}}`)
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "SALDO#ITAU", "banco": "ITAU", "version": 1.0, "base": "x", "caches": map[string]any{"2026-01": 90.0, "2026-02": 80.0}})
 	c, _ := conferir(t, "own", "ITAU", "2026-03", 1)
 	esperar(t, "conferir marco", c, 200)
 	antes := f.ler(t, pkEspaco, "SALDO#ITAU")
@@ -254,7 +252,6 @@ func TestHistoricoAnteriorAoInicioNaoTravaNemInvalida(t *testing.T) {
 	c, _ = chamar(t, "own", "POST", "spaces/s1/tx", nil, corpoTx("2026-01-10T12:00:00.000Z", "ITAU", 9))
 	esperar(t, "criar em janeiro de 2026", c, 409)
 	// e outro banco sem data de inicio configurada nao ganha excecao
-	chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"NUBANK","version":0,"base":"x","caches":{}}`)
 	conferir(t, "own", "NUBANK", "2026-03", 1)
 	c, _ = chamar(t, "own", "POST", "spaces/s1/tx", nil, corpoTx("2025-12-20T12:00:00.000Z", "NUBANK", 9))
 	esperar(t, "sem data de inicio, tudo ate o conferido trava", c, 409)

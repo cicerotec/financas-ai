@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"math"
 	"time"
 
 	"financas/domain"
@@ -214,96 +213,57 @@ func (s *Fechamento) Listar(ctx context.Context, sid string) ([]domain.Doc, stri
 	return itens, domain.MesAtual(s.rel.Agora()), nil
 }
 
-// SalvarCaches: PUT /spaces/{sid}/fechamentos. Grava o cache dos meses encerrados. Exige a version que o cliente leu ANTES
-// de ler os lancamentos: se qualquer escrita aconteceu desde entao, 409 e o cliente recalcula.
+// SalvarCaches: PUT /spaces/{sid}/fechamentos. **O cache do cliente nao e mais aceito** (item 40): quem calcula e grava o cache dos meses
+// encerrados e o servidor (Saldos.gravarCache); um numero vindo do navegador nao vira ponto de partida da cascata de ninguem. A rota
+// continua so para o app de hoje nao quebrar: responde 200 com o item como esta e nao grava nada. Some na Fase C.
 func (s *Fechamento) SalvarCaches(ctx context.Context, sid string, body domain.Doc) (domain.Doc, error) {
 	banco, _ := body["banco"].(string)
 	if banco == "" {
 		return nil, &ErroValidacao{"banco obrigatorio"}
-	}
-	ver, _ := body["version"].(float64)
-	base, _ := body["base"].(string)
-	bruto, _ := body["caches"].(map[string]any)
-	mesAtual := domain.MesAtual(s.rel.Agora())
-	caches := map[string]any{}
-	for m, v := range bruto {
-		n, ok := v.(float64)
-		if !domain.MesValido(m) || !ok || math.IsNaN(n) || math.IsInf(n, 0) {
-			return nil, &ErroValidacao{"caches invalidos"}
-		}
-		if m < mesAtual { // o mes em andamento nunca e cache
-			caches[m] = n
-		}
 	}
 	d, err := s.saldos.Ler(ctx, sid, banco)
 	if err != nil {
 		log.Println("put fechamentos: ler:", err)
 		return nil, ErrInterno
 	}
-	if versaoDe(d) != ver {
-		return nil, conflito(d)
-	}
+	log.Printf("fechamentos: cache vindo do cliente ignorado sid=%s banco=%s", sid, banco)
 	if d == nil {
-		d = domain.Doc{"banco": banco}
+		return domain.Doc{"banco": banco, "version": 0.0}, nil
 	}
-	d["caches"], d["base"] = caches, base
-	delete(d, "invalidoDe")
-	res, err := s.saldos.Salvar(ctx, sid, banco, d, ver)
-	switch {
-	case errors.Is(err, domain.ErrConflitoConfig):
-		atual, _ := s.saldos.Ler(ctx, sid, banco)
-		return nil, conflito(atual)
-	case err != nil:
-		log.Println("put fechamentos:", err)
-		return nil, ErrSalvar
-	}
-	return res, nil
+	return domain.Publico(d), nil
 }
 
-// Conferir: POST /spaces/{sid}/fechamentos/conferir. Registra a conferencia com o extrato e trava o mes (e os anteriores).
-// O saldo calculado precisa bater com o extrato: a diferenca se resolve lancando o ajuste antes.
-func (s *Fechamento) Conferir(ctx context.Context, sid, sub string, body domain.Doc) (domain.Doc, error) {
-	banco, _ := body["banco"].(string)
-	mes, _ := body["mes"].(string)
-	saldo, ok1 := body["saldo"].(float64)
-	real, ok2 := body["real"].(float64)
-	ver, _ := body["version"].(float64)
-	if banco == "" || !domain.MesValido(mes) || !ok1 || !ok2 {
-		return nil, &ErroValidacao{"informe banco, mes (AAAA-MM), saldo calculado e saldo do extrato"}
-	}
+// RegistrarConferencia grava a conferencia de um mes com o saldo que o SERVIDOR calculou (e o extrato informado), e trava o mes e os
+// anteriores. So confere a ordem e o mes; quem compara o extrato com o saldo e a Conferencia. ajuste e o lancamento de ajuste que
+// ela criou (0 se nao criou). Tenta de novo se outra pessoa gravou o item no meio (atualizar).
+func (s *Fechamento) RegistrarConferencia(ctx context.Context, sid, sub, banco, mes string, saldo, real, ajuste float64) (domain.Doc, error) {
 	agora := s.rel.Agora()
+	if !domain.MesValido(mes) {
+		return nil, &ErroValidacao{"mes invalido (use AAAA-MM)"}
+	}
 	if mes > domain.MesAtual(agora) {
 		return nil, &ErroValidacao{"so da para conferir o mes atual ou meses anteriores"}
 	}
-	if math.Abs(saldo-real) >= 0.005 {
-		return nil, &ErroValidacao{"o saldo calculado nao bate com o extrato: lance o ajuste antes de conferir"}
-	}
-	d, err := s.saldos.Ler(ctx, sid, banco)
-	if err != nil {
-		log.Println("conferir: ler:", err)
-		return nil, ErrInterno
-	}
-	if versaoDe(d) != ver {
-		return nil, conflito(d)
-	}
-	if u := domain.UltimoConferido(d); u != "" && mes <= u {
-		return nil, &ErroOrdemFechamento{"o mes " + mes + " nao pode ser conferido: o ultimo conferido e " + u}
-	}
-	if d == nil {
-		d = domain.Doc{"banco": banco}
-	}
-	conf, _ := d["conferidos"].(map[string]any)
-	if conf == nil {
-		conf = map[string]any{}
-	}
-	reg := map[string]any{"saldo": saldo, "real": real, "em": agora.UTC().Format("2006-01-02T15:04:05.000Z"), "por": sub}
-	if aj, ok := body["ajuste"].(float64); ok && aj != 0 {
-		reg["ajuste"] = aj
-	}
-	conf[mes] = reg
-	d["conferidos"] = conf
-	res, err := s.saldos.Salvar(ctx, sid, banco, d, ver)
+	res, err := s.atualizar(ctx, sid, banco, func(d domain.Doc) error {
+		if u := domain.UltimoConferido(d); u != "" && mes <= u {
+			return &ErroOrdemFechamento{"o mes " + mes + " nao pode ser conferido: o ultimo conferido e " + u}
+		}
+		conf, _ := d["conferidos"].(map[string]any)
+		if conf == nil {
+			conf = map[string]any{}
+		}
+		reg := map[string]any{"saldo": saldo, "real": real, "em": agora.UTC().Format("2006-01-02T15:04:05.000Z"), "por": sub}
+		if ajuste != 0 {
+			reg["ajuste"] = ajuste
+		}
+		conf[mes] = reg
+		d["conferidos"] = conf
+		return nil
+	})
+	var ordem *ErroOrdemFechamento
 	switch {
+	case errors.As(err, &ordem):
+		return nil, err
 	case errors.Is(err, domain.ErrConflitoConfig):
 		atual, _ := s.saldos.Ler(ctx, sid, banco)
 		return nil, conflito(atual)
