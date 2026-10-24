@@ -22,7 +22,6 @@ const (
 	AcaoEditarPerfil    Acao = "perfil.editar" // o proprio nome de exibicao
 	AcaoLerSeq          Acao = "seq.ler" // contador de alteracoes do espaco (a tela checa se alguem gravou)
 	AcaoLerFech         Acao = "fechamento.ler"
-	AcaoEscreverFech    Acao = "fechamento.escrever" // cache dos meses fechados
 	AcaoConferirMes     Acao = "fechamento.conferir"
 	AcaoReabrirMes      Acao = "fechamento.reabrir"
 	AcaoTestarAviso     Acao = "avisos.testar" // manda uma mensagem de teste para o proprio Telegram
@@ -51,7 +50,7 @@ func Permitido(papel string, a Acao) Decisao {
 		switch a {
 		case AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-			AcaoLerFech, AcaoEscreverFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso,
+			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso,
 			AcaoLerHistorico, AcaoRestaurar:
 			return Liberado
 		}
@@ -102,13 +101,6 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		}
 	case len(rest) == 1 && rest[0] == "seq" && metodo == "GET":
 		return AcaoLerSeq, true
-	case len(rest) == 1 && rest[0] == "fechamentos":
-		switch metodo {
-		case "GET":
-			return AcaoLerFech, true
-		case "PUT":
-			return AcaoEscreverFech, true
-		}
 	case len(rest) == 1 && rest[0] == "saldos" && metodo == "GET": // o saldo de cada meio, calculado pelo servidor (item 40)
 		return AcaoLerFech, true
 	case len(rest) == 2 && rest[0] == "fechamentos" && rest[1] == "conferir" && metodo == "POST":

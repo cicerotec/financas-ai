@@ -260,7 +260,6 @@ func TestDuasEdicoesConcorrentesSegundaRecebe409(t *testing.T) {
 func TestMesConferidoBloqueiaSemGravarNada(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
-	chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":0,"base":"x","caches":{}}`)
 	c, _ := conferir(t, "own", "ITAU", "2026-03", 1)
 	esperar(t, "conferir marco", c, 200)
 
@@ -348,7 +347,6 @@ func TestImportarSoIdsNovosNaoDeixaNadaNoHistorico(t *testing.T) {
 func TestImportarRejeitaItemEmMesConferidoEGravaOResto(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
-	chamar(t, "own", "PUT", "spaces/s1/fechamentos", nil, `{"banco":"ITAU","version":0,"base":"x","caches":{}}`)
 	conferir(t, "own", "ITAU", "2026-03", 1)
 	lote := `{"itens":[` + corpoImport("idtravado1", "2026-01-20T10:00:00.000Z", "travado") + `,` + corpoImport("idlivre001", "2026-06-20T10:00:00.000Z", "livre") + `]}`
 	c, d := chamar(t, "own", "POST", "spaces/s1/tx/batch", conf, lote)

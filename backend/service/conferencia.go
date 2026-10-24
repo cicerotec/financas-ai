@@ -26,9 +26,12 @@ func NewConferencia(saldos *Saldos, fech *Fechamento, lanc CriadorDeLancamento) 
 	return &Conferencia{saldos: saldos, fech: fech, lanc: lanc}
 }
 
-// Conferir: POST /spaces/{sid}/fechamentos/conferir com { meio (ou banco), mes, real, ajustar? }. O saldo, a version e os caches do
-// corpo, se vierem, sao ignorados.
+// Conferir: POST /spaces/{sid}/fechamentos/conferir com { meio (ou banco), mes, real, ajustar? }. O saldo vindo do cliente e recusado (400);
+// version e caches, se vierem, sao ignorados.
 func (s *Conferencia) Conferir(ctx context.Context, sid, sub string, body domain.Doc) (domain.Doc, error) {
+	if _, veio := body["saldo"]; veio {
+		return nil, &ErroValidacao{"o saldo e calculado pelo servidor: informe so o extrato (real)"}
+	}
 	banco, _ := body["meio"].(string)
 	if banco == "" {
 		banco, _ = body["banco"].(string)

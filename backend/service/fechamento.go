@@ -203,36 +203,6 @@ func (s *Fechamento) InvalidarSaldos(ctx context.Context, sid string, alvos []do
 
 // ---------- rotas ----------
 
-// Listar: GET /spaces/{sid}/fechamentos. Devolve o item de cada banco e o mes atual (fuso de Sao Paulo).
-func (s *Fechamento) Listar(ctx context.Context, sid string) ([]domain.Doc, string, error) {
-	itens, err := s.saldos.Todos(ctx, sid)
-	if err != nil {
-		log.Println("fechamentos:", err)
-		return nil, "", ErrInterno
-	}
-	return itens, domain.MesAtual(s.rel.Agora()), nil
-}
-
-// SalvarCaches: PUT /spaces/{sid}/fechamentos. **O cache do cliente nao e mais aceito** (item 40): quem calcula e grava o cache dos meses
-// encerrados e o servidor (Saldos.gravarCache); um numero vindo do navegador nao vira ponto de partida da cascata de ninguem. A rota
-// continua so para o app de hoje nao quebrar: responde 200 com o item como esta e nao grava nada. Some na Fase C.
-func (s *Fechamento) SalvarCaches(ctx context.Context, sid string, body domain.Doc) (domain.Doc, error) {
-	banco, _ := body["banco"].(string)
-	if banco == "" {
-		return nil, &ErroValidacao{"banco obrigatorio"}
-	}
-	d, err := s.saldos.Ler(ctx, sid, banco)
-	if err != nil {
-		log.Println("put fechamentos: ler:", err)
-		return nil, ErrInterno
-	}
-	log.Printf("fechamentos: cache vindo do cliente ignorado sid=%s banco=%s", sid, banco)
-	if d == nil {
-		return domain.Doc{"banco": banco, "version": 0.0}, nil
-	}
-	return domain.Publico(d), nil
-}
-
 // RegistrarConferencia grava a conferencia de um mes com o saldo que o SERVIDOR calculou (e o extrato informado), e trava o mes e os
 // anteriores. So confere a ordem e o mes; quem compara o extrato com o saldo e a Conferencia. ajuste e o lancamento de ajuste que
 // ela criou (0 se nao criou). Tenta de novo se outra pessoa gravou o item no meio (atualizar).

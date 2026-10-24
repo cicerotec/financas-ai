@@ -63,6 +63,7 @@ roteiro verificável é o [`spec.md`](spec.md).
   **Feita** (`feature/saldos-tela-servidor`): a aba lê `GET /saldos` (`db.saldos`), o total vem do servidor, conferir manda `meio`, `mes` e `real` e, no 409 `diferenca`, pergunta e repete com `ajustar`. Saíram `calcularSaldoBanco`, a cascata, `persistirCaches`, `cachesValidos`, `criarAjusteConferencia` e `db.fechamentos`/`db.salvarCaches`.
 - **Fase C, remover:** apaga `PUT /fechamentos`, `GET /fechamentos` e a ação `fechamento.escrever`; `Conferir` passa a recusar `saldo`
   no corpo (`400`); atualiza o `security.md` (sai a linha da brecha).
+  **Feita** (`feature/saldo-servidor-fase-c`): rotas `GET`/`PUT /fechamentos` e a ação `fechamento.escrever` removidas; `Conferir` recusa `saldo` no corpo (400); a coleção do Postman passou a `GET /saldos`.
 
 ## A conferência lado a lado (obrigatória na Fase B)
 
