@@ -14,8 +14,10 @@ Referência: [`arquitetura.md`](arquitetura.md) (decisões de 2026-10-10).
   que venha do cliente, e quem sabe forjar a requisição não ganha nada. Antes de aceitar um campo novo na API, pergunte
   se o servidor consegue recalculá-lo; se sim, ele não entra no corpo. Detalhes e o que falta fazer em
   [`arquitetura.md`](arquitetura.md) e [`security.md`](security.md).
-- **Status é do backend (2026-10-18).** O catálogo de status e o que cada um significa não são editáveis pelo app; a tela
-  só exibe o texto do status do lançamento. Ver [`decisoes.md`](decisoes.md).
+- **Status é do backend; o front não trata status de forma nenhuma (2026-10-24).** O backend **manda a lista** de status; o front só a
+  exibe, guarda a escolha da pessoa e a devolve como veio. Nada de nome de status, lista fixa, predicado por nome (`ehFuturo`,
+  `afetaSaldo`, `ehCredito`...), cor ou regra escondida em nome, nem `excluirDoTotal` calculado no navegador. Ver
+  [`decisoes.md`](decisoes.md).
 - Camadas `controller` → `service` → `domain`, adaptadores atrás de interfaces e dependências por construtor, sem
   globais. Em `backend/` cada camada é uma pasta (`controller/`, `service/`, `repository/`, `auth/`, `domain/`) e o
   teste `arquitetura_test.go` falha se um pacote importar o que não pode (por exemplo, `service` importando a AWS).

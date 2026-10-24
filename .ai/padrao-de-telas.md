@@ -13,6 +13,7 @@ visão Computador). Quando o guia e uma demo discordarem, vale a demo.
 | Repetir e avisar | [`demos/demo-repeticao-e-aviso.html`](demos/demo-repeticao-e-aviso.html) | linha-resumo que abre tela cheia, lista que acumula, escolha única, interruptor, janela com rodas, contador de limite, status das cópias e o botão de criar (é a base do **Prever** e do **Estender**) |
 | Futuros | [`demos/demo-futuros.html`](demos/demo-futuros.html) | uma linha por evento, ações numa janela de baixo, resumo com faixa de atraso, e a **versão para computador** (tabela) |
 | Futuros por largura | [`demos/demo-futuros-largura.html`](demos/demo-futuros-largura.html) | **vale sobre a demo acima onde diferirem**: prazo embaixo do valor, descrição em até 2 linhas, "⋯" no celular, botões no computador e realce na cor do status |
+| Confirmar previsto | [`demos/demo-confirmar-previsto.html`](demos/demo-confirmar-previsto.html) | gesto de confirmar um lançamento previsto: ação **Confirmar** ("Já paguei"/"Já recebi") na janela de ações e botão verde na tabela, janela com **Valor, Data e Status**, aviso de 6 s com Desfazer, vencidos em Atrasados, data sugerida hoje em mês fechado, e o Histórico sem previstos; Futuros sem o saldo do mês (**aprovada em 2026-10-24, ainda não implementada**; o gesto B, direto, foi descartado) |
 | Resumo da Futuros | [`demos/demo-resumo-futuros.html`](demos/demo-resumo-futuros.html) | a comparação que decidiu o resumo (opção A), com valores extremos e larguras de 320 a 390 px |
 | Total do Histórico | [`demos/demo-historico-total.html`](demos/demo-historico-total.html) | a soma da lista (renda menos gasto) à direita da linha do contador, na busca por texto e no mês aberto |
 | Atalhos no cabeçalho | [`demos/demo-atalho-saldos.html`](demos/demo-atalho-saldos.html) | Histórico e Saldos entre o nome da tela e o ⋮, em 320, 360 e 390 px, com o "como está hoje" (aprovado em 2026-10-15) |
@@ -221,6 +222,16 @@ Demo [`demos/demo-historico-layout.html`](demos/demo-historico-layout.html), apr
 - **Computador (1160 px ou mais):** mesma tabela de Futuros (Data com hora, Lançamento, Banco, Status, Valor, ações na linha apagadas até o mouse passar); "Data" no cabeçalho inverte a ordem; busca, Filtros e mês ficam numa faixa que acompanha a rolagem. O limite 1160 px é o mesmo de Futuros (`MQ_TABELA` em `app.js`).
 - **Custo:** filtrar custa um toque a mais (abrir a janela); agir num lançamento custa um toque a mais no celular; no computador os filtros ficam atrás de um botão; só as tags que cabem em uma linha aparecem. Período: o total deixa de ser "o do mês" (para um mês exato, use o 📅); conferir o extrato de um mês custa um toque a mais; achar algo antigo custa dois toques e a espera do aviso; 180d no celular é uma lista longa; o seletor de mês é o do navegador (no computador, o calendário com ‹ ›).
 
+## Futuros: confirmar um previsto (tela)
+Demo [`demos/demo-confirmar-previsto.html`](demos/demo-confirmar-previsto.html), aprovada pelo dono em 2026-10-24; **ainda não implementada** (item 41 do backlog; regras em `arquitetura.md`, "Futuros, status e saldo no servidor"). Reaproveita a lista, a janela de ações e a tabela de Futuros.
+- **Ação Confirmar:** a **primeira** da janela de ações (celular), em `--accent` e negrito, com uma frase embaixo: "Já paguei · passa a contar no saldo" (saída) ou "Já recebi · passa a contar no saldo" (entrada). No computador, o botão **Confirmar** é o primeiro da linha, preenchido com `--accent`; a coluna das ações passa a **400 px** (seis botões, nenhum cortado; medido de 1160 a 1400 px). Só aparece em lançamento previsto.
+- **Janela de confirmar** (de baixo no celular; central de 460 px no computador, no padrão das outras): título "Confirmar: <descrição>", linha de contexto (valor com sinal, banco e "previsto para dd/mm/aaaa") e três linhas de 56 px: **Valor** ("Valor pago" ou "Valor recebido", campo numérico já com o previsto), **Data** ("Data do pagamento" ou "do recebimento", seletor nativo) e **Status** (seletor nativo, já com o do lançamento). Se o valor mudou, aparece "O valor previsto era R$ …". Embaixo, a frase "Passa a contar no saldo de <banco>." (texto fixo: o front não calcula o efeito) e os botões Cancelar e Confirmar de 52 px. Erros (valor zero, data vazia) aparecem na própria janela.
+- **Data sugerida:** a prevista; se ela cai em **mês já fechado**, a sugestão é hoje e a janela explica o motivo. Escolher uma data de mês fechado mostra o aviso em `--danger-bg` ("Setembro de 2026 já fechou. Com essa data o servidor vai pedir uma confirmação a mais…") e o servidor pede a confirmação do item 38; mês conferido recusa.
+- **Depois de confirmar:** a linha sai de Futuros, entra no Histórico, e o aviso de 6 s ("<descrição> confirmado. Já conta no saldo de <banco>.") traz **Desfazer**, que devolve o lançamento a Futuros com o valor, a data e o status de antes (no servidor é uma restauração, como no padrão 11b).
+- **Atrasados continua em Futuros** (faixa do resumo e grupo no topo, como no padrão 10). **Não há saldo por mês** nos títulos de Futuros nem soma de ocultos: o servidor manda o resumo pronto. O Histórico só mostra o que conta no saldo.
+- **Antigos:** o lançamento com `PREVISTO`, `TRANSFERINDO` ou `CREDITANDO` (anterior ao marcador) também aparece e pode ser confirmado; a janela abre com o **primeiro status da lista do servidor** escolhido (hoje `PAGO`) e esses três nomes não aparecem na lista de status.
+- **Custo:** são três toques no celular (a linha, Confirmar, Confirmar na janela), mais um por campo que se troca; quem esquece de confirmar deixa o lançamento em Atrasados e **fora do saldo**, e o saldo pode destoar do extrato até alguém confirmar; "Futuros" continua tendo linhas do passado.
+
 ## Padrões do celular
 **1. Linha-resumo que abre tela cheia.** Cartão com título em negrito e, embaixo, o valor atual em `--muted`
 (ex.: "Repetir / 3 vezes além deste, mensal"), seta `›` à direita. Tocar abre a tela cheia daquela escolha.
@@ -259,7 +270,7 @@ com sinal e cor (`+` em `--income`, `-` em `--danger`, zero em `--muted`) e o c�
 ocultos. "Atrasados" não tem saldo (o resumo do topo já mostra). Evento oculto fica a 50% de opacidade.
 
 **9. Ações numa janela de baixo.** Tocar na linha do evento abre a janela com descrição, valor, data e banco no topo e as
-ações em lista (Editar, Copiar, Prever ou Estender série, Ocultar ou Mostrar, Excluir). "Excluir" em `--danger`. Nada de
+ações em lista (**Confirmar**, só nos previstos; Editar, Copiar, Prever ou Estender série, Ocultar ou Mostrar, Excluir). "Excluir" em `--danger`. Nada de
 fileira de botões dentro da linha.
 
 **10. Resumo.** No topo, "A pagar" e "A receber" lado a lado (metade da largura cada um), com o valor em **18 px**. "Atrasados"
