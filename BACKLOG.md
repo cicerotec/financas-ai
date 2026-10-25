@@ -24,7 +24,6 @@ pendentes: nenhum.
 
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
 - [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe (fatia a feita; falta a fatia b):**](#item-33)
-- [\[Backend\] - **\[Próximo\] Futuros: marcador `previsto` e status do backend (fases A e B feitas; falta a C):**](#item-41)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
 - [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
@@ -143,7 +142,7 @@ DynamoDB sem discutir com o dono.**
   [`.ai/security.md`](.ai/security.md). Não cria campo no Dynamo por si; qualquer campo novo passa pelo dono. Absorve o
   trecho de saldos do item 14.
   **Concluído em 2026-10-24:** fase A (backend: `GET /saldos`, cache só do servidor, conferência com o `real`), B (a aba Saldos lê o servidor, conferida pelo dono em dev e produção) e C (saíram `GET`/`PUT /fechamentos` e a ação `fechamento.escrever`; a conferência recusa `saldo` no corpo).
-- 41. [ ] <a id="item-41"></a>**[Próximo] Futuros: marcador `previsto` e status do backend:** decisões do dono de 2026-10-18, só a
+- 41. [x] <a id="item-41"></a>**[Próximo] Futuros: marcador `previsto` e status do backend:** decisões do dono de 2026-10-18, só a
   aba Futuros, **depois do 40 e do 33a** (2026-10-24). **Regra do dono: o front não trata status de forma nenhuma.** O
   backend manda a lista de status (`["PAGO", "CREDITO"]` no corte; no futuro `PIX`, `DREX`, `DEBITO`...), e o front só a
   exibe, guarda a escolha e a devolve como veio; a lista fixa de `app.js:5` deixa de existir e um teste de CI falha se um nome de
@@ -169,7 +168,8 @@ DynamoDB sem discutir com o dono.**
   [`.ai/specs/futuros-previsto/`](.ai/specs/futuros-previsto/intent.md): fases A (backend), B (Futuros e Confirmar) e C (Listas, Lançar e Prever).
   - [x] **Fase A, backend** (concluída em 2026-10-25): catálogo de status, marcador `previsto`, `GET /futuros`, `POST /tx/{id}/confirmar`, `GET /status`, `POST /transferencias`, `GET /tx` sem previstos.
   - [x] **Fase B, a tela de Futuros e Confirmar** (concluída em 2026-10-25): Futuros lê o servidor, Confirmar com Desfazer, Histórico sem total e sem o resumo de futuros. Futuros olha só do mês passado em diante (os atrasados antigos: item 45).
-  - [ ] **Fase C, o front sem status** (demo antes do código, uma por tela): Listas sem as caixas de status, Lançar, Prever e o filtro do Histórico pela lista do servidor, e o teste de CI que proíbe nome de status em `web/`.
+  - [x] **Fase C, o front sem status** (concluída em 2026-10-25, conferida pelo dono no dev): Listas só com a lista do servidor e a cor, Prever e Estender sem "Status das cópias", cores e ajuste de fatura vindos do servidor, e `web/sem-status.test.js` (roda no CI) que proíbe nome de status em `web/`.
+  **Concluído em 2026-10-25:** fases A, B e C. Sobra o item 45 (atrasados antigos de Futuros buscados por ano).
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
