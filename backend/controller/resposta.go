@@ -47,6 +47,8 @@ func respostaErro(err error) (Resp, error) {
 		return Out(http.StatusConflict, domain.Doc{"erro": dif.Error(), "codigo": "diferenca", "calculado": dif.Calculado, "real": dif.Real, "diferenca": dif.Diferenca})
 	case errors.As(err, &difFat): // o valor do app do cartao nao bate com o total da fatura (ou nao foi informado)
 		return Out(http.StatusConflict, domain.Doc{"erro": difFat.Error(), "codigo": "diferenca", "total": difFat.Total, "valorBanco": difFat.ValorBanco, "diferenca": difFat.Diferenca})
+	case errors.Is(err, service.ErrNaoPrevisto):
+		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "nao_previsto"})
 	case errors.Is(err, service.ErrCartaoNaoEncontrado), errors.Is(err, service.ErrFaturaNaoConferida):
 		return Erro(http.StatusNotFound, err.Error())
 	case errors.Is(err, service.ErrTelegramNaoConfigurado):

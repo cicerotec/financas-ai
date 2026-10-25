@@ -1,6 +1,6 @@
 # Eventos futuros
 
-> **Mudança decidida em 2026-10-18, ainda não implementada.** Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` serão
+> **Backend feito em 2026-10-24 (item 41, fase A); a tela ainda não (fases B e C).** Os status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` já foram
 > substituídos por um marcador `previsto` no lançamento, que passa a ter o status real; o servidor entrega Futuros e
 > Histórico prontos, sem o front olhar status. Este documento descreve o comportamento **atual** e continua valendo
 > até lá. Veja [`decisoes.md`](decisoes.md) e [`arquitetura.md`](arquitetura.md). O que o Prever faz com o "Status das

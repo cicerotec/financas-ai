@@ -85,7 +85,7 @@ func TestMesConferidoSoPermiteEditarOQueNaoMexeNoSaldo(t *testing.T) {
 	for nome, corpo := range map[string]string{
 		"valor":  `{"valor":11}`,
 		"oculto": `{"oculto":true}`,
-		"status": `{"status":"PREVISTO"}`,
+		"status": `{"status":"CREDITO"}`,
 		"tipo":   `{"tipo":"entrada"}`,
 		"banco":  `{"banco":"NUBANK"}`,
 		"data":   `{"dataEvento":"2026-06-01T10:00:00.000Z"}`,

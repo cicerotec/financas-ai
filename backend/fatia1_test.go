@@ -49,7 +49,7 @@ func TestF1GetMe(t *testing.T) {
 func TestF1ListarTxFiltrosEPaginacao(t *testing.T) {
 	f := cenario(t)
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "TX#2026-01-04T10:00:00.000Z#extra", "id": "extra", "dataEvento": "2026-01-04T10:00:00.000Z",
-		"status": "PREVISTO", "tipo": "saida", "valor": 5.0, "banco": "NUBANK", "descricao": "Mercado do bairro", "nota": "Compra GRANDE"})
+		"status": "CREDITO", "tipo": "saida", "valor": 5.0, "banco": "NUBANK", "descricao": "Mercado do bairro", "nota": "Compra GRANDE"})
 
 	st, d := chamar(t, "own", "GET", "spaces/s1/tx", nil, "")
 	esperar(t, "lista", st, 200)
@@ -69,7 +69,7 @@ func TestF1ListarTxFiltrosEPaginacao(t *testing.T) {
 		{"de", map[string]string{"de": "2026-01-03"}, "extra,idlegado"},
 		{"ate", map[string]string{"ate": "2026-01-02T99"}, "idmembro,iddono"},
 		{"banco", map[string]string{"banco": "NUBANK"}, "extra"},
-		{"status", map[string]string{"status": "PREVISTO"}, "extra"},
+		{"status", map[string]string{"status": "CREDITO"}, "extra"},
 		{"texto na descricao", map[string]string{"q": "BAIRRO"}, "extra"},
 		{"texto na nota", map[string]string{"q": "grande"}, "extra"},
 		{"texto sem resultado", map[string]string{"q": "nada"}, ""},

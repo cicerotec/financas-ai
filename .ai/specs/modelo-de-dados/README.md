@@ -40,7 +40,7 @@ gravação é recusada com conflito).
 - **Obrigatórios** (o backend recusa sem eles): `dataEvento`, `valor` (número; zero e negativo são aceitos), `tipo`
   (`entrada` ou `saida`), `status` e `banco`.
 - **Colocados pelo servidor:** `id`, `criadoEm`, `criadoPor` (o `sub` de quem criou).
-- **Opcionais:** `descricao`, `nota`, `tags`, `excluirDoTotal`, `oculto`, `faturaAjuste` (`-1`, `0` ou `+1`),
+- **Opcionais:** `descricao`, `nota`, `tags`, `excluirDoTotal` (calculado pelo servidor), `oculto`, `faturaAjuste` (`-1`, `0` ou `+1`), `previsto` (booleano, **só quando `true`**, gravado só pelo servidor: liga quando a data é futura, mantém no backup e sai ao confirmar; exemplo em `dynamodb-single-table/space-tx_previsto.json`),
   `valorEstimado`, `transferParId` (liga as duas pontas de uma transferência), `aviso` (`{ dias: [3,1,0], insistir }`) e
   `serie` (`{ id, indice, intervalo }`). O backend valida `aviso` e `serie`; os demais ele grava como vieram.
 

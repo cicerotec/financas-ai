@@ -65,7 +65,7 @@ func (s *Lancamentos) Restaurar(ctx context.Context, sid, id string, n int, sub 
 	if err := s.repo.Salvar(ctx, sid, domain.Mudanca{Antes: vivo, Depois: depois, DataAnterior: dataVivo, Versoes: versoes}); err != nil {
 		return nil, escrita("restaurar", ErrSalvar, err)
 	}
-	if alvos := alvosDe(vivo, depois); len(alvos) > 0 {
+	if alvos := domain.AlvosDoSaldo(vivo, depois); len(alvos) > 0 {
 		s.ef.InvalidarSaldos(ctx, sid, alvos)
 	}
 	s.ef.GarantirTags(ctx, sid, domain.TagsDe(depois))

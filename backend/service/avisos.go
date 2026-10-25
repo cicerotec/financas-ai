@@ -96,7 +96,6 @@ func (s *Avisos) Remover(ctx context.Context, sid, id string) {
 }
 
 type contextoEspaco struct {
-	listas   domain.Doc
 	ownerSub string
 }
 
@@ -160,13 +159,11 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 		esp := espacos[sid]
 		if esp == nil {
 			esp = &contextoEspaco{}
-			esp.listas, _ = s.cfg.Ler(ctx, sid, "listas")
 			esp.ownerSub = s.dono.Dono(ctx, sid)
 			espacos[sid] = esp
 		}
-		status, _ := tx["status"].(string)
-		if !domain.EhStatusFuturo(esp.listas, status) {
-			continue // ja resolvido (ou nunca foi futuro): nao avisa
+		if !domain.EhPrevisto(tx) {
+			continue // ja resolvido (ou nunca foi previsto): nao avisa
 		}
 		valor, _ := tx["valor"].(float64)
 		tipo, _ := tx["tipo"].(string)

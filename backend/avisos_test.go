@@ -156,7 +156,7 @@ func auxDe(t *testing.T, f *bancoFake, id string) doc { return f.ler(t, pkAvisos
 
 func TestAvisoCriaAtualizaERemoveOItemAuxiliar(t *testing.T) {
 	f := cenario(t)
-	corpo := `{"dataEvento":"2026-10-10T12:00:00.000Z","valor":100,"tipo":"saida","status":"PREVISTO","banco":"ITAU",
+	corpo := `{"dataEvento":"2026-10-10T12:00:00.000Z","valor":100,"tipo":"saida","status":"PAGO","banco":"ITAU",
 		"descricao":"Luz","aviso":{"dias":[1,3],"insistir":true}}`
 	st, d := chamar(t, "mem", "POST", "spaces/s1/tx", nil, corpo)
 	esperar(t, "criar com aviso", st, 201)
@@ -206,7 +206,7 @@ func TestAvisoCriaAtualizaERemoveOItemAuxiliar(t *testing.T) {
 
 func TestAvisoInvalidoERecusado(t *testing.T) {
 	cenario(t)
-	corpo := `{"dataEvento":"2026-10-10T12:00:00.000Z","valor":1,"tipo":"saida","status":"PREVISTO","banco":"ITAU","aviso":{"dias":[99]}}`
+	corpo := `{"dataEvento":"2026-10-10T12:00:00.000Z","valor":1,"tipo":"saida","status":"PAGO","banco":"ITAU","aviso":{"dias":[99]}}`
 	st, _ := chamar(t, "mem", "POST", "spaces/s1/tx", nil, corpo)
 	esperar(t, "aviso invalido", st, 400)
 }
@@ -276,7 +276,7 @@ func cenarioAvisos(t *testing.T) (*bancoFake, string) {
 	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member", "telegramChatId": "222222"})
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "META", "nome": "Familia", "ownerSub": "own"})
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#LISTAS", "banco": []any{"ITAU"}, "statusFuturo": map[string]any{"PREVISTO": true}, "version": 1.0})
-	corpo := `{"dataEvento":"2026-10-10T12:00:00.000Z","valor":230.5,"tipo":"saida","status":"PREVISTO","banco":"ITAU",
+	corpo := `{"dataEvento":"2026-10-10T12:00:00.000Z","valor":230.5,"tipo":"saida","status":"PAGO","banco":"ITAU",
 		"descricao":"Conta de luz","aviso":{"dias":[3,0],"insistir":false}}`
 	st, d := chamar(t, "mem", "POST", "spaces/s1/tx", nil, corpo)
 	esperar(t, "criar", st, 201)
@@ -334,8 +334,9 @@ func TestRotinaInsistirAvisaAtrasadoAteResolver(t *testing.T) {
 	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-10-13")); n != 2 || !strings.Contains((*env)[0].texto, "Atrasado há 3 dias (10/10/2026)") {
 		t.Fatalf("atrasado: %d, %v", n, *env)
 	}
-	// pagou: status deixa de ser evento futuro, para de avisar
-	chamar(t, "mem", "PUT", "spaces/s1/tx/"+id, map[string]string{"de": "2026-10-10T12:00:00.000Z"}, `{"status":"PAGO"}`)
+	// pagou: confirmar tira o marcador previsto, para de avisar
+	c, _ := chamar(t, "mem", "POST", "spaces/s1/tx/"+id+"/confirmar", map[string]string{"de": "2026-10-10T12:00:00.000Z"}, `{"valor":230.5,"dataEvento":"2026-02-05T12:00:00.000Z","status":"PAGO"}`)
+	esperar(t, "confirmar", c, 200)
 	*env = nil
 	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-10-14")); n != 0 {
 		t.Errorf("depois de pago nao deve avisar, enviou %d", n)

@@ -4,7 +4,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 `service/config.go`, `service/avisos.go`, `repository/lancamento.go`, `web/js/app.js`). O roteiro verificável é o
 [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação do dono, revisto em 2026-10-24. **Vem depois** dos itens 40
+**Estado:** aprovado pelo dono em 2026-10-24. Fase A feita; B e C pendentes. **O release para a `main` não deve sair entre a A e a B:** o app de hoje ainda monta Futuros a partir de `GET /tx` e cria `PREVISTO` pelo status. **Vem depois** dos itens 40
 ([`saldo-servidor`](../saldo-servidor/plan.md)) e 33 fatiado ([`fatura-servidor`](../fatura-servidor/plan.md)).
 
 ## Onde o código está hoje

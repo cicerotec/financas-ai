@@ -70,9 +70,20 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 	confirma := qs["confirmaMesFechado"] == "1" // a pessoa confirmou mexer em mes fechado por data (spec do item 38)
 	switch acaoReq {
 	case auth.AcaoLerTx:
+		switch p[2] {
+		case "futuros":
+			return s.lanc.GetFuturos(ctx, sid, qs)
+		case "status":
+			return s.lanc.GetStatus(qs)
+		}
 		return s.lanc.GetTxs(ctx, sid, qs)
 	case auth.AcaoCriarTx:
+		if p[2] == "transferencias" {
+			return s.lanc.PostTransferencia(ctx, sid, u.Sub, body, confirma)
+		}
 		return s.lanc.PostTx(ctx, sid, u.Sub, body, confirma)
+	case auth.AcaoConfirmarTx:
+		return s.lanc.PostConfirmar(ctx, sid, p[3], qs["de"], body, u.Sub, dec == auth.SoDono, confirma)
 	case auth.AcaoImportarTx:
 		return s.lanc.PostTxBatch(ctx, sid, u.Sub, body, confirma)
 	case auth.AcaoEditarTx:

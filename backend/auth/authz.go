@@ -27,6 +27,7 @@ const (
 	AcaoTestarAviso     Acao = "avisos.testar" // manda uma mensagem de teste para o proprio Telegram
 	AcaoLerHistorico    Acao = "historico.ler" // busca por mes e versoes de um lancamento
 	AcaoRestaurar       Acao = "historico.restaurar"
+	AcaoConfirmarTx     Acao = "tx.confirmar" // tira o marcador previsto (item 41)
 	AcaoLerCartao       Acao = "cartao.ler"      // as faturas do cartao, calculadas pelo servidor (item 33a)
 	AcaoEscreverCartao  Acao = "cartao.escrever" // os comandos de configuracao e conferencia das faturas (so o dono)
 )
@@ -53,7 +54,7 @@ func Permitido(papel string, a Acao) Decisao {
 		case AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso,
-			AcaoLerHistorico, AcaoRestaurar, AcaoLerCartao, AcaoEscreverCartao:
+			AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao:
 			return Liberado
 		}
 	case PapelMember:
@@ -61,7 +62,7 @@ func Permitido(papel string, a Acao) Decisao {
 		case AcaoLerTx, AcaoCriarTx, AcaoLerCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 			AcaoLerFech, AcaoLerSeq, AcaoTestarAviso, AcaoLerCartao:
 			return Liberado
-		case AcaoEditarTx, AcaoLerHistorico, AcaoRestaurar: // so o que ela criou (restaurar excluido e so do owner: service)
+		case AcaoEditarTx, AcaoConfirmarTx, AcaoLerHistorico, AcaoRestaurar: // so o que ela criou (restaurar excluido e so do owner: service)
 			return SoDono
 		}
 	}
@@ -81,6 +82,14 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		}
 	case len(rest) == 2 && rest[0] == "tx" && rest[1] == "batch" && metodo == "POST":
 		return AcaoImportarTx, true
+	case len(rest) == 3 && rest[0] == "tx" && rest[2] == "confirmar" && metodo == "POST":
+		return AcaoConfirmarTx, true
+	case len(rest) == 1 && rest[0] == "futuros" && metodo == "GET":
+		return AcaoLerTx, true
+	case len(rest) == 1 && rest[0] == "status" && metodo == "GET":
+		return AcaoLerTx, true
+	case len(rest) == 1 && rest[0] == "transferencias" && metodo == "POST":
+		return AcaoCriarTx, true
 	case len(rest) == 2 && rest[0] == "tx":
 		switch metodo {
 		case "PUT":
