@@ -20,13 +20,15 @@ const (
 	AcaoLerAparencia    Acao = "aparencia.ler"
 	AcaoEscreverAparenc Acao = "aparencia.escrever"
 	AcaoEditarPerfil    Acao = "perfil.editar" // o proprio nome de exibicao
-	AcaoLerSeq          Acao = "seq.ler" // contador de alteracoes do espaco (a tela checa se alguem gravou)
+	AcaoLerSeq          Acao = "seq.ler"       // contador de alteracoes do espaco (a tela checa se alguem gravou)
 	AcaoLerFech         Acao = "fechamento.ler"
 	AcaoConferirMes     Acao = "fechamento.conferir"
 	AcaoReabrirMes      Acao = "fechamento.reabrir"
 	AcaoTestarAviso     Acao = "avisos.testar" // manda uma mensagem de teste para o proprio Telegram
 	AcaoLerHistorico    Acao = "historico.ler" // busca por mes e versoes de um lancamento
 	AcaoRestaurar       Acao = "historico.restaurar"
+	AcaoLerCartao       Acao = "cartao.ler"      // as faturas do cartao, calculadas pelo servidor (item 33a)
+	AcaoEscreverCartao  Acao = "cartao.escrever" // os comandos de configuracao e conferencia das faturas (so o dono)
 )
 
 // Decisao e o que um papel pode fazer com uma acao.
@@ -51,13 +53,13 @@ func Permitido(papel string, a Acao) Decisao {
 		case AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso,
-			AcaoLerHistorico, AcaoRestaurar:
+			AcaoLerHistorico, AcaoRestaurar, AcaoLerCartao, AcaoEscreverCartao:
 			return Liberado
 		}
 	case PapelMember:
 		switch a {
 		case AcaoLerTx, AcaoCriarTx, AcaoLerCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-			AcaoLerFech, AcaoLerSeq, AcaoTestarAviso:
+			AcaoLerFech, AcaoLerSeq, AcaoTestarAviso, AcaoLerCartao:
 			return Liberado
 		case AcaoEditarTx, AcaoLerHistorico, AcaoRestaurar: // so o que ela criou (restaurar excluido e so do owner: service)
 			return SoDono
@@ -107,6 +109,8 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		return AcaoConferirMes, true
 	case len(rest) == 2 && rest[0] == "fechamentos" && rest[1] == "reabrir" && metodo == "POST":
 		return AcaoReabrirMes, true
+	case len(rest) >= 1 && rest[0] == "cartoes":
+		return rotaCartao(metodo, rest)
 	case len(rest) == 1 && rest[0] == "tags" && metodo == "POST":
 		return AcaoAdicionarTags, true
 	case len(rest) == 1 && rest[0] == "perfil" && metodo == "PUT":
@@ -119,6 +123,38 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 			return AcaoLerAparencia, true
 		case "PUT":
 			return AcaoEscreverAparenc, true
+		}
+	}
+	return "", false
+}
+
+// rotaCartao classifica as rotas de /cartoes: as leituras (cartao.ler) e os comandos (cartao.escrever).
+func rotaCartao(metodo string, rest []string) (Acao, bool) {
+	switch {
+	case len(rest) == 1: // /cartoes
+		switch metodo {
+		case "GET":
+			return AcaoLerCartao, true
+		case "POST":
+			return AcaoEscreverCartao, true
+		}
+	case len(rest) == 2: // /cartoes/{banco}
+		if metodo == "PUT" || metodo == "DELETE" {
+			return AcaoEscreverCartao, true
+		}
+	case (len(rest) == 3 || len(rest) == 4) && rest[2] == "faturas": // /cartoes/{banco}/faturas[/{ym}]
+		switch {
+		case metodo == "GET":
+			return AcaoLerCartao, true
+		case metodo == "PUT" && len(rest) == 4:
+			return AcaoEscreverCartao, true
+		}
+	case len(rest) == 5 && rest[2] == "faturas": // /cartoes/{banco}/faturas/{ym}/conferir|diferenca
+		switch {
+		case rest[4] == "conferir" && (metodo == "POST" || metodo == "DELETE"):
+			return AcaoEscreverCartao, true
+		case rest[4] == "diferenca" && metodo == "POST":
+			return AcaoEscreverCartao, true
 		}
 	}
 	return "", false

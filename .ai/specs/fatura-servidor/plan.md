@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje (`web/js/app.js:2725-3240`, `backend/domain/`,
 `service/config.go`, `repository/config.go`). O roteiro verificável é o [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação do dono (2026-10-24).
+**Estado:** aprovado pelo dono em 2026-10-24. Fase A feita; B e C pendentes.
 
 ## Onde o código está hoje
 

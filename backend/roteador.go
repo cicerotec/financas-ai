@@ -60,7 +60,9 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 		return erro(http.StatusForbidden, "sem permissao para esta acao")
 	}
 	var body domain.Doc
-	if (m == "POST" || m == "PUT") && acaoReq != auth.AcaoRestaurar { // restaurar nao tem corpo
+	if rawBody == "" && acaoReq == auth.AcaoEscreverCartao { // os comandos do cartao sem opcao aceitam corpo vazio
+		body = domain.Doc{}
+	} else if (m == "POST" || m == "PUT") && acaoReq != auth.AcaoRestaurar { // restaurar nao tem corpo
 		if err := json.Unmarshal([]byte(rawBody), &body); err != nil || body == nil {
 			return erro(http.StatusBadRequest, "json invalido")
 		}
@@ -98,6 +100,10 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 		return s.fech.PostConferir(ctx, sid, u.Sub, body)
 	case auth.AcaoReabrirMes:
 		return s.fech.PostReabrir(ctx, sid, body)
+	case auth.AcaoLerCartao:
+		return s.cartoes.lerCartao(ctx, sid, u.Sub, role == auth.PapelOwner, p)
+	case auth.AcaoEscreverCartao:
+		return s.cartoes.escreverCartao(ctx, sid, u.Sub, m, p, body)
 	case auth.AcaoLerAparencia:
 		return s.cfg.GetAparencia(ctx, sid, u.Sub)
 	case auth.AcaoEditarPerfil:

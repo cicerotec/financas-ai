@@ -46,6 +46,10 @@ func TestMatrizDePermissoes(t *testing.T) {
 		{PapelMember, AcaoReabrirMes, Negado},
 		{PapelMember, AcaoLerHistorico, SoDono},
 		{PapelMember, AcaoRestaurar, SoDono},
+		{PapelOwner, AcaoLerCartao, Liberado},
+		{PapelOwner, AcaoEscreverCartao, Liberado},
+		{PapelMember, AcaoLerCartao, Liberado},
+		{PapelMember, AcaoEscreverCartao, Negado},
 	}
 	for _, c := range casos {
 		if got := Permitido(c.papel, c.a); got != c.quer {
@@ -57,7 +61,7 @@ func TestMatrizDePermissoes(t *testing.T) {
 func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 	todas := []Acao{AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 		AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-		AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar}
+		AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoLerCartao, AcaoEscreverCartao}
 	for _, a := range todas {
 		if Permitido(PapelOwner, a) != Liberado {
 			t.Errorf("owner deveria poder %q", a)
@@ -98,7 +102,7 @@ func TestPapelDesconhecidoOuVazioNaoPodeNada(t *testing.T) {
 	for _, papel := range []string{"", "viewer", "OWNER", "Member", "admin"} {
 		for _, a := range []Acao{AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, "inexistente"} {
+			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoLerCartao, AcaoEscreverCartao, "inexistente"} {
 			if got := Permitido(papel, a); got != Negado {
 				t.Errorf("papel %q, Acao %q: esperado Negado, veio %v", papel, a, got)
 			}
@@ -157,6 +161,28 @@ func TestRotaParaAcao(t *testing.T) {
 		{"PUT", []string{"tx", "abc123", "versoes", "2", "restaurar"}, "", false},
 		{"POST", []string{"tx", "abc123", "versoes", "2", "restaurar", "x"}, "", false},
 		{"POST", []string{"tx", "abc123", "outra", "2", "restaurar"}, "", false},
+		// cartoes (item 33a): as leituras e os comandos
+		{"GET", []string{"cartoes"}, AcaoLerCartao, true},
+		{"POST", []string{"cartoes"}, AcaoEscreverCartao, true},
+		{"PUT", []string{"cartoes"}, "", false},
+		{"DELETE", []string{"cartoes"}, "", false},
+		{"GET", []string{"cartoes", "X"}, "", false},
+		{"PUT", []string{"cartoes", "X"}, AcaoEscreverCartao, true},
+		{"DELETE", []string{"cartoes", "X"}, AcaoEscreverCartao, true},
+		{"POST", []string{"cartoes", "X"}, "", false},
+		{"GET", []string{"cartoes", "X", "faturas"}, AcaoLerCartao, true},
+		{"GET", []string{"cartoes", "X", "faturas", "2026-10"}, AcaoLerCartao, true},
+		{"PUT", []string{"cartoes", "X", "faturas", "2026-10"}, AcaoEscreverCartao, true},
+		{"PUT", []string{"cartoes", "X", "faturas"}, "", false},
+		{"POST", []string{"cartoes", "X", "faturas", "2026-10"}, "", false},
+		{"POST", []string{"cartoes", "X", "faturas", "2026-10", "conferir"}, AcaoEscreverCartao, true},
+		{"DELETE", []string{"cartoes", "X", "faturas", "2026-10", "conferir"}, AcaoEscreverCartao, true},
+		{"GET", []string{"cartoes", "X", "faturas", "2026-10", "conferir"}, "", false},
+		{"POST", []string{"cartoes", "X", "faturas", "2026-10", "diferenca"}, AcaoEscreverCartao, true},
+		{"DELETE", []string{"cartoes", "X", "faturas", "2026-10", "diferenca"}, "", false},
+		{"POST", []string{"cartoes", "X", "faturas", "2026-10", "outra"}, "", false},
+		{"POST", []string{"cartoes", "X", "faturas", "2026-10", "conferir", "y"}, "", false},
+		{"GET", []string{"cartoes", "X", "outra", "2026-10"}, "", false},
 		// nao existem
 		{"GET", []string{"perfil"}, "", false},
 		{"POST", []string{"perfil"}, "", false},

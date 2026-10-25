@@ -163,10 +163,34 @@ func ValidarTx(d Doc) error {
 			return errors.New(c + " obrigatorio")
 		}
 	}
+	if err := ValidarFaturaAjuste(d); err != nil {
+		return err
+	}
 	if err := ValidarAviso(d); err != nil {
 		return err
 	}
 	return ValidarSerie(d)
+}
+
+// ValidarFaturaAjuste confere o faturaAjuste (item 33a, R9): so -1, 0 ou +1. null vale como ausente, e num lancamento que nao e de credito o
+// campo e descartado (so tem sentido na fatura do cartao).
+func ValidarFaturaAjuste(d Doc) error {
+	v, tem := d["faturaAjuste"]
+	if !tem {
+		return nil
+	}
+	if v == nil {
+		delete(d, "faturaAjuste")
+		return nil
+	}
+	n, ok := v.(float64)
+	if !ok || (n != -1 && n != 0 && n != 1) {
+		return errors.New("faturaAjuste deve ser -1, 0 ou 1")
+	}
+	if s, _ := d["status"].(string); !EhCredito(s) {
+		delete(d, "faturaAjuste")
+	}
+	return nil
 }
 
 // FiltroTx e o que a listagem de lancamentos aceita: periodo (De e Ate sao prefixos de dataEvento), filtros em memoria
