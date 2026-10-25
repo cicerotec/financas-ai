@@ -1,6 +1,6 @@
 # Backlog e roadmap
 
-Atualizado em 2026-10-18. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
+Atualizado em 2026-10-25. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
 ordem de prioridade e levam a etiqueta **[Agora]**, **[Próximo]** ou **[Depois]**. A numeração é fixa (não renumerar:
 outros trechos referenciam os números). Os detalhes de cada assunto ficam em `.ai/`. Marque `[x]` ao concluir e
 retire o item do índice "Seções".
@@ -23,16 +23,14 @@ com o salto para o registro real. **Ao concluir um item, marque `[x]` no registr
 pendentes: nenhum.
 
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
-- [\[Backend\] - **\[Próximo\] Saldo, fechamento e conferência calculados e validados no servidor (segurança):**](#item-40)
-- [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe (fatia a: faturas do cartão; fatia b depois):**](#item-33)
-- [\[Backend\] - **\[Próximo\] Futuros: marcador `previsto` e status do backend (depois do 40 e do 33a):**](#item-41)
+- [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe (fatia a feita; falta a fatia b):**](#item-33)
+- [\[Backend\] - **\[Próximo\] Futuros: marcador `previsto` e status do backend (fases A e B feitas; falta a C):**](#item-41)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
 - [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
 - [\[UX/UI\] - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
 - [\[Processo\] - **\[Próximo\] Remover `financas-app.html`:**](#item-36)
 - [\[Infra\] - **\[Depois\] AWS Budget de US$ 1 e backup periódico:**](#item-11)
-- [\[Backend\] - **\[Depois\] Saldos e faturas do cartão calculados na Lambda:**](#item-14)
 - [\[Backend\] - **\[Depois\] Open Finance (visão):**](#item-39)
 - [\[Backend\] - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
 - [\[Backend\] - **\[Depois\] Reclassificação em massa (admin):**](#item-44)
@@ -128,7 +126,7 @@ DynamoDB sem discutir com o dono.**
   para criar, editar, excluir, importar e restaurar. A mudança de tela (exclusão imediata, Desfazer por restauração) é
   deste item, não da Fase 3 do histórico. **Custo:** um toque a mais ao editar o passado. Depende do item 31. **Concluído em 2026-10-17:** as fases A (backend), B (tela da
   confirmação) e C (excluir imediato, Desfazer por restauração) estão implementadas e verificadas em dev.
-- 40. [ ] <a id="item-40"></a>**[Próximo] Saldo, fechamento e conferência calculados e validados no servidor (segurança):** decisão do
+- 40. [x] <a id="item-40"></a>**[Próximo] Saldo, fechamento e conferência calculados e validados no servidor (segurança):** decisão do
   dono de 2026-10-18, depois de ver que o navegador calcula o saldo e o servidor grava o que ele manda. Hoje
   `SalvarCaches` aceita qualquer número finito de um mês passado e `Conferir` só compara `saldo` e `real`, os dois vindos
   do cliente, então quem forja a requisição trava um mês com o saldo que quiser (só o owner chama essas rotas, mas o
@@ -144,6 +142,7 @@ DynamoDB sem discutir com o dono.**
   [`.ai/specs/saldo-servidor/`](.ai/specs/saldo-servidor/intent.md). Detalhes em [`.ai/arquitetura.md`](.ai/arquitetura.md) e
   [`.ai/security.md`](.ai/security.md). Não cria campo no Dynamo por si; qualquer campo novo passa pelo dono. Absorve o
   trecho de saldos do item 14.
+  **Concluído em 2026-10-24:** fase A (backend: `GET /saldos`, cache só do servidor, conferência com o `real`), B (a aba Saldos lê o servidor, conferida pelo dono em dev e produção) e C (saíram `GET`/`PUT /fechamentos` e a ação `fechamento.escrever`; a conferência recusa `saldo` no corpo).
 - 41. [ ] <a id="item-41"></a>**[Próximo] Futuros: marcador `previsto` e status do backend:** decisões do dono de 2026-10-18, só a
   aba Futuros, **depois do 40 e do 33a** (2026-10-24). **Regra do dono: o front não trata status de forma nenhuma.** O
   backend manda a lista de status (`["PAGO", "CREDITO"]` no corte; no futuro `PIX`, `DREX`, `DEBITO`...), e o front só a
@@ -168,6 +167,9 @@ DynamoDB sem discutir com o dono.**
   mais recentes (só volta ao dono se pedir chave nova) e o que o Prever faz com o "Status das cópias". Demo antes do
   código para qualquer tela além da de confirmar. Depende dos itens 40 e 33a (o navegador já não soma com status). Intent, plan e spec (aprovados em 2026-10-24; **fases A e B feitas** (backend e tela de Futuros), C pendente) em
   [`.ai/specs/futuros-previsto/`](.ai/specs/futuros-previsto/intent.md): fases A (backend), B (Futuros e Confirmar) e C (Listas, Lançar e Prever).
+  - [x] **Fase A, backend** (concluída em 2026-10-25): catálogo de status, marcador `previsto`, `GET /futuros`, `POST /tx/{id}/confirmar`, `GET /status`, `POST /transferencias`, `GET /tx` sem previstos.
+  - [x] **Fase B, a tela de Futuros e Confirmar** (concluída em 2026-10-25): Futuros lê o servidor, Confirmar com Desfazer, Histórico sem total e sem o resumo de futuros. Futuros olha só do mês passado em diante (os atrasados antigos: item 45).
+  - [ ] **Fase C, o front sem status** (demo antes do código, uma por tela): Listas sem as caixas de status, Lançar, Prever e o filtro do Histórico pela lista do servidor, e o teste de CI que proíbe nome de status em `web/`.
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
@@ -188,6 +190,8 @@ DynamoDB sem discutir com o dono.**
   **fatia b** (o cartão como entidade própria, a trava da fatura conferida e a migração do `faturaAjuste` explícito) segue a discutir.
   Intent, plan e spec da fatia a (aprovados em 2026-10-24) em [`.ai/specs/fatura-servidor/`](.ai/specs/fatura-servidor/intent.md).
   **Fatia a concluída em 2026-10-24** (fases A, B e C: a aba Cartão e a linha Fatura do Lançar leem o servidor, conferidas pelo dono em dev e produção; o `PUT /cfg/cartoes` saiu). Sobra a fatia b.
+  - [x] **Fatia a: faturas do cartão no servidor** (concluída em 2026-10-24: fases A, B e C).
+  - [ ] **Fatia b: o cartão como entidade própria, a trava da fatura conferida e a migração do `faturaAjuste` explícito** (a discutir; liga ao item 35).
 - 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
@@ -221,8 +225,9 @@ DynamoDB sem discutir com o dono.**
   estável do banco em cada lançamento para não duplicar (a importação já preserva o `id` do item); e a origem do
   lançamento (manual ou banco), uma decisão de modelo que só entra com aprovação (princípio 3). (d) Provedor, custo e
   consentimento a pesquisar. Depende dos itens 33 e 38.
-- 14. [ ] <a id="item-14"></a>**[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
+- 14. [x] <a id="item-14"></a>**[Depois] Saldos e faturas do cartão calculados na Lambda** (o saldo do banco já lê só o mês aberto, graças
   ao fechamento mensal; faltam as faturas do cartão e as tendências). Absorvido pelo item 33.
+  **Concluído em 2026-10-24:** o saldo saiu pelo item 40 e as faturas do cartão pelo item 33a (fatia a). As tendências seguem calculadas no navegador, de propósito: são uma simulação que só exibe.
 - 12. [ ] <a id="item-12"></a>**[Depois] Colaboração, Fase 1:** log de operações + atualização incremental da tela por gatilho (o contador
   `seq` e a checagem barata já existem; falta o log do que mudou, para atualizar só os registros afetados); quem
   criou/alterou/ocultou; "novo desde a última visita"; atividade recente; idempotência e edição concorrente
