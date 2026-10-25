@@ -453,6 +453,8 @@
   const cartaoAdicionar = async (meio, diaPadrao) => (await api('POST', await cartaoUrl(), { meio, diaPadrao })).body;
   const cartaoRemover = async (meio) => (await api('DELETE', await cartaoUrl(meio))).body;
   const cartaoInicio = async (meio, inicio) => (await api('PUT', await cartaoUrl(meio), { inicio })).body;
+  // pagador e dia do vencimento do cartao ({ pagador?, diaVencimento? }; null remove)
+  const cartaoConfig = async (meio, dados) => (await api('PUT', await cartaoUrl(meio), dados)).body;
   const cartaoFechamento = async (meio, ym, dados) => (await api('PUT', await cartaoUrl(meio, '/faturas/' + ym), dados)).body;
   const cartaoConferir = async (meio, ym, aceitarDiferenca) =>
     api('POST', await cartaoUrl(meio, '/faturas/' + ym + '/conferir'), { aceitarDiferenca: !!aceitarDiferenca });
@@ -499,6 +501,7 @@
     cartaoAdicionar,
     cartaoRemover,
     cartaoInicio,
+    cartaoConfig,
     cartaoFechamento,
     cartaoConferir,
     cartaoDesconferir,

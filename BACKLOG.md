@@ -297,7 +297,7 @@ DynamoDB sem discutir com o dono.**
   - **Pagamento mínimo ou parcial** (a maioria dos usuários usa; o dono não) fica aqui: a fatura passa a ter mais de um pagamento.
   - **Dados novos aprovados pelo dono em 2026-10-25:** `pagador` e `diaVencimento` no cartão e `pagador` e `vencimento` por fatura (tudo dentro da entrada do
     cartão em `CFG#CARTOES`). O atributo `pagaFatura` no lançamento aguarda a aprovação no spec. **O pagamento é um lançamento normal e a marca `pagaFatura` é só uma label** (sem limite de pagamentos, de valor ou de meio; pagamento mínimo e restante são da operadora, nada passa adiante). Depende dos itens 33a e 41,
-    concluídos. Intent, plan e spec (aprovados em 2026-10-25; **fase A do backend feita**, B (telas, demo `.ai/demos/demo-pagar-fatura.html` aprovada) pendente) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md). Detalhes em `.ai/arquitetura.md`.
+    concluídos. Intent, plan e spec (aprovados em 2026-10-25; **fases A (backend) e B (telas, demo `.ai/demos/demo-pagar-fatura.html`) feitas; falta o dono conferir no dev**) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md). Detalhes em `.ai/arquitetura.md`.
 - 20. [ ] <a id="item-20"></a>**[Depois] Ideias** (seção no fim deste arquivo).
 
 ### UX/UI (usabilidade do que já existe)

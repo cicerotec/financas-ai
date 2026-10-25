@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje (`backend/domain/fatura.go`, `service/cartoes.go`,
 `service/previsto.go`, `service/lancamento.go`, `service/fechamento.go`, `web/js/app.js`). O roteiro verificável é o [`spec.md`](spec.md).
 
-**Estado:** aprovado pelo dono em 2026-10-25 (spec e demo). **Fase A implementada** (`feature/pagar-fatura-fase-a`); a fase B (telas) é a próxima.
+**Estado:** aprovado pelo dono em 2026-10-25 (spec e demo). **Fases A e B implementadas** (`feature/pagar-fatura-fase-a`, `feature/pagar-fatura-fase-b`).
 
 ## Onde o código está hoje
 
