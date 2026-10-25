@@ -169,25 +169,6 @@ func (s *Lancamentos) Historico(ctx context.Context, sid string, per domain.Peri
 	return resp, nil
 }
 
-// alvosDe junta, sem repetir, os alvos (banco e mes) de dois estados do lancamento.
-func alvosDe(a, b domain.Lancamento) []domain.Alvo {
-	var alvos []domain.Alvo
-	for _, l := range []domain.Lancamento{a, b} {
-		al, ok := domain.AlvoDe(l)
-		if !ok {
-			continue
-		}
-		repetido := false
-		for _, x := range alvos {
-			repetido = repetido || x == al
-		}
-		if !repetido {
-			alvos = append(alvos, al)
-		}
-	}
-	return alvos
-}
-
 // bloqueioDeRestauracao diz por que a versao nao pode ser restaurada (nil = pode). Os motivos sao, nesta ordem: a
 // versao e a exclusao; so o dono restaura um excluido; o lancamento ja esta nessa versao; e a trava do fechamento, que
 // vale para a versao e para o estado atual e so quando a restauracao mexe no saldo (como na edicao). O segundo valor
@@ -204,7 +185,7 @@ func bloqueioDeRestauracao(tr Travas, atual domain.Lancamento, v domain.Versao, 
 		return ErrJaNessaVersao, nil, nil
 	}
 	if excluido || domain.MudaSaldo(atual, v.Registro) {
-		for _, al := range alvosDe(atual, v.Registro) {
+		for _, al := range domain.AlvosDoSaldo(atual, v.Registro) {
 			// sem confirmacao: o conferido bloqueia (absoluto); o fechado por data so avisa que a confirmacao e necessaria
 			if _, err := tr.Checar(al, false); err != nil {
 				var conferido *domain.ErroMesConferido

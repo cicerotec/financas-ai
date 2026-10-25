@@ -1,0 +1,19 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "TX#2026-11-05T15:00:00.000Z#k3x9a1m7q2w8e5r4t6y1",
+ "banco": "Bradesco",
+ "criadoEm": "2026-10-24T15:00:00.000Z",
+ "criadoPor": "dados-ficticios",
+ "dataEvento": "2026-11-05T15:00:00.000Z",
+ "descricao": "Condominio",
+ "excluirDoTotal": false,
+ "id": "k3x9a1m7q2w8e5r4t6y1",
+ "nota": "",
+ "previsto": true,
+ "status": "PAGO",
+ "tags": [
+  "moradia"
+ ],
+ "tipo": "saida",
+ "valor": 540
+}

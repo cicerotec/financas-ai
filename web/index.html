@@ -136,7 +136,6 @@
 </section>
 
 <section id="tab-historico" class="hidden">
-  <div id="avisoFuturos" class="aviso-fut hidden"></div>
   <div class="hist-tools" id="histTools">
     <div class="hper" id="histPer">
       <div class="perbar">
@@ -167,7 +166,6 @@
   <div id="histEscopo"></div>
   <p class="muted" id="buscaTextoStatus" style="margin:0 4px 6px;"></p>
   <div class="hist-cont muted"><p id="contadorHistorico"></p><span id="somaHistorico"></span></div>
-  <p class="muted hidden" id="avisoMesFuturos" style="margin:0 0 8px;"></p>
   <div id="listaLancamentos"><p class="muted">Carregando...</p></div>
   <div class="hist-fim" id="histFim"></div>
 </section>
@@ -180,7 +178,7 @@
     <div class="hf-sec">Banco</div><div class="tags" id="histFilBanco"></div>
     <div class="hf-sec">Tags</div><div id="histTags"></div>
     <label class="fut-sw"><input type="checkbox" id="filMostrarOcultos"><span>Mostrar ocultos<small class="muted"> (entram na lista e no total)</small></span></label>
-    <label class="fut-sw"><input type="checkbox" id="buscaIncluiFuturos"><span>Incluir eventos futuros<small class="muted"> (só na busca por texto)</small></span></label>
+    <label class="fut-sw hidden"><input type="checkbox" id="buscaIncluiFuturos"><span>Incluir eventos futuros<small class="muted"> (só na busca por texto)</small></span></label>
     <div class="hf-rod"><button type="button" class="hf-limpar" id="histFilLimpar">Limpar</button><button type="button" class="hf-ok" id="histFilOk">Pronto</button></div>
   </div>
 </div>

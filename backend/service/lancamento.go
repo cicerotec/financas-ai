@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"sync"
 	"time"
 
 	"financas/domain"
@@ -52,6 +53,8 @@ type Efeitos interface {
 	RemoverAviso(ctx context.Context, sid, id string)
 	// ComSeq soma 1 ao contador de alteracoes do espaco e anexa o valor novo na resposta (_seq).
 	ComSeq(ctx context.Context, sid string, d domain.Doc) domain.Doc
+	// Seq le o contador de alteracoes sem somar (a leitura barata que diz se alguem gravou); ok=false se nao der para ler.
+	Seq(ctx context.Context, sid string) (n float64, ok bool)
 }
 
 // Erros do service. O controller traduz cada um na resposta HTTP de sempre.
@@ -70,6 +73,8 @@ type ErroValidacao struct{ Msg string }
 func (e *ErroValidacao) Error() string { return e.Msg }
 
 type Lancamentos struct {
+	mu      sync.Mutex
+	futuros map[string]*cacheFuturos // a leitura dos previstos de cada espaco, valida enquanto o contador de alteracoes nao mudar
 	repo    Repositorio
 	ef      Efeitos
 	pessoas Pessoas
@@ -77,7 +82,7 @@ type Lancamentos struct {
 }
 
 func NewLancamentos(repo Repositorio, ef Efeitos, pessoas Pessoas, rel Relogio) *Lancamentos {
-	return &Lancamentos{repo: repo, ef: ef, pessoas: pessoas, rel: rel}
+	return &Lancamentos{repo: repo, ef: ef, pessoas: pessoas, rel: rel, futuros: map[string]*cacheFuturos{}}
 }
 
 const formatoTempo = "2006-01-02T15:04:05.000Z"
@@ -107,11 +112,15 @@ func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.La
 	if err := domain.ValidarTx(body); err != nil {
 		return nil, &ErroValidacao{err.Error()}
 	}
+	if err := validarStatus(domain.StatusDe(body)); err != nil {
+		return nil, err
+	}
+	s.derivar(body)
 	agora := time.Now().UTC().Format(formatoTempo)
 	body["id"] = domain.NovoID()
 	body["criadoEm"] = agora
 	body["criadoPor"] = sub
-	al, temAlvo := domain.AlvoDe(body)
+	al, temAlvo := alvoDoEfeito(body)
 	exigiu := false
 	if temAlvo {
 		ex, err := s.ef.Travas(ctx, sid).Checar(al, confirma)
@@ -135,7 +144,7 @@ func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.La
 	}
 	s.ef.GarantirTags(ctx, sid, domain.TagsDe(body))
 	s.ef.SincronizarAviso(ctx, sid, body)
-	return s.ef.ComSeq(ctx, sid, domain.Publico(body)), nil
+	return s.ef.ComSeq(ctx, sid, comPrevisto(domain.Publico(body))), nil
 }
 
 // Editar aplica o patch ao lancamento que esta sob a data "de". restrito: so quem criou pode editar (member).
@@ -164,14 +173,16 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 	if err := domain.ValidarTx(novo); err != nil {
 		return nil, &ErroValidacao{err.Error()}
 	}
+	if domain.StatusDe(novo) != domain.StatusDe(antes) { // sem mudar o status, o gravado vale (um antigo continua editavel)
+		if err := validarStatus(domain.StatusDe(novo)); err != nil {
+			return nil, err
+		}
+	}
+	s.derivar(novo)
 	var alvos []domain.Alvo
 	exigiu := false
-	if domain.MudaSaldo(antes, novo) { // editar descricao, nota ou tags nao mexe no saldo e nao e travado
-		for _, d := range []domain.Lancamento{antes, novo} {
-			if al, ok := domain.AlvoDe(d); ok {
-				alvos = append(alvos, al)
-			}
-		}
+	if domain.MudaSaldo(antes, novo) { // so o que muda o efeito no saldo e travado: descricao, nota, tags e trocar entre status que contam, nao
+		alvos = domain.AlvosDoSaldo(antes, novo)
 		tr := s.ef.Travas(ctx, sid)
 		for _, al := range alvos {
 			ex, err := tr.Checar(al, confirma)
@@ -196,7 +207,7 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 	}
 	s.ef.GarantirTags(ctx, sid, domain.TagsDe(novo))
 	s.ef.SincronizarAviso(ctx, sid, novo)
-	return s.ef.ComSeq(ctx, sid, domain.Publico(novo)), nil
+	return s.ef.ComSeq(ctx, sid, comPrevisto(domain.Publico(novo))), nil
 }
 
 // Excluir exclui o lancamento que esta sob a data "de". A exclusao e logica: o lancamento fica na tabela, marcado
@@ -214,7 +225,7 @@ func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de, sub string, conf
 	if antigo == nil || domain.Excluido(antigo) {
 		return domain.Doc{"ok": true}, nil
 	}
-	al, temAlvo := domain.AlvoDe(antigo)
+	al, temAlvo := alvoDoEfeito(antigo)
 	exigiu := false
 	if temAlvo {
 		ex, err := s.ef.Travas(ctx, sid).Checar(al, confirma)
@@ -271,9 +282,19 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 		delete(d, "excluidoEm") // a exclusao so se faz pela rota de exclusao
 		delete(d, "confirmaMesFechado")  // a confirmacao so vale pela query, e nunca vai para o lancamento
 		delete(d, "confirmouMesFechado") // a marca e so da versao do historico
+		marcado, _ := d["previsto"].(bool) // o backup restaura o marcador fiel; nunca o desliga (R8)
+		delete(d, "previsto")
 		if err := domain.ValidarTx(d); err != nil {
 			rejeitados = append(rejeitados, domain.Doc{"indice": i, "motivo": err.Error()})
 			continue
+		}
+		if e, ok := domain.EntradaDe(domain.StatusDe(d)); !ok || e.Nome != domain.StatusDe(d) { // o backup aceita qualquer status do catalogo, inclusive os antigos
+			rejeitados = append(rejeitados, domain.Doc{"indice": i, "motivo": "status invalido"})
+			continue
+		}
+		s.derivar(d)
+		if marcado {
+			d["previsto"] = true
 		}
 		if id, _ := d["id"].(string); !domain.ReID.MatchString(id) {
 			d["id"] = domain.NovoID()
@@ -287,7 +308,7 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 			continue
 		}
 		vistas[domain.Identidade(d)] = true
-		al, temAlvo := domain.AlvoDe(d)
+		al, temAlvo := alvoDoEfeito(d)
 		exigiu := false
 		if temAlvo {
 			ex, err := tr.Checar(al, confirma)

@@ -277,6 +277,9 @@ func (r *Lancamentos) Listar(ctx context.Context, sid string, f domain.FiltroTx)
 			if d["excluidoEm"] != nil { // excluido logicamente: some das listas, mas continua na tabela e no historico
 				continue
 			}
+			if prev := domain.EhPrevisto(d); (f.SemPrevistos && prev) || (f.SoPrevistos && !prev) {
+				continue
+			}
 			if f.Banco != "" && d["banco"] != f.Banco {
 				continue
 			}

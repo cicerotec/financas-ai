@@ -93,9 +93,41 @@ func (c *Lancamentos) GetTxs(ctx context.Context, sid string, qs map[string]stri
 	if n, err := strconv.Atoi(qs["limite"]); err == nil && n > 0 && n <= 1000 {
 		f.Limite = n
 	}
-	itens, proximo, err := c.svc.Listar(ctx, sid, f)
+	d, err := c.svc.ListarTx(ctx, sid, f, qs["filtros"] == "1")
 	if err != nil {
 		return respostaErro(err)
 	}
-	return Out(200, domain.Doc{"itens": itens, "proximo": proximo})
+	return Out(200, d)
+}
+
+// PostConfirmar: POST /spaces/{sid}/tx/{id}/confirmar?de=<dataEvento atual> com { valor, dataEvento, status }. restrito: so quem criou (member).
+func (c *Lancamentos) PostConfirmar(ctx context.Context, sid, id, de string, body domain.Doc, sub string, restrito, confirma bool) (Resp, error) {
+	d, err := c.svc.Confirmar(ctx, sid, id, de, body, sub, restrito, confirma)
+	if err != nil {
+		return respostaErro(err)
+	}
+	return Out(200, d)
+}
+
+// GetFuturos: GET /spaces/{sid}/futuros[?ocultos=1]
+func (c *Lancamentos) GetFuturos(ctx context.Context, sid string, qs map[string]string) (Resp, error) {
+	d, err := c.svc.Futuros(ctx, sid, qs["ocultos"] == "1")
+	if err != nil {
+		return respostaErro(err)
+	}
+	return Out(200, d)
+}
+
+// GetStatus: GET /spaces/{sid}/status?data=<ISO>[&todos=1]
+func (c *Lancamentos) GetStatus(qs map[string]string) (Resp, error) {
+	return Out(200, c.svc.StatusSugeridos(qs["data"], qs["todos"] == "1"))
+}
+
+// PostTransferencia: POST /spaces/{sid}/transferencias { origem, destino, valor, dataEvento? }
+func (c *Lancamentos) PostTransferencia(ctx context.Context, sid, sub string, body domain.Doc, confirma bool) (Resp, error) {
+	d, err := c.svc.Transferir(ctx, sid, sub, body, confirma)
+	if err != nil {
+		return respostaErro(err)
+	}
+	return Out(201, d)
 }

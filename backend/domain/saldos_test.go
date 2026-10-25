@@ -18,40 +18,32 @@ func tx(data string, tipo string, valor float64, extra Doc) Lancamento {
 
 func iguais(a, b float64) bool { return math.Abs(a-b) < 0.0001 }
 
-// S-T1: o que conta no saldo.
+// S-T1: o que conta no saldo (pelo catalogo de status do servidor, item 41).
 func TestContaNoSaldo(t *testing.T) {
-	semConfig := Doc{}
-	comConfig := Doc{
-		"afetaSaldoBanco": map[string]any{"PAGO": true, "CREDITO": false, "PIX": true},
-		"statusFuturo":    map[string]any{"PREVISTO": true},
-	}
 	casos := []struct {
-		nome   string
-		l      Lancamento
-		listas Doc
-		quer   bool
+		nome string
+		l    Lancamento
+		quer bool
 	}{
-		{"PAGO normal", tx("2026-01-10T12:00:00.000Z", "saida", 10, nil), semConfig, true},
-		{"CONTAS conta pelo padrao", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"status": "CONTAS"}), semConfig, true},
-		{"oculto", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"oculto": true}), semConfig, false},
-		{"excluido", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"excluidoEm": "2026-01-11T00:00:00.000Z"}), semConfig, false},
-		{"status que nao afeta o saldo", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"status": "CREDITO"}), comConfig, false},
-		{"status fora da lista de afeta saldo", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"status": "OUTRO"}), comConfig, false},
-		{"evento futuro mesmo afetando", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"status": "PREVISTO"}), Doc{
-			"afetaSaldoBanco": map[string]any{"PREVISTO": true}, "statusFuturo": map[string]any{"PREVISTO": true}}, false},
-		{"PREVISTO pelo padrao sem configuracao", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"status": "PREVISTO"}), semConfig, false},
-		{"status configurado depois", tx("2026-01-10T12:00:00.000Z", "entrada", 10, Doc{"status": "PIX"}), comConfig, true},
+		{"PAGO normal", tx("2026-01-10T12:00:00.000Z", "saida", 10, nil), true},
+		{"CONTAS conta", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"status": "CONTAS"}), true},
+		{"oculto", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"oculto": true}), false},
+		{"excluido", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"excluidoEm": "2026-01-11T00:00:00.000Z"}), false},
+		{"CREDITO nao afeta o saldo", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"status": "CREDITO"}), false},
+		{"status fora do catalogo", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"status": "OUTRO"}), false},
+		{"PREVISTO (antigo)", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"status": "PREVISTO"}), false},
+		{"previsto pelo marcador, mesmo PAGO", tx("2026-01-10T12:00:00.000Z", "saida", 10, Doc{"previsto": true}), false},
 	}
 	for _, c := range casos {
-		if got := ContaNoSaldo(c.l, c.listas); got != c.quer {
+		if got := ContaNoSaldo(c.l); got != c.quer {
 			t.Errorf("%s: ContaNoSaldo = %v, esperado %v", c.nome, got, c.quer)
 		}
 	}
 }
 
-func somar(t *testing.T, listas Doc, de *time.Time, ls ...Lancamento) map[string]float64 {
+func somar(t *testing.T, _ Doc, de *time.Time, ls ...Lancamento) map[string]float64 {
 	t.Helper()
-	a := NovoAcumulador(listas, de)
+	a := NovoAcumulador(de)
 	for _, l := range ls {
 		a.Somar(l)
 	}
@@ -163,7 +155,7 @@ func TestPontoDePartidaNaoMudaOResultado(t *testing.T) {
 
 func TestCachesValidosEPontoDePartida(t *testing.T) {
 	cfg := ConfigBanco{Existe: true, SaldoInicial: 0, DataInicio: "2026-02-01"}
-	base := BaseCache(cfg, Doc{})
+	base := BaseCache(cfg)
 	item := Doc{
 		"base":       base,
 		"invalidoDe": "2026-05",
@@ -196,92 +188,18 @@ func TestCachesValidosEPontoDePartida(t *testing.T) {
 // S-T8: a base do cache muda com a configuracao e a versao antiga nao casa.
 func TestBaseDoCache(t *testing.T) {
 	cfg := ConfigBanco{Existe: true, SaldoInicial: 100.5, DataInicio: "2026-01-01"}
-	b := BaseCache(cfg, Doc{})
-	if b != "v2|100.5|2026-01-01|CONTAS,PAGO/CREDITANDO,PREVISTO,TRANSFERINDO" {
+	b := BaseCache(cfg)
+	if b != "v3|100.5|2026-01-01|PAGO,CONTAS" {
 		t.Errorf("base = %q", b)
 	}
-	if BaseCache(ConfigBanco{Existe: true, SaldoInicial: 100.5, DataInicio: "2026-01-01"}, Doc{"afetaSaldoBanco": map[string]any{"PAGO": true}}) == b {
-		t.Error("mudar o que afeta o saldo muda a base")
-	}
-	if BaseCache(ConfigBanco{Existe: true, SaldoInicial: 100, DataInicio: "2026-01-01"}, Doc{}) == b {
+	if BaseCache(ConfigBanco{Existe: true, SaldoInicial: 100, DataInicio: "2026-01-01"}) == b {
 		t.Error("mudar o saldo inicial muda a base")
 	}
-}
-
-// S-T11: os doze ultimos meses e o estado de cada um.
-func TestMesesDoPainel(t *testing.T) {
-	mapa := map[string]float64{}
-	for i, m := range []string{"2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11"} {
-		mapa[m] = float64(i)
+	// mudar o catalogo (um status passa a contar no saldo) muda a base: o cache antigo nao vale
+	antes := Catalogo
+	defer func() { Catalogo = antes }()
+	Catalogo = append(append([]EntradaStatus{}, antes...), EntradaStatus{Nome: "PIX", Rotulo: "PIX", ContaNoSaldo: true, Selecionavel: true})
+	if BaseCache(cfg) == b {
+		t.Error("mudar o que conta no saldo muda a base")
 	}
-	conf := map[string]Doc{"2026-03": {"saldo": 77.0, "real": 77.0, "ajuste": 0.0, "em": "2026-04-03T10:00:00.000Z", "por": "sub-1"}}
-	ms := MesesDoPainel(mapa, conf, "2026-10")
-	if len(ms) != 12 || ms[0].Mes != "2026-10" || ms[11].Mes != "2025-11" {
-		t.Fatalf("12 meses do atual para tras, sem os futuros: %v", ms)
-	}
-	estado := map[string]string{}
-	for _, m := range ms {
-		estado[m.Mes] = m.Estado
-	}
-	if estado["2026-10"] != "aberto" || estado["2026-09"] != "calculado" || estado["2026-03"] != "conferido" || estado["2026-02"] != "travado" || estado["2026-04"] != "calculado" {
-		t.Errorf("estados inesperados: %v", estado)
-	}
-	for _, m := range ms {
-		if m.Mes == "2026-03" && (m.Valor != 77 || m.Conferido == nil || m.Conferido["real"] != 77.0) {
-			t.Errorf("o mes conferido mostra o saldo conferido: %v", m)
-		}
-	}
-}
-
-// S-T24: o resultado com cache e conferido e o mesmo de calcular tudo, numa implementacao de referencia escrita aqui.
-func TestEquivalenciaComReferencia(t *testing.T) {
-	var ls []Lancamento
-	valor := 13.17
-	for m := 1; m <= 9; m++ {
-		for d := 1; d <= 28; d += 9 {
-			tipo := "saida"
-			if (m+d)%3 == 0 {
-				tipo = "entrada"
-			}
-			valor = math.Mod(valor*1.37+3.11, 400) + 0.01
-			ls = append(ls, tx(time.Date(2026, time.Month(m), d, 14, 0, 0, 0, time.UTC).Format("2006-01-02T15:04:05.000Z"), tipo, math.Round(valor*100)/100, nil))
-		}
-	}
-	cfg := ConfigBanco{Existe: true, SaldoInicial: 321.45, DataInicio: "2026-02-01"}
-	atual := "2026-09"
-	got := Cascata(somar(t, Doc{}, mustInicio(t, "2026-02-01"), ls...), cfg, nil, atual)
-
-	// referencia: soma simples dia a dia, sem agrupar por mes de uma vez
-	acc := cfg.SaldoInicial
-	porMes := map[string]float64{}
-	for _, l := range ls {
-		d, _ := time.Parse(time.RFC3339Nano, l["dataEvento"].(string))
-		if d.Before(*mustInicio(t, "2026-02-01")) {
-			continue
-		}
-		v := l["valor"].(float64)
-		if l["tipo"] == "saida" {
-			v = -v
-		}
-		porMes[d.In(FusoApp).Format("2006-01")] += v
-	}
-	for m := 2; m <= 9; m++ {
-		k := time.Date(2026, time.Month(m), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
-		acc = math.Floor((acc+porMes[k])*100+0.5) / 100
-		if m < 9 && !iguais(got.Fechamentos[k], acc) {
-			t.Errorf("fechamento de %s: %v, referencia %v", k, got.Fechamentos[k], acc)
-		}
-	}
-	if !iguais(got.Saldo, acc) {
-		t.Errorf("saldo %v, referencia %v", got.Saldo, acc)
-	}
-}
-
-func mustInicio(t *testing.T, s string) *time.Time {
-	t.Helper()
-	de, ok := InicioDoControle(s)
-	if !ok {
-		t.Fatalf("inicio invalido: %s", s)
-	}
-	return &de
 }

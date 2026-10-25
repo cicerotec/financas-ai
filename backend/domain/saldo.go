@@ -2,7 +2,6 @@ package domain
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 	_ "time/tzdata" // fuso de Sao Paulo mesmo onde o sistema nao tem /usr/share/zoneinfo
 )
@@ -34,22 +33,6 @@ func AlvoDe(d Doc) (Alvo, bool) {
 	s, _ := d["dataEvento"].(string)
 	m := MesDe(s)
 	return Alvo{b, m}, b != "" && m != ""
-}
-
-// CamposSaldo sao os campos que mudam o saldo de um banco; o resto (descricao, nota, tags...) pode ser editado em
-// mes conferido.
-var CamposSaldo = []string{"valor", "tipo", "status", "banco", "dataEvento"}
-
-// MudaSaldo diz se a edicao de antigo para novo mexe no saldo.
-func MudaSaldo(antigo, novo Doc) bool {
-	for _, c := range CamposSaldo {
-		if !reflect.DeepEqual(antigo[c], novo[c]) {
-			return true
-		}
-	}
-	a, _ := antigo["oculto"].(bool)
-	n, _ := novo["oculto"].(bool)
-	return a != n
 }
 
 // ErroMesConferido: o mes do banco foi conferido com o extrato e esta travado. Fechamento conferido e absoluto.

@@ -4,7 +4,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 `service/config.go`, `service/avisos.go`, `repository/lancamento.go`, `web/js/app.js`). O roteiro verificável é o
 [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação do dono, revisto em 2026-10-24. **Vem depois** dos itens 40
+**Estado:** aprovado pelo dono em 2026-10-24. Fases A e B feitas; C pendente. **O release para a `main` não deve sair entre a A e a B:** o app de hoje ainda monta Futuros a partir de `GET /tx` e cria `PREVISTO` pelo status. **Vem depois** dos itens 40
 ([`saldo-servidor`](../saldo-servidor/plan.md)) e 33 fatiado ([`fatura-servidor`](../fatura-servidor/plan.md)).
 
 ## Onde o código está hoje
@@ -89,6 +89,7 @@ parâmetro `semPrevistos=1` que só a B liga. Não está no spec; é só dizer.)
 - **Fase B, Futuros e confirmar (demo aprovada):** a aba Futuros passa a ler `GET /futuros` (resumo e Atrasados prontos, sem saldo
   por mês), ganha a ação **Confirmar** (janela de baixo e botão verde na tabela) com o aviso e o Desfazer, e o Histórico sai
   do `ehFuturo`. Sai do front o que olha status ou soma em Futuros.
+- **Fase B feita** (`feature/futuros-tela-servidor`): a aba Futuros lê `GET /futuros`; a ação **Confirmar** ("Já paguei" / "Já recebi") abre a janela com valor, data e status e dá o aviso de 6 s com Desfazer; o Histórico perdeu o total e a soma por mês e não olha status; o cache do Histórico não tem previstos. Para o app continuar inteiro com o backend novo, a B também: manda a **transferência** para `POST /transferencias`; deixa o Lançar mostrar o aviso e a repetição pela **data futura** (não pelo status); mostra um status antigo (ex.: `PREVISTO`) como uma opção a mais ao editar; faz o Prever copiar com um status da lista do servidor; esconde "Incluir eventos futuros" da busca; e monta os filtros de status do Histórico com os status que aparecem nos dados. A data sugerida da janela de confirmar é **hoje** (a demo sugeria a data prevista; saber se o mês fechou é do servidor, que pergunta se for o caso). Ainda sem demo nova: nada visual além do que a demo aprovada mostra.
 - **Fase C, o front sem status (demo antes do código, uma por tela):** a lista fixa de `app.js:5` e as caixas somem; Listas só
   exibe a lista de status (e as cores, como hoje); Lançar, Prever e o filtro do Histórico usam a lista do servidor; Prever e
   Estender perdem o "Status das cópias" e leem duplicados e série de `GET /futuros`; "Incluir eventos futuros" some da busca;
@@ -134,7 +135,7 @@ parâmetro `semPrevistos=1` que só a B liga. Não está no spec; é só dizer.)
 13. **A trava de data segue o efeito no saldo**, não o nome dos campos: `PAGO` para `PIX` (os dois contam) não é travado.
 14. **O Histórico sai do servidor pronto, sem total:** `rotulo`, `corPadrao` e os filtros de status **do uso no período**. O total da lista e a soma por mês **saem da tela até o
     item 42** (pedido do dono, sem demo). Os filtros que o servidor entende são período, meio, status, texto e ocultos.
-15. O `PREVISTO` e os outros dois **continuam em Atrasados** (decisão do dono), mesmo com histórico desde 2016.
+15. ~~O `PREVISTO` e os outros dois continuam em Atrasados, mesmo com histórico desde 2016.~~ **Mudou em 2026-10-25 (decisão do dono):** Futuros e Atrasados olham só **do mês passado em diante**; um previsto mais antigo (por exemplo, um `PREVISTO` esquecido de anos atrás) fica de fora de Futuros. Como a chave tem a data (`TX#<dataEvento>#<id>`), o `Query` lê só dessa data em diante, sem ler a partição inteira e **sem índice novo**. Esses lançamentos antigos continuam gravados e não contam no saldo; também não aparecem no Histórico. **A forma de buscar os atrasados antigos vai mudar na tela:** por ano, sob demanda (item 45 do BACKLOG).
 16. **A troca em massa do passado** (por exemplo, `PAGO` de 2018 para `PIX`, ou o pedido de um dono novo) é uma ferramenta **só do admin**, em outro item (44);
     aqui o usuário reclassifica um registro por vez, pelo app, com as travas.
 17. O status é mostrado como **forma de pagamento**; o campo e a API continuam `status`. `CRIPTO` e `DREX` são formas (o saldo mora no meio onde o dinheiro está).

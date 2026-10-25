@@ -415,6 +415,34 @@
   // para a tela decidir (version velha = alguem gravou no meio; ordem = so o mais recente reabre).
   const saldos = async () => (await api('GET', (await base()) + '/saldos')).body;
   const conferirMes = async (dados) => api('POST', (await base()) + '/fechamentos/conferir', dados);
+  // Futuros (item 41): o servidor devolve os previstos, o resumo, os Atrasados e os meses prontos. Cada item e guardado no cache do shim (precisa da dataEvento para editar).
+  const futuros = async () => {
+    const b = (await api('GET', (await base()) + '/futuros?ocultos=1')).body;
+    (b.atrasados || []).forEach(guardar);
+    (b.meses || []).forEach((m) => (m.itens || []).forEach(guardar));
+    return b;
+  };
+  // Transferencia entre meios: o servidor cria as duas pontas numa transacao so (POST /transferencias).
+  const transferir = async (origem, destino, valor, dataEvento) => {
+    const b = await base();
+    const r = await escreverConfirmando(null, 'Transferir',
+      (confirma) => api('POST', comConfirmacao(b + '/transferencias', confirma), { origem, destino, valor, dataEvento }));
+    registrarSeq(r.body._seq);
+    atualizarOuvintes('col');
+    return r.body;
+  };
+  // Lista de status que o servidor sugere para uma data (ISO); sem data, a de hoje.
+  const statusSugeridos = async (data) =>
+    (await api('GET', (await base()) + '/status' + (data ? '?data=' + encodeURIComponent(data) : ''))).body;
+  // Confirma um previsto: { valor, dataEvento, status }. `de` e a dataEvento atual. Mes fechado por data pergunta e reenvia (como as outras escritas).
+  const confirmarPrevisto = async (id, de, dados) => {
+    const b = await base();
+    const r = await escreverConfirmando(id, 'Confirmar',
+      (confirma) => api('POST', comConfirmacao(b + '/tx/' + encodeURIComponent(id) + '/confirmar?de=' + encodeURIComponent(de), confirma), dados));
+    registrarSeq(r.body._seq);
+    atualizarOuvintes('col');
+    return r.body;
+  };
   const reabrirMes = async (banco, mes) => api('POST', (await base()) + '/fechamentos/reabrir', { banco, mes });
 
   // Faturas do cartao (item 33a): o servidor calcula periodo, fatura de cada compra, total, conferencia e sugestoes; os comandos so valem para o dono.
@@ -462,6 +490,10 @@
     adicionarTags,
     saldos,
     conferirMes,
+    futuros,
+    transferir,
+    statusSugeridos,
+    confirmarPrevisto,
     cartoes,
     cartaoFatura,
     cartaoAdicionar,

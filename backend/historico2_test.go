@@ -271,6 +271,7 @@ func TestRestaurarVersaoAntigaGravaVersaoNovaEPreservaOCriador(t *testing.T) {
 
 // F2-T14
 func TestRestaurarExcluidoReativaNoMesmoId(t *testing.T) {
+	relogioFixo(t) // 05/10/2026: setembro ainda e passado (nao e previsto)
 	f := cenario(t)
 	id := criarTx(t, "own", dataSet, "apagado", 10)
 	editarTx(t, "own", id, dataSet, `{"valor":20}`)
@@ -372,10 +373,12 @@ func TestRestaurarVersaoEmMesConferidoBloqueiaEMostraOMotivo(t *testing.T) {
 
 // F2-T18
 func TestRestaurarComOEstadoAtualEmMesConferidoBloqueia(t *testing.T) {
+	relogioEm(t, 2026, 7, 5, 15, 0) // 05/07: junho (o mes anterior, ate o dia 7) ainda esta aberto e ja passou
 	f := cenario(t)
 	fev, jun := "2026-02-10T12:00:00.000Z", "2026-06-10T12:00:00.000Z"
 	id := criarTx(t, "own", jun, "andou de mes", 10) // v1 em junho (aberto)
-	editarTx(t, "own", id, jun, `{"dataEvento":"`+fev+`"}`)
+	c0, _ := chamar(t, "own", "PUT", "spaces/s1/tx/"+id, map[string]string{"de": jun, "confirmaMesFechado": "1"}, `{"dataEvento":"`+fev+`"}`) // fevereiro ja fechou por data: com a confirmacao
+	esperar(t, "mover para fevereiro", c0, 200)
 	preparaMesConferido(t, f)
 	c, d := restaurar(t, "own", id, 1) // a versao e de junho, mas o lancamento esta hoje em fevereiro (conferido)
 	esperar(t, "restaurar com o estado atual conferido", c, 409)
@@ -438,6 +441,7 @@ func TestMemberRestauraSoOQueCriouEQueAindaExiste(t *testing.T) {
 
 // F2-T21
 func TestRestaurarFazOsMesmosEfeitosDeUmaEdicao(t *testing.T) {
+	relogioFixo(t)
 	f := cenario(t)
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "SALDO#ITAU", "banco": "ITAU", "version": 1.0, "caches": map[string]any{"2026-08": 5.0}})
 	c, d := chamar(t, "own", "POST", "spaces/s1/tx", nil,

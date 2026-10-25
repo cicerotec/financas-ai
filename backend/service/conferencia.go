@@ -87,11 +87,7 @@ func (s *Conferencia) Conferir(ctx context.Context, sid, sub string, body domain
 // calculado, saida se e menor. Pedir o ajuste vale como a confirmacao de mes fechado por data (item 38); o mes conferido segue
 // absoluto (a trava recusa).
 func (s *Conferencia) criarAjuste(ctx context.Context, sid, sub, banco, mes string, diff float64) error {
-	listas, err := s.saldos.listas(ctx, sid)
-	if err != nil {
-		return err
-	}
-	status := domain.StatusDeAjuste(listas)
+	status := domain.StatusDeAjuste()
 	if status == "" {
 		return &ErroValidacao{"nenhum status mexe no saldo: configure em Listas antes de criar o ajuste"}
 	}
@@ -100,7 +96,7 @@ func (s *Conferencia) criarAjuste(ctx context.Context, sid, sub, banco, mes stri
 	if diff > 0 {
 		tipo = "entrada"
 	}
-	_, err = s.lanc.Criar(ctx, sid, sub, domain.Lancamento{
+	_, err := s.lanc.Criar(ctx, sid, sub, domain.Lancamento{
 		"dataEvento": data, "status": status, "tipo": tipo, "valor": domain.Arred(math.Abs(diff)), "banco": banco,
 		"descricao": "Ajuste de conferência " + mes, "nota": "Criado ao conferir o mês com o extrato do banco.",
 		"tags": []any{}, "excluirDoTotal": false,

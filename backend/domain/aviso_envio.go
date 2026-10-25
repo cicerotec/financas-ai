@@ -199,15 +199,3 @@ func MontarResumo(marca, hoje string, linhas []LinhaAviso) string {
 	}
 	return strings.Join(partes, "\n")
 }
-
-// StatusFuturoPadrao: os status que contam como evento futuro quando a configuracao do espaco nao diz.
-var StatusFuturoPadrao = map[string]bool{"PREVISTO": true, "TRANSFERINDO": true, "CREDITANDO": true}
-
-// EhStatusFuturo diz se o status e de evento futuro (a configuracao statusFuturo de CFG#LISTAS, ou o padrao).
-func EhStatusFuturo(listas Doc, status string) bool {
-	if m, ok := listas["statusFuturo"].(map[string]any); ok {
-		v, _ := m[status].(bool)
-		return v
-	}
-	return StatusFuturoPadrao[status]
-}

@@ -96,7 +96,6 @@ func TestAjusteEfetivo(t *testing.T) {
 
 // F-T5: o que entra na fatura.
 func TestContaNaFatura(t *testing.T) {
-	listas := Doc{}
 	base := func(m Lancamento) Lancamento {
 		l := Lancamento{"banco": "CARTAO-A", "status": "CREDITO", "tipo": "saida", "valor": 10.0}
 		for k, v := range m {
@@ -112,24 +111,17 @@ func TestContaNaFatura(t *testing.T) {
 		{"credito normal", base(nil), true},
 		{"oculto", base(Lancamento{"oculto": true}), false},
 		{"excluido", base(Lancamento{"excluidoEm": "2026-10-01T00:00:00.000Z"}), false},
-		{"evento futuro", base(Lancamento{"status": "CREDITANDO"}), false},
+		{"evento futuro (antigo)", base(Lancamento{"status": "CREDITANDO"}), false},
+		{"previsto pelo marcador", base(Lancamento{"previsto": true}), false},
 		{"outro banco", base(Lancamento{"banco": "OUTRO"}), false},
 		{"status PAGO", base(Lancamento{"status": "PAGO"}), false},
 		{"estorno entra", base(Lancamento{"tipo": "entrada"}), true},
 		{"credito com acento", base(Lancamento{"status": "Crédito IN"}), true},
 	}
 	for _, x := range casos {
-		if got := ContaNaFatura(x.l, "CARTAO-A", listas); got != x.quer {
+		if got := ContaNaFatura(x.l, "CARTAO-A"); got != x.quer {
 			t.Errorf("%s: %v, esperado %v", x.nome, got, x.quer)
 		}
-	}
-	// um status marcado como nao real na configuracao tambem fica de fora
-	l := base(Lancamento{"status": "CREDITO X"})
-	if !ContaNaFatura(l, "CARTAO-A", listas) {
-		t.Error("sem configuracao, entra")
-	}
-	if ContaNaFatura(l, "CARTAO-A", Doc{"statusReal": map[string]any{"CREDITO X": false}}) {
-		t.Error("status nao real nao entra")
 	}
 }
 
@@ -153,7 +145,7 @@ func TestTotalFaturaEFuso(t *testing.T) {
 		lanc("f", "2026-10-08T15:00:00.000Z", "CREDITO", "saida", 5.00, Lancamento{"faturaAjuste": 1.0}),
 		lanc("g", "2026-09-01T15:00:00.000Z", "CREDITO", "saida", 999, Lancamento{"oculto": true}),
 	}
-	rs := RegistrosDoCartao(c, "C", itens, Doc{})
+	rs := RegistrosDoCartao(c, "C", itens)
 	// fatura 2026-10: a 100.10 + b 50.20 - c 20 = 130.30
 	if got := TotalFatura(rs, "2026-10"); got != 130.30 {
 		t.Errorf("total 2026-10 = %v, esperado 130.3", got)
@@ -163,7 +155,7 @@ func TestTotalFaturaEFuso(t *testing.T) {
 		t.Errorf("total 2026-11 = %v, esperado 75", got)
 	}
 	// F-T7: 02:30 UTC de 01/11 e 23:30 de 31/10 em Sao Paulo
-	rs = RegistrosDoCartao(c, "C", []Doc{lanc("x", "2026-11-01T02:30:00.000Z", "CREDITO", "saida", 1, nil)}, Doc{})
+	rs = RegistrosDoCartao(c, "C", []Doc{lanc("x", "2026-11-01T02:30:00.000Z", "CREDITO", "saida", 1, nil)})
 	if rs[0].Dia != "2026-10-31" {
 		t.Errorf("02:30 UTC de 01/11 e 31/10 em Sao Paulo, veio %s", rs[0].Dia)
 	}
@@ -204,7 +196,7 @@ func TestCandidatos(t *testing.T) {
 		lanc("p4", "2026-09-25T15:00:00.000Z", "CREDITO", "saida", 99.00, nil), // longe do corte
 		lanc("v1", "2026-10-14T15:00:00.000Z", "CREDITO", "saida", 40.00, nil), // fatura 2026-11
 	}
-	rs := RegistrosDoCartao(c, "C", itens, Doc{})
+	rs := RegistrosDoCartao(c, "C", itens)
 
 	// o calculado e maior em 100: p1 + p2 passam para a proxima fatura
 	sug := Candidatos(c, rs, "2026-10", 100)
@@ -237,7 +229,7 @@ func TestCandidatos(t *testing.T) {
 		lanc("b", "2026-10-12T15:00:00.000Z", "CREDITO", "saida", 20, nil),
 		lanc("c2", "2026-10-10T15:00:00.000Z", "CREDITO", "saida", 30, nil),
 	}
-	rs = RegistrosDoCartao(c, "C", itens, Doc{})
+	rs = RegistrosDoCartao(c, "C", itens)
 	sug = Candidatos(c, rs, "2026-10", 60)
 	if len(sug) != 1 || len(sug[0].Registros) != 3 {
 		t.Errorf("tres compras: %+v", sug)
@@ -247,7 +239,7 @@ func TestCandidatos(t *testing.T) {
 	for i := 0; i < 8; i++ {
 		itens = append(itens, lanc(string(rune('a'+i)), "2026-10-12T15:00:00.000Z", "CREDITO", "saida", 10, nil))
 	}
-	rs = RegistrosDoCartao(c, "C", itens, Doc{})
+	rs = RegistrosDoCartao(c, "C", itens)
 	if sug = Candidatos(c, rs, "2026-10", 10); len(sug) != 5 {
 		t.Errorf("limite de 5: %d", len(sug))
 	}
