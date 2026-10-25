@@ -213,6 +213,7 @@ DynamoDB sem discutir com o dono.**
   buscados **por ano, quando a pessoa pedir** (por exemplo, "Ver atrasados de 2019"), cada ano um `Query` pelo intervalo da data na chave (`TX#<ano>...`), sem ler a partição inteira e sem índice novo.
   A rota `GET /futuros` ganha o parâmetro do ano (ou período); a tela decide como oferecer (seletor de ano, aviso "há N atrasados de anos anteriores" só se houver). **Demo antes de qualquer tela.**
   Hoje o corte está em `inicioDeFuturos` (`backend/service/previsto.go`) e na decisão 15 do `plan.md` do item 41.
+  **Agrupar e recolher (pedido do dono, 2026-10-25):** os atrasados passam a vir **agrupados** (por ano, e dentro do ano por mês) em blocos **recolhíveis**, com o mesmo gesto do painel do cartão (título com ▾/▴, como em "Configurar cartão ▾"): o grupo mostra o título e a quantidade, e abre ou fecha ao tocar. O agrupamento e as contagens vêm do servidor (o front só exibe e guarda se o bloco está aberto). Os atrasados do mês passado em diante continuam abertos por padrão; os dos anos anteriores começam recolhidos. Entra na mesma demo.
 - 39. [ ] <a id="item-39"></a>**[Depois] Open Finance: lançamentos e saldos vindos do banco (visão):** visão do dono
   (2026-10-16): o app deixa de depender de lançar e conferir à mão; os lançamentos e o saldo de cada conta vêm do banco.
   (a) O lançamento vindo do banco é a **fonte da verdade**: valor, tipo, data e banco **não editáveis**; a pessoa edita a
