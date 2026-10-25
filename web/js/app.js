@@ -1496,6 +1496,12 @@ function rotuloMes(ym){
   const nome = MESES_NOME[m-1];
   return nome.charAt(0).toUpperCase() + nome.slice(1) + ' de ' + y;
 }
+function chaveDia(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); } // AAAA-MM-DD no fuso do navegador
+function diasAte(k){ // dias de hoje até o dia k (AAAA-MM-DD): negativo se já passou
+  const h = new Date(); const a = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+  const [y,m,d] = k.split('-').map(Number);
+  return Math.round((new Date(y,m-1,d) - a)/86400000);
+}
 function diaLocal(l){ return chaveDia(new Date(l.dataEvento)); }
 // Eventos futuros ordenados por data. Ocultos só entram se pedido.
 function eventosFuturos(fonte, incluirOcultos){
