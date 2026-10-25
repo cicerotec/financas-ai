@@ -85,6 +85,11 @@
             <p class="muted" id="fRepetirDica"></p>
           </div>
           <div id="fAvisoMount"></div>
+          <div id="fPagaWrap" class="hidden">
+            <label for="fPagaCartao">Paga a fatura</label>
+            <div class="row"><select id="fPagaCartao"></select><input type="month" id="fPagaMes" class="hidden" aria-label="Mês da fatura"></div>
+            <p class="muted">Opcional: marca este lançamento como pagamento de uma fatura. Só ajuda a achar depois; não muda o saldo.</p>
+          </div>
           <div id="fFaturaWrap" class="hidden">
             <label for="fFatura">Fatura do cartão</label>
             <select id="fFatura"><option value="0">Pela data (padrão)</option><option value="1">Próxima fatura</option><option value="-1">Fatura anterior</option></select>
