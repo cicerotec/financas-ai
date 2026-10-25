@@ -165,7 +165,7 @@ DynamoDB sem discutir com o dono.**
   (a decidir no spec). Fora daqui: desmembrar o `PAGO` (tipo e meio), o `CONTAS` e o `excluirDoTotal`, e o papel de
   Admin. **Em aberto para o spec:** como o servidor acha todos os previstos sem o limite dos 1000 lançamentos
   mais recentes (só volta ao dono se pedir chave nova) e o que o Prever faz com o "Status das cópias". Demo antes do
-  código para qualquer tela além da de confirmar. Depende dos itens 40 e 33a (o navegador já não soma com status). Intent, plan e spec (aprovados em 2026-10-24; **fase A do backend feita**, B e C pendentes; o release não sai entre a A e a B) em
+  código para qualquer tela além da de confirmar. Depende dos itens 40 e 33a (o navegador já não soma com status). Intent, plan e spec (aprovados em 2026-10-24; **fases A e B feitas** (backend e tela de Futuros), C pendente) em
   [`.ai/specs/futuros-previsto/`](.ai/specs/futuros-previsto/intent.md): fases A (backend), B (Futuros e Confirmar) e C (Listas, Lançar e Prever).
 - 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),

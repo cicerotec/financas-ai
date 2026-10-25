@@ -60,12 +60,14 @@ function chipEstimado(l){
   if(l.valorEstimado!==true) return '';
   return ' <span style="font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;">valor estimado</span>';
 }
+// A data escolhida no formulario e depois de hoje? So serve para mostrar o aviso e a repeticao; quem decide se o lancamento e previsto e o servidor.
+function dataFuturaForm(){ const v = document.getElementById('fData').value; return !!v && v.slice(0,10) > chaveDia(new Date()); }
 function atualizarCampoFatura(){
   const w = document.getElementById('fFaturaWrap');
   if(!w) return;
   const st = document.getElementById('fStatus').value;
   const fd = document.getElementById('fFuturoDica');
-  if(fd) fd.textContent = ehFuturo(st) ? 'Evento futuro: aparece na aba Futuros, não no Histórico, e não mexe no saldo.' : '';
+  if(fd) fd.textContent = dataFuturaForm() ? 'Data futura: aparece na aba Futuros, não no Histórico, e não mexe no saldo.' : '';
   w.classList.toggle('hidden', !ehMeioCartao(document.getElementById('fBanco').value));
   atualizarCampoAviso();
   const padrao = ajustePadrao(st);
@@ -73,7 +75,7 @@ function atualizarCampoFatura(){
 }
 // ---------- aviso (Telegram): controles reutilizados pelo formulario (prefixo f) e pela janela de repeticao (pv) ----------
 function telegramVinculado(){ return !!(window.claude && claude.telegramChatId && claude.telegramChatId()); }
-const avisoVisivel = { f: ()=>ehFuturo(document.getElementById('fStatus').value), pv: ()=>true };
+const avisoVisivel = { f: ()=>dataFuturaForm(), pv: ()=>true };
 function htmlAviso(p){
   const dias = [[7,'7 dias antes'],[3,'3 dias antes'],[1,'1 dia antes'],[0,'No dia']];
   return `<div id="${p}AvisoWrap" class="hidden">
@@ -177,13 +179,13 @@ function novoSerieId(){
   return 'ser' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10).padEnd(8, '0');
 }
 function dataCurta(d){ return d.toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'}); }
-function chavesExistentes(){ return new Set(lancamentosCache.filter(x=>!x.oculto).map(Recorrencia.chaveDuplicado)); }
+function chavesExistentes(){ return new Set(lancamentosCache.concat(futurosLista()).filter(x=>!x.oculto).map(Recorrencia.chaveDuplicado)); }
 
 // Repeticao ao lancar: so em evento futuro novo (na edicao nao aparece). "Total de ocorrencias" inclui o proprio lancamento.
 function atualizarCampoRepetir(){
   const w = document.getElementById('fRepetirWrap');
   if(!w) return;
-  const mostrar = !editandoId && ehFuturo(document.getElementById('fStatus').value);
+  const mostrar = !editandoId && dataFuturaForm();
   w.classList.toggle('hidden', !mostrar);
   if(mostrar) atualizarDicaRepeticao();
 }
@@ -455,14 +457,14 @@ function pvClique(e){
 
 // Abre o fluxo. base = o evento de partida (o ultimo da serie, no Estender); ctx = { estender, serieId, indiceInicial, intervaloPadrao }.
 function abrirPrever(base, ctx){
-  const futuros = listas.status.filter(ehFuturo);
-  if(!futuros.length){ avisar('Marque algum status como evento futuro em Listas antes de prever.'); return; }
+  const futuros = [...listas.status]; // a lista de status e do servidor; a data futura e que faz a copia ser prevista
+  if(!futuros.length){ avisar('Não há status disponível para prever.'); return; }
   fecharPrever();
   const aviso = base.aviso && typeof base.aviso === 'object' ? base.aviso : null;
   const temParcela = Recorrencia.lerParcela(base.descricao) !== null;
   pv = {
     base, ctx, futuros, temParcela, numerar: temParcela, dup:'pular', tela:'main', sheet:null, erro:'', ocupado:false, progresso:'',
-    status: ehFuturo(base.status) ? base.status : (futuros.includes('PREVISTO') ? 'PREVISTO' : futuros[0]),
+    status: futuros.includes(base.status) ? base.status : futuros[0],
     qtd: 3, meses: ctx.intervaloPadrao || 1,
     aviso: {on: !!aviso, dias: aviso && Array.isArray(aviso.dias) ? [...aviso.dias] : [1,0], insistir: aviso ? aviso.insistir === true : true}
   };
@@ -484,7 +486,7 @@ async function preverLancamento(id){
   if(!l || !db) return;
   let base = l, ctx;
   if(l.serie){
-    const ultima = Recorrencia.ultimaDaSerie(lancamentosCache, l.serie.id) || l;
+    const ultima = Recorrencia.ultimaDaSerie(lancamentosCache.concat(futurosLista()), l.serie.id) || l;
     base = ultima;
     ctx = {estender:true, serieId:l.serie.id, indiceInicial:(ultima.serie ? ultima.serie.indice : l.serie.indice)+1, intervaloPadrao:(ultima.serie||l.serie).intervalo};
   } else {
@@ -732,7 +734,8 @@ async function init(){
     await carregarSaldosConfig();
 
     db.collection("lancamentos").orderBy("dataEvento","desc").limit(1000).onSnapshot(snap=>{
-      lancamentosCache = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(l=>!exclusaoPendente.has(l.id));
+      lancamentosCache = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(l=>!exclusaoPendente.has(l.id) && !l.previsto); // previsto e de Futuros
+      carregarFuturos();
       try{ renderTagPicker(); }catch(e){}
       cartaoUltimaCalc = 0;
       renderHistorico();
@@ -826,7 +829,7 @@ function irParaAba(t){
   document.getElementById('tab-'+t).classList.remove('hidden');
   if(t==='saldos') carregarSaldosConfig().then(()=>carregarSaldos(false));
   if(t==='cartao') carregarCartoes(false);
-  if(t==='futuros') renderFuturos();
+  if(t==='futuros') carregarFuturos();
   if(t==='versoes') abrirVersoes();
   if(t==='tendencias' && typeof tendRender==='function') tendRender();
   Voltar.sync();
@@ -891,7 +894,7 @@ function renderListas(){
   atualizarCampoFatura();
   [fBanco,tOrig,tDest].forEach(sel=>refazer(sel, listas.banco));
   // tira da seleção qualquer status que não existe mais
-  filStatusSelecionados = new Set([...filStatusSelecionados].filter(s=>listas.status.includes(s) && !ehFuturo(s)));
+  filStatusSelecionados = new Set([...filStatusSelecionados]);
   renderFiltrosHistCampos();
   filBancoSelecionados = new Set([...filBancoSelecionados].filter(b=>listas.banco.includes(b)));
 
@@ -1268,6 +1271,7 @@ function setupHandlers(){
   ligarAviso('f');
   ligarRepeticao('fr', atualizarDicaRepeticao);
   document.getElementById('fData').addEventListener('change', atualizarDicaRepeticao);
+  document.getElementById('fData').addEventListener('change', atualizarCampoFatura);
   document.getElementById('fStatus').addEventListener('change', ()=>{
     document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
     atualizarCampoFatura();
@@ -1403,10 +1407,10 @@ async function salvarLancamentoInterno(){
   const aviso = lerAvisoDoFormulario();
   if(aviso === 'incompleto'){ await avisar("Marque pelo menos um dia de aviso ou \"Insistir todo dia\"."); return; }
   if(aviso) doc.aviso = aviso;
-  else if(editandoId && ehFuturo(statusEscolhido)) doc.aviso = null; // desligou o aviso na edicao
+  else if(editandoId && dataFuturaForm()) doc.aviso = null; // desligou o aviso na edicao
   // repeticao (so evento futuro novo): este + as copias, ligados por uma serie
   let copias = [];
-  if(!editandoId && ehFuturo(statusEscolhido)){
+  if(!editandoId && dataFuturaForm()){
     const rep = lerRepeticao('fr');
     if(rep.quantidade > 1){
       const erroRep = Recorrencia.validar(rep.intervaloMeses, rep.quantidade - 1);
@@ -1450,7 +1454,18 @@ async function salvarLancamentoInterno(){
   }
 }
 
+// Um lancamento antigo pode ter um status que o servidor nao oferece mais (ex.: PREVISTO, CREDITO IN). Ao editar, ele aparece como uma opcao a mais e volta inalterado.
+function definirStatusDoFormulario(status, soDaLista){
+  const sel = document.getElementById('fStatus');
+  [...sel.querySelectorAll('option[data-extra]')].forEach(o=>o.remove());
+  if(status && ![...sel.options].some(o=>o.value===status)){
+    if(soDaLista){ status = sel.options.length ? sel.options[0].value : ''; }
+    else { const o = document.createElement('option'); o.value = status; o.textContent = status; o.dataset.extra = '1'; sel.appendChild(o); }
+  }
+  sel.value = status;
+}
 function limparFormulario(){
+  [...document.querySelectorAll('#fStatus option[data-extra]')].forEach(o=>o.remove());
   document.getElementById('notaLivre').value='';
   document.getElementById('fValor').value='';
   document.getElementById('fDesc').value='';
@@ -1478,13 +1493,9 @@ async function registrarTransferenciaInterno(){
   const destino = document.getElementById('tBancoDestino').value;
   const valor = parseFloat(document.getElementById('tValor').value);
   if(!origem || !destino || origem===destino || !valor || valor<=0){ await avisar("Confira os bancos e o valor."); return; }
-  const hoje = new Date();
-  // data e hora escolhidas pela pessoa (datetime-local); vazio vale agora
+  // data e hora escolhidas pela pessoa (datetime-local); vazio vale agora. O servidor cria as duas pontas, numa transacao so.
   const quando = new Date(document.getElementById('tData').value || nowLocalInput()).toISOString();
-  const agora = hoje.toISOString();
-  const parId = "transf_" + Date.now();
-  await db.collection("lancamentos").add({status:"CONTAS", tipo:"saida", valor, descricao:`Transferência para ${destino}`, nota:"", dataEvento:quando, banco:origem, tags:[], criadoEm:agora, transferParId:parId});
-  await db.collection("lancamentos").add({status:"CONTAS", tipo:"entrada", valor, descricao:`Transferência de ${origem}`, nota:"", dataEvento:quando, banco:destino, tags:[], criadoEm:agora, transferParId:parId});
+  await db.transferir(origem, destino, valor, quando);
   document.getElementById('tValor').value='';
   document.getElementById('tData').value = nowLocalInput();
   toast(`✓ Transferência registrada: ${origem} → ${destino} · ${fmtMoeda(valor)}`);
@@ -1504,55 +1515,38 @@ function diasAte(k){ // dias de hoje até o dia k (AAAA-MM-DD): negativo se já 
 }
 function diaLocal(l){ return chaveDia(new Date(l.dataEvento)); }
 // Eventos futuros ordenados por data. Ocultos só entram se pedido.
-function eventosFuturos(fonte, incluirOcultos){
-  return fonte.filter(l=>ehFuturo(l.status) && (incluirOcultos || !l.oculto))
-    .sort((a,b)=>new Date(a.dataEvento) - new Date(b.dataEvento));
+// ---------- Futuros: o servidor manda tudo pronto (GET /futuros): previstos, resumo, Atrasados e meses ----------
+let futurosDados = null, futurosCarregando = false, futurosRepetir = false;
+async function carregarFuturos(){
+  if(!db || typeof db.futuros !== 'function') return;
+  if(futurosCarregando){ futurosRepetir = true; return; } // alguem gravou durante a leitura: le de novo no fim
+  futurosCarregando = true;
+  try{ futurosDados = await db.futuros(); }
+  catch(e){ console.error('Falha ao ler os Futuros', e); }
+  finally{
+    futurosCarregando = false;
+    renderAvisoFuturos(); renderFuturos(); renderAvisoMesFuturos();
+    if(futurosRepetir){ futurosRepetir = false; carregarFuturos(); }
+  }
 }
-// Totais dos eventos futuros que valem (ocultos ficam de fora). Atrasado = dia anterior a hoje.
-function resumoFuturos(lista, hojeKey){
-  let pagar = 0, receber = 0, atrasados = 0, somaAtrasados = 0, n = 0;
-  lista.forEach(l=>{
-    if(l.oculto) return;
-    n++;
-    const v = valorAssinado(l);
-    if(v < 0) pagar += -v; else receber += v;
-    if(diaLocal(l) < hojeKey){ atrasados++; somaAtrasados += Math.abs(v); }
-  });
-  const r2 = x=>Math.round(x*100)/100;
-  return {n, pagar:r2(pagar), receber:r2(receber), atrasados, somaAtrasados:r2(somaAtrasados)};
+// todos os previstos que o servidor mandou (sem os que acabaram de ser excluidos aqui)
+function futurosLista(){
+  if(!futurosDados) return [];
+  return [...futurosDados.atrasados, ...futurosDados.meses.flatMap(m=>m.itens)].filter(l=>!exclusaoPendente.has(l.id));
 }
-// Atrasados primeiro (só os não ocultos), depois um grupo por mês, tudo em ordem de data.
-// Cada mês traz o saldo (a receber - a pagar, sem os ocultos); Atrasados não tem saldo (o cartão do topo já mostra).
-function gruposFuturos(lista, hojeKey){
-  const atras = {titulo:'Atrasados', atrasado:true, saldo:null, itens:[]};
-  const porMes = new Map();
-  lista.forEach(l=>{
-    const k = diaLocal(l);
-    if(k < hojeKey && !l.oculto){ atras.itens.push(l); return; }
-    const ym = k.slice(0,7);
-    if(!porMes.has(ym)) porMes.set(ym, {titulo:rotuloMes(ym), atrasado:false, saldo:0, itens:[]});
-    const g = porMes.get(ym);
-    g.itens.push(l);
-    if(!l.oculto) g.saldo = Math.round((g.saldo + valorAssinado(l))*100)/100;
-  });
-  const grupos = atras.itens.length ? [atras] : [];
-  [...porMes.keys()].sort().forEach(ym=>grupos.push(porMes.get(ym)));
+// os grupos para mostrar: Atrasados e um por mes. O servidor ja agrupou; aqui so se esconde o oculto (a chave "Mostrar ocultos") e o que acabou de ser excluido.
+function futurosGrupos(){
+  const mostrar = document.getElementById('futMostrarOcultos').checked;
+  const ok = l=> (mostrar || !l.oculto) && !exclusaoPendente.has(l.id);
+  const grupos = [];
+  const atrasados = futurosDados.atrasados.filter(ok);
+  if(atrasados.length) grupos.push({titulo:'Atrasados', atrasado:true, itens:atrasados});
+  futurosDados.meses.forEach(m=>{ const itens = m.itens.filter(ok); if(itens.length) grupos.push({titulo:rotuloMes(m.mes), atrasado:false, itens}); });
   return grupos;
 }
-// Valor somado (renda menos gasto) com sinal e cor pelos tokens; vazio quando não há valor.
-function htmlSomaValor(valor, titulo){
-  if(valor === null || valor === undefined) return '';
-  const cls = valor > 0 ? 'pos' : valor < 0 ? 'neg' : '';
-  const sinal = valor > 0 ? '+' : valor < 0 ? '-' : '';
-  return `<span class="soma-valor ${cls}" title="${esc(titulo)}">${sinal}${fmtMoeda(Math.abs(valor))}</span>`;
-}
-function htmlSaldoMes(saldo){
-  return htmlSomaValor(saldo, 'Saldo do mês (a receber menos a pagar, sem os ocultos)');
-}
-
 function chipAviso(l){
   const a = l && l.aviso;
-  if(!a || typeof a !== 'object' || !ehFuturo(l.status)) return '';
+  if(!a || typeof a !== 'object' || !l.previsto) return '';
   const dias = (Array.isArray(a.dias) ? a.dias : []).map(d=>d===0?'no dia':d+'d antes');
   if(a.insistir) dias.push('todo dia depois');
   return ` <span class="chip" title="Aviso no Telegram: ${esc(dias.join(', '))}">🔔</span>`;
@@ -1560,7 +1554,7 @@ function chipAviso(l){
 
 function htmlItemLancamento(l, o){
   o = o || {};
-  const fut = ehFuturo(l.status);
+  const fut = l.previsto === true;
   const dias = diasAte(diaLocal(l));
   const atrasado = !!o.prazo && fut && !l.oculto && dias < 0;
   let prazo = '';
@@ -1590,32 +1584,33 @@ function htmlItemLancamento(l, o){
 function renderAvisoFuturos(){
   const el = document.getElementById('avisoFuturos');
   if(!el) return;
-  const lista = eventosFuturos(lancamentosCache, false);
+  const lista = futurosLista().filter(l=>!l.oculto);
   if(!lista.length){ el.classList.add('hidden'); el.innerHTML = ''; return; }
-  const r = resumoFuturos(lista, chaveDia(new Date()));
+  const r = futurosDados.resumo, atr = r.atrasados.n, n = lista.length;
   el.classList.remove('hidden');
-  el.innerHTML = `<span>📅 ${r.n} evento${r.n>1?'s':''} futuro${r.n>1?'s':''} · a pagar ${fmtMoeda(r.pagar)} · a receber ${fmtMoeda(r.receber)}${r.atrasados?` · <b>${r.atrasados} atrasado${r.atrasados>1?'s':''}</b>`:''}</span><a href="#" data-ir-aba="futuros">Ver em Futuros</a>`;
+  el.innerHTML = `<span>📅 ${n} evento${n>1?'s':''} futuro${n>1?'s':''} · a pagar ${fmtMoeda(r.pagar)} · a receber ${fmtMoeda(r.receber)}${atr?` · <b>${atr} atrasado${atr>1?'s':''}</b>`:''}</span><a href="#" data-ir-aba="futuros">ver</a>`;
 }
 
 function renderFuturos(){
   const el = document.getElementById('listaFuturos');
   if(!el) return;
-  const hoje = chaveDia(new Date());
-  const todos = eventosFuturos(lancamentosCache, document.getElementById('futMostrarOcultos').checked);
-  const r = resumoFuturos(todos, hoje);
+  if(!futurosDados){ el.innerHTML = '<p class="muted">Carregando...</p>'; return; }
+  const r = futurosDados.resumo;
   document.getElementById('futPagar').textContent = fmtMoeda(r.pagar);
   document.getElementById('futReceber').textContent = fmtMoeda(r.receber);
-  document.getElementById('futAtrasados').textContent = r.atrasados ? `${r.atrasados} · ${fmtMoeda(r.somaAtrasados)}` : '0';
-  document.getElementById('futMetricaAtras').classList.toggle('alerta', r.atrasados > 0);
-  document.getElementById('futMetricaAtras').classList.toggle('sem-atraso', r.atrasados === 0);
-  if(!todos.length){
-    el.innerHTML = '<p class="muted">Nenhum evento futuro. Crie um lançamento na aba Lançar com um status de evento futuro (ex.: PREVISTO).</p>';
+  document.getElementById('futAtrasados').textContent = r.atrasados.n ? `${r.atrasados.n} · ${fmtMoeda(r.atrasados.valor)}` : '0';
+  document.getElementById('futMetricaAtras').classList.toggle('alerta', r.atrasados.n > 0);
+  document.getElementById('futMetricaAtras').classList.toggle('sem-atraso', r.atrasados.n === 0);
+  const grupos = futurosGrupos();
+  if(!grupos.length){
+    el.innerHTML = '<p class="muted">Nenhum evento futuro. Crie um lançamento na aba Lançar com uma data futura.</p>';
     return;
   }
-  el.innerHTML = '<div class="fut-tabela"><div class="fut-tabela-in">'+
+  el.innerHTML = (futurosDados.truncado ? '<p class="muted">Mostrando os 1000 primeiros eventos.</p>' : '') +
+    '<div class="fut-tabela"><div class="fut-tabela-in">'+
     '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>'+
-    gruposFuturos(todos, hoje).map(g=>
-      `<div class="fut-titulo ${g.atrasado?'atras':''}"><span>${esc(g.titulo)}</span>${htmlSaldoMes(g.saldo)}</div><div class="fut-grupo">${g.itens.map(htmlEventoFuturo).join('')}</div>`).join('')+
+    grupos.map(g=>
+      `<div class="fut-titulo ${g.atrasado?'atras':''}"><span>${esc(g.titulo)}</span></div><div class="fut-grupo">${g.itens.map(htmlEventoFuturo).join('')}</div>`).join('')+
     '</div></div>';
 }
 
@@ -1631,6 +1626,8 @@ function dataBR(l){ return new Date(l.dataEvento).toLocaleDateString('pt-BR'); }
 // Acoes de um evento, na ordem e com as mesmas permissoes de antes. t = texto da janela; c = texto curto da tabela.
 function acoesDoEvento(l){
   const a = [];
+  // Confirmar vale so para previsto (o servidor manda previsto: true); em saida o texto e "Já paguei", em entrada "Já recebi"
+  if(l.previsto && podeMexer(l)) a.push({k:'confirmar', t:l.tipo==='saida'?'Já paguei':'Já recebi', c:'Confirmar', pri:true});
   if(podeMexer(l)) a.push({k:'editar', t:'Editar', c:'Editar'});
   a.push({k:'copiar', t:'Copiar', c:'Copiar'});
   if(!l.transferParId) a.push({k:'prever', t:l.serie?'Estender série':'Prever próximas datas', c:l.serie?'Estender':'Prever'});
@@ -1643,7 +1640,7 @@ function htmlEventoFuturo(l){
   const p = prazoFuturo(l), id = esc(l.id);
   const serie = l.serie && l.serie.indice ? `série ${l.serie.indice}` : '';
   const prazo = `<span class="fut-prazo ${p.atras?'atras':''}">${p.t}</span>`;
-  const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
+  const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}${a.pri?'pri':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
   const cor = estiloCor==='nenhum' ? 'var(--faint)' : corStatus(l.status);
   const sub = [serie, l.oculto?'oculto':''].filter(Boolean).join(' · ');
   return `<div class="fut-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}" style="--cor:${cor}">
@@ -1671,7 +1668,7 @@ function abrirAcoesFuturo(id){
   ov.className = 'fut-ov'; ov.id = 'futOv';
   ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Ações de ${esc(l.descricao)}">
     <h3>${esc(l.descricao)}</h3><p class="mm">${fmtMoeda(Math.abs(valorAssinado(l)))} · ${dataBR(l)} · ${esc(l.banco||'-')}</p>
-    ${acoesDoEvento(l).map(a=>`<button type="button" class="fut-ac${a.perigo?' perigo':''}" data-acao="${a.k}" data-id="${esc(l.id)}">${a.t}</button>`).join('')}</div>`;
+    ${acoesDoEvento(l).map(a=>`<button type="button" class="fut-ac${a.perigo?' perigo':''}${a.pri?' pri':''}" data-acao="${a.k}" data-id="${esc(l.id)}">${a.t}</button>`).join('')}</div>`;
   ov.addEventListener('click', e=>{
     const b = e.target.closest('button[data-acao]');
     if(b){ fecharAcoesFuturo(); executarAcaoRegistro(b.dataset.acao, b.dataset.id); return; }
@@ -1688,7 +1685,7 @@ document.addEventListener('keydown', e=>{ if(e.key === 'Escape') fecharAcoesFutu
 function renderAvisoMesFuturos(){
   const el = document.getElementById('avisoMesFuturos');
   if(!el) return;
-  const n = (modoMesEspecifico && periodoHist==='mes') ? lancamentosMes.filter(l=>ehFuturo(l.status) && !l.oculto).length : 0;
+  const n = (modoMesEspecifico && periodoHist==='mes') ? futurosLista().filter(l=>!l.oculto && diaLocal(l).slice(0,7)===mesSel).length : 0;
   if(!n){ el.classList.add('hidden'); el.innerHTML = ''; return; }
   el.classList.remove('hidden');
   el.innerHTML = `📅 Há ${n} evento${n>1?'s':''} futuro${n>1?'s':''} neste mês que não aparece${n>1?'m':''} aqui · <a href="#" data-ir-aba="futuros">ver em Futuros</a>`;
@@ -1708,13 +1705,12 @@ function tituloDiaHist(l){
   const w = new Date(l.dataEvento).toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','');
   return w.charAt(0).toUpperCase() + w.slice(1) + ' ' + dataBR(l);
 }
-function somaItens(arr){ return Math.round(arr.reduce((a,l)=>a+valorAssinado(l),0)*100)/100; }
 function htmlLinhaHist(l, busca){
   const id = esc(l.id);
   const cor = estiloCor==='nenhum' ? 'var(--faint)' : corStatus(l.status);
   const tags = (l.tags||[]).map(t=>'#'+esc(t)).join(' ');
-  const fut = ehFuturo(l.status) ? ' · evento futuro' : '';
-  const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
+  const fut = '';
+  const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}${a.pri?'pri':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
   return `<div class="fut-row hist-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}" style="--cor:${cor}">
     <div class="fut-m" role="button" tabindex="0" data-fut-abrir="${id}" aria-haspopup="dialog">
       <span class="l"><span class="d">${esc(l.descricao)}</span>
@@ -1745,7 +1741,7 @@ function htmlListaHist(lista, busca, asc){
   });
   const corpo = grupos.map(g=>{
     let tit = '';
-    if(porMes) tit = `<div class="fut-titulo"><span>${esc(rotuloMes(g.k))} · ${g.itens.length} lançamento(s)</span>${htmlSomaValor(somaItens(g.itens),'Soma do mês na lista (renda menos gasto)')}</div>`;
+    if(porMes) tit = `<div class="fut-titulo"><span>${esc(rotuloMes(g.k))} · ${g.itens.length} lançamento(s)</span></div>`;
     else if(!tabela) tit = `<div class="fut-titulo"><span>${esc(tituloDiaHist(g.l))}</span></div>`;
     return tit + `<div class="fut-grupo">${g.itens.map(l=>htmlLinhaHist(l,busca)).join('')}</div>`;
   }).join('');
@@ -1754,8 +1750,7 @@ function htmlListaHist(lista, busca, asc){
 }
 function nFiltrosHist(){
   return filStatusSelecionados.size + filBancoSelecionados.size + (seletorHist ? seletorHist.n() : 0)
-    + (document.getElementById('filMostrarOcultos').checked?1:0)
-    + (modoBuscaTexto && document.getElementById('buscaIncluiFuturos').checked?1:0);
+    + (document.getElementById('filMostrarOcultos').checked?1:0);
 }
 function renderChipsHist(){
   const chip = (k,v,t)=>`<button type="button" class="hist-chip" data-hist-x="${k}" data-v="${esc(v||'')}" aria-label="Tirar: ${esc(t)}">${esc(t)}<i aria-hidden="true">×</i></button>`;
@@ -1772,7 +1767,9 @@ function renderFiltrosHistCampos(){
   const st = document.getElementById('histFilStatus'), bk = document.getElementById('histFilBanco');
   if(!st || !bk) return;
   const b = (k,v,on)=>`<button type="button" class="tag ${on?'on':''}" aria-pressed="${on}" data-hist-f="${k}" data-v="${esc(v)}">${esc(v)}</button>`;
-  st.innerHTML = listas.status.filter(s=>!ehFuturo(s)).map(s=>b('st',s,filStatusSelecionados.has(s))).join('');
+  const presentes = new Set([...lancamentosCache, ...lancamentosMes, ...lancamentosBusca].map(l=>l.status).filter(Boolean));
+  const opcoes = [...listas.status, ...[...presentes].filter(x=>!listas.status.includes(x)).sort()]; // inclui os antigos que aparecem no periodo (ex.: CREDITO IN)
+  st.innerHTML = opcoes.filter(x=>listas.status.includes(x) || presentes.has(x)).map(x=>b('st',x,filStatusSelecionados.has(x))).join('');
   bk.innerHTML = listas.banco.map(x=>b('bk',x,filBancoSelecionados.has(x))).join('');
 }
 
@@ -1800,24 +1797,20 @@ function renderHistorico(){
     ? `Buscar neste ${periodoHist==='mes'?'mês':'período'} (descrição, nota ou tag)` : 'Descrição, nota ou tag';
   const hdr = document.querySelector('header');
   document.documentElement.style.setProperty('--hdr-h', (hdr ? hdr.offsetHeight : 0) + 'px');
-  // Eventos futuros ficam fora do Histórico (lista padrão e mês buscado); só a busca por texto os inclui, pela chave
-  // "Incluir eventos futuros". Eles ficam na aba Futuros.
-  const incluirFuturos = modoBuscaTexto ? document.getElementById('buscaIncluiFuturos').checked : false;
+  // Os previstos ficam na aba Futuros: o servidor nem os manda para o Historico.
   let lista = fonte.filter(l=>
-    (incluirFuturos || !ehFuturo(l.status)) &&
+    !l.previsto &&
     (mostrarOcultos || !l.oculto) &&
     (!fsList.length || fsList.includes(l.status)) && (!fbList.length || fbList.includes(l.banco)) && (!seletorHist || seletorHist.casa(l)));
   const ordem = document.getElementById('filOrdenacao').value;
   lista = [...lista].sort((a,b)=> ordem==='asc'
     ? new Date(a.dataEvento) - new Date(b.dataEvento)
     : new Date(b.dataEvento) - new Date(a.dataEvento));
-  const nFut = lista.filter(l=>ehFuturo(l.status)).length;
-  const extraFut = nFut ? ` · ${nFut} ${nFut>1?'são eventos futuros':'é evento futuro'}` : '';
   document.getElementById('contadorHistorico').textContent = modoBuscaTexto
-    ? `${lista.length} lançamento(s) exibido(s) do resultado da busca (${lancamentosBusca.length} no total)${extraFut}`
+    ? `${lista.length} lançamento(s) exibido(s) do resultado da busca (${lancamentosBusca.length} no total)`
     : periodoHist==='mes' ? `${lista.length} lançamento(s) em ${rotuloMes(mesSel)}` : `${lista.length} lançamento(s) nos últimos ${DIAS_PERIODO[periodoHist]} dias`;
-  // Total da lista exibida (renda menos gasto, com o mesmo sinal de cada linha); acompanha todos os filtros.
-  document.getElementById('somaHistorico').innerHTML = lista.length ? htmlSomaValor(somaItens(lista), 'Soma da lista exibida: renda menos gasto') : '';
+  // Sem total da lista nem soma por mes ate o item 42 (o servidor calcula junto com o filtro de tags).
+  document.getElementById('somaHistorico').innerHTML = '';
   const n = nFiltrosHist();
   const bf = document.getElementById('btnFiltros');
   bf.innerHTML = 'Filtros' + (n ? `<span class="n">${n}</span>` : '');
@@ -1869,11 +1862,12 @@ function abrirNotaLancamento(id){
 }
 
 function acharLancamento(id){
-  return lancamentosCache.find(x=>x.id===id) || lancamentosMes.find(x=>x.id===id) || lancamentosBusca.find(x=>x.id===id);
+  return lancamentosCache.find(x=>x.id===id) || lancamentosMes.find(x=>x.id===id) || lancamentosBusca.find(x=>x.id===id) || futurosLista().find(x=>x.id===id);
 }
 function aplicarLocal(id, patch){
-  [lancamentosMes, lancamentosBusca].forEach(arr=>{ const it = arr.find(x=>x.id===id); if(it) Object.assign(it, patch); });
+  [lancamentosMes, lancamentosBusca, futurosLista()].forEach(arr=>{ const it = arr.find(x=>x.id===id); if(it) Object.assign(it, patch); });
   renderHistorico();
+  renderFuturos();
 }
 function removerLocal(id){
   lancamentosMes = lancamentosMes.filter(x=>x.id!==id);
@@ -1887,7 +1881,7 @@ function iniciarEdicao(id){
   const origem = abaAtual();
   abaOrigemEdicao = origem === 'lancar' ? null : origem;
   editandoId = id;
-  document.getElementById('fStatus').value = l.status;
+  definirStatusDoFormulario(l.status, false);
   document.getElementById('fFatura').value = String(ajusteEfetivo(l));
   document.getElementById('fEstimado').checked = l.valorEstimado === true;
   preencherAvisoNoFormulario(l.aviso);
@@ -1915,8 +1909,8 @@ function iniciarCopia(id){
   document.getElementById('btnSalvar').textContent = 'Salvar lançamento';
   document.getElementById('btnCancelarEdicao').classList.add('hidden');
   document.getElementById('notaLivre').value = '';
-  document.getElementById('fStatus').value = l.status;
-  document.getElementById('fFatura').value = String(ajustePadrao(l.status));
+  definirStatusDoFormulario(l.status, true); // a copia e um lancamento novo: so um status que o servidor oferece
+  document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
   document.getElementById('fEstimado').checked = false;
   preencherAvisoNoFormulario(null); // a copia tem outra data: o aviso e escolhido de novo
   atualizarCampoFatura();
@@ -1962,6 +1956,7 @@ function atualizarVistas(){
   renderHistorico();
   try{ desenharGrafico(); }catch(e){}
   renderCartao();
+  renderAvisoFuturos(); renderFuturos();
 }
 function esconderLocal(id){
   exclusaoPendente.set(id, {
@@ -2059,7 +2054,81 @@ function resumoEdicao(antes, doc){
   return m.length ? m.join('; ') : 'Nenhum campo principal mudou.';
 }
 
+// ---------- Confirmar um previsto (demo .ai/demos/demo-confirmar-previsto.html): valor, data e status; o servidor decide o resto ----------
+// A janela pergunta o valor (ja vem o previsto; da para trocar: multa e juros), a data (hoje; nunca depois de hoje) e o status, da lista do servidor para aquela data.
+function pedirConfirmacaoPrevisto(l){
+  return new Promise(async resolve=>{
+    const saida = l.tipo === 'saida';
+    const hoje = chaveDia(new Date());
+    const sugerir = async (dia)=>{
+      try{ return (await db.statusSugeridos(new Date(dia + 'T12:00:00').toISOString())).status || []; }
+      catch(e){ return [...listas.status]; }
+    };
+    let lista = await sugerir(hoje);
+    const opcoes = (lista, atual)=>lista.map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
+    const inicial = lista.includes(l.status) ? l.status : lista[0];
+    document.getElementById('modalMsg').textContent = (saida ? 'Confirmar pagamento: ' : 'Confirmar recebimento: ') + cortar(l.descricao, 60);
+    document.getElementById('modalExtra').innerHTML =
+      `<label>Valor</label><input type="number" step="0.01" id="cpValor" value="${Number(l.valor) || ''}">
+       <label>Data ${saida ? 'do pagamento' : 'do recebimento'}</label><input type="date" id="cpData" value="${hoje}" max="${hoje}">
+       <label>Status</label><select id="cpStatus">${opcoes(lista, inicial)}</select>
+       <p class="muted" id="cpErro" style="color:var(--danger);margin:6px 0 0;"></p>`;
+    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Confirmar</button>';
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    const fechar = (v)=>{ document.getElementById('modalOverlay').classList.add('hidden'); document.getElementById('modalExtra').innerHTML = ''; resolve(v); };
+    document.getElementById('cpData').addEventListener('change', async ()=>{
+      const dia = document.getElementById('cpData').value;
+      if(!dia) return;
+      const atual = document.getElementById('cpStatus').value;
+      lista = await sugerir(dia);
+      document.getElementById('cpStatus').innerHTML = opcoes(lista, lista.includes(atual) ? atual : lista[0]);
+    });
+    document.getElementById('modalCancelar').onclick = ()=>fechar(null);
+    document.getElementById('modalConfirmar').onclick = ()=>{
+      const valor = parseFloat(document.getElementById('cpValor').value);
+      const dia = document.getElementById('cpData').value;
+      const status = document.getElementById('cpStatus').value;
+      const erro = document.getElementById('cpErro');
+      if(!(valor > 0)){ erro.textContent = 'Informe um valor maior que zero.'; return; }
+      if(!dia){ erro.textContent = 'Informe a data.'; return; }
+      if(!status){ erro.textContent = 'Escolha o status.'; return; }
+      fechar({valor, status, dataEvento: new Date(dia + 'T12:00:00').toISOString()});
+    };
+  });
+}
+async function confirmarPrevisto(id){
+  const l = acharLancamento(id);
+  if(!l || !db) return;
+  const dados = await pedirConfirmacaoPrevisto(l);
+  if(!dados) return;
+  let r;
+  try{ r = await db.confirmarPrevisto(id, l.dataEvento, dados); }
+  catch(err){
+    console.error(err);
+    toast((err && err.message) || 'Não foi possível confirmar. Tente de novo.', err && err.codigo !== 'cancelado');
+    return;
+  }
+  const versao = r && r.desfazer && r.desfazer.versao;
+  mostrarAvisoAcao({
+    txt: (l.tipo === 'saida' ? 'Pagamento confirmado: ' : 'Recebimento confirmado: ') + cortar(l.descricao, 40),
+    sub: 'Agora está no Histórico e conta no saldo. Dá para desfazer por 6 segundos.', rotulo: 'Desfazer',
+    onAcao: ()=>desfazerConfirmacao(id, versao)
+  });
+}
+// Desfazer = restaurar a versao de antes da confirmacao (a API a devolve): o lancamento volta a Futuros como estava.
+async function desfazerConfirmacao(id, versao){
+  if(!versao){ toast('Não foi possível desfazer.', true); return; }
+  try{
+    const r = await db.restaurarVersao(id, versao);
+    if(r.status !== 200){ toast((r.body && r.body.erro) || 'Não foi possível desfazer.', true); return; }
+    toast('Confirmação desfeita');
+  }catch(err){
+    console.error(err);
+    toast((err && err.message) || 'Não foi possível desfazer.', true);
+  }
+}
 function executarAcaoRegistro(acao, id){
+  if(acao==='confirmar') confirmarPrevisto(id);
   if(acao==='editar') iniciarEdicao(id);
   if(acao==='copiar') iniciarCopia(id);
   if(acao==='prever') preverLancamento(id);
