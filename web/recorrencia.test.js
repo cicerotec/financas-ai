@@ -93,12 +93,11 @@ test('montarCopias: campos, datas, serie e aviso', () => {
   assert.deepEqual(c[1].aviso.dias, [3, 0], 'cada copia tem o seu proprio aviso');
   assert.deepEqual(c[1].tags, ['Casa'], 'cada copia tem as suas proprias tags');
   assert.deepEqual(aviso.dias, [3, 0], 'o aviso do original nao e alterado');
-  assert.equal(c[0].excluirDoTotal, false);
 });
 
 test('montarCopias: sem aviso nao leva o campo; TRANSFERINDO fica fora do total; indice continua', () => {
   const c = R.montarCopias(base(), { intervaloMeses: 12, quantidade: 2, status: 'TRANSFERINDO', aviso: null, numerar: false, serieId: 's', indiceInicial: 5 });
-  assert.ok(c.every((x) => !('aviso' in x) && x.excluirDoTotal === true));
+  assert.ok(c.every((x) => !('aviso' in x)));
   assert.deepEqual(c.map((x) => x.serie.indice), [5, 6]);
   assert.deepEqual(c.map((x) => R.diaLocal(new Date(x.dataEvento))), ['2027-10-31', '2028-10-31']);
 });

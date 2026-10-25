@@ -95,7 +95,6 @@
         dataEvento: data.toISOString(),
         banco: base.banco,
         tags: [...(base.tags || [])],
-        excluirDoTotal: /^CONTAS$|^TRANSFERINDO$/i.test(op.status),
         serie: { id: op.serieId, indice: (op.indiceInicial || 1) + i, intervalo: op.intervaloMeses }
       };
       if (op.aviso) doc.aviso = { dias: [...op.aviso.dias], insistir: !!op.aviso.insistir };
