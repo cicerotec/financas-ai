@@ -32,6 +32,11 @@ func (e *EfeitosLancamento) SincronizarAviso(ctx context.Context, sid string, l 
 	e.avisos.Sincronizar(ctx, sid, l)
 }
 func (e *EfeitosLancamento) RemoverAviso(ctx context.Context, sid, id string) { e.avisos.Remover(ctx, sid, id) }
+// Seq devolve o contador de alteracoes do espaco (so leitura); ok=false se nao der para ler.
+func (e *EfeitosLancamento) Seq(ctx context.Context, sid string) (float64, bool) {
+	n, err := e.contador.Atual(ctx, sid)
+	return n, err == nil
+}
 func (e *EfeitosLancamento) ComSeq(ctx context.Context, sid string, d domain.Doc) domain.Doc {
 	return e.contador.ComSeq(ctx, sid, d)
 }

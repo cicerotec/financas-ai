@@ -139,29 +139,21 @@ const limiteFuturos = 1000
 // ficam de fora, e nunca entram no resumo.
 func (s *Lancamentos) Futuros(ctx context.Context, sid string, ocultos bool) (domain.Doc, error) {
 	agora := s.rel.Agora()
-	f := domain.FiltroTx{SoPrevistos: true, Asc: true, Limite: 500}
+	todos, err := s.lerPrevistos(ctx, sid)
+	if err != nil {
+		return nil, err
+	}
 	var itens []domain.Doc
 	truncado := false
-	for {
-		pag, proximo, err := s.repo.Listar(ctx, sid, f)
-		if err != nil {
-			log.Println("futuros:", err)
-			return nil, ErrListar
+	for _, l := range todos {
+		if o, _ := l["oculto"].(bool); o && !ocultos {
+			continue
 		}
-		for _, l := range pag {
-			if o, _ := l["oculto"].(bool); o && !ocultos {
-				continue
-			}
-			if len(itens) >= limiteFuturos {
-				truncado = true
-				break
-			}
-			itens = append(itens, l)
-		}
-		if truncado || proximo == "" {
+		if len(itens) >= limiteFuturos {
+			truncado = true
 			break
 		}
-		f.Cursor = proximo
+		itens = append(itens, domain.CopiaRasa(l)) // copia: decorar mexe no mapa e o original fica no cache
 	}
 	hoje := agora.In(domain.FusoBR).Format("2006-01-02")
 	pagar, receber, valorAtr, nAtr := 0.0, 0.0, 0.0, 0
@@ -206,6 +198,59 @@ func (s *Lancamentos) Futuros(ctx context.Context, sid string, ocultos bool) (do
 	}, nil
 }
 
+// inicioDeFuturos e o primeiro dia (AAAA-MM-DD, Sao Paulo) do mes anterior ao de agora: os previstos mais antigos que isso nao entram em Futuros.
+func inicioDeFuturos(agora time.Time) string {
+	a := agora.In(domain.FusoApp)
+	return time.Date(a.Year(), a.Month()-1, 1, 0, 0, 0, 0, domain.FusoApp).Format("2006-01-02")
+}
+
+// cacheFuturos guarda o que a ultima leitura achou, com o valor do contador de alteracoes lido ANTES dela.
+type cacheFuturos struct {
+	seq    float64
+	itens  []domain.Doc
+	quando time.Time
+}
+
+const validadeDoCacheDeFuturos = 5 * time.Minute
+
+// lerPrevistos devolve todos os previstos do espaco (sem os excluidos), do mais antigo para o mais novo. Achar os previstos de qualquer ano
+// exige ler a particao inteira, que e cara na tabela de 5 RCU; por isso o resultado fica em memoria enquanto o contador de alteracoes do
+// espaco (que toda escrita de lancamento soma) nao mudar, o que custa uma leitura de 1 item. O contador e lido ANTES da leitura grande: uma
+// escrita que chegue durante ela muda o contador e a proxima chamada le de novo. Sem contador (0) ou depois de 5 minutos, nao reaproveita.
+func (s *Lancamentos) lerPrevistos(ctx context.Context, sid string) ([]domain.Doc, error) {
+	seq, ok := s.ef.Seq(ctx, sid)
+	if ok && seq > 0 {
+		s.mu.Lock()
+		c := s.futuros[sid]
+		s.mu.Unlock()
+		if c != nil && c.seq == seq && time.Since(c.quando) < validadeDoCacheDeFuturos {
+			return c.itens, nil
+		}
+	}
+	// A chave de ordenacao tem a data (TX#<dataEvento>#<id>), entao o Query le so de um dia em diante: Futuros olha os atrasados do mes passado
+	// em diante e ignora os mais antigos (decisao do dono, 2026-10-25), em vez de ler a particao inteira.
+	f := domain.FiltroTx{SoPrevistos: true, Asc: true, Limite: 500, De: inicioDeFuturos(s.rel.Agora())}
+	var itens []domain.Doc
+	for {
+		pag, proximo, err := s.repo.Listar(ctx, sid, f)
+		if err != nil {
+			log.Println("futuros:", err)
+			return nil, ErrListar
+		}
+		itens = append(itens, pag...)
+		if proximo == "" {
+			break
+		}
+		f.Cursor = proximo
+	}
+	if ok && seq > 0 {
+		s.mu.Lock()
+		s.futuros[sid] = &cacheFuturos{seq: seq, itens: itens, quando: time.Now()}
+		s.mu.Unlock()
+	}
+	return itens, nil
+}
+
 // decorar acrescenta ao lancamento o que a listagem mostra pronto: previsto (derivado), rotulo e corPadrao do catalogo (R12a, R17).
 func decorar(l domain.Doc) domain.Doc {
 	comPrevisto(l)
@@ -215,9 +260,9 @@ func decorar(l domain.Doc) domain.Doc {
 
 // ---------- GET /tx pronto (R12a, R12b, R16) ----------
 
-// ListarTx: GET /spaces/{sid}/tx. Nao devolve previstos; cada item leva rotulo e corPadrao; a primeira pagina leva `filtros.status`, os status que
-// aparecem no periodo (considerando os outros filtros, mas nao o de status). Nao ha total nem soma por mes (R12c).
-func (s *Lancamentos) ListarTx(ctx context.Context, sid string, f domain.FiltroTx) (domain.Doc, error) {
+// ListarTx: GET /spaces/{sid}/tx. Nao devolve previstos; cada item leva rotulo e corPadrao; com filtros=1, a primeira pagina leva `filtros.status`, os status que
+// aparecem no periodo (considerando os outros filtros, mas nao o de status). So a pedido: calcula-los le o periodo inteiro de novo. Nao ha total nem soma por mes (R12c).
+func (s *Lancamentos) ListarTx(ctx context.Context, sid string, f domain.FiltroTx, comFiltros bool) (domain.Doc, error) {
 	f.SemPrevistos = true
 	itens, proximo, err := s.Listar(ctx, sid, f)
 	if err != nil {
@@ -227,7 +272,7 @@ func (s *Lancamentos) ListarTx(ctx context.Context, sid string, f domain.FiltroT
 		decorar(l)
 	}
 	out := domain.Doc{"itens": itens, "proximo": proximo}
-	if f.Cursor == "" {
+	if comFiltros && f.Cursor == "" {
 		filtros, err := s.statusDoPeriodo(ctx, sid, f)
 		if err != nil {
 			return nil, err

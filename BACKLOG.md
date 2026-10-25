@@ -36,6 +36,7 @@ pendentes: nenhum.
 - [\[Backend\] - **\[Depois\] Open Finance (visão):**](#item-39)
 - [\[Backend\] - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
 - [\[Backend\] - **\[Depois\] Reclassificação em massa (admin):**](#item-44)
+- [\[Front\] - **\[Depois\] Futuros: atrasados antigos buscados por ano:**](#item-45)
 - [\[Backend\] - **\[Depois\] Colaboração, Fase 1:**](#item-12)
 - [\[Backend\] - **\[Depois\] Colaboração, Fase 2:**](#item-13)
 - [\[Backend\] - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
@@ -205,6 +206,12 @@ DynamoDB sem discutir com o dono.**
   registros mudam, quais travas pegam), grava **uma versão do histórico por registro** com o autor e respeita as travas de data pelo efeito no saldo (mês conferido recusa,
   mês fechado pede confirmação). Serve a quatro usos: o pedido de um dono novo que não gosta de `PAGO` e `CREDITO`, o desmembramento futuro do `PAGO`, a migração do `faturaAjuste`
   explícito nos lançamentos antigos (fatia b do item 33) e trocar o passado de uma vez (um `PAGO` de 2018 para `PIX`). Depende dos itens 31 (histórico) e 41.
+- 45. [ ] <a id="item-45"></a>**[Depois] Futuros: os atrasados antigos são buscados por ano, sob demanda (anotado em 2026-10-25):** hoje Futuros olha só **do mês passado em diante**
+  (decisão do dono: ler todos os atrasados de todos os anos de uma vez sobrecarrega a tabela e não faz sentido). Quem tem um previsto mais antigo (por exemplo, um `PREVISTO` esquecido de 2019)
+  não o vê em lugar nenhum, porque o Histórico nunca mostra previstos. **A forma de buscar os atrasados vai mudar na tela:** em vez de uma lista única, os atrasados mais antigos passam a ser
+  buscados **por ano, quando a pessoa pedir** (por exemplo, "Ver atrasados de 2019"), cada ano um `Query` pelo intervalo da data na chave (`TX#<ano>...`), sem ler a partição inteira e sem índice novo.
+  A rota `GET /futuros` ganha o parâmetro do ano (ou período); a tela decide como oferecer (seletor de ano, aviso "há N atrasados de anos anteriores" só se houver). **Demo antes de qualquer tela.**
+  Hoje o corte está em `inicioDeFuturos` (`backend/service/previsto.go`) e na decisão 15 do `plan.md` do item 41.
 - 39. [ ] <a id="item-39"></a>**[Depois] Open Finance: lançamentos e saldos vindos do banco (visão):** visão do dono
   (2026-10-16): o app deixa de depender de lançar e conferir à mão; os lançamentos e o saldo de cada conta vêm do banco.
   (a) O lançamento vindo do banco é a **fonte da verdade**: valor, tipo, data e banco **não editáveis**; a pessoa edita a

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"sync"
 	"time"
 
 	"financas/domain"
@@ -52,6 +53,8 @@ type Efeitos interface {
 	RemoverAviso(ctx context.Context, sid, id string)
 	// ComSeq soma 1 ao contador de alteracoes do espaco e anexa o valor novo na resposta (_seq).
 	ComSeq(ctx context.Context, sid string, d domain.Doc) domain.Doc
+	// Seq le o contador de alteracoes sem somar (a leitura barata que diz se alguem gravou); ok=false se nao der para ler.
+	Seq(ctx context.Context, sid string) (n float64, ok bool)
 }
 
 // Erros do service. O controller traduz cada um na resposta HTTP de sempre.
@@ -70,6 +73,8 @@ type ErroValidacao struct{ Msg string }
 func (e *ErroValidacao) Error() string { return e.Msg }
 
 type Lancamentos struct {
+	mu      sync.Mutex
+	futuros map[string]*cacheFuturos // a leitura dos previstos de cada espaco, valida enquanto o contador de alteracoes nao mudar
 	repo    Repositorio
 	ef      Efeitos
 	pessoas Pessoas
@@ -77,7 +82,7 @@ type Lancamentos struct {
 }
 
 func NewLancamentos(repo Repositorio, ef Efeitos, pessoas Pessoas, rel Relogio) *Lancamentos {
-	return &Lancamentos{repo: repo, ef: ef, pessoas: pessoas, rel: rel}
+	return &Lancamentos{repo: repo, ef: ef, pessoas: pessoas, rel: rel, futuros: map[string]*cacheFuturos{}}
 }
 
 const formatoTempo = "2006-01-02T15:04:05.000Z"

@@ -728,7 +728,7 @@ async function init(){
 
     db.collection("lancamentos").orderBy("dataEvento","desc").limit(1000).onSnapshot(snap=>{
       lancamentosCache = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(l=>!exclusaoPendente.has(l.id) && !l.previsto); // previsto e de Futuros
-      carregarFuturos();
+      agendarFuturos();
       try{ renderTagPicker(); }catch(e){}
       cartaoUltimaCalc = 0;
       renderHistorico();
@@ -1510,6 +1510,9 @@ function diaLocal(l){ return chaveDia(new Date(l.dataEvento)); }
 // Eventos futuros ordenados por data. Ocultos só entram se pedido.
 // ---------- Futuros: o servidor manda tudo pronto (GET /futuros): previstos, resumo, Atrasados e meses ----------
 let futurosDados = null, futurosCarregando = false, futurosRepetir = false;
+let futurosTimer;
+// varias leituras de lancamentos seguidas (a abertura do app, uma gravacao) viram uma leitura so de Futuros
+function agendarFuturos(){ clearTimeout(futurosTimer); futurosTimer = setTimeout(carregarFuturos, 400); }
 async function carregarFuturos(){
   if(!db || typeof db.futuros !== 'function') return;
   if(futurosCarregando){ futurosRepetir = true; return; } // alguem gravou durante a leitura: le de novo no fim
