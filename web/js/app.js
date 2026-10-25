@@ -1,14 +1,7 @@
 let db = null, sample = null;
 let papelAtual = 'owner', meuSub = '';
 let lancamentosParaImportar = [];
-let listas = { status: ["PAGO","PREVISTO","CREDITO IN","CREDITO EX","CONTAS","TRANSFERINDO","CREDITANDO"], banco: [] };
-let statusReal = { PREVISTO:false, TRANSFERINDO:false, CREDITANDO:false };
-// Evento futuro: ainda não aconteceu. Manda sobre as outras duas caixas: nunca conta como real nem mexe no saldo.
-let statusFuturo = { PREVISTO:true, TRANSFERINDO:true, CREDITANDO:true };
-function ehFuturo(status){ return statusFuturo[status] === true; }
-function ehStatusReal(status){ return !ehFuturo(status) && statusReal[status] !== false; }
-let afetaSaldoBanco = { PAGO:true, CONTAS:true };
-function afetaSaldo(status){ return !ehFuturo(status) && afetaSaldoBanco[status] === true; }
+let listas = { status: [], banco: [] }; // status: a lista que o servidor manda (forma de pagamento); o app so a exibe
 let statusCor = {};
 let estiloCor = 'ambos';
 let corAberta = null;
@@ -251,7 +244,7 @@ function pvTelaPrincipal(){
   const datas = c.docs.slice(0,4).map(d=>pvData(d.dataEvento)).join(', ') + (qtd>4 ? ` e mais ${qtd-4}` : '');
   let h = tcCabeca(pv.ctx.estender ? 'Estender a série' : 'Prever próximas datas', 'fechar');
   h += `<p class="tc-ctx">${pv.ctx.estender?'A partir de: ':''}${esc(b.descricao)} · ${fmtMoeda(valor)} · ${esc(b.status)} · ${dataBR(b)}</p>`;
-  h += `<div class="tc-card">${tcLinha('status','Status das cópias',esc(pv.status))}${tcLinha('rep','Repetir',Recorrencia.fraseRepeticao(pv.qtd,pv.meses))}${tcLinha('avi','Avisar no Telegram',Recorrencia.fraseAviso(pv.aviso))}</div>`;
+  h += `<div class="tc-card">${tcLinha('rep','Repetir',Recorrencia.fraseRepeticao(pv.qtd,pv.meses))}${tcLinha('avi','Avisar no Telegram',Recorrencia.fraseAviso(pv.aviso))}</div>`;
   if(pv.temParcela) h += `<div class="tc-card">${tcInterruptor('num','Continuar a numeração das parcelas','2/10 vira 3/10, 4/10…',pv.numerar)}</div>`;
   if(!c.erro) h += `<p class="tc-nota">Cria <b>${qtd}</b> evento${qtd===1?'':'s'}: <b>${datas}</b><br>Total <b>${fmtMoeda(valor*qtd)}</b>${pv.numerar && pv.qtd>qtd ? ` · a numeração só comporta mais ${qtd}` : ''}</p>`;
   if(c.iguais.size){
@@ -267,11 +260,6 @@ function pvBarra(){
   const n = pv.calc ? pv.calc.docs.length : 0;
   const rotulo = pv.ocupado ? pv.progresso : (n ? `Criar ${n} evento${n===1?'':'s'}` : 'Criar');
   return `<div class="tc-barra"><button type="button" class="tc-criar" id="tcCriar" data-a="criar" aria-busy="${pv.ocupado}">${rotulo}</button></div>`;
-}
-function pvTelaStatus(){
-  return tcCabeca('Status das cópias','voltar')+
-    `<div class="tc-card">${pv.futuros.map(st=>tcOpcao('radio','status',esc(st),st===pv.status,`data-v="${esc(st)}"`)).join('')}</div>`+
-    '<p class="tc-nota">As cópias nascem com este status e aparecem em Futuros.</p>';
 }
 function pvTelaRepetir(){
   const ehPre = Recorrencia.INTERVALOS.some(i=>i.meses===pv.meses);
@@ -372,7 +360,7 @@ function pvRender(topo){
   if(!el || !pv) return;
   const antes = el.querySelector('.tc-scr');
   const y = (!topo && antes) ? antes.scrollTop : 0;
-  const tela = pv.tela==='rep' ? pvTelaRepetir() : pv.tela==='avi' ? pvTelaAvisar() : pv.tela==='status' ? pvTelaStatus() : pvTelaPrincipal();
+  const tela = pv.tela==='rep' ? pvTelaRepetir() : pv.tela==='avi' ? pvTelaAvisar() : pvTelaPrincipal();
   el.innerHTML = `<div class="tc-scr"><div class="tc-col">${tela}</div></div>${pv.tela==='main' ? pvBarra() : ''}${pvHtmlJanela()}`;
   el.querySelector('.tc-scr').scrollTop = y;
   pvMontarRodas();
@@ -428,7 +416,6 @@ function pvClique(e){
   if(a==='criar') return pvCriar();
   if(a==='num'){ pv.numerar = !pv.numerar; return pvRender(false); }
   if(a==='dup'){ pv.dup = b.dataset.v; return pvRender(false); }
-  if(a==='status'){ pv.status = b.dataset.v; pv.tela = 'main'; return pvRender(true); }
   if(a==='int'){ pv.meses = parseInt(b.dataset.m,10); return pvRender(false); }
   if(a==='sw'){ av.on = !av.on; return pvRender(false); }
   if(a==='ins'){ av.insistir = !av.insistir; return pvRender(false); }
@@ -455,14 +442,13 @@ function pvClique(e){
 
 // Abre o fluxo. base = o evento de partida (o ultimo da serie, no Estender); ctx = { estender, serieId, indiceInicial, intervaloPadrao }.
 function abrirPrever(base, ctx){
-  const futuros = [...listas.status]; // a lista de status e do servidor; a data futura e que faz a copia ser prevista
-  if(!futuros.length){ avisar('Não há status disponível para prever.'); return; }
+  if(!listas.status.length){ avisar('Não há forma de pagamento disponível para prever.'); return; }
   fecharPrever();
   const aviso = base.aviso && typeof base.aviso === 'object' ? base.aviso : null;
   const temParcela = Recorrencia.lerParcela(base.descricao) !== null;
   pv = {
-    base, ctx, futuros, temParcela, numerar: temParcela, dup:'pular', tela:'main', sheet:null, erro:'', ocupado:false, progresso:'',
-    status: futuros.includes(base.status) ? base.status : futuros[0],
+    base, ctx, temParcela, numerar: temParcela, dup:'pular', tela:'main', sheet:null, erro:'', ocupado:false, progresso:'',
+    status: listas.status.includes(base.status) ? base.status : listas.status[0], // as copias saem com o status do original; a data futura e que as faz previstas
     qtd: 3, meses: ctx.intervaloPadrao || 1,
     aviso: {on: !!aviso, dias: aviso && Array.isArray(aviso.dias) ? [...aviso.dias] : [1,0], insistir: aviso ? aviso.insistir === true : true}
   };
@@ -694,9 +680,6 @@ async function init(){
       if(d && Array.isArray(d.meios)) meiosLista = clonar(d.meios);
       if(d && d.faturaPadrao) faturaPadrao = clonar(d.faturaPadrao);
       if(d && d.statusCorPadrao) coresPadrao = clonar(d.statusCorPadrao);
-      if(d && d.statusReal) statusReal = clonar(d.statusReal);
-      if(d && d.afetaSaldoBanco) afetaSaldoBanco = clonar(d.afetaSaldoBanco);
-      if(d && d.statusFuturo) statusFuturo = clonar(d.statusFuturo);
       if(d && d.statusCor) statusCor = clonar(d.statusCor);
       if(d && d.estiloCor) estiloCor = d.estiloCor;
       if(d && d.layoutSaldos) layoutSaldos = d.layoutSaldos;
@@ -893,39 +876,13 @@ function renderListas(){
 
   document.getElementById('pillStatus').innerHTML = listas.status.map(s=>
     `<span class="pill">
-      ${ehOwner()?`<button data-del-status="${esc(s)}" aria-label="Remover ${esc(s)}">✕</button>`:''}
       <span style="display:flex;align-items:center;gap:6px;"><button data-cor-status="${esc(s)}" aria-label="Escolher cor de ${esc(s)}" style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${corStatus(s)};border:2px solid var(--border);padding:0;cursor:pointer;"></button><b>${esc(s)}</b></span>
       ${corAberta===s?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${COR_PALETA.map(p=>`<button data-cor-pick="${p}" data-cor-st="${esc(s)}" aria-label="Cor ${p}" style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${p};border:${p===corStatus(s)?'2px solid var(--text)':'1px solid var(--border)'};padding:0;cursor:pointer;"></button>`).join('')}</div>`:''}
-      ${ehOwner()?`<label style="display:flex;align-items:center;gap:4px;${ehFuturo(s)?'color:var(--muted);':'cursor:pointer;'}">
-        <input type="checkbox" data-real-status="${esc(s)}" ${ehStatusReal(s)?'checked':''} ${ehFuturo(s)?'disabled':''} style="width:auto;"> conta como real
-      </label>
-      <label style="display:flex;align-items:center;gap:4px;${ehFuturo(s)?'color:var(--muted);':'cursor:pointer;'}">
-        <input type="checkbox" data-afeta-status="${esc(s)}" ${afetaSaldo(s)?'checked':''} ${ehFuturo(s)?'disabled':''} style="width:auto;"> afeta saldo do banco
-      </label>
-      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
-        <input type="checkbox" data-futuro-status="${esc(s)}" ${ehFuturo(s)?'checked':''} style="width:auto;"> evento futuro
-      </label>`:(ehFuturo(s)?'<span class="muted">evento futuro</span>':'')}
     </span>`).join('');
   document.getElementById('pillBanco').innerHTML = listas.banco.map(s=>
     `<span class="pill">${esc(s)} ${ehOwner()?`<button data-del-banco="${esc(s)}" aria-label="Remover ${esc(s)}">✕</button>`:''}</span>`).join('');
 
-  document.querySelectorAll('[data-del-status]').forEach(b=>b.onclick=()=>removerStatus(b.dataset.delStatus));
   document.querySelectorAll('[data-del-banco]').forEach(b=>b.onclick=()=>removerBanco(b.dataset.delBanco));
-  document.querySelectorAll('[data-real-status]').forEach(cb=>cb.onchange=()=>{
-    statusReal[cb.dataset.realStatus] = cb.checked;
-    salvarListas();
-  });
-  document.querySelectorAll('[data-afeta-status]').forEach(cb=>cb.onchange=()=>{
-    afetaSaldoBanco[cb.dataset.afetaStatus] = cb.checked;
-    salvarListas();
-  });
-  document.querySelectorAll('[data-futuro-status]').forEach(cb=>cb.onchange=()=>{
-    const st = cb.dataset.futuroStatus;
-    // O marcador manda por cima das outras duas caixas (elas aparecem travadas e desmarcadas), mas os valores
-    // guardados não são apagados: desmarcar "evento futuro" devolve o status como era.
-    statusFuturo[st] = cb.checked;
-    salvarListas(); renderListas(); renderHistorico();
-  });
   document.querySelectorAll('[data-cor-status]').forEach(b=>b.onclick=()=>{
     corAberta = (corAberta===b.dataset.corStatus) ? null : b.dataset.corStatus;
     renderListas();
@@ -986,54 +943,7 @@ function renderAparencia(){
 
 async function salvarListas(){
   if(!db) return;
-  await db.doc("config/listas").set({...listas, statusReal, afetaSaldoBanco, statusFuturo, statusCor, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
-}
-// Pede para qual status mover os lançamentos de um status que vai sair. Retorna o nome escolhido ou null (cancelou).
-function pedirStatusParaMigrar(status, qtd, outros){
-  return new Promise(resolve=>{
-    document.getElementById('modalMsg').textContent =
-      `${qtd>=1000?'Pelo menos 1000':qtd} lançamento(s) usam o status "${status}". Escolha para qual status movê-los antes de remover:`;
-    document.getElementById('modalExtra').innerHTML =
-      `<select id="modalNovoStatus" style="margin-bottom:10px;">${outros.map(o=>`<option>${esc(o)}</option>`).join('')}</select>`;
-    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Mover e remover</button>';
-    document.getElementById('modalOverlay').classList.remove('hidden');
-    const fechar = (v)=>{ document.getElementById('modalOverlay').classList.add('hidden'); document.getElementById('modalExtra').innerHTML=''; resolve(v); };
-    document.getElementById('modalCancelar').onclick = ()=>fechar(null);
-    document.getElementById('modalConfirmar').onclick = ()=>fechar(document.getElementById('modalNovoStatus').value);
-  });
-}
-async function removerStatus(status){
-  if(!db) return;
-  const outros = listas.status.filter(x=>x!==status);
-  if(!outros.length){ await avisar('Não dá para remover o único status da lista.'); return; }
-  let snap;
-  try{ snap = await db.collection("lancamentos").where("status","==",status).limit(1000).get(); }
-  catch(err){ console.error(err); toast('Não consegui conferir os lançamentos desse status. Tente de novo.', true); return; }
-  const qtd = snap.docs.length;
-  let novo = null;
-  if(qtd>0){
-    novo = await pedirStatusParaMigrar(status, qtd, outros);
-    if(novo===null) return;
-    try{
-      // repete até acabar: a consulta devolve no máximo 1000 por vez
-      let lote = snap.docs, movidos = 0;
-      while(lote.length){
-        for(const d of lote){
-          await db.collection("lancamentos").doc(d.id).update({status:novo, excluirDoTotal:/^CONTAS$|^TRANSFERINDO$/i.test(novo)});
-          movidos++;
-        }
-        lote = (await db.collection("lancamentos").where("status","==",status).limit(1000).get()).docs;
-      }
-      toast(`✓ ${movidos} lançamento(s) movidos para "${novo}"`);
-    }catch(err){
-      console.error(err);
-      toast('A migração parou no meio. O status não foi removido; tente de novo.', true);
-      return;
-    }
-  }else if(!(await confirmarModal(`Nenhum lançamento usa o status "${status}". Remover da lista?`))) return;
-  listas.status = listas.status.filter(x=>x!==status);
-  await salvarListas(); renderListas(); renderHistorico();
-  if(!novo) toast(`✓ Status "${status}" removido`);
+  await db.doc("config/listas").set({banco: listas.banco, statusCor, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
 }
 async function removerBanco(banco){
   if(!db) return;
@@ -1301,15 +1211,6 @@ function setupHandlers(){
     }
   });
 
-  document.getElementById('btnAddStatus').onclick = ()=>{
-    const v = document.getElementById('novoStatus').value.trim();
-    if(v && !listas.status.includes(v)){
-      listas.status.push(v);
-      if(document.getElementById('novoStatusFuturo').checked){ statusFuturo[v] = true; statusReal[v] = false; afetaSaldoBanco[v] = false; }
-      salvarListas(); renderListas();
-      document.getElementById('novoStatus').value=''; document.getElementById('novoStatusFuturo').checked = false;
-    }
-  };
   document.getElementById('btnAddBanco').onclick = ()=>{
     const v = document.getElementById('novoBanco').value.trim();
     if(v && !listas.banco.includes(v)){ listas.banco.push(v); salvarListas(); renderListas(); document.getElementById('novoBanco').value=''; }
@@ -2935,7 +2836,7 @@ function parseDataCell(v){
 }
 
 const CABECALHOS = {
-  status: ['ST'], descricao: ['DESCRICAO'], dataHora: ['DATA HORA'], pago: ['PAGO'],
+  status: ['ST'], descricao: ['DESCRICAO'], dataHora: ['DATA HORA'], pago: ['PAGO'], // sem-status:ok (nome da coluna da planilha)
   renda: ['RENDA'], gastos: ['GASTOS'], banco: ['BANCO'], tag: ['TAG']
 };
 function mapaColunas(linhaCabecalho){
