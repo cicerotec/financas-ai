@@ -38,7 +38,7 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `historico.ler` (busca por mês e versões de um lançamento) | todos | **só os criados por ela** |
 | `historico.restaurar` | todos | **só os criados por ela e que ainda existem**; restaurar um excluído é só do owner |
 | `cfg.ler` (listas, tags, combos, saldos, cartões) | sim | sim |
-| `cfg.escrever` (renomear/excluir tag, combos, bancos, status, flags, saldo inicial, início do controle; **o `PUT /cfg/cartoes` ainda existe, mas mantém o `conferida` gravado e descarta o do corpo**: some na fase C do item 33a) | sim | **não** |
+| `cfg.escrever` (renomear/excluir tag, combos, bancos, status, flags, saldo inicial, início do controle (**`cartoes` não é mais gravável por aqui**: o `PUT /cfg/cartoes` saiu na fase C do item 33a; só os comandos de `/cartoes` o alteram) | sim | **não** |
 | `cartao.ler` (`GET /cartoes` e `GET /cartoes/{meio}/faturas/{ym}`: as faturas calculadas pelo servidor) | sim | sim |
 | `cartao.escrever` (adicionar/remover cartão, início do controle, fechamento e valor do banco por fatura, conferir, desconferir, registrar a diferença) | sim | **não** |
 | `tags.adicionar` | sim | sim, **só tags que ainda não existem** (o servidor só acrescenta) |

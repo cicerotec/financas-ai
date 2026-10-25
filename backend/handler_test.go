@@ -453,7 +453,7 @@ func TestTagNovaEmLancamentoEntraNaLista(t *testing.T) {
 
 func TestMemberNaoMexeEmConfiguracoesCompartilhadas(t *testing.T) {
 	f := cenario(t)
-	for _, nome := range []string{"listas", "saldos", "cartoes", "combos", "tags"} {
+	for _, nome := range []string{"listas", "saldos", "combos", "tags"} {
 		c, _ := chamar(t, "mem", "PUT", "spaces/s1/cfg/"+nome, nil, `{"version":1,"x":1}`)
 		esperar(t, "member PUT cfg/"+nome, c, 403)
 	}
