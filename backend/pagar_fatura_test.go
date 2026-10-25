@@ -30,7 +30,6 @@ func TestCartaoPagadorEDiaDeVencimento(t *testing.T) {
 	f := cenarioCartao(t)
 	for nome, corpo := range map[string]string{
 		"pagador fora da lista":   `{"pagador":"NAO-EXISTE"}`,
-		"pagador e o proprio":     `{"pagador":"CARTAO-A"}`,
 		"pagador que nao e texto": `{"pagador":5}`,
 		"dia 0":                   `{"diaVencimento":0}`,
 		"dia 32":                  `{"diaVencimento":32}`,
@@ -71,7 +70,6 @@ func TestFaturaPagadorEVencimento(t *testing.T) {
 		"data inexistente":                `{"vencimento":"2026-11-31"}`,
 		"vencimento como numero":          `{"vencimento":5}`,
 		"pagador fora da lista":           `{"pagador":"NAO-EXISTE"}`,
-		"pagador e o cartao":              `{"pagador":"CARTAO-A"}`,
 	} {
 		c, _ := putFatura(t, "2026-10", corpo)
 		esperar(t, nome, c, 400)
@@ -114,8 +112,6 @@ func TestMarcaPagaFaturaInvalida(t *testing.T) {
 	}
 	c, _ := chamar(t, "own", "POST", "spaces/s1/tx", nil, `{"dataEvento":"`+hoje24+`","status":"CREDITO","tipo":"saida","valor":10,"banco":"ITAU","descricao":"x"`+marcaSet+`}`)
 	esperar(t, "compra de credito nao paga fatura", c, 400)
-	c, _ = chamar(t, "own", "POST", "spaces/s1/tx", nil, pagamento("CARTAO-A", 10, hoje24, marcaSet))
-	esperar(t, "lancamento do proprio cartao", c, 400)
 	lote := `{"itens":[{"id":"marcarui001","dataEvento":"` + hoje24 + `","status":"PAGO","tipo":"saida","valor":10,"banco":"ITAU","descricao":"x","pagaFatura":{"meio":"BANCO-B","ym":"2026-09"}}]}`
 	_, d := chamar(t, "own", "POST", "spaces/s1/tx/batch", nil, lote)
 	if d["gravados"] != 0.0 || len(d["rejeitados"].([]any)) != 1 {
@@ -349,4 +345,16 @@ func TestFaturaConferidaTravaAsEscritas(t *testing.T) {
 	esperar(t, "depois de desfazer", st, 200)
 	st, _ = chamar(t, "own", "POST", "spaces/s1/tx", nil, credito("2026-10-12T15:00:00.000Z"))
 	esperar(t, "criar de novo", st, 201)
+}
+
+// O credito e o debito do mesmo banco tem o mesmo nome: o pagador pode ser o proprio cartao e o debito dele pode levar a marca.
+func TestCartaoPagoPeloDebitoDoMesmoBanco(t *testing.T) {
+	f := cenarioCartao(t)
+	c, _ := putCartao(t, "CARTAO-A", `{"pagador":"CARTAO-A"}`)
+	esperar(t, "pagador e o proprio cartao", c, 200)
+	if g := cartaoGravado(t, f, "CARTAO-A"); g["pagador"] != "CARTAO-A" {
+		t.Errorf("pagador = %v", g["pagador"])
+	}
+	c, _ = chamar(t, "own", "POST", "spaces/s1/tx", nil, pagamento("CARTAO-A", 10, hoje24, marcaSet))
+	esperar(t, "debito do proprio banco do cartao leva a marca", c, 201)
 }

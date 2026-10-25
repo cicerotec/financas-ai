@@ -61,11 +61,6 @@ func ValidarPagaFatura(d Doc, cartoes Doc) error {
 	if s, _ := d["status"].(string); EhCredito(s) {
 		return errors.New("pagaFatura invalido: uma compra de credito nao paga fatura")
 	}
-	if b, _ := d["banco"].(string); b != "" {
-		if _, cartao := CartaoDe(cartoes, b); cartao {
-			return errors.New("pagaFatura invalido: um lancamento do proprio cartao nao paga fatura")
-		}
-	}
 	return nil
 }
 

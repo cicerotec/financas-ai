@@ -69,7 +69,7 @@ func TestValidarPagaFatura(t *testing.T) {
 		{"campo a mais", pago(map[string]any{"meio": "CARTAO-A", "ym": "2026-09", "x": 1.0}, nil), true},
 		{"nao e objeto", pago("CARTAO-A", nil), true},
 		{"compra de credito", pago(ok, Doc{"status": "CREDITO"}), true},
-		{"lancamento do proprio cartao", pago(ok, Doc{"banco": "CARTAO-A"}), true},
+		{"debito do proprio banco do cartao", pago(ok, Doc{"banco": "CARTAO-A"}), false},
 	}
 	for _, c := range casos {
 		if err := ValidarPagaFatura(c.d, cart); (err != nil) != c.erro {

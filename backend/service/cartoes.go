@@ -528,11 +528,8 @@ func (s *Cartoes) Inicio(ctx context.Context, sid, banco string, body domain.Doc
 	return domain.Doc{"meio": banco}, nil
 }
 
-// validarPagador confere o pagador sugerido (R4): um meio da lista e diferente do proprio cartao.
+// validarPagador confere o pagador sugerido (R4): um meio da lista. Pode ser o proprio nome do cartao (o debito do mesmo banco).
 func (s *Cartoes) validarPagador(ctx context.Context, sid, cartao, pagador string) error {
-	if pagador == cartao {
-		return &ErroValidacao{"o pagador nao pode ser o proprio cartao"}
-	}
 	listas, _, err := s.ler(ctx, sid)
 	if err != nil {
 		return err

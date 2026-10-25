@@ -3,7 +3,7 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id
 (`G-T<n>` para o backend da fase A), para o PR dizer exatamente o que cobriu. Quando este texto e o do intent divergirem, vale o plan.
 
-**Estado:** aprovado pelo dono em 2026-10-25. **Fase A implementada** (backend). Desvios: o `pagador` é um meio da lista e diferente do próprio cartão (R4), mas pode ser outro cartão (a decisão de proibir cartão pagando cartão saiu); `GET /futuros` traz as faturas inteiras (com `tipo: "fatura"`) também dentro de `atrasados` e `meses`, não só os três campos do exemplo. Nomes como
+**Estado:** aprovado pelo dono em 2026-10-25. **Fase A implementada** (backend). Desvios: o `pagador` é um meio da lista (R4) e pode ser outro cartão **ou o próprio nome do cartão** (o débito do mesmo banco; a regra "diferente do próprio cartão" saiu em 2026-10-25, quando o dono explicou que crédito e débito do mesmo banco têm o mesmo nome); `GET /futuros` traz as faturas inteiras (com `tipo: "fatura"`) também dentro de `atrasados` e `meses`, não só os três campos do exemplo. Nomes como
 no spec do item 33a: o `banco` gravado chama-se **`meio`** nas rotas e respostas novas; o status, na tela, é a **forma de pagamento**.
 
 ## Regras
@@ -14,7 +14,7 @@ no spec do item 33a: o `banco` gravado chama-se **`meio`** nas rotas e respostas
 - **R2.** `PUT /spaces/{sid}/cartoes/{meio}` aceita, além de `inicio`, `pagador` (texto ou `null`) e `diaVencimento` (inteiro de 1 a 31 ou `null`). `null` remove o campo.
 - **R3.** `PUT /spaces/{sid}/cartoes/{meio}/faturas/{ym}` aceita, além de `fechamento` e `valorBanco`, `pagador` (texto ou `null`) e `vencimento` (data real ou `null`). O
   `vencimento` precisa ser **depois do fechamento** da fatura e no máximo 45 dias depois dele. Fatura de histórico (anterior ao `inicio`) aceita `valorBanco` e nada mais.
-- **R4.** O `pagador` precisa ser um meio **da lista** e **diferente do próprio cartão** (`400` caso contrário).
+- **R4.** O `pagador` precisa ser um meio **da lista** (`400` caso contrário). Pode ser o próprio nome do cartão: é o débito do mesmo banco.
 - **R5.** Os comandos de R2 e R3 valem a regra de R25 do item 33a: controle otimista de `CFG#CARTOES`, tentam de novo, gravam só estes campos.
 
 **Vencimento e pagador**
@@ -25,7 +25,7 @@ no spec do item 33a: o `banco` gravado chama-se **`meio`** nas rotas e respostas
 **A marca `pagaFatura`** (uma label no lançamento; não faz regra)
 - **R8.** Um lançamento pode levar `pagaFatura: { meio, ym }`: "este lançamento pagou a fatura `ym` do cartão `meio`". O campo é **escolhido pelo dono** e vem no corpo de
   `POST /tx`, `PUT /tx/{id}` e de cada item de `POST /tx/batch`; `null` remove. O servidor **só valida**: `meio` é um cartão (chave de `CFG#CARTOES.porBanco`), `ym` é `AAAA-MM`
-  válido e o lançamento **não é uma compra de crédito** (status de crédito do catálogo, ou o `banco` do próprio lançamento é um cartão): `400` caso contrário. Qualquer outro
+  válido e o lançamento **não é uma compra de crédito** (status de crédito do catálogo; um débito do mesmo banco do cartão pode levar a marca): `400` caso contrário. Qualquer outro
   formato é `400`.
 - **R9.** A marca **não faz regra**: não recusa pagamento, não limita quantos lançamentos têm a mesma marca, nem valor, nem meio, e não muda o saldo nem trava nada. O pagamento
   é um lançamento comum, no meio que o dono escolher (inclusive dois meios para a mesma fatura), e editar ou excluir é como em qualquer lançamento. **Único efeito:** `excluirDoTotal`
@@ -123,7 +123,7 @@ Relógio fixo em 2026-10-25; dados fictícios; as funções puras são testadas 
 | G-T1 | `VencimentoDe`: fatura com `vencimento`; só `diaVencimento` maior e menor que o dia do fechamento; dia 31 em abril; sem nenhum dos dois | o do mês certo, limitado ao mês; vazio sem nenhum |
 | G-T2 | `PagadorDe`: da fatura, do cartão, nenhum | a precedência de R7 |
 | G-T3 | `EfeitoFatura` e `MudaFatura`: valor, data para outra fatura, `faturaAjuste`, oculto, excluído, previsto, status que deixa de ser crédito, descrição/tags/marca | muda nos que mudam o par (fatura, valor); não muda em descrição, tags e marca |
-| G-T4 | `PUT /cartoes/{meio}` com `pagador` válido, fora da lista, o próprio cartão, `diaVencimento` 0 e 32, `null` | `200`; `400`; `400`; `400`; remove o campo |
+| G-T4 | `PUT /cartoes/{meio}` com `pagador` válido (inclusive o próprio nome do cartão), fora da lista, `diaVencimento` 0 e 32, `null` | `200`; `400`; `400`; remove o campo |
 | G-T5 | `PUT .../faturas/{ym}` com `vencimento` antes do fechamento, 46 dias depois, data inexistente, válido; fatura de histórico com `vencimento` | `400`; `400`; `400`; aceito; `400` |
 | G-T6 | **Marca inválida:** `pagaFatura` com meio que não é cartão, mês `2026-13`, campo que não é objeto, em compra de crédito, em lançamento do banco de um cartão; em `POST`, `PUT` e `batch` | `400` em cada um; nada gravado |
 | G-T7 | **Marca válida:** `POST /tx` com a marca; o segundo lançamento em outro meio com a mesma marca; mesmo meio duas vezes; valor diferente do total; `PUT` que troca e que remove (`null`) | `201`/`200` sempre; nada é recusado; a marca muda e sai |
