@@ -6,7 +6,7 @@
 // O seletor Gastos | Receitas | Resultado (padrão: Gastos) escolhe o que somar; Resultado é entradas menos saídas das tags escolhidas.
 // Isto é uma SIMULAÇÃO (a faixa no topo diz): nunca vale como saldo (o saldo real é o do Histórico) e nunca grava nada. Ocultos ficam de fora.
 // Lógica pura e testada em web/consulta-tags.js. O front só desenha e soma o que já está na tela: nenhum número daqui vai para a API.
-// Carregado depois do app.js e usa os globais dele (lancamentosCache, tagsUsadas, ehStatusReal, combosAtuaisLista, esc, fmtMoeda).
+// Carregado depois do app.js e usa os globais dele (lancamentosCache, tagsUsadas, combosAtuaisLista, esc, fmtMoeda).
 (function () {
   const CT = window.ConsultaTags;
   const ten = { modo: 'grupos', grupos: [CT.grupoVazio()], fichas: [], pos: 0 };
@@ -109,7 +109,7 @@
   // ---------- dados ----------
   // A base é de CT.base: sem ocultos (como o Histórico), só status real, entrada = tudo que não é saída. Quem escolhe o que somar
   // (gastos, receitas ou resultado) é CT.resumir, pela visão.
-  function itens() { return CT.base(lancamentosCache, ehStatusReal); }
+  function itens() { return CT.base(lancamentosCache); }
   function limparTagsInexistentes() { // tag excluída ou migrada sai da consulta (só depois que a lista de tags chegou)
     if (!tagsUsadas.length) return;
     const ok = (t) => tagsUsadas.includes(t);

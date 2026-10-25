@@ -95,6 +95,12 @@ func (s *Config) juntarMeios(ctx context.Context, sid string, listas domain.Doc)
 		}
 	}
 	listas["faturaPadrao"] = padrao
+	// a cor padrao de cada status do catalogo, para o front colorir sem conhecer nome nenhum (a cor que a pessoa escolheu, statusCor, vale por cima)
+	cores := domain.Doc{}
+	for _, e := range domain.Catalogo {
+		cores[e.Nome] = e.CorPadrao
+	}
+	listas["statusCorPadrao"] = cores
 	return nil
 }
 
@@ -108,6 +114,7 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 	case "listas":
 		delete(body, "meios") // derivados pelo servidor na leitura, nunca gravados
 		delete(body, "faturaPadrao")
+		delete(body, "statusCorPadrao")
 		// o status e as caixas de status sao do servidor (item 41): o corpo e ignorado e o que esta gravado continua como esta
 		atual, _ := s.repo.Ler(ctx, sid, "listas")
 		for _, k := range statusDeListas {

@@ -1,0 +1,125 @@
+<title>Formas de pagamento</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: duas telas do app, "hoje" ao lado de "proposta", mais a lista do que não muda. Paleta e proporções seguem o app (verde de acento, cartões claros). */
+:root{
+  --bg:#f1f0ec; --card:#ffffff; --fg:#1d2220; --muted:#5c645e; --line:#e4e2dc; --ck:#d3d6d2;
+  --accent:#2f6f4f; --accent-bg:#dcefe5; --danger:#b3413a; --danger-bg:#f8e6e2; --on-accent:#ffffff;
+  --pago:#639922; --credito:#888780;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121513; --card:#1f2421; --fg:#e8ebe7; --muted:#a3aaa4; --line:#2e3430; --ck:#3b413d;
+  --accent:#5fb98a; --accent-bg:#1c3a2e; --danger:#e08a83; --danger-bg:#3a1f1c; --on-accent:#0d1f16; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#121513; --card:#1f2421; --fg:#e8ebe7; --muted:#a3aaa4; --line:#2e3430; --ck:#3b413d;
+  --accent:#5fb98a; --accent-bg:#1c3a2e; --danger:#e08a83; --danger-bg:#3a1f1c; --on-accent:#0d1f16; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:980px;margin-inline:auto}
+h1{font-size:20px;margin:0 0 4px;text-wrap:balance}
+h2{font-size:16px;margin:28px 0 4px}
+.sub{color:var(--muted);margin:0 0 14px;max-width:62ch}
+.par{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px}
+.col{min-width:0}
+.rot{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;font-weight:600}
+.rot.nova{color:var(--accent)}
+.tela{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.tela.nova{border-color:var(--accent)}
+.tela b.t{display:block;margin-bottom:6px}
+.m{color:var(--muted);font-size:13px}
+.pill{display:flex;flex-wrap:wrap;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0}
+.dot{width:22px;height:22px;border-radius:50%;flex:none}
+.x{border:0;background:transparent;color:var(--muted);font-size:14px;padding:2px 6px}
+.chk{display:inline-flex;align-items:center;gap:5px;font-size:13px}
+.chk i{width:15px;height:15px;border:1.5px solid var(--ck);border-radius:4px;display:inline-block}
+.chk i.on{background:var(--accent);border-color:var(--accent)}
+.add{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+.add span.in{flex:1 1 140px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--muted)}
+.btn{border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px}
+.somem{opacity:.55;text-decoration:line-through}
+.cartao{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.lin{display:flex;justify-content:space-between;gap:10px;padding:14px;border-top:1px solid var(--line)}
+.lin:first-child{border-top:0}
+.lin .v{color:var(--muted);text-align:right}
+.lin.fora{background:var(--danger-bg)}
+.ctx{color:var(--muted);font-size:13px;margin:0 0 10px}
+.nota{background:var(--accent-bg);border-radius:10px;padding:8px 10px;font-size:13px;margin-top:10px}
+ul{padding-left:20px;margin:6px 0}
+li{margin:3px 0}
+.cx{border:1px dashed var(--line);border-radius:14px;padding:12px 14px;margin-top:22px;max-width:70ch}
+</style>
+<main>
+<h1>Forma de pagamento: o que sai das telas</h1>
+<p class="sub">O servidor já manda a lista de status (hoje só <b>PAGO</b> e <b>CREDITO</b>) e decide o que conta no saldo, o que é futuro e o que é crédito. As telas abaixo ainda têm controles para isso, que o servidor ignora. Esta demo mostra o que sai. Dados fictícios; nada é salvo.</p>
+
+<h2>1 · Listas</h2>
+<p class="sub">O cartão de status deixa de ser editável. Continua só a cor, que é sua.</p>
+<div class="par">
+  <div class="col">
+    <p class="rot">Hoje</p>
+    <div class="tela">
+      <b class="t">Status</b>
+      <div class="pill"><button class="x" type="button" aria-label="Remover PAGO">✕</button><span class="dot" style="background:var(--pago)"></span><b>PAGO</b>
+        <span class="chk"><i class="on"></i>conta como real</span><span class="chk"><i class="on"></i>afeta saldo do banco</span><span class="chk"><i></i>evento futuro</span></div>
+      <div class="pill"><button class="x" type="button" aria-label="Remover CREDITO">✕</button><span class="dot" style="background:var(--credito)"></span><b>CREDITO</b>
+        <span class="chk"><i class="on"></i>conta como real</span><span class="chk"><i></i>afeta saldo do banco</span><span class="chk"><i></i>evento futuro</span></div>
+      <div class="add"><span class="in">Novo status</span><span class="chk"><i></i>evento futuro</span><span class="btn">Adicionar</span></div>
+      <p class="m" style="margin:10px 0 0">O servidor ignora as caixas e o "Adicionar": mexer aqui não muda nada.</p>
+    </div>
+  </div>
+  <div class="col">
+    <p class="rot nova">Proposta</p>
+    <div class="tela nova">
+      <b class="t">Forma de pagamento</b>
+      <div class="pill"><span class="dot" style="background:var(--pago)"></span><b>PAGO</b></div>
+      <div class="pill"><span class="dot" style="background:var(--credito)"></span><b>CREDITO</b></div>
+      <p class="nota">A lista vem do servidor. Toque na bolinha para escolher a cor.</p>
+    </div>
+  </div>
+</div>
+
+<h2>2 · Prever próximas datas</h2>
+<p class="sub">Some a linha "Status das cópias". As cópias saem com o mesmo status do lançamento original. Quem faz a cópia valer como previsto é a data futura, e isso o servidor já decide.</p>
+<div class="par">
+  <div class="col">
+    <p class="rot">Hoje</p>
+    <div class="tela">
+      <p class="ctx">Condomínio · R$ 540,00 · PAGO · 10/10/2026</p>
+      <div class="cartao">
+        <div class="lin"><span>Status das cópias</span><span class="v">PAGO ›</span></div>
+        <div class="lin"><span>Repetir</span><span class="v">Todo mês, 3 vezes ›</span></div>
+        <div class="lin"><span>Avisar no Telegram</span><span class="v">1 dia antes e no dia ›</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <p class="rot nova">Proposta</p>
+    <div class="tela nova">
+      <p class="ctx">Condomínio · R$ 540,00 · PAGO · 10/10/2026</p>
+      <div class="cartao">
+        <div class="lin"><span>Repetir</span><span class="v">Todo mês, 3 vezes ›</span></div>
+        <div class="lin"><span>Avisar no Telegram</span><span class="v">1 dia antes e no dia ›</span></div>
+      </div>
+      <p class="nota">As 3 cópias saem como PAGO, com data futura: aparecem em Futuros.</p>
+    </div>
+  </div>
+</div>
+
+<h2>O que não muda</h2>
+<ul>
+  <li><b>Lançar:</b> o seletor de status já mostra só a lista do servidor. Nada a tirar.</li>
+  <li><b>Histórico:</b> o filtro de status já mostra os que aparecem nos dados (inclui os antigos, como CREDITO IN).</li>
+  <li><b>Cores:</b> a cor que você escolhe continua valendo; a padrão vem do servidor.</li>
+</ul>
+
+<div class="cx">
+  <b>O que você aprova</b>
+  <ul>
+    <li>Tirar da tela Listas as caixas "conta como real", "afeta saldo do banco" e "evento futuro", o ✕ de remover e o "Adicionar" status.</li>
+    <li>Chamar o cartão de <b>Forma de pagamento</b> (o campo continua <code>status</code>).</li>
+    <li>Tirar a linha "Status das cópias" do Prever e do Estender.</li>
+    <li>Depois disso entra o teste de CI que falha se <code>web/</code> citar um nome de status.</li>
+  </ul>
+</div>
+</main>

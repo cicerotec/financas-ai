@@ -208,11 +208,9 @@
     <div id="ordemManualLista"></div>
   </div>
   <div class="card">
-    <b>Status</b>
-    <p class="muted so-owner">Evento futuro: ainda não aconteceu. Não conta como real, não mexe no saldo e aparece na aba Futuros, não no Histórico. O checkbox marca se esse status é dinheiro que já aconteceu de verdade (conta no saldo, cartão e tendências) ou só uma previsão/planejamento (não conta ainda).</p>
+    <b>Forma de pagamento</b>
+    <p class="muted">A lista vem do servidor. Toque na bolinha para escolher a cor.</p>
     <div class="pill-list" id="pillStatus"></div>
-    <div class="row so-owner" style="margin-top:8px;"><input id="novoStatus" placeholder="novo status"><button class="ghost" id="btnAddStatus">Adicionar</button></div>
-    <label class="so-owner" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:6px 0 0;"><input type="checkbox" id="novoStatusFuturo" style="width:auto;"> evento futuro (já nasce sem contar como real e sem mexer no saldo)</label>
   </div>
   <div class="card so-owner">
     <b>Bancos / contas</b>
@@ -300,7 +298,7 @@
   <summary><span class="cfg-tit"><b>Importar</b><span>Planilha, colar dados e backup</span></span><span class="cfg-seta" aria-hidden="true">›</span></summary>
   <div class="cfg-corpo">
   <div class="card">
-    <p class="muted">O arquivo é lido aqui no seu navegador — não é enviado pra mim em nenhum momento. Funciona com a planilha no formato ST/DESCRIÇÃO/DIA/SEM/MES/DATA HORA/PAGO/RENDA/GASTOS/BANCO/TAG, uma aba por mês.</p>
+    <p class="muted">O arquivo é lido aqui no seu navegador — não é enviado pra mim em nenhum momento. Funciona com a planilha no formato ST/DESCRIÇÃO/DIA/SEM/MES/DATA HORA/PAGO/RENDA/GASTOS/BANCO/TAG, uma aba por mês.</p> <!-- sem-status:ok (nome de coluna da planilha) -->
     <input type="file" id="arquivoImport" accept=".xlsx,.xls,.csv">
     <button class="primary" id="btnProcessar">Processar arquivo</button>
     <button class="ghost hidden" id="btnVerificar" style="width:100%;margin-top:6px;">Conferir arquivo com o banco de dados</button>
