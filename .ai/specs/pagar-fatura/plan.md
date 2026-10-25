@@ -24,7 +24,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
   - Dentro de `CFG#CARTOES.porBanco[meio]` (sem item, chave ou índice novo): `pagador` (o meio com que a fatura costuma ser paga) e `diaVencimento` (1 a 31); em
     `faturas[ym]`: `pagador` e `vencimento` (`AAAA-MM-DD`).
   - No **lançamento**: `pagaFatura = { meio, ym }`, a marca. É **escolhida pelo dono** (vem do cliente, como o `faturaAjuste`) e o servidor só valida: o `meio`
-    é um cartão, o `ym` é um mês válido, e o lançamento **não é uma compra de crédito** (um lançamento do próprio cartão não paga fatura). `null` remove.
+    é um cartão, o `ym` é um mês válido, e o lançamento **não é uma compra de crédito** (o débito do mesmo banco do cartão pode levar a marca). `null` remove.
 - **Funções puras em `domain/`:**
   - `VencimentoDe(cartao, ym)`: `faturas[ym].vencimento`, se existir; senão o **primeiro dia depois do fechamento** de `ym` cujo dia do mês é `diaVencimento`
     (limitado ao último dia do mês); sem nenhum dos dois, não há vencimento e a fatura não entra em Futuros.
@@ -80,4 +80,4 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 7. **Só o dono** configura o pagador e o vencimento. A marca vale para quem pode editar o lançamento.
 8. **Fatura sem vencimento** (nem `diaVencimento` no cartão nem `vencimento` na fatura) não aparece em Futuros. **Sem `pagador`** a linha aparece e o meio é escolhido na janela de pagar.
 9. **A trava de fatura conferida não tem confirmação que a destrave:** só "Desfazer conferência".
-10. **O pagador sugerido** precisa ser um meio da lista e diferente do próprio cartão; fora isso é livre (o pagamento em si é um lançamento comum, no meio que o dono quiser).
+10. **O pagador sugerido** precisa ser um meio da lista (pode ser o próprio nome do cartão: o débito do mesmo banco); fora isso é livre (o pagamento em si é um lançamento comum, no meio que o dono quiser).
