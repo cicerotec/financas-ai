@@ -1,6 +1,5 @@
 let db = null, sample = null;
 let papelAtual = 'owner', meuSub = '';
-let padroesGravados = false;
 let lancamentosParaImportar = [];
 let listas = { status: ["PAGO","PREVISTO","CREDITO IN","CREDITO EX","CONTAS","TRANSFERINDO","CREDITANDO"], banco: [] };
 let statusReal = { PREVISTO:false, TRANSFERINDO:false, CREDITANDO:false };
@@ -703,13 +702,7 @@ async function init(){
       if(d && d.layoutSaldos) layoutSaldos = d.layoutSaldos;
       if(d && d.ordemSaldos) ordemSaldos = d.ordemSaldos;
       if(d && Array.isArray(d.ordemManual)) ordemManual = clonar(d.ordemManual);
-      if(!listas.status.includes('CREDITANDO')){ listas.status.push('CREDITANDO'); if(ehOwner()) salvarListas(); }
-      // Primeira vez que o dono abre depois de uma atualização: grava no banco os campos que ainda só existiam como
-      // padrão no código (hoje, o statusFuturo), para a configuração ficar explícita e visível no DynamoDB.
-      if(ehOwner() && !padroesGravados && (!d || ['status','banco','statusReal','afetaSaldoBanco','statusFuturo'].some(k=>d[k]===undefined || d[k]===null))){
-        padroesGravados = true;
-        salvarListas();
-      }
+      // A lista de status e as caixas sao do servidor (item 41): o app nao completa nem regrava nada aqui.
       renderListas();
       renderSaldos();
       try{ renderHistorico(); }catch(e){}
