@@ -43,21 +43,21 @@ let saldosUltimaCalc = 0;
 let saldoAberto = -1;
 let rascunhoSaldo = null;
 let msgSaldo = '';
-function ehCredito(status){ return normStatus(status).startsWith('CREDITO'); }
-function ehCreditoEX(status){ return /^CREDITO\s*EX$/.test(normStatus(status)); }
-function ehCreditoIN(status){ return /^CREDITO\s*IN$/.test(normStatus(status)); }
-// Como na planilha: CREDITO EX empurra a compra para a fatura seguinte (+1) e CREDITO IN puxa uma compra
-// posterior ao fechamento para a fatura que fecha neste mês (-1). faturaAjuste gravado no lançamento vence.
-function ajustePadrao(status){ return ehCreditoEX(status) ? 1 : (ehCreditoIN(status) ? -1 : 0); }
+// O que e cartao e o ajuste de fatura que cada status de credito traz vem pronto do servidor (GET /cfg/listas: meios e faturaPadrao);
+// o navegador so consulta, sem olhar o nome do status.
+let meiosLista = [];   // [{ nome, cartao, ativo }]
+let faturaPadrao = {}; // status de credito -> ajuste padrao da fatura (-1, 0 ou +1)
+function ehMeioCartao(nome){ return meiosLista.some(m=>m.nome===nome && m.cartao); }
+function ajustePadrao(status){ return faturaPadrao[status] || 0; }
 function ajusteEfetivo(l){ if(typeof l.faturaAjuste==='number') return l.faturaAjuste; return ajustePadrao(l.status); }
 function chipFatura(l){
-  if(!l.status || !ehCredito(l.status)) return '';
+  if(!ehMeioCartao(l.banco)) return '';
   const a = ajusteEfetivo(l);
   if(!a) return '';
   return ` <span style="font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;">foi para a ${a>0?'próxima':'anterior'} fatura</span>`;
 }
 function chipEstimado(l){
-  if(!l.status || !ehCredito(l.status) || l.valorEstimado!==true) return '';
+  if(l.valorEstimado!==true) return '';
   return ' <span style="font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;">valor estimado</span>';
 }
 function atualizarCampoFatura(){
@@ -66,9 +66,10 @@ function atualizarCampoFatura(){
   const st = document.getElementById('fStatus').value;
   const fd = document.getElementById('fFuturoDica');
   if(fd) fd.textContent = ehFuturo(st) ? 'Evento futuro: aparece na aba Futuros, não no Histórico, e não mexe no saldo.' : '';
-  w.classList.toggle('hidden', !ehCredito(st));
+  w.classList.toggle('hidden', !ehMeioCartao(document.getElementById('fBanco').value));
   atualizarCampoAviso();
-  document.getElementById('fFaturaDica').textContent = ehCreditoEX(st) ? 'Registros com status CRÉDITO EX já vão para a próxima fatura.' : (ehCreditoIN(st) ? 'Registros com status CRÉDITO IN já entram na fatura anterior (a que fecha neste mês).' : '');
+  const padrao = ajustePadrao(st);
+  document.getElementById('fFaturaDica').textContent = padrao>0 ? 'Registros com este status já vão para a próxima fatura.' : (padrao<0 ? 'Registros com este status já entram na fatura anterior (a que fecha neste mês).' : '');
 }
 // ---------- aviso (Telegram): controles reutilizados pelo formulario (prefixo f) e pela janela de repeticao (pv) ----------
 function telegramVinculado(){ return !!(window.claude && claude.telegramChatId && claude.telegramChatId()); }
@@ -690,6 +691,8 @@ async function init(){
       const d = snap.data();
       if(d && d.status) listas.status = clonar(d.status);
       if(d && d.banco) listas.banco = clonar(d.banco);
+      if(d && Array.isArray(d.meios)) meiosLista = clonar(d.meios);
+      if(d && d.faturaPadrao) faturaPadrao = clonar(d.faturaPadrao);
       if(d && d.statusReal) statusReal = clonar(d.statusReal);
       if(d && d.afetaSaldoBanco) afetaSaldoBanco = clonar(d.afetaSaldoBanco);
       if(d && d.statusFuturo) statusFuturo = clonar(d.statusFuturo);
@@ -822,7 +825,7 @@ function irParaAba(t){
   document.querySelectorAll('main section').forEach(sec=>sec.classList.add('hidden'));
   document.getElementById('tab-'+t).classList.remove('hidden');
   if(t==='saldos') carregarSaldosConfig().then(()=>carregarSaldos(false));
-  if(t==='cartao') carregarCartoesConfig().then(()=>carregarCartoes(false));
+  if(t==='cartao') carregarCartoes(false);
   if(t==='futuros') renderFuturos();
   if(t==='versoes') abrirVersoes();
   if(t==='tendencias' && typeof tendRender==='function') tendRender();
@@ -1269,15 +1272,8 @@ function setupHandlers(){
     document.getElementById('fFatura').value = String(ajustePadrao(document.getElementById('fStatus').value));
     atualizarCampoFatura();
   });
+  document.getElementById('fBanco').addEventListener('change', atualizarCampoFatura);
   document.getElementById('listaCartoes').addEventListener('click', onCartaoClick);
-  document.getElementById('listaCartoes').addEventListener('input', e=>{
-    if(e.target.id!=='cBanco') return;
-    const b = cartoesVisiveis[cartaoAberto];
-    const conf = document.getElementById('cConf');
-    if(!b || !conf) return;
-    const raw = e.target.value.trim();
-    conf.innerHTML = conferenciaHtml(b, e.target.dataset.ym, raw==='' ? null : parseFloat(raw));
-  });
   document.getElementById('btnAtualizarCartao').addEventListener('click', ()=>carregarCartoes(true));
   document.getElementById('btnAddCartao').addEventListener('click', adicionarCartaoUI);
   document.getElementById('tagBusca').addEventListener('input', e=>{ tagBusca = e.target.value; renderTagPicker(); });
@@ -1400,7 +1396,7 @@ async function salvarLancamentoInterno(){
     tags: tags,
     excluirDoTotal: /^CONTAS$|^TRANSFERINDO$/i.test(statusEscolhido)
   };
-  if(ehCredito(statusEscolhido)){
+  if(ehMeioCartao(doc.banco)){
     doc.faturaAjuste = parseInt(document.getElementById('fFatura').value,10) || 0;
     doc.valorEstimado = document.getElementById('fEstimado').checked;
   }
@@ -2557,340 +2553,158 @@ function acaoFechamento(acao, banco, mes){
   renderSaldos();
 }
 
-// ===== CARTÃO: faturas por data de fechamento =====
-let cartoesConfig = {};
-let cartaoDados = {};
-let cartaoAberto = -1;
-let cartaoSel = 0;
-let cartaoJanela = 0;
+// ===== CARTÃO: faturas calculadas pelo servidor =====
+// O servidor calcula o período, a fatura de cada compra, o ajuste, o total, a conferência e as sugestões (GET /cartoes e
+// GET /cartoes/{meio}/faturas/{ym}). Aqui só se mostra o que ele mandou e se manda o que a pessoa escolheu.
+let cartoesResumo = null;  // resposta de GET /cartoes
+let cartaoFatura = null;   // resposta da fatura do cartão aberto
+let cartaoAbertoMeio = ''; // nome do cartão aberto
+let cartaoYmSel = '';      // fatura pedida ('' = a atual)
 let cartaoRecSel = null;
 let cartaoCarregando = false;
 let cartaoUltimaCalc = 0;
-let cartoesVisiveis = [];
+let cartaoErro = '';
 let msgCartao = '';
 let rascunhoFech = null;
-let filaCartao = Promise.resolve();
 const MESES_ABREV = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 function pad2(n){ return String(n).padStart(2,'0'); }
-function chaveDia(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
-function addMesYm(ym,n){ const [y,m]=ym.split('-').map(Number); const d=new Date(y,m-1+n,1); return d.getFullYear()+'-'+pad2(d.getMonth()+1); }
 function diasNoMes(ym){ const [y,m]=ym.split('-').map(Number); return new Date(y,m,0).getDate(); }
-function addDiaChave(k,n){ const [y,m,d]=k.split('-').map(Number); return chaveDia(new Date(y,m-1,d+n)); }
 function fmtDiaMes(k){ return k.slice(8,10)+'/'+k.slice(5,7); }
 function fmtDataCompleta(k){ return k.slice(8,10)+'/'+k.slice(5,7)+'/'+k.slice(0,4); }
-function rotuloFatura(off, ym){
-  if(off===-1) return 'Anterior';
-  if(off===0) return 'Atual';
-  if(off===1) return 'Próxima';
-  return MESES_ABREV[parseInt(ym.slice(5,7),10)-1]+'/'+ym.slice(2,4);
+function textoDias(n){ return n===0 ? 'hoje' : 'em '+n+' dia'+(Math.abs(n)===1?'':'s'); }
+
+// os meios que são cartão, para o Lançar: o servidor diz quais são (a lista chega com o GET /cfg/listas; aqui só se atualiza depois de mexer nos cartões)
+function marcarMeiosCartao(resumo){
+  const cartoes = new Set(((resumo && resumo.cartoes) || []).map(c=>c.meio));
+  meiosLista = listas.banco.map(n=>({nome:n, cartao:cartoes.has(n), ativo:true}));
+  atualizarCampoFatura();
 }
-function fechamentoDe(card, ym){
-  const f = card.faturas && card.faturas[ym];
-  if(f && f.fechamento) return f.fechamento;
-  let dia = card.diaPadrao || 1;
-  for(let i=1;i<=60;i++){
-    const g = card.faturas && card.faturas[addMesYm(ym,-i)];
-    if(g && g.fechamento){ dia = parseInt(g.fechamento.slice(8,10),10); break; }
-  }
-  return ym+'-'+pad2(Math.min(dia, diasNoMes(ym)));
-}
-function periodoFatura(card, ym){ return { ini: addDiaChave(fechamentoDe(card, addMesYm(ym,-1)),1), fim: fechamentoDe(card, ym) }; }
-function faturaBase(card, k){ const ym = k.slice(0,7); return k <= fechamentoDe(card, ym) ? ym : addMesYm(ym,1); }
-function faturaAtual(card){ const hoje = chaveDia(new Date()); const ym = hoje.slice(0,7); return hoje <= fechamentoDe(card, ym) ? ym : addMesYm(ym,1); }
-function diasAte(k){
-  const h = new Date(); const a = new Date(h.getFullYear(), h.getMonth(), h.getDate());
-  const [y,m,d] = k.split('-').map(Number);
-  return Math.round((new Date(y,m-1,d) - a)/86400000);
-}
-function cartoesLista(){ return listas.banco.filter(b=>cartoesConfig[b]); }
-function registrosCartao(banco){
-  const card = cartoesConfig[banco], dados = cartaoDados[banco];
-  if(!card || !dados) return [];
-  return dados.docs.filter(l=>l.status && ehCredito(l.status) && !l.oculto && ehStatusReal(l.status)).map(l=>{
-    const d = chaveDia(new Date(l.dataEvento));
-    const base = faturaBase(card, d);
-    const aj = ajusteEfetivo(l);
-    return {id:l.id, t:l.descricao||'', d, v:(l.tipo==='entrada'?-1:1)*l.valor, base, aj, eff:addMesYm(base, aj), est:l.valorEstimado===true, bruto:l.valor, criadoPor:l.criadoPor};
-  });
-}
-function totalFatura(recs, ym){ return Math.round(recs.filter(r=>r.eff===ym).reduce((s,r)=>s+r.v,0)*100)/100; }
-function desdeNecessario(card){
-  const atual = faturaAtual(card);
-  const maisAntiga = addMesYm(atual, Math.min(cartaoJanela-1, -1));
-  return periodoFatura(card, addMesYm(maisAntiga,-1)).ini;
-}
-async function lerLancamentosBanco(banco, desdeChave){
-  const desdeMs = new Date(desdeChave+'T00:00:00').getTime();
-  const todos = new Map();
-  let incompleto = false, cursor = null;
-  try{
-    for(let i=0;i<500;i++){
-      let q = db.collection("lancamentos").where("banco","==",banco).orderBy("dataEvento","desc");
-      if(cursor) q = q.where("dataEvento","<=",cursor);
-      const snap = await q.limit(1000).get();
-      let novos = 0;
-      snap.docs.forEach(d=>{ if(!todos.has(d.id)){ todos.set(d.id, {id:d.id, ...clonar(d.data())}); novos++; } });
-      if(snap.docs.length<1000) break;
-      const ultima = snap.docs[snap.docs.length-1].data().dataEvento;
-      if(new Date(ultima).getTime()<desdeMs) break;
-      if(novos===0){ incompleto = true; break; }
-      cursor = ultima;
-    }
-  }catch(e){
-    console.error('Leitura paginada falhou (cartão), usando consulta simples', e);
-    const snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get();
-    todos.clear();
-    snap.docs.forEach(d=>todos.set(d.id, {id:d.id, ...clonar(d.data())}));
-    incompleto = snap.docs.length>=1000;
-  }
-  return {docs:[...todos.values()], incompleto};
-}
-async function carregarCartoesConfig(){
-  if(!db) return;
-  try{
-    const snap = await db.doc("config/cartoes").get();
-    const d = snap.data();
-    cartoesConfig = clonar((d && d.porBanco) || {});
-  }catch(e){ console.error('Falha ao carregar config/cartoes', e); }
-  renderCartao();
-}
-async function carregarBancoCartao(b){
-  const card = cartoesConfig[b];
-  const desde = desdeNecessario(card);
-  try{
-    const r = await lerLancamentosBanco(b, desde);
-    cartaoDados[b] = {desde, docs:r.docs, incompleto:r.incompleto};
-  }catch(e){
-    console.error('Falha ao ler lançamentos de '+b, e);
-    cartaoDados[b] = {desde, docs:[], incompleto:true, erro:true};
-  }
+
+async function carregarFatura(meio, ym){
+  cartaoFatura = await db.cartaoFatura(meio, ym || '');
 }
 async function carregarCartoes(forcar){
   if(!db || cartaoCarregando) return;
-  const lista = cartoesLista();
-  if(!forcar && Date.now()-cartaoUltimaCalc<30000 && lista.every(b=>cartaoDados[b])){ renderCartao(); return; }
-  cartaoCarregando = true; renderCartao();
+  if(!forcar && cartoesResumo && Date.now()-cartaoUltimaCalc<30000){ renderCartao(); return; }
+  cartaoCarregando = true; cartaoErro = ''; renderCartao();
   try{
-    await Promise.all(lista.map(carregarBancoCartao));
+    cartoesResumo = await db.cartoes();
+    marcarMeiosCartao(cartoesResumo);
     cartaoUltimaCalc = Date.now();
+    if(cartaoAbertoMeio && !cartoesResumo.cartoes.some(c=>c.meio===cartaoAbertoMeio)){ cartaoAbertoMeio = ''; cartaoFatura = null; }
+    if(cartaoAbertoMeio) await carregarFatura(cartaoAbertoMeio, cartaoYmSel);
+  }catch(e){
+    console.error('Falha ao ler os cartões do servidor', e);
+    cartaoErro = 'Não consegui ler os cartões. Toque em Atualizar para tentar de novo.';
   } finally { cartaoCarregando = false; renderCartao(); }
 }
-async function garantirDadosBanco(b){
-  const card = cartoesConfig[b], d = cartaoDados[b];
-  if(d && d.desde <= desdeNecessario(card)) return;
-  cartaoCarregando = true; renderCartao();
-  try{ await carregarBancoCartao(b); } finally { cartaoCarregando = false; renderCartao(); }
-}
-function igualProfundo(a,b){
-  if(a===b) return true;
-  if(typeof a!=='object' || typeof b!=='object' || !a || !b) return false;
-  const ka = Object.keys(a), kb = Object.keys(b);
-  if(ka.length!==kb.length) return false;
-  return ka.every(k=>igualProfundo(a[k], b[k]));
-}
-function atualizarConfigCartoes(mutador){
-  const exec = async ()=>{
-    const ref = db.doc("config/cartoes");
-    const snap = await ref.get();
-    const pb = clonar((snap.data() && snap.data().porBanco) || {});
-    mutador(pb);
-    await ref.set({porBanco: pb});
-    const conf = await ref.get();
-    const g = clonar((conf.data() && conf.data().porBanco) || {});
-    if(!igualProfundo(g, pb)) throw new Error('O banco de dados não guardou a configuração enviada.');
-    cartoesConfig = g;
-  };
-  const p = filaCartao.then(exec);
-  filaCartao = p.catch(()=>{});
-  return p;
-}
+// pede de novo ao servidor depois de um comando; a tela mostra o que ele devolver
+async function recarregarCartao(){ cartaoUltimaCalc = 0; await carregarCartoes(true); }
 async function ajustarFatura(id, n){
   await db.collection("lancamentos").doc(id).update({faturaAjuste:n});
-  Object.values(cartaoDados).forEach(d=>{ const it = d.docs.find(x=>x.id===id); if(it) it.faturaAjuste = n; });
   const c = lancamentosCache.find(x=>x.id===id); if(c) c.faturaAjuste = n;
   aplicarLocal(id, {faturaAjuste:n});
 }
-function valorBancoDe(card, ym){
-  const f = card.faturas && card.faturas[ym];
-  return (f && typeof f.valorBanco==='number') ? f.valorBanco : null;
-}
-function monthsDiff(a, b){ return (parseInt(a.slice(0,4),10)-parseInt(b.slice(0,4),10))*12 + (parseInt(a.slice(5,7),10)-parseInt(b.slice(5,7),10)); }
-function diaNum(k){ const [y,m,d] = k.split('-').map(Number); return Math.round(new Date(y,m-1,d)/86400000); }
-let cartaoCands = [];
-function candidatosFatura(b, ym, d){
-  const card = cartoesConfig[b], per = periodoFatura(card, ym), recs = registrosCartao(b);
-  const MARGEM = 5;
-  const distCorte = r => Math.min(Math.abs(diaNum(r.d)-diaNum(per.ini)), Math.abs(diaNum(r.d)-diaNum(per.fim)));
-  let pool;
-  if(d>0) pool = recs.filter(r=>r.eff===ym);
-  else pool = recs.filter(r=>Math.abs(monthsDiff(r.eff, ym))===1);
-  pool = pool.filter(r=>r.v>0 && distCorte(r)<=MARGEM).sort((a,c)=>distCorte(a)-distCorte(c)).slice(0,30);
-  const alvo = Math.round(Math.abs(d)*100);
-  const cents = r=>Math.round(r.v*100);
-  const achados = [];
-  const n = pool.length;
-  for(let i=0;i<n;i++){
-    if(cents(pool[i])===alvo) achados.push([pool[i]]);
-    for(let j=i+1;j<n;j++){
-      if(cents(pool[i])+cents(pool[j])===alvo) achados.push([pool[i],pool[j]]);
-      for(let k=j+1;k<n;k++){
-        if(cents(pool[i])+cents(pool[j])+cents(pool[k])===alvo) achados.push([pool[i],pool[j],pool[k]]);
-      }
-    }
-  }
-  const res = [];
-  achados.sort((a,c)=> a.length-c.length || a.reduce((s,r)=>s+distCorte(r),0)-c.reduce((s,r)=>s+distCorte(r),0));
-  for(const arr of achados){
-    let acoes, rotulo;
-    if(d>0){
-      const dirs = arr.map(r=> Math.abs(diaNum(r.d)-diaNum(per.fim)) <= Math.abs(diaNum(r.d)-diaNum(per.ini)) ? 1 : -1);
-      acoes = arr.map((r,i)=>({id:r.id, aj:monthsDiff(addMesYm(ym, dirs[i]), r.base)}));
-      rotulo = dirs.every(x=>x===1) ? 'Passar para a próxima fatura' : (dirs.every(x=>x===-1) ? 'Trazer para a anterior' : 'Tirar desta fatura');
-    } else {
-      acoes = arr.map(r=>({id:r.id, aj:monthsDiff(ym, r.base)}));
-      rotulo = 'Trazer para esta fatura';
-    }
-    if(acoes.some(a=>Math.abs(a.aj)>1)) continue;
-    res.push({recs:arr, acoes, rotulo});
-    if(res.length>=5) break;
-  }
-  return res;
-}
-function conferenciaHtml(b, ym, vb){
-  const card = cartoesConfig[b];
-  const per = periodoFatura(card, ym);
-  const fechada = chaveDia(new Date()) > per.fim;
-  const recs = registrosCartao(b);
-  const total = totalFatura(recs, ym);
-  cartaoCands = [];
-  if(vb===null || isNaN(vb)) return '<p class="muted">Digite o valor do app do cartão e salve para conferir.</p>';
-  const d = Math.round((total - vb)*100)/100;
+
+function conferenciaHtml(f){
+  if(f.valorBanco===null) return '<p class="muted">Digite o valor do app do cartão e salve para conferir.</p>';
+  const d = f.diferenca;
   if(d===0) return '<p style="color:var(--income);font-weight:600;margin:6px 0;">Bateu ✓</p>';
   let h = `<p style="color:var(--expense);font-weight:600;margin:6px 0;">Diferença de ${fmtMoeda(Math.abs(d))} (${d>0?'o calculado é maior':'o calculado é menor'})</p>`;
-  const nEst = recs.filter(r=>r.eff===ym && r.est).length;
+  const nEst = f.lancamentos.filter(r=>r.fatura===f.ym && r.estimado).length;
   if(nEst) h += `<p class="muted">Há ${nEst} compra${nEst>1?'s':''} com valor estimado. Corrija ${nEst>1?'os valores':'o valor'} abaixo antes de procurar outras causas.</p>`;
-  if(!fechada) return h + '<p class="muted">Fatura ainda aberta: a conferência fica mais confiável depois do fechamento.</p>';
-  cartaoCands = candidatosFatura(b, ym, d);
-  if(cartaoCands.length){
+  if(!f.fechada) return h + '<p class="muted">Fatura ainda aberta: a conferência fica mais confiável depois do fechamento.</p>';
+  if(f.sugestoes.length){
     h += '<div class="muted" style="margin-top:6px;">Registros perto do corte que explicam a diferença:</div>';
-    h += cartaoCands.map((c,i)=>`<div class="sd-painel" style="margin:6px 0;padding:8px;"><div style="font-size:13px;">${c.recs.map(r=>`${esc(r.t)} <span class="muted">${fmtDiaMes(r.d)} · ${fmtMoeda(r.v)}</span>`).join(' + ')}</div><button class="ghost" data-cand="${i}" style="margin-top:6px;font-size:12px;padding:4px 10px;">${c.rotulo}</button></div>`).join('');
-  } else {
-    h += `<p class="muted">Nenhum registro perto do corte bate com ${fmtMoeda(Math.abs(d))}.${d<0?' Pode ser anuidade, juros, IOF ou uma compra não registrada.':' Pode ser um valor registrado a mais ou um registro duplicado.'}</p>`;
-    if(d<0) h += `<button class="ghost" data-regdif="${ym}" style="font-size:12px;padding:4px 10px;">Registrar a diferença como lançamento</button>`;
+    h += f.sugestoes.map((c,i)=>`<div class="sd-painel" style="margin:6px 0;padding:8px;"><div style="font-size:13px;">${c.lancamentos.map(r=>`${esc(r.descricao)} <span class="muted">${fmtDiaMes(r.dia)} · ${fmtMoeda(r.valor)}</span>`).join(' + ')}</div><button class="ghost" data-cand="${i}" style="margin-top:6px;font-size:12px;padding:4px 10px;">${esc(c.rotulo)}</button></div>`).join('');
+  } else if(f.semSugestao){
+    h += `<p class="muted">Nenhum registro perto do corte bate com ${fmtMoeda(Math.abs(d))}. ${esc(f.semSugestao)}</p>`;
+    if(f.podeRegistrarDiferenca) h += `<button class="ghost" data-regdif="${f.ym}" style="font-size:12px;padding:4px 10px;">Registrar a diferença como lançamento</button>`;
   }
   return h;
 }
-function painelCartaoHtml(i){
-  const b = cartoesVisiveis[i], card = cartoesConfig[b], dados = cartaoDados[b];
-  if(!dados) return '<div class="sd-painel"><p class="muted">Carregando faturas...</p></div>';
-  const at = faturaAtual(card);
-  const offs = [cartaoJanela-1, cartaoJanela, cartaoJanela+1];
-  if(!offs.includes(cartaoSel)) cartaoSel = cartaoJanela;
-  const ym = addMesYm(at, cartaoSel);
-  const per = periodoFatura(card, ym);
-  const fechada = chaveDia(new Date()) > per.fim;
-  const recs = registrosCartao(b);
-  const total = totalFatura(recs, ym);
-  const inicio = card.inicio || '';
-  const historico = !!inicio && ym < inicio;
-  const conferida = card.faturas && card.faturas[ym] && card.faturas[ym].conferida;
+
+function painelCartaoHtml(){
+  const f = cartaoFatura;
+  if(!f) return '<div class="sd-painel"><p class="muted">Carregando faturas...</p></div>';
+  const b = f.meio, ym = f.ym, per = f.periodo;
   const dono = ehOwner();
   const fechValor = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym) ? rascunhoFech.f : per.fim;
+  const conferida = f.conferida;
   let h = '<div class="sd-painel">';
   h += '<div class="tags" style="align-items:center;margin-top:0;">'
-    + `<span class="tag" data-janela="-1" aria-label="Faturas mais antigas">‹</span>`
-    + offs.map(o=>`<span class="tag ${cartaoSel===o?'on':''}" data-chip="${o}">${rotuloFatura(o, addMesYm(at,o))}</span>`).join('')
-    + `<span class="tag" data-janela="1" aria-label="Faturas mais novas">›</span></div>`;
-  h += `<p class="muted" style="margin:8px 0 4px;">Período: ${fmtDataCompleta(per.ini)} a ${fmtDataCompleta(per.fim)} · ${fechada?'fechada':'aberta'}</p>`;
-  if(historico) h += `<p class="muted">📁 Histórico: antes do início do controle deste cartão (${esc(inicio)}). Os lançamentos aparecem, mas a fatura não é conferida.</p>`;
+    + `<span class="tag" data-nav="${f.anterior}" aria-label="Faturas mais antigas">‹</span>`
+    + f.chips.map(c=>`<span class="tag ${c.ym===ym?'on':''}" data-chip="${c.ym}">${esc(c.rotulo)}</span>`).join('')
+    + `<span class="tag" data-nav="${f.proxima}" aria-label="Faturas mais novas">›</span></div>`;
+  h += `<p class="muted" style="margin:8px 0 4px;">Período: ${fmtDataCompleta(per.ini)} a ${fmtDataCompleta(per.fim)} · ${f.fechada?'fechada':'aberta'}</p>`;
+  if(f.historico) h += `<p class="muted">📁 Histórico: antes do início do controle deste cartão (${esc(f.inicio||'')}). Os lançamentos aparecem, mas a fatura não é conferida.</p>`;
   else if(dono) h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${esc(fechValor)}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
   h += `<p class="muted" id="cMsg">${esc(msgCartao||'')}</p>`;
-  h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(total)}${dados.incompleto?' ⚠':''}</span></div>`;
-  if(!historico && !dono){
-    const vb = valorBancoDe(card, ym);
-    if(vb!==null) h += `<p class="muted" style="margin:4px 0;">Valor no app do cartão: ${fmtMoeda(vb)}</p>`;
+  h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(f.total)}</span></div>`;
+  if(!f.historico && !dono){
+    if(f.valorBanco!==null) h += `<p class="muted" style="margin:4px 0;">Valor no app do cartão: ${fmtMoeda(f.valorBanco)}</p>`;
     if(conferida){
-      const difC = Math.round((total - conferida.total)*100)/100;
-      h += difC !== 0
+      h += f.mudouDesdeConferencia
         ? `<p style="color:var(--expense);font-weight:600;margin:6px 0;">Mudou desde a conferência (era ${fmtMoeda(conferida.total)})</p>`
         : `<p style="color:var(--income);font-weight:600;margin:6px 0;">🔒 Conferida em ${fmtDataCompleta(String(conferida.em).slice(0,10))}</p>`;
     }
   }
-  if(!historico && dono){
-    const vb = valorBancoDe(card, ym);
-    const vbTxt = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym && rascunhoFech.vb!==undefined) ? rascunhoFech.vb : (vb===null ? '' : String(vb));
+  if(!f.historico && dono){
+    const vbTxt = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym && rascunhoFech.vb!==undefined) ? rascunhoFech.vb : (f.valorBanco===null ? '' : String(f.valorBanco));
     h += `<label>Valor no app do cartão (para conferir)</label><div class="row"><input type="number" step="0.01" id="cBanco" data-ym="${ym}" value="${esc(vbTxt)}"><button class="ghost" id="btnSalvarBanco" data-ym="${ym}">Salvar</button></div>`;
-    h += `<div id="cConf">${conferenciaHtml(b, ym, vbTxt==='' ? null : parseFloat(vbTxt))}</div>`;
+    h += `<div id="cConf">${conferenciaHtml(f)}</div>`;
     if(conferida){
-      const dif = Math.round((total - conferida.total)*100)/100;
       const quando = fmtDataCompleta(String(conferida.em).slice(0,10));
-      if(dif !== 0){
-        h += `<div class="sd-painel" style="border-color:var(--expense);margin:6px 0;"><p style="color:var(--expense);font-weight:600;margin:0 0 4px;">Mudou desde a conferência</p><p class="muted" style="margin:0 0 6px;">Conferida em ${quando} com ${fmtMoeda(conferida.total)}; agora está ${fmtMoeda(total)} (${dif>0?'+':'-'}${fmtMoeda(Math.abs(dif))}). Algum lançamento foi alterado, ocultado ou importado depois.</p><button class="ghost" data-conferir="${ym}" style="font-size:12px;padding:4px 10px;">Aceitar o novo total</button> <button class="ghost" data-desconferir="${ym}" style="font-size:12px;padding:4px 10px;">Desfazer conferência</button></div>`;
+      if(f.mudouDesdeConferencia){
+        const dif = Math.round((f.total - conferida.total)*100)/100; // so a diferenca mostrada: o servidor ja disse que mudou
+        h += `<div class="sd-painel" style="border-color:var(--expense);margin:6px 0;"><p style="color:var(--expense);font-weight:600;margin:0 0 4px;">Mudou desde a conferência</p><p class="muted" style="margin:0 0 6px;">Conferida em ${quando} com ${fmtMoeda(conferida.total)}; agora está ${fmtMoeda(f.total)} (${dif>0?'+':'-'}${fmtMoeda(Math.abs(dif))}). Algum lançamento foi alterado, ocultado ou importado depois.</p><button class="ghost" data-conferir="${ym}" style="font-size:12px;padding:4px 10px;">Aceitar o novo total</button> <button class="ghost" data-desconferir="${ym}" style="font-size:12px;padding:4px 10px;">Desfazer conferência</button></div>`;
       } else {
         h += `<p style="color:var(--income);font-weight:600;margin:6px 0;">🔒 Conferida em ${quando} (${fmtMoeda(conferida.total)}) <button class="ghost" data-desconferir="${ym}" style="font-size:11px;padding:2px 8px;margin-left:6px;">Desfazer</button></p>`;
       }
-    } else if(fechada){
+    } else if(f.fechada){
       h += `<button class="ghost" data-conferir="${ym}" style="font-size:12px;padding:4px 10px;margin:4px 0;">Marcar como conferida</button>`;
     }
   }
-  const est = recs.filter(r=>r.eff===ym && r.est);
+  const est = f.lancamentos.filter(r=>r.fatura===ym && r.estimado);
   if(est.length && dono){
-    h += '<div style="margin:8px 0;"><div class="muted">Valores estimados (corrija com o valor real em reais):</div>' + est.map(r=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t">${esc(r.t)}</span><input type="number" step="0.01" id="est-${esc(r.id)}" value="${r.bruto}" style="flex:0 0 96px;width:96px;"><button class="ghost" data-est="${esc(r.id)}" style="padding:4px 10px;">Corrigir</button></div>`).join('') + '</div>';
+    h += '<div style="margin:8px 0;"><div class="muted">Valores estimados (corrija com o valor real em reais):</div>' + est.map(r=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(r.dia)}</span><span class="fx-t">${esc(r.descricao)}</span><input type="number" step="0.01" id="est-${esc(r.id)}" value="${Math.abs(r.valor)}" style="flex:0 0 96px;width:96px;"><button class="ghost" data-est="${esc(r.id)}" style="padding:4px 10px;">Corrigir</button></div>`).join('') + '</div>';
   }
-  const lista = recs.filter(r=>r.base===ym || r.eff===ym).sort((a,c)=> a.d<c.d?-1 : a.d>c.d?1 : 0);
-  if(!lista.length) h += '<p class="muted">Nenhuma compra nesta fatura.</p>';
-  lista.forEach(r=>{
-    const fora = r.eff!==ym;
+  if(!f.lancamentos.length) h += '<p class="muted">Nenhuma compra nesta fatura.</p>';
+  f.lancamentos.forEach(r=>{
+    const fora = r.origem==='foi';
     let tag = '';
-    if(fora) tag = `<span class="fx-tag">foi para a ${r.eff>ym?'próxima':'anterior'} fatura</span>`;
-    else if(r.base!==ym) tag = `<span class="fx-tag">veio da ${r.base<ym?'anterior':'próxima'} fatura</span>`;
-    const estTag = r.est ? '<span class="fx-tag" style="margin-left:6px;">valor estimado</span>' : '';
-    h += `<div class="fx-rec ${fora?'fora':''}" data-rec="${esc(r.id)}"><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.d)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${esc(r.t)}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.v)}</span></div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
-    if(cartaoRecSel===r.id && podeMexer(r)){
-      const ops = [[0,'Pela data (normal)'],[1,'Passar para a próxima fatura'],[-1,'Trazer para a anterior']].filter(o=>o[0]!==r.aj);
+    if(r.origem==='foi') tag = `<span class="fx-tag">foi para a ${r.ocupaOutraFatura>ym?'próxima':'anterior'} fatura</span>`;
+    else if(r.origem==='veio') tag = `<span class="fx-tag">veio da ${r.ocupaOutraFatura<ym?'anterior':'próxima'} fatura</span>`;
+    const estTag = r.estimado ? '<span class="fx-tag" style="margin-left:6px;">valor estimado</span>' : '';
+    h += `<div class="fx-rec ${fora?'fora':''}" data-rec="${esc(r.id)}"><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.dia)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${esc(r.descricao)}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.valor)}</span></div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
+    if(cartaoRecSel===r.id && r.podeMexer){
+      const ops = [[0,'Pela data (normal)'],[1,'Passar para a próxima fatura'],[-1,'Trazer para a anterior']].filter(o=>o[0]!==r.ajuste);
       h += '<div class="fx-acoes">' + ops.map(o=>`<button class="ghost" data-ajuste="${esc(r.id)}|${o[0]}" style="font-size:12px;padding:4px 10px;">${o[1]}</button>`).join('') + '</div>';
     }
     h += '</div>';
   });
   if(dono){
-  h += `<label style="margin-top:12px;">Início do controle (AAAA-MM; vazio = sem limite)</label><div class="row"><input type="text" inputmode="numeric" id="cInicio" placeholder="ex: 2025-11" value="${esc(inicio)}"><button class="ghost" id="btnSalvarInicio">Salvar</button></div><p class="muted">Faturas anteriores a esse mês ficam como histórico: aparecem, mas não são conferidas.</p>`;
-  h += `<div style="margin-top:12px;"><button class="ghost" data-rm="${i}" style="font-size:12px;">Remover este cartão</button></div></div>`;
+    h += `<label style="margin-top:12px;">Início do controle (AAAA-MM; vazio = sem limite)</label><div class="row"><input type="text" inputmode="numeric" id="cInicio" placeholder="ex: 2025-11" value="${esc(f.inicio||'')}"><button class="ghost" id="btnSalvarInicio">Salvar</button></div><p class="muted">Faturas anteriores a esse mês ficam como histórico: aparecem, mas não são conferidas.</p>`;
+    h += `<div style="margin-top:12px;"><button class="ghost" data-rm="${esc(b)}" style="font-size:12px;">Remover este cartão</button></div></div>`;
   } else h += '</div>';
   return h;
 }
+
 function renderCartao(){
   const el = document.getElementById('listaCartoes');
   if(!el) return;
   const cf = document.getElementById('cFech');
-  if(cf && cartaoAberto>=0 && cartoesVisiveis[cartaoAberto]){ const cb = document.getElementById('cBanco'); rascunhoFech = {b:cartoesVisiveis[cartaoAberto], ym:cf.dataset.ym, f:cf.value, vb:cb?cb.value:undefined}; }
-  cartoesVisiveis = cartoesLista();
-  const n = cartoesVisiveis.length;
-  let total = 0, minDias = null;
-  cartoesVisiveis.forEach(b=>{
-    const card = cartoesConfig[b];
-    const at = faturaAtual(card);
-    total += totalFatura(registrosCartao(b), at);
-    const dd = diasAte(fechamentoDe(card, at));
-    if(minDias===null || dd<minDias) minDias = dd;
-  });
-  const temDados = cartoesVisiveis.some(b=>cartaoDados[b]);
-  document.getElementById('cartaoTotal').textContent = (n && temDados) ? fmtMoeda(total) : '···';
-  document.getElementById('cartaoSub').textContent = !n ? 'Adicione um cartão abaixo' : (cartaoCarregando ? 'Calculando...' :
-    `${n} ${n>1?'cartões':'cartão'} · próximo fechamento ${minDias===0?'hoje':'em '+minDias+' dia'+(Math.abs(minDias)===1?'':'s')}`);
+  if(cf && cartaoAbertoMeio){ const cb = document.getElementById('cBanco'); rascunhoFech = {b:cartaoAbertoMeio, ym:cf.dataset.ym, f:cf.value, vb:cb?cb.value:undefined}; }
+  const r = cartoesResumo, lista = (r && r.cartoes) || [], n = lista.length;
+  document.getElementById('cartaoTotal').textContent = (n && r) ? fmtMoeda(r.total) : '···';
+  document.getElementById('cartaoSub').textContent = !r ? (cartaoErro || (cartaoCarregando ? 'Calculando...' : '')) :
+    (!n ? 'Adicione um cartão abaixo' : (cartaoCarregando ? 'Calculando...' :
+    `${n} ${n>1?'cartões':'cartão'} · próximo fechamento ${textoDias(r.proximoFechamentoEmDias)}`));
   let h = '';
-  cartoesVisiveis.forEach((b,i)=>{
-    const card = cartoesConfig[b], at = faturaAtual(card), dados = cartaoDados[b];
-    const fech = fechamentoDe(card, at), dd = diasAte(fech);
-    const val = dados ? fmtMoeda(totalFatura(registrosCartao(b), at)) + (dados.incompleto?' ⚠':'') : '···';
-    let mudou = 0;
-    if(dados){
-      const recsC = registrosCartao(b);
-      Object.entries(card.faturas||{}).forEach(([ymC,f])=>{
-        if(f && f.conferida && periodoFatura(card, ymC).ini >= dados.desde && Math.round(totalFatura(recsC, ymC)*100) !== Math.round(f.conferida.total*100)) mudou++;
-      });
-    }
-    h += `<div class="sd-row" data-cartao="${i}"><div class="sd-nome">${esc(b)}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fech)} · ${dd===0?'hoje':'em '+dd+' dia'+(Math.abs(dd)===1?'':'s')}${mudou?` · <span style="color:var(--expense);">⚠ ${mudou} fatura${mudou>1?'s conferidas mudaram':' conferida mudou'}</span>`:''}</div></div><div class="sd-val ${dados&&!cartaoCarregando?'':'carr'}">${val}</div><span class="muted">${cartaoAberto===i?'▴':'▾'}</span></div>`;
-    if(cartaoAberto===i) h += painelCartaoHtml(i);
+  lista.forEach(c=>{
+    const fat = c.fatura, mudou = c.conferidasQueMudaram;
+    h += `<div class="sd-row" data-cartao="${esc(c.meio)}"><div class="sd-nome">${esc(c.meio)}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fat.fechamento)} · ${textoDias(fat.diasAteFechar)}${mudou?` · <span style="color:var(--expense);">⚠ ${mudou} fatura${mudou>1?'s conferidas mudaram':' conferida mudou'}</span>`:''}</div></div><div class="sd-val ${cartaoCarregando?'carr':''}">${fmtMoeda(fat.total)}</div><span class="muted">${cartaoAbertoMeio===c.meio?'▴':'▾'}</span></div>`;
+    if(cartaoAbertoMeio===c.meio) h += painelCartaoHtml();
   });
   if(!n) h = '<p class="muted" style="padding:6px 4px;">Nenhum cartão cadastrado ainda.</p>';
   el.innerHTML = h;
@@ -2898,54 +2712,49 @@ function renderCartao(){
   const sel = document.getElementById('ncBanco');
   if(sel){
     const antes = sel.value;
-    const comCredito = new Set(lancamentosCache.filter(l=>l.status && ehCredito(l.status)).map(l=>l.banco));
-    const livres = listas.banco.filter(b=>!cartoesConfig[b]).sort((a,c)=>(comCredito.has(c)?1:0)-(comCredito.has(a)?1:0));
-    sel.innerHTML = livres.map(b=>`<option value="${esc(b)}">${esc(b)}${comCredito.has(b)?' (tem compras no crédito)':''}</option>`).join('');
-    if(livres.includes(antes)) sel.value = antes;
+    const livres = (r && r.disponiveis) || [];
+    sel.innerHTML = livres.map(x=>`<option value="${esc(x.meio)}">${esc(x.meio)}${x.temComprasNoCredito?' (tem compras no crédito)':''}</option>`).join('');
+    if(livres.some(x=>x.meio===antes)) sel.value = antes;
   }
 }
+
+function erroCartao(e){ return (e && (e.message || e.code)) || String(e); }
 async function onCartaoClick(e){
-  if(e.target.closest('input')) return;
-  const el = e.target.closest('[data-cartao],[data-chip],[data-janela],[data-rec],[data-ajuste],#btnSalvarFech,[data-rm],[data-est],[data-cand],[data-regdif],#btnSalvarBanco,#btnSalvarInicio,[data-conferir],[data-desconferir]');
+  const el = e.target.closest('[data-cartao],[data-chip],[data-nav],[data-rec],[data-ajuste],#btnSalvarFech,[data-rm],[data-est],[data-cand],[data-regdif],#btnSalvarBanco,#btnSalvarInicio,[data-conferir],[data-desconferir]');
   if(!el) return;
+  const meio = cartaoAbertoMeio;
   if(el.dataset.conferir || el.dataset.desconferir){
-    const b = cartoesVisiveis[cartaoAberto];
     const ym = el.dataset.conferir || el.dataset.desconferir;
-    const card = cartoesConfig[b];
-    if(!b || !card) return;
-    const desfazer = !!el.dataset.desconferir;
-    const total = totalFatura(registrosCartao(b), ym);
-    const jaTem = card.faturas && card.faturas[ym] && card.faturas[ym].conferida;
-    if(!desfazer && !jaTem){
-      const vb = valorBancoDe(card, ym);
-      if(vb===null || Math.round((total - vb)*100) !== 0){
-        const txt = vb===null ? `Esta fatura não tem o valor do app do cartão para comparar. Marcar como conferida mesmo assim, com o total ${fmtMoeda(total)}?`
-          : `O total calculado (${fmtMoeda(total)}) difere do valor informado do banco (${fmtMoeda(vb)}). Marcar como conferida mesmo assim?`;
-        if(!(await confirmarModal(txt))) return;
-      }
-    }
+    if(!meio) return;
     try{
-      await atualizarConfigCartoes(pb=>{
-        const c = pb[b]; if(!c) return;
-        c.faturas = c.faturas || {};
-        const cur = {...(c.faturas[ym]||{})};
-        if(desfazer) delete cur.conferida; else cur.conferida = {total, em: new Date().toISOString()};
-        if(Object.keys(cur).length) c.faturas[ym] = cur; else delete c.faturas[ym];
-      });
-    }catch(err){ await avisar('Não consegui salvar: ' + ((err&&(err.code||err.message))||err)); }
-    renderCartao(); return;
+      if(el.dataset.desconferir){
+        await db.cartaoDesconferir(meio, ym);
+      } else {
+        // quem decide se bate e o servidor: com diferenca (ou sem o valor do app) ele responde 409 e a pessoa escolhe conferir mesmo assim
+        const jaConferida = !!(cartaoFatura && cartaoFatura.conferida);
+        let resp = await db.cartaoConferir(meio, ym, jaConferida);
+        if(resp.status===409 && resp.body && resp.body.codigo==='diferenca'){
+          const d = resp.body;
+          const txt = d.valorBanco===null ? `Esta fatura não tem o valor do app do cartão para comparar. Marcar como conferida mesmo assim, com o total ${fmtMoeda(d.total)}?`
+            : `O total calculado (${fmtMoeda(d.total)}) difere do valor informado do banco (${fmtMoeda(d.valorBanco)}). Marcar como conferida mesmo assim?`;
+          if(!(await confirmarModal(txt))) return;
+          resp = await db.cartaoConferir(meio, ym, true);
+        }
+        if(resp.status!==200){ await avisar((resp.body && resp.body.erro) || 'Não consegui conferir a fatura.'); return; }
+      }
+    }catch(err){ await avisar('Não consegui salvar: ' + erroCartao(err)); }
+    await recarregarCartao(); return;
   }
   if(el.id==='btnSalvarInicio'){
-    const b = cartoesVisiveis[cartaoAberto];
     const v = document.getElementById('cInicio').value.trim();
     const msgEl = document.getElementById('cMsg');
     if(v!=='' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(v)){ msgEl.textContent = '⚠️ Use o formato AAAA-MM, ex: 2025-11.'; return; }
     try{
       msgEl.textContent = 'Salvando...';
-      await atualizarConfigCartoes(pb=>{ const c = pb[b]; if(!c) return; if(v==='') delete c.inicio; else c.inicio = v; });
+      await db.cartaoInicio(meio, v==='' ? null : v);
       msgCartao = 'Salvo ✓';
-      renderCartao();
-    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + ((err&&(err.code||err.message))||err); }
+      await recarregarCartao();
+    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + erroCartao(err); }
     return;
   }
   if(el.dataset.est){
@@ -2954,21 +2763,19 @@ async function onCartaoClick(e){
     if(!n || n<=0){ await avisar('Informe um valor válido.'); return; }
     try{
       await db.collection("lancamentos").doc(id).update({valor:n, valorEstimado:false});
-      Object.values(cartaoDados).forEach(d=>{ const it = d.docs.find(x=>x.id===id); if(it){ it.valor = n; it.valorEstimado = false; } });
       const c = lancamentosCache.find(x=>x.id===id); if(c){ c.valor = n; c.valorEstimado = false; }
       aplicarLocal(id, {valor:n, valorEstimado:false});
-    }catch(err){ await avisar('Não consegui corrigir o valor: ' + ((err&&(err.code||err.message))||err)); }
-    renderCartao(); return;
+    }catch(err){ await avisar('Não consegui corrigir o valor: ' + erroCartao(err)); }
+    await recarregarCartao(); return;
   }
   if(el.dataset.cand!==undefined){
-    const c = cartaoCands[parseInt(el.dataset.cand,10)];
+    const c = cartaoFatura && cartaoFatura.sugestoes[parseInt(el.dataset.cand,10)];
     if(!c) return;
-    try{ for(const a of c.acoes){ await ajustarFatura(a.id, a.aj); } }
-    catch(err){ await avisar('Não consegui ajustar a fatura: ' + ((err&&(err.code||err.message))||err)); }
-    cartaoRecSel = null; renderCartao(); return;
+    try{ for(const a of c.acoes){ await ajustarFatura(a.id, a.faturaAjuste); } }
+    catch(err){ await avisar('Não consegui ajustar a fatura: ' + erroCartao(err)); }
+    cartaoRecSel = null; await recarregarCartao(); return;
   }
   if(el.id==='btnSalvarBanco'){
-    const b = cartoesVisiveis[cartaoAberto];
     const ym = el.dataset.ym;
     const raw = document.getElementById('cBanco').value.trim();
     const msgEl = document.getElementById('cMsg');
@@ -2976,89 +2783,67 @@ async function onCartaoClick(e){
     if(raw!==''){ v = parseFloat(raw); if(isNaN(v) || v<0){ msgEl.textContent = '⚠️ Valor inválido.'; return; } }
     try{
       msgEl.textContent = 'Salvando...';
-      await atualizarConfigCartoes(pb=>{
-        const c = pb[b]; if(!c) return;
-        c.faturas = c.faturas||{};
-        const cur = {...(c.faturas[ym]||{})};
-        if(v===null) delete cur.valorBanco; else cur.valorBanco = v;
-        if(Object.keys(cur).length) c.faturas[ym] = cur; else delete c.faturas[ym];
-      });
+      await db.cartaoFechamento(meio, ym, {valorBanco:v});
       rascunhoFech = null; msgCartao = 'Salvo ✓';
-      renderCartao();
-    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + ((err&&(err.code||err.message))||err); }
+      await recarregarCartao();
+    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + erroCartao(err); }
     return;
   }
   if(el.dataset.regdif){
-    const b = cartoesVisiveis[cartaoAberto], ym = el.dataset.regdif, card = cartoesConfig[b];
-    const vbN = parseFloat(document.getElementById('cBanco').value);
-    const falta = Math.round((vbN - totalFatura(registrosCartao(b), ym))*100)/100;
-    if(!(falta>0)) return;
-    const st = listas.status.find(x=>normStatus(x)==='CREDITO');
-    if(!st){ await avisar('Cadastre um status CRÉDITO na aba Listas para registrar a diferença.'); return; }
-    const per = periodoFatura(card, ym);
-    if(!(await confirmarModal(`Registrar um lançamento de ${fmtMoeda(falta)} em ${b}, em ${fmtDataCompleta(per.fim)} (fechamento), com status ${st}?`))) return;
-    try{
-      await db.collection("lancamentos").add({
-        status: st, tipo: 'saida', valor: falta,
-        descricao: 'Ajuste da fatura ' + rotuloFatura(2, ym) + ' (juros, anuidade ou IOF)',
-        nota: '', dataEvento: new Date(per.fim+'T12:00:00').toISOString(),
-        banco: b, tags: [], excluirDoTotal: false, faturaAjuste: 0, valorEstimado: false,
-        criadoEm: new Date().toISOString()
-      });
-      await carregarBancoCartao(b);
-    }catch(err){ await avisar('Não consegui registrar: ' + ((err&&(err.code||err.message))||err)); }
-    renderCartao(); return;
+    const ym = el.dataset.regdif, f = cartaoFatura;
+    if(!f) return;
+    if(!(await confirmarModal(`Registrar um lançamento de ${fmtMoeda(Math.abs(f.diferenca))} em ${meio}, em ${fmtDataCompleta(f.periodo.fim)} (fechamento)?`))) return;
+    try{ await db.cartaoDiferenca(meio, ym); }
+    catch(err){ await avisar('Não consegui registrar: ' + erroCartao(err)); }
+    await recarregarCartao(); return;
   }
   if(el.dataset.ajuste){
     const [id, n] = el.dataset.ajuste.split('|');
     cartaoRecSel = null;
-    try{ await ajustarFatura(id, parseInt(n,10)); }catch(err){ await avisar('Não consegui ajustar a fatura: ' + ((err&&(err.code||err.message))||err)); }
-    renderCartao(); return;
+    try{ await ajustarFatura(id, parseInt(n,10)); }catch(err){ await avisar('Não consegui ajustar a fatura: ' + erroCartao(err)); }
+    await recarregarCartao(); return;
   }
   if(el.dataset.rec){ cartaoRecSel = (cartaoRecSel===el.dataset.rec) ? null : el.dataset.rec; renderCartao(); return; }
-  if(el.dataset.chip!==undefined){ cartaoSel = parseInt(el.dataset.chip,10); cartaoRecSel = null; msgCartao = ''; rascunhoFech = null; renderCartao(); return; }
-  if(el.dataset.janela!==undefined){
-    cartaoJanela += parseInt(el.dataset.janela,10);
-    cartaoSel = cartaoJanela; cartaoRecSel = null; msgCartao = ''; rascunhoFech = null;
-    const b = cartoesVisiveis[cartaoAberto];
-    renderCartao();
-    if(b) await garantirDadosBanco(b);
+  if(el.dataset.chip!==undefined || el.dataset.nav!==undefined){
+    // o servidor mandou o mes de cada chip e dos botões ‹ ›: aqui só se pede a fatura escolhida
+    cartaoYmSel = el.dataset.chip || el.dataset.nav;
+    cartaoRecSel = null; msgCartao = ''; rascunhoFech = null;
+    try{ cartaoCarregando = true; renderCartao(); await carregarFatura(meio, cartaoYmSel); }
+    catch(err){ await avisar('Não consegui ler a fatura: ' + erroCartao(err)); }
+    finally{ cartaoCarregando = false; renderCartao(); }
     return;
   }
   if(el.dataset.cartao!==undefined){
-    const i = parseInt(el.dataset.cartao,10);
-    cartaoAberto = (cartaoAberto===i) ? -1 : i;
-    cartaoSel = 0; cartaoJanela = 0; cartaoRecSel = null; msgCartao = ''; rascunhoFech = null;
+    const nome = el.dataset.cartao;
+    cartaoRecSel = null; msgCartao = ''; rascunhoFech = null; cartaoYmSel = '';
+    if(cartaoAbertoMeio===nome){ cartaoAbertoMeio = ''; cartaoFatura = null; renderCartao(); return; }
+    cartaoAbertoMeio = nome; cartaoFatura = null; renderCartao();
+    try{ await carregarFatura(nome, ''); }
+    catch(err){ await avisar('Não consegui ler a fatura: ' + erroCartao(err)); cartaoAbertoMeio = ''; }
     renderCartao();
     return;
   }
   if(el.id==='btnSalvarFech'){
-    const b = cartoesVisiveis[cartaoAberto];
     const ym = el.dataset.ym;
     const valor = document.getElementById('cFech').value.trim();
-    const m = valor.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     const msgEl = document.getElementById('cMsg');
-    if(!m){ msgEl.textContent = '⚠️ Data inválida. Use o formato AAAA-MM-DD, ex: 2026-09-25.'; return; }
-    const dt = new Date(+m[1], +m[2]-1, +m[3]);
-    if(dt.getFullYear()!==+m[1] || dt.getMonth()!==+m[2]-1 || dt.getDate()!==+m[3]){ msgEl.textContent = '⚠️ Essa data não existe.'; return; }
-    if(valor.slice(0,7)!==ym){ msgEl.textContent = '⚠️ O fechamento desta fatura precisa ser em ' + MESES_ABREV[parseInt(ym.slice(5,7),10)-1] + '/' + ym.slice(0,4) + '.'; return; }
     try{
       msgEl.textContent = 'Salvando...';
-      await atualizarConfigCartoes(pb=>{ const c = pb[b]; if(!c) return; c.faturas = c.faturas||{}; c.faturas[ym] = {...(c.faturas[ym]||{}), fechamento:valor}; });
+      await db.cartaoFechamento(meio, ym, {fechamento:valor});
       rascunhoFech = null; msgCartao = 'Salvo ✓';
-      await garantirDadosBanco(b);
-      renderCartao();
-    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + ((err&&(err.code||err.message))||err); }
+      await recarregarCartao();
+    }catch(err){ msgEl.textContent = '⚠️ ' + erroCartao(err); }
     return;
   }
   if(el.dataset.rm!==undefined){
-    const b = cartoesVisiveis[parseInt(el.dataset.rm,10)];
+    const b = el.dataset.rm;
     if(!b) return;
     if(!(await confirmarModal('Remover ' + b + ' da lista de cartões? Os lançamentos não são apagados, só as datas de fechamento configuradas.'))) return;
     try{
-      await atualizarConfigCartoes(pb=>{ delete pb[b]; });
-      cartaoAberto = -1; renderCartao();
-    }catch(err){ await avisar('Não consegui remover: ' + ((err&&(err.code||err.message))||err)); }
+      await db.cartaoRemover(b);
+      cartaoAbertoMeio = ''; cartaoFatura = null;
+      await recarregarCartao();
+    }catch(err){ await avisar('Não consegui remover: ' + erroCartao(err)); }
   }
 }
 async function adicionarCartaoUI(){
@@ -3069,11 +2854,11 @@ async function adicionarCartaoUI(){
   if(!dia || dia<1 || dia>31){ msgEl.textContent = '⚠️ Informe o dia do fechamento (1 a 31).'; return; }
   try{
     msgEl.textContent = 'Salvando...';
-    await atualizarConfigCartoes(pb=>{ if(!pb[banco]) pb[banco] = {diaPadrao:dia, faturas:{}}; });
+    await db.cartaoAdicionar(banco, dia);
     document.getElementById('ncDia').value = '';
     msgEl.textContent = 'Cartão adicionado ✓';
-    await carregarCartoes(true);
-  }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + ((err&&(err.code||err.message))||err); }
+    await recarregarCartao();
+  }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + erroCartao(err); }
 }
 
 function normalizaCabecalho(s){
@@ -3270,20 +3055,21 @@ async function importarFechamentos(){
     if(!bancos.length){ st.textContent = 'Os bancos da planilha (' + todos.join(', ') + ') não estão na lista de bancos do app.'; return; }
     const resumo = bancos.map(b=>`${b} (${Object.keys(achados[b]).length} meses)`).join(', ');
     if(!(await confirmarModal(`Gravar os dias de fechamento: ${resumo}?` + (ignorados.length ? ` Fora da lista de bancos, serão ignorados: ${ignorados.join(', ')}.` : '')))){ st.textContent = ''; return; }
-    await atualizarConfigCartoes(pb=>{
-      bancos.forEach(b=>{
-        const yms = Object.keys(achados[b]).sort();
-        const c = pb[b] = pb[b] || {diaPadrao: achados[b][yms[yms.length-1]], faturas:{}};
-        c.faturas = c.faturas || {};
-        yms.forEach(ym=>{
-          const dia = Math.min(achados[b][ym], diasNoMes(ym));
-          c.faturas[ym] = {...(c.faturas[ym]||{}), fechamento: ym + '-' + pad2(dia)};
-        });
-      });
-    });
+    // cada fechamento vira um comando do servidor (que valida a data); o cartão que ainda não existe é criado com o dia do último mês da planilha
+    const atuais = new Set(((await db.cartoes()).cartoes || []).map(c=>c.meio));
+    let feitos = 0;
+    const total = bancos.reduce((n,b)=>n+Object.keys(achados[b]).length, 0);
+    for(const b of bancos){
+      const yms = Object.keys(achados[b]).sort();
+      if(!atuais.has(b)) await db.cartaoAdicionar(b, achados[b][yms[yms.length-1]]);
+      for(const ym of yms){
+        const dia = Math.min(achados[b][ym], diasNoMes(ym));
+        await db.cartaoFechamento(b, ym, {fechamento: ym + '-' + pad2(dia)});
+        st.textContent = `Gravando... ${++feitos} de ${total}`;
+      }
+    }
     st.textContent = `Fechamentos gravados: ${resumo}.` + (semMes.length ? ` Abas ignoradas (mês não identificado): ${semMes.join(', ')}.` : '');
-    await carregarCartoesConfig();
-    carregarCartoes(true);
+    recarregarCartao();
   }catch(e){
     st.textContent = '⚠️ ' + ((e && (e.message||e.code)) || e);
   }

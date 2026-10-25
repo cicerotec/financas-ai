@@ -76,6 +76,15 @@ func (s *Config) juntarMeios(ctx context.Context, sid string, listas domain.Doc)
 		meios = append(meios, domain.Doc{"nome": nome, "cartao": cartao, "ativo": true})
 	}
 	listas["meios"] = meios
+	// o ajuste de fatura que cada status de credito traz por padrao (CREDITO EX +1, CREDITO IN -1, CREDITO 0): o front so consulta, sem olhar o nome do status
+	padrao := domain.Doc{}
+	status, _ := listas["status"].([]any)
+	for _, x := range status {
+		if st, ok := x.(string); ok && domain.EhCredito(st) {
+			padrao[st] = domain.AjustePadrao(st)
+		}
+	}
+	listas["faturaPadrao"] = padrao
 	return nil
 }
 
@@ -87,7 +96,8 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 	domain.Protegidos(body)
 	switch strings.ToLower(nome) {
 	case "listas":
-		delete(body, "meios") // derivado pelo servidor na leitura, nunca gravado
+		delete(body, "meios") // derivados pelo servidor na leitura, nunca gravados
+		delete(body, "faturaPadrao")
 	case "cartoes":
 		s.preservarConferidas(ctx, sid, body) // a conferencia da fatura so o servidor grava (R28)
 	}

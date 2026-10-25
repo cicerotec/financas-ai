@@ -530,16 +530,23 @@ func TestListasTrazMeiosComMarcaDeCartao(t *testing.T) {
 			t.Errorf("meio %d: %v", i, m)
 		}
 	}
+	fp, _ := d["faturaPadrao"].(map[string]any)
+	if len(fp) != 3 || fp["CREDITO"] != 0.0 || fp["CREDITO EX"] != 1.0 || fp["CREDITO IN"] != -1.0 {
+		t.Errorf("faturaPadrao (so os status de credito): %v", d["faturaPadrao"])
+	}
 	if b := d["banco"].([]any); len(b) != 4 || b[0] != "ITAU" {
 		t.Errorf("banco (nomes) continua: %v", d["banco"])
 	}
 	// o que o front devolve no PUT nao grava `meios`
 	v := d["version"].(float64)
-	corpo := fmt.Sprintf(`{"version":%v,"banco":["ITAU","CARTAO-A"],"status":["PAGO"],"meios":[{"nome":"X","cartao":true,"ativo":true}]}`, v)
+	corpo := fmt.Sprintf(`{"version":%v,"banco":["ITAU","CARTAO-A"],"status":["PAGO"],"meios":[{"nome":"X","cartao":true,"ativo":true}],"faturaPadrao":{"X":1}}`, v)
 	c, _ = chamar(t, "own", "PUT", "spaces/s1/cfg/listas", nil, corpo)
 	esperar(t, "gravar listas", c, 200)
 	if _, tem := f.ler(t, pkEspaco, "CFG#LISTAS")["meios"]; tem {
 		t.Error("meios e derivado: nunca e gravado")
+	}
+	if _, tem := f.ler(t, pkEspaco, "CFG#LISTAS")["faturaPadrao"]; tem {
+		t.Error("faturaPadrao e derivado: nunca e gravado")
 	}
 }
 
