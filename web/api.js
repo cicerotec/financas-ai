@@ -417,6 +417,24 @@
   const conferirMes = async (dados) => api('POST', (await base()) + '/fechamentos/conferir', dados);
   const reabrirMes = async (banco, mes) => api('POST', (await base()) + '/fechamentos/reabrir', { banco, mes });
 
+  // Faturas do cartao (item 33a): o servidor calcula periodo, fatura de cada compra, total, conferencia e sugestoes; os comandos so valem para o dono.
+  // Os 409 (diferenca da conferencia) voltam como { status, body }; os outros erros viram excecao com a mensagem do servidor.
+  const cartaoUrl = async (meio, resto) => (await base()) + '/cartoes' + (meio ? '/' + encodeURIComponent(meio) : '') + (resto || '');
+  const cartoes = async () => (await api('GET', await cartaoUrl())).body;
+  const cartaoFatura = async (meio, ym) => (await api('GET', await cartaoUrl(meio, '/faturas' + (ym ? '/' + ym : '')))).body;
+  const cartaoAdicionar = async (meio, diaPadrao) => (await api('POST', await cartaoUrl(), { meio, diaPadrao })).body;
+  const cartaoRemover = async (meio) => (await api('DELETE', await cartaoUrl(meio))).body;
+  const cartaoInicio = async (meio, inicio) => (await api('PUT', await cartaoUrl(meio), { inicio })).body;
+  const cartaoFechamento = async (meio, ym, dados) => (await api('PUT', await cartaoUrl(meio, '/faturas/' + ym), dados)).body;
+  const cartaoConferir = async (meio, ym, aceitarDiferenca) =>
+    api('POST', await cartaoUrl(meio, '/faturas/' + ym + '/conferir'), { aceitarDiferenca: !!aceitarDiferenca });
+  const cartaoDesconferir = async (meio, ym) => (await api('DELETE', await cartaoUrl(meio, '/faturas/' + ym + '/conferir'))).body;
+  const cartaoDiferenca = async (meio, ym) => {
+    const r = (await api('POST', await cartaoUrl(meio, '/faturas/' + ym + '/diferenca'), {})).body;
+    atualizarOuvintes('col'); // o servidor criou um lancamento
+    return r;
+  };
+
   // Historico de versoes (.ai/specs/historico). Quem decide o que aparece, o diff e se uma versao pode ser restaurada e o servidor.
   // Busca por periodo da alteracao (e texto): periodo = {mes:'AAAA-MM'} | {dias:N} | {tudo:true}. Devolve { truncado, itens, mes|dias|tudo }.
   const historico = async (periodo, q) => {
@@ -444,6 +462,15 @@
     adicionarTags,
     saldos,
     conferirMes,
+    cartoes,
+    cartaoFatura,
+    cartaoAdicionar,
+    cartaoRemover,
+    cartaoInicio,
+    cartaoFechamento,
+    cartaoConferir,
+    cartaoDesconferir,
+    cartaoDiferenca,
     reabrirMes,
     historico,
     versoesDoLancamento,

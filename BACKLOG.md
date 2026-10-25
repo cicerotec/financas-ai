@@ -186,7 +186,7 @@ DynamoDB sem discutir com o dono.**
   `GET /cfg/listas`, validação de `faturaAjuste`, `PUT /cfg/cartoes` removida), com a aba Cartão **conferida lado a lado**; a
   **fatia b** (o cartão como entidade própria, a trava da fatura conferida e a migração do `faturaAjuste` explícito) segue a discutir.
   Intent, plan e spec da fatia a (aprovados em 2026-10-24) em [`.ai/specs/fatura-servidor/`](.ai/specs/fatura-servidor/intent.md).
-  **Fase A (backend, só acrescenta) feita em 2026-10-24**; falta a fase B (a aba Cartão e a linha Fatura do Lançar, conferidas lado a lado) e a C (remove `PUT /cfg/cartoes`).
+  **Fases A e B feitas em 2026-10-24** (a aba Cartão e a linha Fatura do Lançar leem o servidor; falta o dono conferir no dev e na produção); falta a C (remove `PUT /cfg/cartoes`).
 - 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de

@@ -296,9 +296,9 @@ func montarFatura(c domain.Cartao, banco, ym, atual, hoje, sub string, dono bool
 		out["sugestoes"] = sugs
 		if len(sugs) == 0 {
 			if *diferenca < 0 {
-				out["semSugestao"] = "Nenhum registro perto do corte bate com a diferença. Pode ser anuidade, juros, IOF ou uma compra não registrada."
+				out["semSugestao"] = "Pode ser anuidade, juros, IOF ou uma compra não registrada."
 			} else {
-				out["semSugestao"] = "Nenhum registro perto do corte bate com a diferença. Pode ser um valor registrado a mais ou um registro duplicado."
+				out["semSugestao"] = "Pode ser um valor registrado a mais ou um registro duplicado."
 			}
 		}
 		out["podeRegistrarDiferenca"] = *diferenca < 0
