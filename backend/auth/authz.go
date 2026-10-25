@@ -99,6 +99,9 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		case "GET":
 			return AcaoLerCfg, true
 		case "PUT":
+			if rest[1] == "cartoes" { // os cartoes so mudam pelos comandos de /cartoes (item 33a, fase C)
+				return "", false
+			}
 			return AcaoEscreverCfg, true
 		}
 	case len(rest) == 1 && rest[0] == "seq" && metodo == "GET":
