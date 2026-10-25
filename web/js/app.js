@@ -1521,7 +1521,7 @@ async function carregarFuturos(){
   catch(e){ console.error('Falha ao ler os Futuros', e); }
   finally{
     futurosCarregando = false;
-    renderAvisoFuturos(); renderFuturos(); renderAvisoMesFuturos();
+    renderFuturos();
     if(futurosRepetir){ futurosRepetir = false; carregarFuturos(); }
   }
 }
@@ -1575,16 +1575,6 @@ function htmlItemLancamento(l, o){
         ${ehOwner()?`<button data-acao="excluir" data-id="${esc(l.id)}">🗑️ Excluir</button>`:''}
       </div>
     </div>`;
-}
-
-function renderAvisoFuturos(){
-  const el = document.getElementById('avisoFuturos');
-  if(!el) return;
-  const lista = futurosLista().filter(l=>!l.oculto);
-  if(!lista.length){ el.classList.add('hidden'); el.innerHTML = ''; return; }
-  const r = futurosDados.resumo, atr = r.atrasados.n, n = lista.length;
-  el.classList.remove('hidden');
-  el.innerHTML = `<span>📅 ${n} evento${n>1?'s':''} futuro${n>1?'s':''} · a pagar ${fmtMoeda(r.pagar)} · a receber ${fmtMoeda(r.receber)}${atr?` · <b>${atr} atrasado${atr>1?'s':''}</b>`:''}</span><a href="#" data-ir-aba="futuros">ver</a>`;
 }
 
 function renderFuturos(){
@@ -1678,15 +1668,6 @@ function fecharAcoesFuturo(){ const o = document.getElementById('futOv'); if(o) 
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape') fecharAcoesFuturo(); });
 
 // No mês buscado os eventos futuros não aparecem na lista; se o mês tiver algum, avisa e leva para a aba Futuros.
-function renderAvisoMesFuturos(){
-  const el = document.getElementById('avisoMesFuturos');
-  if(!el) return;
-  const n = (modoMesEspecifico && periodoHist==='mes') ? futurosLista().filter(l=>!l.oculto && diaLocal(l).slice(0,7)===mesSel).length : 0;
-  if(!n){ el.classList.add('hidden'); el.innerHTML = ''; return; }
-  el.classList.remove('hidden');
-  el.innerHTML = `📅 Há ${n} evento${n>1?'s':''} futuro${n>1?'s':''} neste mês que não aparece${n>1?'m':''} aqui · <a href="#" data-ir-aba="futuros">ver em Futuros</a>`;
-}
-
 // ---------- Histórico: filtros numa janela, lançamentos por dia ou por mês, tabela no computador ----------
 // Demo: .ai/demos/demo-historico-layout.html. Reaproveita as classes de Futuros (.fut-*): mesma linha, mesma tabela, mesma janela de ações.
 const MQ_TABELA = window.matchMedia('(min-width:1160px)');
@@ -1770,7 +1751,6 @@ function renderFiltrosHistCampos(){
 }
 
 function renderHistorico(){
-  renderAvisoFuturos();
   renderFuturos();
   const el = document.getElementById('listaLancamentos');
   const fsList = [...filStatusSelecionados];
@@ -1817,7 +1797,6 @@ function renderHistorico(){
     ? `<div class="escopo"><span class="t">Resultado de <b>todo o histórico</b></span><button type="button" data-hist-voltar>Voltar a ${periodoHist==='mes'?esc(mesAbrev(mesSel)):periodoHist}</button></div>`
     : `<div class="escopo"><span class="t">Resultado <b>${esc(escopoBuscaTxt)}</b></span><button type="button" data-hist-tudo>Buscar em tudo</button></div>`);
   renderFiltrosHistCampos();
-  renderAvisoMesFuturos();
   const asc = ordem==='asc';
   document.getElementById('btnOrdem').textContent = asc ? 'Data ↑' : 'Data ↓';
   const fim = document.getElementById('histFim');
@@ -1952,7 +1931,7 @@ function atualizarVistas(){
   renderHistorico();
   try{ desenharGrafico(); }catch(e){}
   renderCartao();
-  renderAvisoFuturos(); renderFuturos();
+  renderFuturos();
 }
 function esconderLocal(id){
   exclusaoPendente.set(id, {
@@ -2193,14 +2172,6 @@ function limparTudoHist(){
 document.getElementById('listaFuturos').addEventListener('click', e=>{
   const b = e.target.closest('[data-fut-abrir]');
   if(b) abrirAcoesFuturo(b.dataset.futAbrir);
-});
-document.getElementById('avisoMesFuturos').addEventListener('click', (e)=>{
-  const a = e.target.closest('[data-ir-aba]');
-  if(a){ e.preventDefault(); irParaAba(a.dataset.irAba); }
-});
-document.getElementById('avisoFuturos').addEventListener('click', (e)=>{
-  const a = e.target.closest('[data-ir-aba]');
-  if(a){ e.preventDefault(); irParaAba(a.dataset.irAba); }
 });
 document.getElementById('futMostrarOcultos').addEventListener('change', renderFuturos);
 document.getElementById('buscaIncluiFuturos').addEventListener('change', renderHistorico);
