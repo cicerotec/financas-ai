@@ -98,8 +98,6 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 	case "listas":
 		delete(body, "meios") // derivados pelo servidor na leitura, nunca gravados
 		delete(body, "faturaPadrao")
-	case "cartoes":
-		s.preservarConferidas(ctx, sid, body) // a conferencia da fatura so o servidor grava (R28)
 	}
 	res, err := s.repo.Salvar(ctx, sid, nome, body, esperada)
 	switch {
@@ -113,37 +111,6 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 		return nil, ErrSalvar
 	}
 	return res, nil
-}
-
-// preservarConferidas mantem, em cada fatura do corpo, o `conferida` ja gravado e descarta o que o cliente mandou (item 33a, R28): o total
-// conferido e do servidor (POST .../conferir). A rota generica some na fase C.
-func (s *Config) preservarConferidas(ctx context.Context, sid string, body domain.Doc) {
-	atual, _ := s.repo.Ler(ctx, sid, "cartoes")
-	gravadas := map[string]any{}
-	porAtual, _ := atual["porBanco"].(map[string]any)
-	for banco, c := range porAtual {
-		fs, _ := c.(map[string]any)["faturas"].(map[string]any)
-		for ym, f := range fs {
-			if conf, ok := f.(map[string]any)["conferida"]; ok {
-				gravadas[banco+"|"+ym] = conf
-			}
-		}
-	}
-	por, _ := body["porBanco"].(map[string]any)
-	for banco, c := range por {
-		cm, _ := c.(map[string]any)
-		fs, _ := cm["faturas"].(map[string]any)
-		for ym, f := range fs {
-			fm, ok := f.(map[string]any)
-			if !ok {
-				continue
-			}
-			delete(fm, "conferida")
-			if conf, ok := gravadas[banco+"|"+ym]; ok {
-				fm["conferida"] = conf
-			}
-		}
-	}
 }
 
 // LerAparencia devolve a aparencia da pessoa; sem item, so {"version": 0}.

@@ -262,18 +262,14 @@ func TestConferirFaturaIgnoraTotalEConferidaDoCliente(t *testing.T) {
 	if conf["total"] != 135.5 || conf["por"] != "own" {
 		t.Errorf("o servidor grava o dele: %v", conf)
 	}
-	// o PUT generico de cfg/cartoes mantem o conferida que ja estava e descarta o do corpo
+	// o PUT generico de cfg/cartoes nao existe mais (fase C): nada do corpo e gravado
 	cfg := f.ler(t, pkEspaco, "CFG#CARTOES")
-	v := cfg["version"].(float64)
-	corpo := fmt.Sprintf(`{"version":%v,"porBanco":{"CARTAO-A":{"diaPadrao":28,"faturas":{"2026-10":{"valorBanco":100,"conferida":{"total":5,"em":"x"}},"2026-08":{"conferida":{"total":7,"em":"y"}}}}}}`, v)
+	corpo := fmt.Sprintf(`{"version":%v,"porBanco":{"CARTAO-A":{"diaPadrao":28,"faturas":{"2026-08":{"conferida":{"total":7,"em":"y"}}}}}}`, cfg["version"])
 	c, _ = chamar(t, "own", "PUT", "spaces/s1/cfg/cartoes", nil, corpo)
-	esperar(t, "PUT generico", c, 200)
+	esperar(t, "PUT generico", c, 404)
 	a := f.ler(t, pkEspaco, "CFG#CARTOES")["porBanco"].(map[string]any)["CARTAO-A"].(map[string]any)["faturas"].(map[string]any)
-	if a["2026-10"].(map[string]any)["conferida"].(map[string]any)["total"] != 135.5 {
-		t.Errorf("o conferida gravado deve ficar: %v", a["2026-10"])
-	}
-	if _, tem := a["2026-08"].(map[string]any)["conferida"]; tem {
-		t.Errorf("conferida forjado deve sumir: %v", a["2026-08"])
+	if _, tem := a["2026-08"]; tem || a["2026-10"].(map[string]any)["conferida"].(map[string]any)["total"] != 135.5 {
+		t.Errorf("a configuracao nao pode mudar: %v", a)
 	}
 }
 

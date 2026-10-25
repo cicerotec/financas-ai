@@ -126,7 +126,8 @@ func TestRotaParaAcao(t *testing.T) {
 		{"PUT", []string{"tx", "abc123"}, AcaoEditarTx, true},
 		{"DELETE", []string{"tx", "abc123"}, AcaoExcluirTx, true},
 		{"GET", []string{"cfg", "saldos"}, AcaoLerCfg, true},
-		{"PUT", []string{"cfg", "cartoes"}, AcaoEscreverCfg, true},
+		{"PUT", []string{"cfg", "cartoes"}, "", false}, // saiu na fase C do item 33a
+		{"GET", []string{"cfg", "cartoes"}, AcaoLerCfg, true},
 		{"PUT", []string{"cfg", "tags"}, AcaoEscreverCfg, true}, // reescrever a lista de tags e do owner
 		{"POST", []string{"tags"}, AcaoAdicionarTags, true},
 		{"GET", []string{"aparencia"}, AcaoLerAparencia, true},
