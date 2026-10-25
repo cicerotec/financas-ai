@@ -13,9 +13,8 @@ let statusCor = {};
 let estiloCor = 'ambos';
 let corAberta = null;
 const COR_PALETA = ['#639922','#BA7517','#378ADD','#7F77DD','#888780','#D85A30','#1D9E75','#D4537E','#E24B4A'];
-const COR_PADRAO = { 'PAGO':'#639922','PREVISTO':'#BA7517','CREDITO IN':'#378ADD','CREDITO EX':'#7F77DD','CONTAS':'#888780','TRANSFERINDO':'#888780','CREDITANDO':'#D85A30' };
-function normStatus(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }
-function corStatus(s){ const c = statusCor[s] || COR_PADRAO[normStatus(s)] || '#888780'; return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '#888780'; }
+let coresPadrao = {}; // cor padrao de cada status, vinda do servidor (GET /cfg/listas); a cor que a pessoa escolheu (statusCor) vale por cima
+function corStatus(s){ const c = statusCor[s] || coresPadrao[s] || '#888780'; return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '#888780'; }
 function estiloItemCor(status){
   const c = corStatus(status);
   const tint = `background:color-mix(in srgb,${c} 16%,transparent);`;
@@ -694,6 +693,7 @@ async function init(){
       if(d && d.banco) listas.banco = clonar(d.banco);
       if(d && Array.isArray(d.meios)) meiosLista = clonar(d.meios);
       if(d && d.faturaPadrao) faturaPadrao = clonar(d.faturaPadrao);
+      if(d && d.statusCorPadrao) coresPadrao = clonar(d.statusCorPadrao);
       if(d && d.statusReal) statusReal = clonar(d.statusReal);
       if(d && d.afetaSaldoBanco) afetaSaldoBanco = clonar(d.afetaSaldoBanco);
       if(d && d.statusFuturo) statusFuturo = clonar(d.statusFuturo);
@@ -1390,8 +1390,7 @@ async function salvarLancamentoInterno(){
     nota: document.getElementById('fNota').value || "",
     dataEvento: new Date(document.getElementById('fData').value).toISOString(),
     banco: document.getElementById('fBanco').value,
-    tags: tags,
-    excluirDoTotal: /^CONTAS$|^TRANSFERINDO$/i.test(statusEscolhido)
+    tags: tags
   };
   if(ehMeioCartao(doc.banco)){
     doc.faturaAjuste = parseInt(document.getElementById('fFatura').value,10) || 0;
