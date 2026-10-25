@@ -23,7 +23,6 @@ com o salto para o registro real. **Ao concluir um item, marque `[x]` no registr
 pendentes: nenhum.
 
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
-- [\[Backend\] - **\[Próximo\] Regras no backend, front só exibe (fatia a feita; falta a fatia b):**](#item-33)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
 - [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
@@ -39,8 +38,6 @@ pendentes: nenhum.
 - [\[Backend\] - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
 - [\[Backend\] - **\[Depois\] Segurança e escala:**](#item-18)
 - [\[Backend\] - **\[Depois\] Tela de permissões por usuário:**](#item-27)
-- [\[Front\] - **\[Depois\] Pagar fatura: meio pagador, vencimento e vínculo com o pagamento:**](#item-35)
-- [\[Front\] - **\[Depois\] Cartão: valor pago e observação:**](#item-17)
 - [\[Front\] - **\[Depois\] Fechamento mensal, melhorias:**](#item-23)
 - [\[Front\] - **\[Depois\] Ideias:**](#item-20)
 - [\[Processo\] - **\[Depois\] Testes automatizados:**](#item-16)
@@ -170,7 +167,7 @@ DynamoDB sem discutir com o dono.**
   - [x] **Fase B, a tela de Futuros e Confirmar** (concluída em 2026-10-25): Futuros lê o servidor, Confirmar com Desfazer, Histórico sem total e sem o resumo de futuros. Futuros olha só do mês passado em diante (os atrasados antigos: item 45).
   - [x] **Fase C, o front sem status** (concluída em 2026-10-25, conferida pelo dono no dev): Listas só com a lista do servidor e a cor, Prever e Estender sem "Status das cópias", cores e ajuste de fatura vindos do servidor, e `web/sem-status.test.js` (roda no CI) que proíbe nome de status em `web/`.
   **Concluído em 2026-10-25:** fases A, B e C. Sobra o item 45 (atrasados antigos de Futuros buscados por ano).
-- 33. [ ] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
+- 33. [x] <a id="item-33"></a>**[Próximo] Regras no backend, front só exibe:** fatura do cartão (fechamento, base, ajuste e total prontos na
   API, preservando `faturaAjuste` e o fechamento escolhido por mês), início do controle (`historico: true` vindo da API),
   conferência de fatura **travada pelo backend** como o mês do banco (com forma de reabrir), e futuro/real/afeta saldo
   aplicados pelo servidor com as caixas que já existem em Listas (o saldo do mês da aba Futuros, hoje somado no front em
@@ -191,7 +188,7 @@ DynamoDB sem discutir com o dono.**
   Intent, plan e spec da fatia a (aprovados em 2026-10-24) em [`.ai/specs/fatura-servidor/`](.ai/specs/fatura-servidor/intent.md).
   **Fatia a concluída em 2026-10-24** (fases A, B e C: a aba Cartão e a linha Fatura do Lançar leem o servidor, conferidas pelo dono em dev e produção; o `PUT /cfg/cartoes` saiu). Sobra a fatia b.
   - [x] **Fatia a: faturas do cartão no servidor** (concluída em 2026-10-24: fases A, B e C).
-  - [ ] **Fatia b, com o escopo reduzido (2026-10-25):** só a **trava da fatura conferida pelo servidor**, feita junto com o item 35. **Fora, por decisão do dono:** o cartão como entidade própria (ele continua sendo uma entrada de `CFG#CARTOES`, `meios[].cartao`) e a migração do `faturaAjuste` explícito (o passado está correto). Intent, plan e spec (rascunho) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md).
+  - [x] **Fatia b, com o escopo reduzido (2026-10-25; concluída em 2026-10-25, junto com o item 35):** só a **trava da fatura conferida pelo servidor**, feita junto com o item 35. **Fora, por decisão do dono:** o cartão como entidade própria (ele continua sendo uma entrada de `CFG#CARTOES`, `meios[].cartao`) e a migração do `faturaAjuste` explícito (o passado está correto). Intent, plan e spec (rascunho) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md).
 - 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
@@ -275,9 +272,9 @@ DynamoDB sem discutir com o dono.**
 - 23. [ ] <a id="item-23"></a>**[Depois] Fechamento mensal, melhorias:** "ver mais" na lista (hoje mostra os últimos 12 meses); aviso quando
   um mês conferido deixa de bater com o que foi guardado; "reabrir tudo" de uma vez (hoje reabre do mais novo para o
   mais antigo, um por vez); conferir meses anteriores ao último conferido sem reabrir os mais novos.
-- 17. [ ] <a id="item-17"></a>**[Depois] Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
-  Evoluído no item 35.
-- 35. [ ] <a id="item-35"></a>**[Depois] Pagar fatura: meio pagador, vencimento e vínculo com o pagamento.** A **operadora manda**: o extrato dela
+- 17. [x] <a id="item-17"></a>**[Depois] Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
+  Evoluído e absorvido pelo item 35 (concluído em 2026-10-25).
+- 35. [x] <a id="item-35"></a>**[Depois] Pagar fatura: meio pagador, vencimento e vínculo com o pagamento.** A **operadora manda**: o extrato dela
   pode somar 3.000 e o boleto vir de 2.500, então o pagamento nasce **da fatura**, não da soma dos lançamentos do sistema
   (decisões do dono, 2026-10-24).
   - **Três valores por fatura:** calculado (a soma dos nossos registros de `CREDITO`), o da operadora (`valorBanco`) e o do boleto, que é
@@ -297,7 +294,7 @@ DynamoDB sem discutir com o dono.**
   - **Pagamento mínimo ou parcial** (a maioria dos usuários usa; o dono não) fica aqui: a fatura passa a ter mais de um pagamento.
   - **Dados novos aprovados pelo dono em 2026-10-25:** `pagador` e `diaVencimento` no cartão e `pagador` e `vencimento` por fatura (tudo dentro da entrada do
     cartão em `CFG#CARTOES`). O atributo `pagaFatura` no lançamento aguarda a aprovação no spec. **O pagamento é um lançamento normal e a marca `pagaFatura` é só uma label** (sem limite de pagamentos, de valor ou de meio; pagamento mínimo e restante são da operadora, nada passa adiante). Depende dos itens 33a e 41,
-    concluídos. Intent, plan e spec (aprovados em 2026-10-25; **fases A (backend) e B (telas, demo `.ai/demos/demo-pagar-fatura.html`) feitas; falta o dono conferir no dev**) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md). Detalhes em `.ai/arquitetura.md`.
+    concluídos. Intent, plan e spec (aprovados em 2026-10-25; **concluído em 2026-10-25: fases A (backend, #228) e B (telas, #230), painel do cartão refeito em linhas compactas (#231) e o débito do mesmo banco pode pagar a fatura (#233); conferido em dev pelo dono**) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md). Detalhes em `.ai/arquitetura.md`.
 - 20. [ ] <a id="item-20"></a>**[Depois] Ideias** (seção no fim deste arquivo).
 
 ### UX/UI (usabilidade do que já existe)
