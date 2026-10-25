@@ -14,9 +14,11 @@ import (
 // Cartao e o que CFG#CARTOES.porBanco[banco] guarda de um cartao: o dia padrao do fechamento, o inicio do controle e, por fatura,
 // o fechamento escolhido, o valor do app do cartao e a conferencia.
 type Cartao struct {
-	DiaPadrao int
-	Inicio    string // AAAA-MM; vazio = sem inicio
-	Faturas   map[string]FaturaCfg
+	DiaPadrao     int
+	Inicio        string // AAAA-MM; vazio = sem inicio
+	Pagador       string // o meio com que a fatura costuma ser paga (so uma sugestao); vazio = nenhum
+	DiaVencimento int    // 1 a 31; 0 = sem vencimento padrao
+	Faturas       map[string]FaturaCfg
 }
 
 // FaturaCfg e a configuracao de uma fatura (CFG#CARTOES.porBanco[banco].faturas[ym]).
@@ -24,6 +26,8 @@ type FaturaCfg struct {
 	Fechamento string   // AAAA-MM-DD escolhido para o mes; vazio = vale o dia herdado
 	ValorBanco *float64 // o valor que a pessoa digitou do app do cartao
 	Conferida  Doc      // { total, em, por }, gravado so pelo servidor
+	Pagador    string   // troca o pagador so desta fatura
+	Vencimento string   // AAAA-MM-DD escolhido para esta fatura
 }
 
 // CartaoDe le a configuracao de um cartao de CFG#CARTOES; false se o banco nao e cartao.
@@ -38,11 +42,17 @@ func CartaoDe(cfgCartoes Doc, banco string) (Cartao, bool) {
 		c.DiaPadrao = int(n)
 	}
 	c.Inicio, _ = b["inicio"].(string)
+	c.Pagador, _ = b["pagador"].(string)
+	if n, ok := b["diaVencimento"].(float64); ok {
+		c.DiaVencimento = int(n)
+	}
 	fs, _ := b["faturas"].(map[string]any)
 	for ym, v := range fs {
 		m, _ := v.(map[string]any)
 		f := FaturaCfg{}
 		f.Fechamento, _ = m["fechamento"].(string)
+		f.Pagador, _ = m["pagador"].(string)
+		f.Vencimento, _ = m["vencimento"].(string)
 		if n, ok := m["valorBanco"].(float64); ok {
 			f.ValorBanco = &n
 		}

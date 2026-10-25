@@ -24,7 +24,7 @@ justamente porque o conteúdo é inventado.
 | `SPACE#<sid>` | `CFG#TAGS` | Tags já usadas (`usadas`); o member só acrescenta | `tags.go` |
 | `SPACE#<sid>` | `CFG#COMBOS` | Combos de tags | `main.go` |
 | `SPACE#<sid>` | `CFG#SALDOS` | Início do controle por banco (`dataInicio`, `saldoInicial`) | `fechamento.go` |
-| `SPACE#<sid>` | `CFG#CARTOES` | **Hoje por banco** (`porBanco[banco]`): `diaPadrao`, `inicio` e `faturas["AAAA-MM"]` (`fechamento`, `valorBanco`, `conferida`; **`conferida = {total, em, por}` é gravado só pelo servidor**, no `POST .../conferir`, com o total que ele calculou). **Dívida:** o cartão não é um banco (pode não ter nenhum, e quem paga a fatura é uma escolha); deve virar uma entidade própria, por cartão, no item 33 do BACKLOG | só os comandos do servidor (`/cartoes`, item 33a); o `PUT /cfg/cartoes` saiu |
+| `SPACE#<sid>` | `CFG#CARTOES` | **Hoje por banco** (`porBanco[banco]`): `diaPadrao`, `inicio` e `pagador` (o meio com que costuma pagar, só uma sugestão), `diaVencimento` e `faturas["AAAA-MM"]` (`fechamento`, `valorBanco`, `pagador`, `vencimento`, `conferida`; **`conferida = {total, em, por}` é gravado só pelo servidor**, no `POST .../conferir`, com o total que ele calculou). **Dívida:** o cartão não é um banco (pode não ter nenhum, e quem paga a fatura é uma escolha); deve virar uma entidade própria, por cartão, no item 33 do BACKLOG | só os comandos do servidor (`/cartoes`, item 33a); o `PUT /cfg/cartoes` saiu |
 | `SPACE#<sid>` | `SALDO#<banco>` | Fechamento mensal do banco: `caches`, `conferidos`, `invalidoDe`, `base` (gravados **só pelo servidor**, ver abaixo) | `service/saldos.go`, `service/fechamento.go` |
 | `SPACE#<sid>` | `USER#<sub>#CFG#APARENCIA` | Aparência da própria pessoa (cores, estilo) | `main.go` |
 | `SPACE#<sid>` | `TX#<dataEvento>#<id>` | Um lançamento. Excluído logicamente, ganha `excluidoEm` (histórico, Fase 1) | `repository/lancamento.go` (`Salvar`), `repository/dynamo.go` (`TxSK`) |
@@ -41,7 +41,7 @@ gravação é recusada com conflito).
   (`entrada` ou `saida`), `status` e `banco`.
 - **Colocados pelo servidor:** `id`, `criadoEm`, `criadoPor` (o `sub` de quem criou).
 - **Opcionais:** `descricao`, `nota`, `tags`, `excluirDoTotal` (calculado pelo servidor), `oculto`, `faturaAjuste` (`-1`, `0` ou `+1`), `previsto` (booleano, **só quando `true`**, gravado só pelo servidor: liga quando a data é futura, mantém no backup e sai ao confirmar; exemplo em `dynamodb-single-table/space-tx_previsto.json`),
-  `valorEstimado`, `transferParId` (liga as duas pontas de uma transferência), `aviso` (`{ dias: [3,1,0], insistir }`) e
+  `valorEstimado`, `transferParId` (liga as duas pontas de uma transferência), `pagaFatura` (`{ meio, ym }`: uma *label* escolhida pelo dono, "este lançamento pagou a fatura `ym` do cartão `meio`"; o servidor só valida e a usa para `excluirDoTotal`; exemplo em `dynamodb-single-table/space-tx_pagamento-fatura.json`), `aviso` (`{ dias: [3,1,0], insistir }`) e
   `serie` (`{ id, indice, intervalo }`). O backend valida `aviso` e `serie`; os demais ele grava como vieram.
 
 ### Campo novo no lançamento: `excluidoEm`
