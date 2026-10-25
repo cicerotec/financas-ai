@@ -36,6 +36,8 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 	efeitos := service.NewEfeitos(fech, tags, avisos, contador)
 	lancSvc := service.NewLancamentos(lancRepo, efeitos, pessoas, rel)
 	saldos := service.NewSaldos(lancRepo, cfgRepo, saldosRepo, rel)
+	cartoes := service.NewCartoes(lancRepo, cfgRepo, rel, lancSvc)
+	lancSvc.UsarCartoes(cfgRepo, cartoes)
 	return &Servidor{
 		lanc:    controller.NewLancamentos(lancSvc),
 		esp:     controller.NewEspacos(service.NewEspacos(espacos)),
@@ -43,6 +45,6 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 		perfil:  controller.NewPerfil(service.NewPerfil(pessoas)),
 		fech:    controller.NewFechamento(fech, saldos, service.NewConferencia(saldos, fech, lancSvc)),
 		avisos:  controller.NewAvisos(avisos),
-		cartoes: &rotasCartao{c: controller.NewCartoes(service.NewCartoes(lancRepo, cfgRepo, rel, lancSvc))},
+		cartoes: &rotasCartao{c: controller.NewCartoes(cartoes)},
 	}
 }

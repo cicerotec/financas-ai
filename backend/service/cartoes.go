@@ -8,6 +8,7 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"sync"
 	"time"
 
 	"financas/domain"
@@ -38,6 +39,8 @@ func (e *ErroDiferencaFatura) Error() string {
 
 // Cartoes calcula as faturas e aplica os comandos de configuracao dos cartoes.
 type Cartoes struct {
+	mu      sync.Mutex
+	faturas map[string]*cacheFaturas // as faturas de Futuros de cada espaco, validas enquanto o contador e a configuracao nao mudam
 	lanc    LeitorDeLancamentos
 	cfg     RepositorioConfig
 	rel     Relogio
@@ -45,7 +48,7 @@ type Cartoes struct {
 }
 
 func NewCartoes(lanc LeitorDeLancamentos, cfg RepositorioConfig, rel Relogio, criador CriadorDeLancamento) *Cartoes {
-	return &Cartoes{lanc: lanc, cfg: cfg, rel: rel, criador: criador}
+	return &Cartoes{lanc: lanc, cfg: cfg, rel: rel, criador: criador, faturas: map[string]*cacheFaturas{}}
 }
 
 const formatoISO = "2006-01-02T15:04:05.000Z"
@@ -127,7 +130,15 @@ func (s *Cartoes) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 		if !temMin || dias < minDias {
 			minDias, temMin = dias, true
 		}
+		var pagador, diaVenc any
+		if c.Pagador != "" {
+			pagador = c.Pagador
+		}
+		if c.DiaVencimento > 0 {
+			diaVenc = c.DiaVencimento
+		}
 		cartoes = append(cartoes, domain.Doc{
+			"pagador": pagador, "diaVencimento": diaVenc,
 			"meio":                 nome,
 			"fatura":               domain.Doc{"ym": atual, "fechamento": fech, "diasAteFechar": dias, "total": t},
 			"conferidasQueMudaram": conferidasQueMudaram(c, rs, atual),
@@ -206,7 +217,29 @@ func (s *Cartoes) Fatura(ctx context.Context, sid, sub string, dono bool, banco,
 	if err != nil {
 		return nil, err
 	}
-	return montarFatura(c, banco, ym, atual, hoje, sub, dono, rs), nil
+	out := montarFatura(c, banco, ym, atual, hoje, sub, dono, rs)
+	out["vencimento"], out["pagador"] = nil, nil
+	if v := domain.VencimentoDe(c, ym); v != "" {
+		out["vencimento"] = v
+	}
+	if p := domain.PagadorDe(c, ym); p != "" {
+		out["pagador"] = p
+	}
+	pgs, totalPago, err := s.pagamentosDa(ctx, sid, c, banco, ym)
+	if err != nil {
+		return nil, err
+	}
+	out["pagamentos"], out["totalPago"] = pgs, totalPago
+	if len(pgs) > 0 {
+		ref, _ := out["total"].(float64)
+		if vb, ok := out["valorBanco"].(float64); ok {
+			ref = vb
+		}
+		out["diferencaPaga"] = domain.Arred(totalPago - ref)
+	} else {
+		out["diferencaPaga"] = nil
+	}
+	return out, nil
 }
 
 // registros le os lancamentos de uma janela em torno de ym (do inicio de ym-2 ao fim de ym+1) e monta as compras do cartao.
@@ -426,32 +459,90 @@ func (s *Cartoes) Remover(ctx context.Context, sid, banco string) (domain.Doc, e
 	return domain.Doc{"meio": banco, "removido": true}, nil
 }
 
-// Inicio: PUT /spaces/{sid}/cartoes/{banco} { inicio: "AAAA-MM" | null } (R19).
+// Inicio: PUT /spaces/{sid}/cartoes/{banco} { inicio?, pagador?, diaVencimento? } (R19 do item 33a e R2 do pagar-fatura). null remove o campo.
 func (s *Cartoes) Inicio(ctx context.Context, sid, banco string, body domain.Doc) (domain.Doc, error) {
-	v, tem := body["inicio"]
-	if !tem {
-		return nil, &ErroValidacao{"informe o inicio (AAAA-MM) ou null para limpar"}
+	ini, temIni := body["inicio"]
+	pag, temPag := body["pagador"]
+	dv, temDV := body["diaVencimento"]
+	if !temIni && !temPag && !temDV {
+		return nil, &ErroValidacao{"informe inicio (AAAA-MM), pagador e/ou diaVencimento (ou null para limpar)"}
 	}
-	texto, ehTexto := v.(string)
-	if v != nil && (!ehTexto || !reMesFatura.MatchString(texto)) {
-		return nil, &ErroValidacao{"inicio invalido (use AAAA-MM)"}
+	var iniTxt string
+	if temIni && ini != nil {
+		t, ok := ini.(string)
+		if !ok || !reMesFatura.MatchString(t) {
+			return nil, &ErroValidacao{"inicio invalido (use AAAA-MM)"}
+		}
+		iniTxt = t
+	}
+	var pagTxt string
+	if temPag && pag != nil {
+		t, ok := pag.(string)
+		if !ok || t == "" {
+			return nil, &ErroValidacao{"pagador invalido (o nome de um meio)"}
+		}
+		if err := s.validarPagador(ctx, sid, banco, t); err != nil {
+			return nil, err
+		}
+		pagTxt = t
+	}
+	var dia float64
+	if temDV && dv != nil {
+		n, ok := dv.(float64)
+		if !ok || n != float64(int(n)) || n < 1 || n > 31 {
+			return nil, &ErroValidacao{"diaVencimento invalido (inteiro de 1 a 31)"}
+		}
+		dia = n
 	}
 	err := s.atualizar(ctx, sid, func(por map[string]any) error {
 		c, err := cartaoDe(por, banco)
 		if err != nil {
 			return err
 		}
-		if v == nil {
-			delete(c, "inicio")
-		} else {
-			c["inicio"] = texto
+		if temIni {
+			if ini == nil {
+				delete(c, "inicio")
+			} else {
+				c["inicio"] = iniTxt
+			}
+		}
+		if temPag {
+			if pag == nil {
+				delete(c, "pagador")
+			} else {
+				c["pagador"] = pagTxt
+			}
+		}
+		if temDV {
+			if dv == nil {
+				delete(c, "diaVencimento")
+			} else {
+				c["diaVencimento"] = dia
+			}
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return domain.Doc{"meio": banco, "inicio": v}, nil
+	return domain.Doc{"meio": banco}, nil
+}
+
+// validarPagador confere o pagador sugerido (R4): um meio da lista e diferente do proprio cartao.
+func (s *Cartoes) validarPagador(ctx context.Context, sid, cartao, pagador string) error {
+	if pagador == cartao {
+		return &ErroValidacao{"o pagador nao pode ser o proprio cartao"}
+	}
+	listas, _, err := s.ler(ctx, sid)
+	if err != nil {
+		return err
+	}
+	for _, n := range nomesDeBancos(listas) {
+		if n == pagador {
+			return nil
+		}
+	}
+	return &ErroValidacao{"o pagador precisa ser um meio da lista"}
 }
 
 // Fechamento: PUT /spaces/{sid}/cartoes/{banco}/faturas/{ym} { fechamento?, valorBanco? } (R20).
@@ -461,8 +552,29 @@ func (s *Cartoes) Fechamento(ctx context.Context, sid, banco, ym string, body do
 	}
 	fech, temFech := body["fechamento"]
 	vb, temVB := body["valorBanco"]
-	if !temFech && !temVB {
-		return nil, &ErroValidacao{"informe fechamento e/ou valorBanco"}
+	pag, temPag := body["pagador"]
+	venc, temVenc := body["vencimento"]
+	if !temFech && !temVB && !temPag && !temVenc {
+		return nil, &ErroValidacao{"informe fechamento, valorBanco, pagador e/ou vencimento"}
+	}
+	var pagTxt, vencTxt string
+	if temPag && pag != nil {
+		t, ok := pag.(string)
+		if !ok || t == "" {
+			return nil, &ErroValidacao{"pagador invalido (o nome de um meio)"}
+		}
+		pagTxt = t
+	}
+	if temVenc && venc != nil {
+		t, ok := venc.(string)
+		if !ok {
+			return nil, &ErroValidacao{"vencimento invalido (use AAAA-MM-DD)"}
+		}
+		d, err := time.Parse("2006-01-02", t)
+		if err != nil || d.Format("2006-01-02") != t {
+			return nil, &ErroValidacao{"essa data de vencimento nao existe (use AAAA-MM-DD)"}
+		}
+		vencTxt = t
 	}
 	var fechTexto string
 	if temFech && fech != nil {
@@ -492,9 +604,14 @@ func (s *Cartoes) Fechamento(ctx context.Context, sid, banco, ym string, body do
 		if err != nil {
 			return err
 		}
-		if fechTexto != "" {
+		if fechTexto != "" || pagTxt != "" || vencTxt != "" {
 			if ini, _ := c["inicio"].(string); ini != "" && ym < ini {
-				return &ErroValidacao{"fatura de historico (anterior ao inicio do controle) nao aceita fechamento"}
+				return &ErroValidacao{"fatura de historico (anterior ao inicio do controle) so aceita o valor do banco"}
+			}
+		}
+		if pagTxt != "" {
+			if err := s.validarPagador(ctx, sid, banco, pagTxt); err != nil {
+				return err
 			}
 		}
 		fs, _ := c["faturas"].(map[string]any)
@@ -517,6 +634,40 @@ func (s *Cartoes) Fechamento(ctx context.Context, sid, banco, ym string, body do
 				delete(cur, "valorBanco")
 			} else {
 				cur["valorBanco"] = vbNum
+			}
+		}
+		if temPag {
+			if pag == nil {
+				delete(cur, "pagador")
+			} else {
+				cur["pagador"] = pagTxt
+			}
+		}
+		if temVenc {
+			if venc == nil {
+				delete(cur, "vencimento")
+			} else {
+				// o vencimento e depois do fechamento da fatura (o que vai valer depois deste comando) e no maximo 45 dias depois
+				fs2 := map[string]any{}
+				for k, v := range fs {
+					fs2[k] = v
+				}
+				tmp := map[string]any{}
+				for k, v := range cur {
+					tmp[k] = v
+				}
+				fs2[ym] = tmp
+				copia := map[string]any{}
+				for k, v := range c {
+					copia[k] = v
+				}
+				copia["faturas"] = fs2
+				cc, _ := domain.CartaoDe(domain.Doc{"porBanco": map[string]any{banco: copia}}, banco)
+				fech := domain.FechamentoDe(cc, ym)
+				if vencTxt <= fech || vencTxt > domain.SomaDias(fech, 45) {
+					return &ErroValidacao{"o vencimento precisa ser depois do fechamento (" + fech + ") e no maximo 45 dias depois dele"}
+				}
+				cur["vencimento"] = vencTxt
 			}
 		}
 		if len(cur) == 0 {

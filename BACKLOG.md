@@ -191,7 +191,7 @@ DynamoDB sem discutir com o dono.**
   Intent, plan e spec da fatia a (aprovados em 2026-10-24) em [`.ai/specs/fatura-servidor/`](.ai/specs/fatura-servidor/intent.md).
   **Fatia a concluída em 2026-10-24** (fases A, B e C: a aba Cartão e a linha Fatura do Lançar leem o servidor, conferidas pelo dono em dev e produção; o `PUT /cfg/cartoes` saiu). Sobra a fatia b.
   - [x] **Fatia a: faturas do cartão no servidor** (concluída em 2026-10-24: fases A, B e C).
-  - [ ] **Fatia b: o cartão como entidade própria, a trava da fatura conferida e a migração do `faturaAjuste` explícito** (a discutir; liga ao item 35).
+  - [ ] **Fatia b, com o escopo reduzido (2026-10-25):** só a **trava da fatura conferida pelo servidor**, feita junto com o item 35. **Fora, por decisão do dono:** o cartão como entidade própria (ele continua sendo uma entrada de `CFG#CARTOES`, `meios[].cartao`) e a migração do `faturaAjuste` explícito (o passado está correto). Intent, plan e spec (rascunho) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md).
 - 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
@@ -295,9 +295,9 @@ DynamoDB sem discutir com o dono.**
   - O pagamento mexe no saldo do meio pagador e **não conta de novo como gasto**: o gasto já contou nos registros de `CREDITO`, que são
     reais, não afetam o saldo e não se pode perder o controle deles. Caso real: estorno no dia do corte, fatura de um valor e pagamento de outro.
   - **Pagamento mínimo ou parcial** (a maioria dos usuários usa; o dono não) fica aqui: a fatura passa a ter mais de um pagamento.
-  - **Dados novos, a discutir antes de criar chave:** meio pagador padrão por cartão e por fatura, e vencimento (hoje `CFG#CARTOES` guarda só
-    fechamento e valor do banco). **Depende** do 33a (a fatura calculada no servidor), do 33b (cartão como entidade) e do 41 (Futuros, que
-    precisa prever a linha calculada). Demo da linha de fatura em Futuros e da seção do cartão antes de qualquer tela. Detalhes em `.ai/arquitetura.md`.
+  - **Dados novos aprovados pelo dono em 2026-10-25:** `pagador` e `diaVencimento` no cartão e `pagador` e `vencimento` por fatura (tudo dentro da entrada do
+    cartão em `CFG#CARTOES`). O atributo `pagaFatura` no lançamento aguarda a aprovação no spec. **O pagamento é um lançamento normal e a marca `pagaFatura` é só uma label** (sem limite de pagamentos, de valor ou de meio; pagamento mínimo e restante são da operadora, nada passa adiante). Depende dos itens 33a e 41,
+    concluídos. Intent, plan e spec (aprovados em 2026-10-25; **fases A (backend) e B (telas, demo `.ai/demos/demo-pagar-fatura.html`) feitas; falta o dono conferir no dev**) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md). Detalhes em `.ai/arquitetura.md`.
 - 20. [ ] <a id="item-20"></a>**[Depois] Ideias** (seção no fim deste arquivo).
 
 ### UX/UI (usabilidade do que já existe)

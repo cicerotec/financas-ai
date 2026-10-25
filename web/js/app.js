@@ -47,6 +47,11 @@ function chipFatura(l){
   if(!a) return '';
   return ` <span style="font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;">foi para a ${a>0?'próxima':'anterior'} fatura</span>`;
 }
+function chipPagaFatura(l){
+  const m = l.pagaFatura;
+  if(!m || !m.meio || !m.ym) return '';
+  return ` <span style="font-size:11px;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:0 6px;">Fatura ${esc(rotuloMesCurto(m.ym))} · ${esc(m.meio)}</span>`;
+}
 function chipEstimado(l){
   if(l.valorEstimado!==true) return '';
   return ' <span style="font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;">valor estimado</span>';
@@ -514,12 +519,12 @@ function htmlValorLinha(l){
 // na API; aqui só se esconde o que o papel não pode usar.
 function ehOwner(){ return papelAtual === 'owner'; }
 // Escrita recusada porque o mês está conferido: a mensagem do servidor já diz o que fazer.
-function msgErro(err, padrao){ return err && (err.codigo === 'mes_conferido' || err.codigo === 'cancelado') ? err.message : padrao; }
+function msgErro(err, padrao){ return err && (err.codigo === 'mes_conferido' || err.codigo === 'fatura_conferida' || err.codigo === 'cancelado' || err.code === 400) ? err.message : padrao; } // 400: o servidor explica o que esta errado
 // Mes fechado por data (item 38): o servidor recusou com 409 mes_fechado; aqui so se pergunta. As funcoes sao chamadas pelo api.js.
 window.confirmarMesFechado = (info, acao)=>confirmarModal(`Este lançamento é de ${rotuloMes(info.mes)}, que já fechou. ${acao} mesmo assim? O saldo desse mês e dos seguintes muda. A confirmação fica gravada no histórico.`, acao + ' mesmo assim');
 window.confirmarMesFechadoLote = (n)=>confirmarModal(`${n} lançamento(s) são de meses já fechados e ficaram de fora. Importar esses mesmo assim? O saldo desses meses muda. A confirmação fica gravada no histórico de cada um.`, 'Importar mesmo assim');
 window.addEventListener('unhandledrejection', ev=>{
-  if(ev.reason && ev.reason.codigo === 'mes_conferido'){ ev.preventDefault(); toast(ev.reason.message, true); }
+  if(ev.reason && (ev.reason.codigo === 'mes_conferido' || ev.reason.codigo === 'fatura_conferida')){ ev.preventDefault(); toast(ev.reason.message, true); }
 });
 function podeMexer(l){ return ehOwner() || (!!l.criadoPor && l.criadoPor === meuSub); }
 function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
@@ -867,6 +872,7 @@ function renderListas(){
     if(atual && itens.includes(atual)) sel.value = atual;
   };
   refazer(fStatus, listas.status);
+  renderMarcaFatura();
   atualizarCampoFatura();
   [fBanco,tOrig,tDest].forEach(sel=>refazer(sel, listas.banco));
   // tira da seleção qualquer status que não existe mais
@@ -1180,6 +1186,11 @@ function setupHandlers(){
     atualizarCampoFatura();
   });
   document.getElementById('fBanco').addEventListener('change', atualizarCampoFatura);
+  document.getElementById('fPagaCartao').addEventListener('change', ()=>{
+    const mes = document.getElementById('fPagaMes');
+    mes.classList.toggle('hidden', !document.getElementById('fPagaCartao').value);
+    if(!mes.value) mes.value = document.getElementById('fData').value.slice(0,7);
+  });
   document.getElementById('listaCartoes').addEventListener('click', onCartaoClick);
   document.getElementById('btnAtualizarCartao').addEventListener('click', ()=>carregarCartoes(true));
   document.getElementById('btnAddCartao').addEventListener('click', adicionarCartaoUI);
@@ -1297,6 +1308,8 @@ async function salvarLancamentoInterno(){
     doc.faturaAjuste = parseInt(document.getElementById('fFatura').value,10) || 0;
     doc.valorEstimado = document.getElementById('fEstimado').checked;
   }
+  const marca = marcaDoFormulario();
+  if(marca) doc.pagaFatura = marca; else if(editandoId) doc.pagaFatura = null; // na edicao, sem escolha tira a marca
   const aviso = lerAvisoDoFormulario();
   if(aviso === 'incompleto'){ await avisar("Marque pelo menos um dia de aviso ou \"Insistir todo dia\"."); return; }
   if(aviso) doc.aviso = aviso;
@@ -1347,6 +1360,28 @@ async function salvarLancamentoInterno(){
   }
 }
 
+// A marca "Paga a fatura" (itens 33b e 35): uma label opcional, o cartao e o mes da fatura que este lancamento pagou. So ajuda a achar depois.
+function renderMarcaFatura(){
+  const sel = document.getElementById('fPagaCartao');
+  if(!sel) return;
+  const atual = sel.value;
+  const cartoes = meiosLista.filter(m=>m.cartao).map(m=>m.nome);
+  sel.innerHTML = '<option value="">Nenhuma</option>' + cartoes.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if(cartoes.includes(atual)) sel.value = atual;
+  document.getElementById('fPagaWrap').classList.toggle('hidden', !cartoes.length);
+  document.getElementById('fPagaMes').classList.toggle('hidden', !sel.value);
+}
+function marcaDoFormulario(){
+  const meio = document.getElementById('fPagaCartao').value, ym = document.getElementById('fPagaMes').value;
+  return meio && /^\d{4}-\d{2}$/.test(ym) ? {meio, ym} : null;
+}
+function definirMarcaDoFormulario(m){
+  const sel = document.getElementById('fPagaCartao');
+  if(m && ![...sel.options].some(o=>o.value===m.meio)){ const o = document.createElement('option'); o.value = o.textContent = m.meio; sel.appendChild(o); }
+  sel.value = m ? m.meio : '';
+  document.getElementById('fPagaMes').value = m ? m.ym : '';
+  document.getElementById('fPagaMes').classList.toggle('hidden', !m);
+}
 // Um lancamento antigo pode ter um status que o servidor nao oferece mais (ex.: PREVISTO, CREDITO IN). Ao editar, ele aparece como uma opcao a mais e volta inalterado.
 function definirStatusDoFormulario(status, soDaLista){
   const sel = document.getElementById('fStatus');
@@ -1358,6 +1393,7 @@ function definirStatusDoFormulario(status, soDaLista){
   sel.value = status;
 }
 function limparFormulario(){
+  definirMarcaDoFormulario(null);
   [...document.querySelectorAll('#fStatus option[data-extra]')].forEach(o=>o.remove());
   document.getElementById('notaLivre').value='';
   document.getElementById('fValor').value='';
@@ -1428,7 +1464,7 @@ async function carregarFuturos(){
 // todos os previstos que o servidor mandou (sem os que acabaram de ser excluidos aqui)
 function futurosLista(){
   if(!futurosDados) return [];
-  return [...futurosDados.atrasados, ...futurosDados.meses.flatMap(m=>m.itens)].filter(l=>!exclusaoPendente.has(l.id));
+  return [...futurosDados.atrasados, ...futurosDados.meses.flatMap(m=>m.itens)].filter(l=>l.tipo!=='fatura' && !exclusaoPendente.has(l.id));
 }
 // os grupos para mostrar: Atrasados e um por mes. O servidor ja agrupou; aqui so se esconde o oculto (a chave "Mostrar ocultos") e o que acabou de ser excluido.
 function futurosGrupos(){
@@ -1464,7 +1500,7 @@ function htmlItemLancamento(l, o){
   return `
     <div class="item ${l.oculto?'oculto':''} ${fut?'futuro':''} ${atrasado?'atrasado':''} ${excluindo.has(l.id)?'excluindo':''}" style="${estiloItemCor(l.status)}">
       <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span>${htmlValorLinha(l)}</div>
-      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipEstimado(l)}${chipAviso(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}${prazo}${seu}</div>
+      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipPagaFatura(l)}${chipEstimado(l)}${chipAviso(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}${prazo}${seu}</div>
       ${marca}
       ${l.nota?`<div class="item-meta">${escHtml(l.nota)}</div>`:''}
       <div class="item-acoes">
@@ -1496,7 +1532,7 @@ function renderFuturos(){
     '<div class="fut-tabela"><div class="fut-tabela-in">'+
     '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>'+
     grupos.map(g=>
-      `<div class="fut-titulo ${g.atrasado?'atras':''}"><span>${esc(g.titulo)}</span></div><div class="fut-grupo">${g.itens.map(htmlEventoFuturo).join('')}</div>`).join('')+
+      `<div class="fut-titulo ${g.atrasado?'atras':''}"><span>${esc(g.titulo)}</span></div><div class="fut-grupo">${g.itens.map(l=>l.tipo==='fatura'?htmlFaturaFuturo(l):htmlEventoFuturo(l)).join('')}</div>`).join('')+
     '</div></div>';
 }
 
@@ -1547,6 +1583,7 @@ function htmlEventoFuturo(l){
 }
 // Janela de baixo com as acoes do evento (celular).
 function abrirAcoesFuturo(id){
+  if(id.startsWith('fatura|')) return abrirAcoesFatura(id);
   const l = acharLancamento(id);
   if(!l) return;
   fecharAcoesFuturo();
@@ -1591,7 +1628,7 @@ function htmlLinhaHist(l, busca){
   return `<div class="fut-row hist-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}" style="--cor:${cor}">
     <div class="fut-m" role="button" tabindex="0" data-fut-abrir="${id}" aria-haspopup="dialog">
       <span class="l"><span class="d">${esc(l.descricao)}</span>
-        <span class="mt"><span>${busca?dataBR(l):horaBR(l)}</span>${seloStatus(l.status)}<span class="bk">${esc(l.banco||'-')}${l.oculto?' · oculto':''}${fut}</span>${htmlNotaIcone(l)}</span>
+        <span class="mt"><span>${busca?dataBR(l):horaBR(l)}</span>${seloStatus(l.status)}${chipPagaFatura(l)}<span class="bk">${esc(l.banco||'-')}${l.oculto?' · oculto':''}${fut}</span>${htmlNotaIcone(l)}</span>
         ${tags?`<span class="hist-tags">${tags}</span>`:''}</span>
       <span class="r">${htmlValorLinha(l)}</span>
       <span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>
@@ -1756,6 +1793,7 @@ function iniciarEdicao(id){
   const origem = abaAtual();
   abaOrigemEdicao = origem === 'lancar' ? null : origem;
   editandoId = id;
+  definirMarcaDoFormulario(l.pagaFatura || null);
   definirStatusDoFormulario(l.status, false);
   document.getElementById('fFatura').value = String(ajusteEfetivo(l));
   document.getElementById('fEstimado').checked = l.valorEstimado === true;
@@ -1929,6 +1967,121 @@ function resumoEdicao(antes, doc){
   return m.length ? m.join('; ') : 'Nenhum campo principal mudou.';
 }
 
+// ---------- A fatura do cartao em Futuros (itens 33b e 35; demo .ai/demos/demo-pagar-fatura.html) ----------
+// O servidor manda a fatura pronta (vencimento, valor, pagador sugerido, atraso). "Ja paguei" lanca um pagamento normal, ja marcado com a fatura.
+function faturaPorChave(chave){
+  const [, meio, ym] = chave.split('|');
+  return ((futurosDados && futurosDados.faturas) || []).find(f=>f.meio===meio && f.ym===ym);
+}
+function htmlFaturaFuturo(f){
+  const chave = esc('fatura|' + f.meio + '|' + f.ym), dia = fmtDataCompleta(f.vencimento);
+  const n = diasAte(f.vencimento);
+  const p = n < 0 ? {t:`atrasado ${-n} dia${n===-1?'':'s'}`, atras:true} : (n === 0 ? {t:'hoje', atras:false} : {t:`em ${n} dia${n===1?'':'s'}`, atras:false});
+  const prazo = `<span class="fut-prazo ${p.atras?'atras':''}">${p.t}</span>`;
+  const valor = htmlValorLinha({tipo:'saida', valor:f.valor});
+  const pagador = f.pagador ? esc(f.pagador) : 'a definir';
+  const nome = `Fatura ${esc(f.rotulo)} · ${esc(f.meio)}`;
+  const botao = ehOwner() ? `<button type="button" class="pri" data-acao="pagarFatura" data-id="${chave}">Já paguei</button>` : '';
+  return `<div class="fut-row" style="--cor:var(--faint)">
+    <button type="button" class="fut-m" data-fut-abrir="${chave}" aria-haspopup="dialog">
+      <span class="l"><span class="d">${nome}</span><span class="mt">${dia} · ${pagador} · ${f.estado}</span></span>
+      <span class="r">${valor}${prazo}</span>
+      <span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>
+    </button>
+    <div class="fut-dk" tabindex="0">
+      <span>${dia}</span>
+      <span class="dd"><span class="dl"><span class="d" title="${nome}">${nome}</span></span><span class="sub">${f.estado==='aberta'?'ainda cresce a cada compra':'fechada'}</span></span>
+      <span class="bk" title="${pagador}">${pagador}</span>
+      <span class="st"><span class="muted">${f.estado}</span></span>
+      <span class="v">${valor}${prazo}</span>
+      <span class="fut-acoes">${botao}</span>
+    </div>
+  </div>`;
+}
+function abrirAcoesFatura(chave){
+  const f = faturaPorChave(chave);
+  if(!f) return;
+  fecharAcoesFuturo();
+  const ov = document.createElement('div');
+  ov.className = 'fut-ov'; ov.id = 'futOv';
+  ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Ações da fatura ${esc(f.rotulo)}">
+    <h3>Fatura ${esc(f.rotulo)} · ${esc(f.meio)}</h3><p class="mm">${fmtMoeda(f.valor)} · vence ${fmtDataCompleta(f.vencimento)} · ${f.estado}</p>
+    ${ehOwner() ? `<button type="button" class="fut-ac pri" data-acao="pagarFatura" data-id="${esc(chave)}">Já paguei</button>` : '<p class="muted" style="margin:8px">Só o dono lança o pagamento da fatura.</p>'}</div>`;
+  ov.addEventListener('click', e=>{
+    const b = e.target.closest('button[data-acao]');
+    if(b){ fecharAcoesFuturo(); executarAcaoRegistro(b.dataset.acao, b.dataset.id); return; }
+    if(e.target === ov) fecharAcoesFuturo();
+  });
+  document.body.appendChild(ov);
+}
+// A janela de pagar: valor (o que a operadora cobra, mas pode ser qualquer valor), data, status e o meio de saida; tudo ja vem sugerido.
+function pedirPagamentoFatura(f){
+  return new Promise(async resolve=>{
+    const hoje = chaveDia(new Date());
+    const sugerir = async (dia)=>{
+      try{ return (await db.statusSugeridos(new Date(dia + 'T12:00:00').toISOString())).status || []; }
+      catch(e){ return [...listas.status]; }
+    };
+    let lista = await sugerir(hoje);
+    const opcoes = (itens, atual)=>itens.map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
+    const meios = listas.banco.filter(b=>b!==f.meio);
+    const meioInicial = f.sugestao.pagador && meios.includes(f.sugestao.pagador) ? f.sugestao.pagador : meios[0];
+    document.getElementById('modalMsg').textContent = 'Já paguei a fatura ' + f.rotulo + ' · ' + f.meio;
+    document.getElementById('modalExtra').innerHTML =
+      `<label>Valor</label><input type="number" step="0.01" id="pfValor" value="${Number(f.sugestao.valor) || ''}">
+       <label>Data do pagamento</label><input type="date" id="pfData" value="${hoje}" max="${hoje}">
+       <label>Status</label><select id="pfStatus">${opcoes(lista, lista[0])}</select>
+       <label>Meio de saída</label><select id="pfMeio">${opcoes(meios, meioInicial)}</select>
+       <p class="muted" style="margin:6px 0 0;">O lançamento sai marcado com <b>Fatura ${esc(f.rotulo)} · ${esc(f.meio)}</b>. Pode ser o total, o mínimo ou qualquer valor.</p>
+       <p class="muted" id="pfErro" style="color:var(--danger);margin:6px 0 0;"></p>`;
+    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Confirmar</button>';
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    const fechar = (v)=>{ document.getElementById('modalOverlay').classList.add('hidden'); document.getElementById('modalExtra').innerHTML = ''; resolve(v); };
+    document.getElementById('pfData').addEventListener('change', async ()=>{
+      const dia = document.getElementById('pfData').value;
+      if(!dia) return;
+      const atual = document.getElementById('pfStatus').value;
+      lista = await sugerir(dia);
+      document.getElementById('pfStatus').innerHTML = opcoes(lista, lista.includes(atual) ? atual : lista[0]);
+    });
+    document.getElementById('modalCancelar').onclick = ()=>fechar(null);
+    document.getElementById('modalConfirmar').onclick = ()=>{
+      const valor = parseFloat(document.getElementById('pfValor').value);
+      const dia = document.getElementById('pfData').value;
+      const status = document.getElementById('pfStatus').value;
+      const meio = document.getElementById('pfMeio').value;
+      const erro = document.getElementById('pfErro');
+      if(!(valor > 0)){ erro.textContent = 'Informe um valor maior que zero.'; return; }
+      if(!dia){ erro.textContent = 'Informe a data.'; return; }
+      if(!status || !meio){ erro.textContent = 'Escolha o status e o meio de saída.'; return; }
+      fechar({valor, status, banco: meio, dataEvento: new Date(dia + 'T12:00:00').toISOString()});
+    };
+  });
+}
+async function pagarFatura(chave){
+  const f = faturaPorChave(chave);
+  if(!f || !db) return;
+  const d = await pedirPagamentoFatura(f);
+  if(!d) return;
+  let r;
+  try{
+    r = await db.collection("lancamentos").add({status:d.status, tipo:'saida', valor:d.valor, descricao:f.sugestao.descricao, nota:'', dataEvento:d.dataEvento,
+      banco:d.banco, tags:[], pagaFatura:{meio:f.meio, ym:f.ym}, criadoEm:new Date().toISOString()});
+  }catch(err){
+    console.error(err);
+    toast((err && err.message) || 'Não foi possível lançar o pagamento. Tente de novo.', err && err.codigo !== 'cancelado');
+    return;
+  }
+  mostrarAvisoAcao({
+    txt: 'Pagamento lançado: Fatura ' + f.rotulo + ' · ' + f.meio, sub: 'Está no Histórico, marcado com a fatura. Dá para desfazer por 6 segundos.', rotulo: 'Desfazer',
+    onAcao: ()=>desfazerPagamentoFatura(r.id)
+  });
+}
+// Desfazer = excluir o lancamento do pagamento (a fatura volta a Futuros sozinha).
+async function desfazerPagamentoFatura(id){
+  try{ await db.collection("lancamentos").doc(id).delete(); toast('Pagamento desfeito'); }
+  catch(err){ console.error(err); toast((err && err.message) || 'Não foi possível desfazer. Exclua o lançamento no Histórico.', true); }
+}
 // ---------- Confirmar um previsto (demo .ai/demos/demo-confirmar-previsto.html): valor, data e status; o servidor decide o resto ----------
 // A janela pergunta o valor (ja vem o previsto; da para trocar: multa e juros), a data (hoje; nunca depois de hoje) e o status, da lista do servidor para aquela data.
 function pedirConfirmacaoPrevisto(l){
@@ -2003,6 +2156,7 @@ async function desfazerConfirmacao(id, versao){
   }
 }
 function executarAcaoRegistro(acao, id){
+  if(acao==='pagarFatura') return pagarFatura(id);
   if(acao==='confirmar') confirmarPrevisto(id);
   if(acao==='editar') iniciarEdicao(id);
   if(acao==='copiar') iniciarCopia(id);
@@ -2503,6 +2657,7 @@ let cartaoFatura = null;   // resposta da fatura do cartão aberto
 let cartaoAbertoMeio = ''; // nome do cartão aberto
 let cartaoYmSel = '';      // fatura pedida ('' = a atual)
 let cartaoRecSel = null;
+let cartaoCfgAberto = false, cartaoComprasAberto = true, cartaoPagAberto = true; // os blocos recolhiveis do painel do cartao
 let cartaoCarregando = false;
 let cartaoUltimaCalc = 0;
 let cartaoErro = '';
@@ -2520,6 +2675,7 @@ function marcarMeiosCartao(resumo){
   const cartoes = new Set(((resumo && resumo.cartoes) || []).map(c=>c.meio));
   meiosLista = listas.banco.map(n=>({nome:n, cartao:cartoes.has(n), ativo:true}));
   atualizarCampoFatura();
+  renderMarcaFatura();
 }
 
 async function carregarFatura(meio, ym){
@@ -2566,34 +2722,85 @@ function conferenciaHtml(f){
   return h;
 }
 
+// as opcoes de "Paga com": nenhum e os meios da lista, menos o proprio cartao
+function opcoesPagador(cartao, atual){
+  return '<option value="">(nenhum)</option>' + listas.banco.filter(x=>x!==cartao).map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
+}
+function linhaCfg(chave, rotulo, valor, ym){
+  return `<button type="button" class="cfg-lin" data-ed="${chave}" data-ym="${ym||''}"><span>${rotulo}</span><span class="v">${esc(valor)} ›</span></button>`;
+}
+function tituloRecolhivel(chave, texto, aberto){
+  return `<button type="button" class="cfg-tit" data-tg="${chave}" aria-expanded="${aberto}">${texto} ${aberto?'▴':'▾'}</button>`;
+}
 function painelCartaoHtml(){
   const f = cartaoFatura;
   if(!f) return '<div class="sd-painel"><p class="muted">Carregando faturas...</p></div>';
   const b = f.meio, ym = f.ym, per = f.periodo;
   const dono = ehOwner();
-  const fechValor = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym) ? rascunhoFech.f : per.fim;
   const conferida = f.conferida;
+  const cfg = ((cartoesResumo && cartoesResumo.cartoes) || []).find(c=>c.meio===b) || {};
   let h = '<div class="sd-painel">';
-  h += '<div class="tags" style="align-items:center;margin-top:0;">'
+  // 1. o cartao: so para o dono, recolhido
+  if(dono){
+    h += tituloRecolhivel('cfg', 'Configurar cartão', cartaoCfgAberto);
+    if(cartaoCfgAberto){
+      h += '<div class="cfg-grupo">'
+        + linhaCfg('inicio', 'Início do controle', f.inicio || 'sem limite', '')
+        + linhaCfg('pagadorCartao', 'Paga com (padrão)', cfg.pagador || '(nenhum)', '')
+        + linhaCfg('vencDia', 'Vence dia', cfg.diaVencimento==null ? '(nenhum)' : String(cfg.diaVencimento), '')
+        + `<div style="margin-top:8px;"><button class="ghost" data-rm="${esc(b)}" style="font-size:12px;">Remover este cartão</button></div></div>`;
+    }
+  }
+  // 2. a fatura
+  h += '<div class="tags" style="align-items:center;margin-top:10px;">'
     + `<span class="tag" data-nav="${f.anterior}" aria-label="Faturas mais antigas">‹</span>`
     + f.chips.map(c=>`<span class="tag ${c.ym===ym?'on':''}" data-chip="${c.ym}">${esc(c.rotulo)}</span>`).join('')
     + `<span class="tag" data-nav="${f.proxima}" aria-label="Faturas mais novas">›</span></div>`;
   h += `<p class="muted" style="margin:8px 0 4px;">Período: ${fmtDataCompleta(per.ini)} a ${fmtDataCompleta(per.fim)} · ${f.fechada?'fechada':'aberta'}</p>`;
   if(f.historico) h += `<p class="muted">📁 Histórico: antes do início do controle deste cartão (${esc(f.inicio||'')}). Os lançamentos aparecem, mas a fatura não é conferida.</p>`;
-  else if(dono) h += `<label>Fechamento desta fatura (AAAA-MM-DD)</label><div class="row"><input type="text" inputmode="numeric" id="cFech" data-ym="${ym}" value="${esc(fechValor)}"><button class="ghost" id="btnSalvarFech" data-ym="${ym}">Salvar</button></div>`;
   h += `<p class="muted" id="cMsg">${esc(msgCartao||'')}</p>`;
-  h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(f.total)}</span></div>`;
+  // 3. as compras (recolhivel)
+  h += tituloRecolhivel('compras', 'Compras', cartaoComprasAberto);
+  if(cartaoComprasAberto){
+    if(!f.lancamentos.length) h += '<p class="muted">Nenhuma compra nesta fatura.</p>';
+    f.lancamentos.forEach(r=>{
+    const fora = r.origem==='foi';
+    let tag = '';
+    if(r.origem==='foi') tag = `<span class="fx-tag">foi para a ${r.ocupaOutraFatura>ym?'próxima':'anterior'} fatura</span>`;
+    else if(r.origem==='veio') tag = `<span class="fx-tag">veio da ${r.ocupaOutraFatura<ym?'anterior':'próxima'} fatura</span>`;
+    const estTag = r.estimado ? '<span class="fx-tag" style="margin-left:6px;">valor estimado</span>' : '';
+    h += `<div class="fx-rec ${fora?'fora':''}" data-rec="${esc(r.id)}"><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.dia)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${esc(r.descricao)}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.valor)}</span></div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
+    if(cartaoRecSel===r.id && r.podeMexer){
+      const ops = [[0,'Pela data (normal)'],[1,'Passar para a próxima fatura'],[-1,'Trazer para a anterior']].filter(o=>o[0]!==r.ajuste);
+      h += '<div class="fx-acoes">' + ops.map(o=>`<button class="ghost" data-ajuste="${esc(r.id)}|${o[0]}" style="font-size:12px;padding:4px 10px;">${o[1]}</button>`).join('') + '</div>';
+    }
+    h += '</div>';
+  });
+  }
+  // 4. o total e os dados da fatura
+  h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 4px;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(f.total)}</span></div>`;
+  if(!f.historico){
+    const venc = f.vencimento ? fmtDataCompleta(f.vencimento) : '(nenhum)';
+    const pag = f.pagador || '(nenhum)';
+    if(dono){
+      h += '<div class="cfg-grupo">'
+        + linhaCfg('fechamento', 'Fechamento', fmtDataCompleta(per.fim), ym)
+        + linhaCfg('vencimento', 'Vencimento', venc, ym)
+        + linhaCfg('pagadorFatura', 'Paga com', pag, ym)
+        + linhaCfg('valorBanco', 'Valor no app do cartão', f.valorBanco===null ? '(nenhum)' : fmtMoeda(f.valorBanco), ym) + '</div>';
+    } else {
+      h += `<p class="muted" style="margin:4px 0;">Fechamento ${fmtDataCompleta(per.fim)} · Vencimento ${esc(venc)} · Paga com ${esc(pag)}</p>`;
+    }
+  }
   if(!f.historico && !dono){
     if(f.valorBanco!==null) h += `<p class="muted" style="margin:4px 0;">Valor no app do cartão: ${fmtMoeda(f.valorBanco)}</p>`;
     if(conferida){
       h += f.mudouDesdeConferencia
         ? `<p style="color:var(--expense);font-weight:600;margin:6px 0;">Mudou desde a conferência (era ${fmtMoeda(conferida.total)})</p>`
-        : `<p style="color:var(--income);font-weight:600;margin:6px 0;">🔒 Conferida em ${fmtDataCompleta(String(conferida.em).slice(0,10))}</p>`;
+        : `<p style="color:var(--income);font-weight:600;margin:6px 0;">🔒 Conferida em ${fmtDataCompleta(String(conferida.em).slice(0,10))}</p><p class="muted" style="margin:0 0 6px;">Travada: mudar valor, data, meio ou ajuste de uma compra desta fatura só depois de o dono desfazer a conferência.</p>`;
     }
   }
   if(!f.historico && dono){
-    const vbTxt = (rascunhoFech && rascunhoFech.b===b && rascunhoFech.ym===ym && rascunhoFech.vb!==undefined) ? rascunhoFech.vb : (f.valorBanco===null ? '' : String(f.valorBanco));
-    h += `<label>Valor no app do cartão (para conferir)</label><div class="row"><input type="number" step="0.01" id="cBanco" data-ym="${ym}" value="${esc(vbTxt)}"><button class="ghost" id="btnSalvarBanco" data-ym="${ym}">Salvar</button></div>`;
     h += `<div id="cConf">${conferenciaHtml(f)}</div>`;
     if(conferida){
       const quando = fmtDataCompleta(String(conferida.em).slice(0,10));
@@ -2611,32 +2818,19 @@ function painelCartaoHtml(){
   if(est.length && dono){
     h += '<div style="margin:8px 0;"><div class="muted">Valores estimados (corrija com o valor real em reais):</div>' + est.map(r=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(r.dia)}</span><span class="fx-t">${esc(r.descricao)}</span><input type="number" step="0.01" id="est-${esc(r.id)}" value="${Math.abs(r.valor)}" style="flex:0 0 96px;width:96px;"><button class="ghost" data-est="${esc(r.id)}" style="padding:4px 10px;">Corrigir</button></div>`).join('') + '</div>';
   }
-  if(!f.lancamentos.length) h += '<p class="muted">Nenhuma compra nesta fatura.</p>';
-  f.lancamentos.forEach(r=>{
-    const fora = r.origem==='foi';
-    let tag = '';
-    if(r.origem==='foi') tag = `<span class="fx-tag">foi para a ${r.ocupaOutraFatura>ym?'próxima':'anterior'} fatura</span>`;
-    else if(r.origem==='veio') tag = `<span class="fx-tag">veio da ${r.ocupaOutraFatura<ym?'anterior':'próxima'} fatura</span>`;
-    const estTag = r.estimado ? '<span class="fx-tag" style="margin-left:6px;">valor estimado</span>' : '';
-    h += `<div class="fx-rec ${fora?'fora':''}" data-rec="${esc(r.id)}"><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.dia)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${esc(r.descricao)}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.valor)}</span></div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
-    if(cartaoRecSel===r.id && r.podeMexer){
-      const ops = [[0,'Pela data (normal)'],[1,'Passar para a próxima fatura'],[-1,'Trazer para a anterior']].filter(o=>o[0]!==r.ajuste);
-      h += '<div class="fx-acoes">' + ops.map(o=>`<button class="ghost" data-ajuste="${esc(r.id)}|${o[0]}" style="font-size:12px;padding:4px 10px;">${o[1]}</button>`).join('') + '</div>';
+  // 5. os pagamentos marcados (recolhivel)
+  if(f.pagamentos && f.pagamentos.length){
+    h += tituloRecolhivel('pag', 'Pagamentos desta fatura', cartaoPagAberto);
+    if(cartaoPagAberto){
+      h += '<div style="margin:4px 0 10px;">' + f.pagamentos.map(p=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(p.dia)}</span><span class="fx-t">${esc(p.meio)} <span class="fx-tag">Fatura ${esc(rotuloMesCurto(ym))}</span></span><span class="fx-v">${fmtMoeda(p.valor)}</span></div>`).join('')
+        + `<p class="muted" style="margin:4px 0;">Soma ${fmtMoeda(f.totalPago)}</p></div>`;
     }
-    h += '</div>';
-  });
-  if(dono){
-    h += `<label style="margin-top:12px;">Início do controle (AAAA-MM; vazio = sem limite)</label><div class="row"><input type="text" inputmode="numeric" id="cInicio" placeholder="ex: 2025-11" value="${esc(f.inicio||'')}"><button class="ghost" id="btnSalvarInicio">Salvar</button></div><p class="muted">Faturas anteriores a esse mês ficam como histórico: aparecem, mas não são conferidas.</p>`;
-    h += `<div style="margin-top:12px;"><button class="ghost" data-rm="${esc(b)}" style="font-size:12px;">Remover este cartão</button></div></div>`;
-  } else h += '</div>';
-  return h;
+  }
+  return h + '</div>';
 }
-
 function renderCartao(){
   const el = document.getElementById('listaCartoes');
   if(!el) return;
-  const cf = document.getElementById('cFech');
-  if(cf && cartaoAbertoMeio){ const cb = document.getElementById('cBanco'); rascunhoFech = {b:cartaoAbertoMeio, ym:cf.dataset.ym, f:cf.value, vb:cb?cb.value:undefined}; }
   const r = cartoesResumo, lista = (r && r.cartoes) || [], n = lista.length;
   document.getElementById('cartaoTotal').textContent = (n && r) ? fmtMoeda(r.total) : '···';
   document.getElementById('cartaoSub').textContent = !r ? (cartaoErro || (cartaoCarregando ? 'Calculando...' : '')) :
@@ -2660,9 +2854,69 @@ function renderCartao(){
   }
 }
 
+// Editar um campo do cartao ou da fatura: cada linha abre uma janelinha com o campo, Salvar, Limpar e Cancelar. O servidor valida e a tela mostra o que ele responder.
+const CAMPOS_CARTAO = {
+  inicio:        {titulo:'Início do controle (AAAA-MM)', tipo:'texto'},
+  pagadorCartao: {titulo:'Paga com (padrão do cartão)', tipo:'meio'},
+  vencDia:       {titulo:'Vence dia (1 a 31)', tipo:'numero'},
+  fechamento:    {titulo:'Fechamento desta fatura (AAAA-MM-DD)', tipo:'texto'},
+  vencimento:    {titulo:'Vencimento desta fatura (AAAA-MM-DD)', tipo:'texto'},
+  pagadorFatura: {titulo:'Paga com (só esta fatura)', tipo:'meio'},
+  valorBanco:    {titulo:'Valor no app do cartão', tipo:'numero', passo:'0.01'}
+};
+function valorAtualDoCampo(chave){
+  const f = cartaoFatura, cfg = ((cartoesResumo && cartoesResumo.cartoes) || []).find(c=>c.meio===f.meio) || {};
+  switch(chave){
+    case 'inicio': return f.inicio || '';
+    case 'pagadorCartao': return cfg.pagador || '';
+    case 'vencDia': return cfg.diaVencimento==null ? '' : String(cfg.diaVencimento);
+    case 'fechamento': return f.periodo.fim;
+    case 'vencimento': return f.vencimento || '';
+    case 'pagadorFatura': return f.pagador || '';
+    case 'valorBanco': return f.valorBanco===null ? '' : String(f.valorBanco);
+  }
+  return '';
+}
+function pedirCampoCartao(c, atual, meio){
+  return new Promise(resolve=>{
+    const campo = c.tipo==='meio'
+      ? `<select id="edCampo">${opcoesPagador(meio, atual)}</select>`
+      : `<input id="edCampo" type="${c.tipo==='numero'?'number':'text'}" ${c.passo?`step="${c.passo}"`:''} ${c.tipo==='texto'?'inputmode="numeric"':''} value="${esc(atual)}">`;
+    document.getElementById('modalMsg').textContent = c.titulo;
+    document.getElementById('modalExtra').innerHTML = campo;
+    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="ghost" id="edLimpar">Limpar</button><button class="primary" id="modalConfirmar">Salvar</button>';
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    const fechar = (v)=>{ document.getElementById('modalOverlay').classList.add('hidden'); document.getElementById('modalExtra').innerHTML = ''; resolve(v); };
+    document.getElementById('modalCancelar').onclick = ()=>fechar(undefined);
+    document.getElementById('edLimpar').onclick = ()=>fechar(null);
+    document.getElementById('modalConfirmar').onclick = ()=>{ const v = document.getElementById('edCampo').value.trim(); fechar(v===''?null:v); };
+    const el = document.getElementById('edCampo'); if(el && el.focus) el.focus();
+  });
+}
+async function editarCampoCartao(chave, ym, meio){
+  const c = CAMPOS_CARTAO[chave];
+  if(!c || !cartaoFatura) return;
+  const v = await pedirCampoCartao(c, valorAtualDoCampo(chave), meio);
+  if(v===undefined) return; // cancelou
+  try{
+    if(chave==='inicio') await db.cartaoInicio(meio, v);
+    else if(chave==='pagadorCartao') await db.cartaoConfig(meio, {pagador: v});
+    else if(chave==='vencDia') await db.cartaoConfig(meio, {diaVencimento: v===null ? null : parseInt(v,10)});
+    else if(chave==='fechamento') await db.cartaoFechamento(meio, ym, {fechamento: v});
+    else if(chave==='vencimento') await db.cartaoFechamento(meio, ym, {vencimento: v});
+    else if(chave==='pagadorFatura') await db.cartaoFechamento(meio, ym, {pagador: v});
+    else if(chave==='valorBanco'){
+      const n = v===null ? null : parseFloat(v);
+      if(n!==null && (isNaN(n) || n<0)){ await avisar('Valor inválido.'); return; }
+      await db.cartaoFechamento(meio, ym, {valorBanco: n});
+    }
+    msgCartao = 'Salvo ✓';
+    await recarregarCartao();
+  }catch(err){ await avisar(erroCartao(err)); }
+}
 function erroCartao(e){ return (e && (e.message || e.code)) || String(e); }
 async function onCartaoClick(e){
-  const el = e.target.closest('[data-cartao],[data-chip],[data-nav],[data-rec],[data-ajuste],#btnSalvarFech,[data-rm],[data-est],[data-cand],[data-regdif],#btnSalvarBanco,#btnSalvarInicio,[data-conferir],[data-desconferir]');
+  const el = e.target.closest('[data-cartao],[data-chip],[data-nav],[data-rec],[data-ajuste],[data-ed],[data-tg],[data-rm],[data-est],[data-cand],[data-regdif],[data-conferir],[data-desconferir]');
   if(!el) return;
   const meio = cartaoAbertoMeio;
   if(el.dataset.conferir || el.dataset.desconferir){
@@ -2687,18 +2941,14 @@ async function onCartaoClick(e){
     }catch(err){ await avisar('Não consegui salvar: ' + erroCartao(err)); }
     await recarregarCartao(); return;
   }
-  if(el.id==='btnSalvarInicio'){
-    const v = document.getElementById('cInicio').value.trim();
-    const msgEl = document.getElementById('cMsg');
-    if(v!=='' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(v)){ msgEl.textContent = '⚠️ Use o formato AAAA-MM, ex: 2025-11.'; return; }
-    try{
-      msgEl.textContent = 'Salvando...';
-      await db.cartaoInicio(meio, v==='' ? null : v);
-      msgCartao = 'Salvo ✓';
-      await recarregarCartao();
-    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + erroCartao(err); }
-    return;
+  if(el.dataset.tg){
+    const k = el.dataset.tg;
+    if(k==='cfg') cartaoCfgAberto = !cartaoCfgAberto;
+    else if(k==='compras') cartaoComprasAberto = !cartaoComprasAberto;
+    else if(k==='pag') cartaoPagAberto = !cartaoPagAberto;
+    renderCartao(); return;
   }
+  if(el.dataset.ed){ await editarCampoCartao(el.dataset.ed, el.dataset.ym, meio); return; }
   if(el.dataset.est){
     const id = el.dataset.est;
     const n = parseFloat(document.getElementById('est-'+id).value);
@@ -2716,20 +2966,6 @@ async function onCartaoClick(e){
     try{ for(const a of c.acoes){ await ajustarFatura(a.id, a.faturaAjuste); } }
     catch(err){ await avisar('Não consegui ajustar a fatura: ' + erroCartao(err)); }
     cartaoRecSel = null; await recarregarCartao(); return;
-  }
-  if(el.id==='btnSalvarBanco'){
-    const ym = el.dataset.ym;
-    const raw = document.getElementById('cBanco').value.trim();
-    const msgEl = document.getElementById('cMsg');
-    let v = null;
-    if(raw!==''){ v = parseFloat(raw); if(isNaN(v) || v<0){ msgEl.textContent = '⚠️ Valor inválido.'; return; } }
-    try{
-      msgEl.textContent = 'Salvando...';
-      await db.cartaoFechamento(meio, ym, {valorBanco:v});
-      rascunhoFech = null; msgCartao = 'Salvo ✓';
-      await recarregarCartao();
-    }catch(err){ msgEl.textContent = '⚠️ Erro ao salvar: ' + erroCartao(err); }
-    return;
   }
   if(el.dataset.regdif){
     const ym = el.dataset.regdif, f = cartaoFatura;
@@ -2763,18 +2999,6 @@ async function onCartaoClick(e){
     try{ await carregarFatura(nome, ''); }
     catch(err){ await avisar('Não consegui ler a fatura: ' + erroCartao(err)); cartaoAbertoMeio = ''; }
     renderCartao();
-    return;
-  }
-  if(el.id==='btnSalvarFech'){
-    const ym = el.dataset.ym;
-    const valor = document.getElementById('cFech').value.trim();
-    const msgEl = document.getElementById('cMsg');
-    try{
-      msgEl.textContent = 'Salvando...';
-      await db.cartaoFechamento(meio, ym, {fechamento:valor});
-      rascunhoFech = null; msgCartao = 'Salvo ✓';
-      await recarregarCartao();
-    }catch(err){ msgEl.textContent = '⚠️ ' + erroCartao(err); }
     return;
   }
   if(el.dataset.rm!==undefined){

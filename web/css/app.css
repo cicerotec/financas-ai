@@ -375,9 +375,9 @@ body[data-aba="futuros"] main{max-width:1600px;}
 .fut-ac.pri{color:var(--accent);font-weight:600;}
 @media (hover:hover){.fut-m:hover{background:color-mix(in srgb,var(--cor) 16%,var(--card));}}
 @media (min-width:1160px){
-  .fut-tabela-in{min-width:1120px;}
+  .fut-tabela-in{min-width:1160px;}
   .fut-m{display:none;}
-  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 316px;align-items:center;gap:12px;padding:10px 14px;}
+  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 400px;align-items:center;gap:12px;padding:10px 14px;}
   .fut-cab{font-size:12px;color:var(--faint);padding-block:4px;}
   .fut-dk>span,.fut-cab>span{min-width:0;}
   .fut-dk .bk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -783,3 +783,10 @@ body[data-aba="historico"] main{max-width:1600px;}
 .td-lrodape .bate{color:var(--accent);font-weight:600;}
 .td-lrodape .nbate{color:var(--danger);font-weight:600;}
 .td-corte{color:var(--danger);}
+
+/* Painel do cartao: linhas que abrem uma janelinha para editar e blocos recolhiveis (demo .ai/demos/demo-pagar-fatura.html) */
+.cfg-grupo{margin:6px 0;}
+.cfg-lin{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:11px 2px;background:transparent;border:0;border-top:1px solid var(--border);border-radius:0;color:var(--text);font:inherit;text-align:left;cursor:pointer;}
+.cfg-lin:first-child{border-top:0;}
+.cfg-lin .v{color:var(--muted);text-align:right;overflow-wrap:anywhere;}
+.cfg-tit{display:flex;justify-content:space-between;width:100%;padding:8px 2px;margin:4px 0 0;background:transparent;border:0;border-radius:0;color:var(--text);font:inherit;font-weight:600;text-align:left;cursor:pointer;}

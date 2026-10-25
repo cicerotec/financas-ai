@@ -1,0 +1,20 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "TX#2026-10-05T15:00:00.000Z#n4k8x2q9w1e7r5t3y6u0",
+ "banco": "Bradesco",
+ "criadoEm": "2026-10-05T15:02:00.000Z",
+ "criadoPor": "dados-ficticios",
+ "dataEvento": "2026-10-05T15:00:00.000Z",
+ "descricao": "Pagamento da fatura set/26 CARTAO-A",
+ "excluirDoTotal": true,
+ "id": "n4k8x2q9w1e7r5t3y6u0",
+ "nota": "",
+ "pagaFatura": {
+  "meio": "CARTAO-A",
+  "ym": "2026-09"
+ },
+ "status": "PAGO",
+ "tags": [],
+ "tipo": "saida",
+ "valor": 600
+}

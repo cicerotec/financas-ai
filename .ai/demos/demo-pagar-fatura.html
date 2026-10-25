@@ -1,0 +1,218 @@
+<title>Pagar a fatura</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: quatro telas do app em abas (Cartão, Futuros, Lançar, Histórico), cada uma com o que muda; cores e proporções do app (verde de acento, cartões claros). */
+:root{
+  --bg:#f1f0ec; --card:#ffffff; --fg:#1d2220; --muted:#5c645e; --line:#e4e2dc; --ck:#d3d6d2;
+  --accent:#2f6f4f; --accent-bg:#dcefe5; --on-accent:#ffffff; --danger:#b3413a; --danger-bg:#f8e6e2; --warn-bg:#f6ecd2;
+  --pago:#639922; --credito:#888780;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121513; --card:#1f2421; --fg:#e8ebe7; --muted:#a3aaa4; --line:#2e3430; --ck:#3b413d;
+  --accent:#5fb98a; --accent-bg:#1c3a2e; --on-accent:#0d1f16; --danger:#e08a83; --danger-bg:#3a1f1c; --warn-bg:#3a3320; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#121513; --card:#1f2421; --fg:#e8ebe7; --muted:#a3aaa4; --line:#2e3430; --ck:#3b413d;
+  --accent:#5fb98a; --accent-bg:#1c3a2e; --on-accent:#0d1f16; --danger:#e08a83; --danger-bg:#3a1f1c; --warn-bg:#3a3320; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding-block:18px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:640px;margin-inline:auto}
+h1{font-size:20px;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);margin:0 0 14px;max-width:62ch}
+.abas{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.abas button{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:18px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer}
+.abas button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600}
+.abas button:focus-visible,.btn:focus-visible,.lin:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tela[hidden]{display:none}
+.nota{background:var(--accent-bg);border-radius:10px;padding:9px 11px;font-size:13px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 10px}
+.card b.t{display:block;margin-bottom:6px}
+.m{color:var(--muted);font-size:13px}
+.lin{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line);width:100%;background:transparent;border-left:0;border-right:0;border-bottom:0;color:inherit;font:inherit;text-align:left}
+.lin:first-of-type{border-top:0}
+.lin .v{color:var(--muted);text-align:right}
+.lin.novo .v{color:var(--accent);font-weight:600}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:10px;padding:1px 8px;font-size:12px;color:var(--muted)}
+.pill.fat{border-color:var(--accent);color:var(--accent)}
+.ev{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid var(--line)}
+.ev:first-of-type{border-top:0}
+.ev .d{font-weight:600;overflow-wrap:anywhere}
+.ev .r{text-align:right;white-space:nowrap}
+.out{color:var(--danger)}
+.atras{color:var(--danger);font-weight:600;font-size:12.5px}
+.gt{font-size:13px;font-weight:600;color:var(--muted);margin:14px 2px 6px}
+.gt.bad{color:var(--danger)}
+.btn{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:10px;padding:7px 11px;font:inherit;font-size:13px;cursor:pointer}
+.btn.pri{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.acoes{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:5;padding:0 0 env(safe-area-inset-bottom,0px)}
+.ov[hidden]{display:none}
+.sheet{background:var(--card);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:16px;max-height:90vh;overflow:auto}
+.sheet h3{margin:0 0 2px;font-size:16px}
+.fr{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:50px;border-top:1px solid var(--line)}
+.fr label{font-weight:600}
+.fr .val{color:var(--fg);text-align:right}
+.toast{margin-top:10px;background:var(--fg);color:var(--bg);border-radius:12px;padding:10px 12px;font-size:13px;display:flex;justify-content:space-between;gap:10px}
+.toast[hidden]{display:none}
+.trava{background:var(--danger-bg);color:var(--danger);border-radius:10px;padding:8px 10px;font-size:13px;margin:8px 0 0}
+.pg{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:5px 0}
+.cx{border:1px dashed var(--line);border-radius:14px;padding:12px 14px;margin-top:20px}
+ul{padding-left:20px;margin:6px 0}
+li{margin:3px 0}
+</style>
+<main>
+<h1>Pagar a fatura do cartão</h1>
+<p class="sub">O pagamento é um lançamento normal, como pagar a conta de luz. A <b>marca</b> "Paga a fatura" é só uma etiqueta para achar depois. Hoje é 25/10/2026; valores e nomes são fictícios e nada é salvo.</p>
+<div class="abas" role="group" aria-label="Telas">
+  <button type="button" data-t="cartao" aria-pressed="true">Cartão</button>
+  <button type="button" data-t="futuros" aria-pressed="false">Futuros</button>
+  <button type="button" data-t="lancar" aria-pressed="false">Lançar</button>
+  <button type="button" data-t="historico" aria-pressed="false">Histórico</button>
+</div>
+
+<!-- CARTÃO -->
+<section class="tela" id="t-cartao">
+  <p class="nota">O painel do cartão na ordem que o dono pediu: configurar o cartão (recolhido), a fatura, as compras, o total, os dados da fatura e os pagamentos. Cada linha abre uma janelinha para editar.</p>
+  <div class="card">
+    <button class="lin" type="button" id="tgCfg" style="font-weight:600"><span>Configurar cartão</span><span class="v" id="tgCfgSeta">▾</span></button>
+    <div id="cfgCartao" hidden>
+      <button class="lin" type="button" data-ed="Início do controle (AAAA-MM)|2026-01|texto"><span>Início do controle</span><span class="v">2026-01 ›</span></button>
+      <button class="lin novo" type="button" data-ed="Paga com (padrão do cartão)|BANCO-A|meio"><span>Paga com (padrão)</span><span class="v">BANCO-A ›</span></button>
+      <button class="lin novo" type="button" data-ed="Vence dia (1 a 31)|5|numero"><span>Vence dia</span><span class="v">5 ›</span></button>
+      <div class="acoes"><button class="btn" type="button">Remover este cartão</button></div>
+    </div>
+    <div class="abas" style="margin:10px 0 6px"><button type="button" aria-pressed="false">‹</button><button type="button" aria-pressed="false">Anterior</button><button type="button" aria-pressed="true">Atual</button><button type="button" aria-pressed="false">Próxima</button><button type="button" aria-pressed="false">›</button></div>
+    <p class="m" style="margin:0 0 6px">Período: 26/09/2026 a 25/10/2026 · aberta</p>
+    <button class="lin" type="button" style="font-weight:600"><span>Compras</span><span class="v">▴</span></button>
+    <div class="pg"><span>30/09 · Combustível</span><span>R$ 210,00</span></div>
+    <div class="pg"><span>03/10 · Roupa</span><span>R$ 480,00</span></div>
+    <div class="pg"><span>05/10 · Gás</span><span>R$ 155,14</span></div>
+    <div class="pg"><span>11/10 · Viagem</span><span>R$ 997,21</span></div>
+    <div class="pg" style="margin-top:8px"><span class="m">Total da fatura</span><b>R$ 1.842,35</b></div>
+    <button class="lin" type="button" data-ed="Fechamento desta fatura|2026-10-25|texto"><span>Fechamento</span><span class="v">25/10/2026 ›</span></button>
+    <button class="lin novo" type="button" data-ed="Vencimento desta fatura|2026-11-05|texto"><span>Vencimento</span><span class="v">05/11/2026 ›</span></button>
+    <button class="lin novo" type="button" data-ed="Paga com (só esta fatura)|BANCO-A|meio"><span>Paga com</span><span class="v">BANCO-A ›</span></button>
+    <button class="lin" type="button" data-ed="Valor no app do cartão|1842.35|numero"><span>Valor no app do cartão</span><span class="v">R$ 1.842,35 ›</span></button>
+    <p class="m" style="margin:6px 0 0">Bateu ✓ · <button class="btn" type="button">Marcar como conferida</button></p>
+    <button class="lin" type="button" style="font-weight:600;margin-top:8px"><span>Pagamentos desta fatura</span><span class="v">▴</span></button>
+    <div class="pg"><span>05/10 · BANCO-A <span class="pill fat">Fatura set/26</span></span><span class="out">R$ 600,00</span></div>
+    <div class="pg"><span>05/10 · BANCO-B <span class="pill fat">Fatura set/26</span></span><span class="out">R$ 1.900,00</span></div>
+    <p class="m" style="margin:4px 0 0">Soma R$ 2.500,00</p>
+  </div>
+  <div class="card">
+    <b class="t">Fatura ago/26 · conferida 🔒</b>
+    <p class="m" style="margin:0">Travada: mudar valor, data, meio ou ajuste de uma compra desta fatura é recusado até você tocar em <b>Desfazer conferência</b>.</p>
+    <div class="trava" role="status">A fatura ago/26 do cartão Bradesco está conferida e travada: desfaça a conferência para alterar.</div>
+    <div class="acoes"><button class="btn" type="button">Desfazer conferência</button></div>
+  </div>
+</section>
+
+<!-- FUTUROS -->
+<section class="tela" id="t-futuros" hidden>
+  <p class="nota">As faturas aparecem em Futuros, no meio que costuma pagar, na data do vencimento. Toque em <b>Já paguei</b> para lançar o pagamento já marcado.</p>
+  <div class="gt bad">Atrasados</div>
+  <div class="card">
+    <div class="ev"><span><span class="d">Fatura set/26 · CARTAO-A</span><br><span class="m">05/10/2026 · BANCO-A · fechada</span></span>
+      <span class="r"><b class="out">-R$ 2.500,00</b><br><span class="atras">atrasado 20 dias</span></span></div>
+    <div class="acoes"><button class="btn pri" id="abrirPagar" type="button">Já paguei</button></div>
+  </div>
+  <div class="gt">Novembro de 2026</div>
+  <div class="card">
+    <div class="ev"><span><span class="d">Fatura out/26 · CARTAO-A</span><br><span class="m">05/11/2026 · BANCO-A · aberta, ainda cresce</span></span>
+      <span class="r"><b class="out">-R$ 1.842,35</b><br><span class="m">em 11 dias</span></span></div>
+    <div class="acoes"><button class="btn" type="button">Já paguei</button></div>
+    <div class="ev"><span><span class="d">Salário</span><br><span class="m">05/11/2026 · BANCO-A</span></span><span class="r"><b>+R$ 7.200,00</b></span></div>
+  </div>
+  <div class="toast" id="toast" hidden><span>Pagamento lançado: Fatura set/26 · CARTAO-A</span><button class="btn" type="button" id="desf" style="color:inherit;border-color:currentColor">Desfazer</button></div>
+</section>
+
+<!-- LANÇAR -->
+<section class="tela" id="t-lancar" hidden>
+  <p class="nota">Uma linha opcional no formulário, no mesmo estilo de "Repetir" e "Avisar". Fica vazia; você marca só quando o lançamento pagou uma fatura.</p>
+  <div class="card">
+    <b class="t">Novo lançamento</b>
+    <div class="fr"><label>Valor</label><span class="val">R$ 1.900,00</span></div>
+    <div class="fr"><label>Meio</label><span class="val">BANCO-B</span></div>
+    <div class="fr"><label>Status</label><span class="val">PAGO</span></div>
+    <button class="lin novo" type="button" id="abrirMarca"><span>Paga a fatura</span><span class="v" id="marcaVal">Nenhuma ›</span></button>
+  </div>
+  <div class="card" id="marcaOpcoes" hidden>
+    <b class="t">Paga a fatura</b>
+    <p class="m" style="margin:0 0 8px">Escolha o cartão e o mês. A marca não muda o saldo nem trava nada; só ajuda a achar o pagamento depois.</p>
+    <div class="acoes">
+      <button class="btn" type="button" data-m="CARTAO-A · set/26">CARTAO-A · set/26</button>
+      <button class="btn" type="button" data-m="CARTAO-A · out/26">CARTAO-A · out/26</button>
+      <button class="btn" type="button" data-m="Nenhuma">Nenhuma</button>
+    </div>
+  </div>
+</section>
+
+<!-- HISTÓRICO -->
+<section class="tela" id="t-historico" hidden>
+  <p class="nota">O lançamento marcado mostra uma etiqueta pequena, como "valor estimado".</p>
+  <div class="card">
+    <div class="ev"><span><span class="d">Pagamento da fatura set/26 CARTAO-A</span><br><span class="m">05/10/2026 · PAGO · BANCO-A</span><br><span class="pill fat">Fatura set/26 · CARTAO-A</span></span><span class="r"><b class="out">-R$ 600,00</b></span></div>
+    <div class="ev"><span><span class="d">Pagamento da fatura set/26 CARTAO-A</span><br><span class="m">05/10/2026 · PAGO · BANCO-B</span><br><span class="pill fat">Fatura set/26 · CARTAO-A</span></span><span class="r"><b class="out">-R$ 1.900,00</b></span></div>
+    <div class="ev"><span><span class="d">Mercado</span><br><span class="m">04/10/2026 · CREDITO · CARTAO-A</span></span><span class="r"><b class="out">-R$ 187,50</b></span></div>
+  </div>
+</section>
+
+<div class="ov" id="ov" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Já paguei">
+    <h3>Já paguei a fatura set/26</h3>
+    <p class="m" style="margin:0 0 8px">Tudo vem sugerido; troque o que quiser. Pode ser o total, o mínimo ou qualquer valor.</p>
+    <div class="fr"><label>Valor</label><span class="val">R$ 2.500,00</span></div>
+    <div class="fr"><label>Data</label><span class="val">25/10/2026</span></div>
+    <div class="fr"><label>Status</label><span class="val">PAGO</span></div>
+    <div class="fr"><label>Meio de saída</label><span class="val">BANCO-A (sugerido)</span></div>
+    <p class="m">O lançamento sai marcado com <b>Fatura set/26 · CARTAO-A</b>. A linha deixa de aparecer em Futuros.</p>
+    <div class="acoes"><button class="btn" type="button" id="cancelar">Cancelar</button><button class="btn pri" type="button" id="confirmar">Confirmar</button></div>
+  </div>
+</div>
+
+<div class="ov" id="ovEd" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Editar">
+    <h3 id="edTit">Editar</h3>
+    <p class="m" style="margin:0 0 8px">Os campos novos e os antigos usam a mesma janela.</p>
+    <div class="fr"><label id="edLab">Valor</label><span class="val" id="edVal">—</span></div>
+    <div class="acoes"><button class="btn" type="button" id="edCancelar">Cancelar</button><button class="btn" type="button" id="edLimpar">Limpar</button><button class="btn pri" type="button" id="edSalvar">Salvar</button></div>
+  </div>
+</div>
+
+<div class="cx">
+  <b>O que você aprova</b>
+  <ul>
+    <li>O painel do cartão na ordem do desenho do dono: <b>Configurar cartão</b> recolhido, a fatura, as <b>Compras</b>, o total, <b>Fechamento / Vencimento / Paga com / Valor no app</b> e <b>Pagamentos desta fatura</b>, tudo em linhas que abrem uma janelinha para editar.</li>
+    <li>As faturas em <b>Futuros</b> (fechada com o valor da operadora, aberta com o total até agora), com <b>Já paguei</b>.</li>
+    <li>A linha opcional <b>Paga a fatura</b> no Lançar e a etiqueta no Histórico.</li>
+    <li>A fatura <b>conferida</b> travada, com <b>Desfazer conferência</b> para reabrir.</li>
+  </ul>
+</div>
+</main>
+<script>
+(function(){
+  var abas=document.querySelectorAll('.abas button');
+  function mostrar(t){
+    abas.forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-t')===t));});
+    ['cartao','futuros','lancar','historico'].forEach(function(n){document.getElementById('t-'+n).hidden=(n!==t);});
+  }
+  abas.forEach(function(b){b.addEventListener('click',function(){mostrar(b.getAttribute('data-t'));});});
+  var ov=document.getElementById('ov'),toast=document.getElementById('toast');
+  document.getElementById('abrirPagar').addEventListener('click',function(){ov.hidden=false;});
+  document.getElementById('cancelar').addEventListener('click',function(){ov.hidden=true;});
+  document.getElementById('confirmar').addEventListener('click',function(){ov.hidden=true;toast.hidden=false;setTimeout(function(){toast.hidden=true;},6000);});
+  document.getElementById('desf').addEventListener('click',function(){toast.hidden=true;});
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.hidden=true;});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){ov.hidden=true;document.getElementById('ovEd').hidden=true;}});
+  var ovEd=document.getElementById('ovEd');
+  document.getElementById('tgCfg').addEventListener('click',function(){var c=document.getElementById('cfgCartao');c.hidden=!c.hidden;document.getElementById('tgCfgSeta').textContent=c.hidden?'▾':'▴';});
+  document.querySelectorAll('[data-ed]').forEach(function(b){b.addEventListener('click',function(){
+    var p=b.getAttribute('data-ed').split('|');document.getElementById('edTit').textContent=p[0];document.getElementById('edLab').textContent=p[2]==='meio'?'Meio':(p[2]==='numero'?'Número':'Texto');document.getElementById('edVal').textContent=p[1];ovEd.hidden=false;});});
+  ['edCancelar','edLimpar','edSalvar'].forEach(function(i){document.getElementById(i).addEventListener('click',function(){ovEd.hidden=true;});});
+  ovEd.addEventListener('click',function(e){if(e.target===ovEd)ovEd.hidden=true;});
+  var op=document.getElementById('marcaOpcoes');
+  document.getElementById('abrirMarca').addEventListener('click',function(){op.hidden=!op.hidden;});
+  op.querySelectorAll('[data-m]').forEach(function(b){b.addEventListener('click',function(){
+    var m=b.getAttribute('data-m');document.getElementById('marcaVal').textContent=(m==='Nenhuma'?'Nenhuma':m)+' ›';op.hidden=true;});});
+})();
+</script>

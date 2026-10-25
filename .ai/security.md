@@ -41,7 +41,8 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `cfg.ler` (listas, tags, combos, saldos, cartões) | sim | sim |
 | `cfg.escrever` (renomear/excluir tag, combos, bancos, status, flags, saldo inicial, início do controle (**`cartoes` não é mais gravável por aqui**: o `PUT /cfg/cartoes` saiu na fase C do item 33a; só os comandos de `/cartoes` o alteram) | sim | **não** |
 | `cartao.ler` (`GET /cartoes` e `GET /cartoes/{meio}/faturas/{ym}`: as faturas calculadas pelo servidor) | sim | sim |
-| `cartao.escrever` (adicionar/remover cartão, início do controle, fechamento e valor do banco por fatura, conferir, desconferir, registrar a diferença) | sim | **não** |
+| `cartao.escrever` (adicionar/remover cartão, início do controle, pagador e vencimento do cartão e da fatura, fechamento e valor do banco por fatura, conferir, desconferir, registrar a diferença) | sim | **não** |
+| Trava da **fatura conferida** (`409 fatura_conferida`): criar, editar valor/data/meio/ajuste, excluir, restaurar ou importar uma compra de crédito que muda uma fatura conferida é recusado, sem confirmação que destrave; só `DELETE .../conferir` | vale para todos | vale para todos |
 | `tags.adicionar` | sim | sim, **só tags que ainda não existem** (o servidor só acrescenta) |
 | `fechamento.ler` (inclui `GET /saldos`, o saldo de cada meio calculado pelo servidor) | sim | sim |
 | `fechamento.conferir`, `.reabrir` (o `PUT /fechamentos` e a ação `fechamento.escrever` saíram na fase C do item 40) | sim | **não** (só vê) |

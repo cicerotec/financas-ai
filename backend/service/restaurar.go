@@ -59,6 +59,9 @@ func (s *Lancamentos) Restaurar(ctx context.Context, sid, id string, n int, sub 
 	if err := domain.ValidarTx(depois); err != nil {
 		return nil, &ErroValidacao{err.Error()}
 	}
+	if err := s.travaDeFatura(ctx, sid).Checar(vivo, depois); err != nil {
+		return nil, err
+	}
 	versoes := domain.VersoesDaEscrita(ultimo.Numero, vivo, depois, domain.AcaoRestore, sub, time.Now().UTC().Format(formatoTempo))
 	versoes[len(versoes)-1].DeVersao = n
 	marcarConfirmacao(versoes, exige != nil)
