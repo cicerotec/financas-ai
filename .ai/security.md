@@ -38,7 +38,9 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `historico.ler` (busca por mês e versões de um lançamento) | todos | **só os criados por ela** |
 | `historico.restaurar` | todos | **só os criados por ela e que ainda existem**; restaurar um excluído é só do owner |
 | `cfg.ler` (listas, tags, combos, saldos, cartões) | sim | sim |
-| `cfg.escrever` (renomear/excluir tag, combos, bancos, status, flags, saldo inicial, início do controle, conferir fatura) | sim | **não** |
+| `cfg.escrever` (renomear/excluir tag, combos, bancos, status, flags, saldo inicial, início do controle; **o `PUT /cfg/cartoes` ainda existe, mas mantém o `conferida` gravado e descarta o do corpo**: some na fase C do item 33a) | sim | **não** |
+| `cartao.ler` (`GET /cartoes` e `GET /cartoes/{meio}/faturas/{ym}`: as faturas calculadas pelo servidor) | sim | sim |
+| `cartao.escrever` (adicionar/remover cartão, início do controle, fechamento e valor do banco por fatura, conferir, desconferir, registrar a diferença) | sim | **não** |
 | `tags.adicionar` | sim | sim, **só tags que ainda não existem** (o servidor só acrescenta) |
 | `fechamento.ler` (inclui `GET /saldos`, o saldo de cada meio calculado pelo servidor) | sim | sim |
 | `fechamento.conferir`, `.reabrir` (o `PUT /fechamentos` e a ação `fechamento.escrever` saíram na fase C do item 40) | sim | **não** (só vê) |
@@ -116,7 +118,7 @@ manual.
 | Histórico de versões só dos lançamentos, e sem tela de recuperação ainda (PITR só em prod, janela de 35 dias) | Configurações e fechamentos continuam sem versão; recuperar um lançamento ainda é pelo banco | item 31 (fases 2 e 3) |
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
 | `excluirDoTotal` e o status do ajuste de conferência montados pelo front a partir do nome do status | O servidor grava a decisão do cliente | itens 33 e 40 |
-| Campos opcionais do lançamento gravados como vêm (ex. `faturaAjuste` sem validação) | Valor inesperado persiste | item 33 (regras no backend) |
+| Campos opcionais do lançamento gravados como vêm | Valor inesperado persiste. **`faturaAjuste` já é validado** (só `-1`, `0` ou `+1`, e só em crédito; item 33a, fase A, 2026-10-24); os outros campos opcionais seguem como vêm | itens 33 e 41 |
 | Resumo do Telegram acima de 4096 caracteres | Nenhum aviso chega naquele dia (disponibilidade, não vazamento) | item 28, item 34 |
 
 ## Regras ao mexer (propostas, a confirmar com o dono)

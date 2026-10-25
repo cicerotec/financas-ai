@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje (`web/js/app.js:2725-3240`, `backend/domain/`,
 `service/config.go`, `repository/config.go`). O roteiro verificável é o [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação do dono (2026-10-24).
+**Estado:** aprovado pelo dono em 2026-10-24. Fases A e B feitas; C pendente.
 
 ## Onde o código está hoje
 
@@ -54,6 +54,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 - **Fase B, a aba Cartão e a linha Fatura do Lançar (sem demo: o visual não muda):** a aba lê as duas rotas novas e usa os comandos; o
   Lançar mostra a linha "Fatura" quando `meios[].cartao`. **Antes de ligar**, a conferência lado a lado (abaixo). Saem do front as
   funções listadas no intent.
+- **Fase B feita** (`feature/faturas-tela-servidor`): a aba Cartão lê `GET /cartoes` e `GET .../faturas/{ym}` e usa os comandos; o Lançar mostra "Fatura" pelo `meios[].cartao`. Além do spec, `GET /cfg/listas` passou a trazer `faturaPadrao` (status de crédito → ajuste padrão), derivado como `meios` e nunca gravado, para o front não olhar o nome do status. Saiu o diferença ao digitar o valor do app (a conta é do servidor, depois de Salvar). A conferência foi pela aba no dev, sem script lado a lado.
 - **Fase C, remover:** apaga `PUT /cfg/cartoes` e a ação `cfg.escrever` para `cartoes`; `banco[]` sem marca some da resposta quando o
   front só lê `bancos`; atualiza o `security.md` (sai a linha de `faturaAjuste` e a da conferência de fatura).
 

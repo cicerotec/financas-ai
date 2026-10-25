@@ -129,7 +129,7 @@ func TestOcultarEAjustarFaturaSaoEdicoes(t *testing.T) {
 	qs := map[string]string{"de": dataDono}
 	c, _ := chamar(t, "own", "PUT", "spaces/s1/tx/iddono", qs, `{"oculto":true}`)
 	esperar(t, "ocultar", c, 200)
-	c, _ = chamar(t, "own", "PUT", "spaces/s1/tx/iddono", qs, `{"faturaAjuste":1}`)
+	c, _ = chamar(t, "own", "PUT", "spaces/s1/tx/iddono", qs, `{"faturaAjuste":1,"status":"CREDITO"}`) // o ajuste so vale em credito (item 33a)
 	esperar(t, "ajustar fatura", c, 200)
 	vs := versoesDe(t, f, "iddono")
 	if len(vs) != 3 {

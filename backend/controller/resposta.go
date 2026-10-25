@@ -33,6 +33,7 @@ func respostaErro(err error) (Resp, error) {
 	var confl *service.ErroConflitoConfig
 	var ordem *service.ErroOrdemFechamento
 	var dif *service.ErroDiferenca
+	var difFat *service.ErroDiferencaFatura
 	switch {
 	case errors.As(err, &ev):
 		return Erro(http.StatusBadRequest, ev.Error())
@@ -44,6 +45,10 @@ func respostaErro(err error) (Resp, error) {
 		return Out(http.StatusConflict, domain.Doc{"erro": ordem.Error(), "codigo": "ordem"})
 	case errors.As(err, &dif): // o extrato nao bate com o saldo que o servidor calculou
 		return Out(http.StatusConflict, domain.Doc{"erro": dif.Error(), "codigo": "diferenca", "calculado": dif.Calculado, "real": dif.Real, "diferenca": dif.Diferenca})
+	case errors.As(err, &difFat): // o valor do app do cartao nao bate com o total da fatura (ou nao foi informado)
+		return Out(http.StatusConflict, domain.Doc{"erro": difFat.Error(), "codigo": "diferenca", "total": difFat.Total, "valorBanco": difFat.ValorBanco, "diferenca": difFat.Diferenca})
+	case errors.Is(err, service.ErrCartaoNaoEncontrado), errors.Is(err, service.ErrFaturaNaoConferida):
+		return Erro(http.StatusNotFound, err.Error())
 	case errors.Is(err, service.ErrTelegramNaoConfigurado):
 		return Erro(http.StatusServiceUnavailable, err.Error())
 	case errors.Is(err, service.ErrTelegramRecusou):
