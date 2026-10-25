@@ -3,7 +3,9 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id
 (`F-T<n>` para o backend da fase A), para o PR dizer exatamente o que cobriu. Quando este texto e o do intent divergirem, vale o plan.
 
-**Estado:** rascunho para aprovação (2026-10-24). Nada implementado.
+**Estado:** aprovado pelo dono em 2026-10-24. **Fase A implementada** (`feature/faturas-servidor-fase-a`); falta a conferência lado a lado da fase B.
+
+Desvios da fase A, em relação a este texto: (1) a equivalência F-T27 foi coberta pelos vetores do `candidatosFatura` e pelos totais conferidos à mão nos testes, não por uma implementação de referência em Go; (2) `GET /cartoes` lê **uma vez** o espaço dos últimos 12 meses (cartões, fatura atual, `conferidasQueMudaram` e `temComprasNoCredito` saem dessa leitura); (3) `conferidasQueMudaram` considera as faturas de duas antes da atual até a seguinte, a janela que a leitura cobre inteira.
 
 ## Regras
 

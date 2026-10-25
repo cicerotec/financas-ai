@@ -12,12 +12,13 @@ type dynamoAPI = repository.DynamoAPI
 // Servidor e o conjunto montado uma vez, em main: um controller por assunto, ligado ao seu service e ao repository.
 // E a unica ligacao das camadas; o roteador (roteador.go) so escolhe o controller de cada rota.
 type Servidor struct {
-	lanc   *controller.Lancamentos
-	esp    *controller.Espacos
-	cfg    *controller.Config
-	perfil *controller.Perfil
-	fech   *controller.Fechamento
-	avisos *controller.Avisos
+	lanc    *controller.Lancamentos
+	esp     *controller.Espacos
+	cfg     *controller.Config
+	perfil  *controller.Perfil
+	fech    *controller.Fechamento
+	avisos  *controller.Avisos
+	cartoes *rotasCartao
 }
 
 // novoServidor liga repository, service e controller. Recebe o que vem de fora (banco, tabela, relogio, canal de envio e o
@@ -36,11 +37,12 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 	lancSvc := service.NewLancamentos(lancRepo, efeitos, pessoas, rel)
 	saldos := service.NewSaldos(lancRepo, cfgRepo, saldosRepo, rel)
 	return &Servidor{
-		lanc:   controller.NewLancamentos(lancSvc),
-		esp:    controller.NewEspacos(service.NewEspacos(espacos)),
-		cfg:    controller.NewConfig(service.NewConfig(cfgRepo), tags, contador),
-		perfil: controller.NewPerfil(service.NewPerfil(pessoas)),
-		fech:   controller.NewFechamento(fech, saldos, service.NewConferencia(saldos, fech, lancSvc)),
-		avisos: controller.NewAvisos(avisos),
+		lanc:    controller.NewLancamentos(lancSvc),
+		esp:     controller.NewEspacos(service.NewEspacos(espacos)),
+		cfg:     controller.NewConfig(service.NewConfig(cfgRepo), tags, contador),
+		perfil:  controller.NewPerfil(service.NewPerfil(pessoas)),
+		fech:    controller.NewFechamento(fech, saldos, service.NewConferencia(saldos, fech, lancSvc)),
+		avisos:  controller.NewAvisos(avisos),
+		cartoes: &rotasCartao{c: controller.NewCartoes(service.NewCartoes(lancRepo, cfgRepo, rel, lancSvc))},
 	}
 }

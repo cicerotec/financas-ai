@@ -207,7 +207,7 @@ início sempre.
 ### Os três valores da fatura
 | Valor | Quem produz | Hoje |
 |---|---|---|
-| Calculado | a soma dos lançamentos do período (com `faturaAjuste`) | calculado no front |
+| Calculado | a soma dos lançamentos do período (com `faturaAjuste`) | **calculado no servidor** (`GET /cartoes/{meio}/faturas/{ym}`, item 33a fase A; a aba Cartão ainda calcula no navegador até a fase B) |
 | Da fatura | a operadora (app ou documento) | `faturas[ym].valorBanco`, digitado |
 | Do boleto / pago | o que de fato sai da conta | lançamento do banco criado à mão, sem ligação com a fatura |
 

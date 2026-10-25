@@ -24,7 +24,7 @@ justamente porque o conteúdo é inventado.
 | `SPACE#<sid>` | `CFG#TAGS` | Tags já usadas (`usadas`); o member só acrescenta | `tags.go` |
 | `SPACE#<sid>` | `CFG#COMBOS` | Combos de tags | `main.go` |
 | `SPACE#<sid>` | `CFG#SALDOS` | Início do controle por banco (`dataInicio`, `saldoInicial`) | `fechamento.go` |
-| `SPACE#<sid>` | `CFG#CARTOES` | **Hoje por banco** (`porBanco[banco]`): `diaPadrao`, `inicio` e `faturas["AAAA-MM"]` (`fechamento`, `valorBanco`, `conferida`). **Dívida:** o cartão não é um banco (pode não ter nenhum, e quem paga a fatura é uma escolha); deve virar uma entidade própria, por cartão, no item 33 do BACKLOG | front (`atualizarConfigCartoes`) |
+| `SPACE#<sid>` | `CFG#CARTOES` | **Hoje por banco** (`porBanco[banco]`): `diaPadrao`, `inicio` e `faturas["AAAA-MM"]` (`fechamento`, `valorBanco`, `conferida`; **`conferida = {total, em, por}` é gravado só pelo servidor**, no `POST .../conferir`, com o total que ele calculou). **Dívida:** o cartão não é um banco (pode não ter nenhum, e quem paga a fatura é uma escolha); deve virar uma entidade própria, por cartão, no item 33 do BACKLOG | comandos do servidor (`/cartoes`, item 33a); o front ainda grava pelo `PUT /cfg/cartoes` até a fase B |
 | `SPACE#<sid>` | `SALDO#<banco>` | Fechamento mensal do banco: `caches`, `conferidos`, `invalidoDe`, `base` (gravados **só pelo servidor**, ver abaixo) | `service/saldos.go`, `service/fechamento.go` |
 | `SPACE#<sid>` | `USER#<sub>#CFG#APARENCIA` | Aparência da própria pessoa (cores, estilo) | `main.go` |
 | `SPACE#<sid>` | `TX#<dataEvento>#<id>` | Um lançamento. Excluído logicamente, ganha `excluidoEm` (histórico, Fase 1) | `repository/lancamento.go` (`Salvar`), `repository/dynamo.go` (`TxSK`) |
