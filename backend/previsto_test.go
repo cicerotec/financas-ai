@@ -310,6 +310,31 @@ func TestFuturosGruposEResumo(t *testing.T) {
 	}
 }
 
+// Futuros so olha do mes passado em diante: um previsto mais antigo (como um PREVISTO esquecido de anos atras) nao entra, e nao e lido.
+func TestFuturosIgnoraOsPrevistosAnterioresAoMesPassado(t *testing.T) {
+	relogioPrev(t) // 24/10/2026: a janela comeca em 01/09/2026
+	f := cenario(t)
+	previsto(t, f, "agosto", "2026-08-31T15:00:00.000Z", nil)
+	previsto(t, f, "velho", "2018-03-10T15:00:00.000Z", nil)
+	f.colocar(t, doc{"PK": pkEspaco, "SK": dePrefixoTx + "2019-05-05T15:00:00.000Z#antigo", "id": "antigo", "dataEvento": "2019-05-05T15:00:00.000Z", "status": "PREVISTO",
+		"tipo": "saida", "valor": 9.0, "banco": "ITAU", "descricao": "esquecido", "tags": []any{}})
+	previsto(t, f, "setembro", "2026-09-01T15:00:00.000Z", nil)
+	previsto(t, f, "outubro", hoje24, nil)
+	_, d := chamar(t, "own", "GET", "spaces/s1/futuros", nil, "")
+	ids := fmt.Sprint(d["atrasados"], d["meses"])
+	for _, fora := range []string{"agosto", "velho", "antigo"} {
+		if strings.Contains(ids, fora) {
+			t.Errorf("%s e anterior a setembro e fica de fora: %s", fora, ids)
+		}
+	}
+	if !strings.Contains(ids, "setembro") || !strings.Contains(ids, "outubro") {
+		t.Errorf("do mes passado em diante entra: %s", ids)
+	}
+	if d["resumo"].(map[string]any)["atrasados"].(map[string]any)["n"] != 1.0 {
+		t.Errorf("so setembro esta atrasado: %v", d["resumo"])
+	}
+}
+
 // P-T16
 func TestFuturosTruncaEm1000(t *testing.T) {
 	relogioPrev(t)

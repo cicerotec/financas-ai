@@ -198,6 +198,12 @@ func (s *Lancamentos) Futuros(ctx context.Context, sid string, ocultos bool) (do
 	}, nil
 }
 
+// inicioDeFuturos e o primeiro dia (AAAA-MM-DD, Sao Paulo) do mes anterior ao de agora: os previstos mais antigos que isso nao entram em Futuros.
+func inicioDeFuturos(agora time.Time) string {
+	a := agora.In(domain.FusoApp)
+	return time.Date(a.Year(), a.Month()-1, 1, 0, 0, 0, 0, domain.FusoApp).Format("2006-01-02")
+}
+
 // cacheFuturos guarda o que a ultima leitura achou, com o valor do contador de alteracoes lido ANTES dela.
 type cacheFuturos struct {
 	seq    float64
@@ -221,7 +227,9 @@ func (s *Lancamentos) lerPrevistos(ctx context.Context, sid string) ([]domain.Do
 			return c.itens, nil
 		}
 	}
-	f := domain.FiltroTx{SoPrevistos: true, Asc: true, Limite: 500}
+	// A chave de ordenacao tem a data (TX#<dataEvento>#<id>), entao o Query le so de um dia em diante: Futuros olha os atrasados do mes passado
+	// em diante e ignora os mais antigos (decisao do dono, 2026-10-25), em vez de ler a particao inteira.
+	f := domain.FiltroTx{SoPrevistos: true, Asc: true, Limite: 500, De: inicioDeFuturos(s.rel.Agora())}
 	var itens []domain.Doc
 	for {
 		pag, proximo, err := s.repo.Listar(ctx, sid, f)

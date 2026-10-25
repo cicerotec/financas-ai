@@ -111,7 +111,7 @@ plan.
 - **R21.** Quem pode: owner sempre; member só os lançamentos que criou (`criadoPor == sub`), como `tx.editar`.
 
 **Futuros**
-- **R22.** `GET /spaces/{sid}/futuros[?ocultos=1]` devolve todos os previstos do espaço (R1), sem excluídos. Os **ocultos** ficam de
+- **R22.** `GET /spaces/{sid}/futuros[?ocultos=1]` devolve os previstos do espaço (R1) **do primeiro dia do mês passado em diante** (os mais antigos ficam de fora; decisão do dono, 2026-10-25), sem excluídos. Os **ocultos** ficam de
   fora, a não ser com `ocultos=1`; ocultos nunca entram no resumo.
 - **R23.** O corpo traz `resumo` (`pagar`, `receber`, `atrasados: {n, valor}`, arredondados a 2 casas), `atrasados` (os itens com o
   dia anterior a hoje, mais antigos primeiro) e `meses` (um grupo por mês AAAA-MM, em ordem, com os itens por data). Cada item é o
