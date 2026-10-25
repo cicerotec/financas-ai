@@ -93,7 +93,7 @@ func (c *Lancamentos) GetTxs(ctx context.Context, sid string, qs map[string]stri
 	if n, err := strconv.Atoi(qs["limite"]); err == nil && n > 0 && n <= 1000 {
 		f.Limite = n
 	}
-	d, err := c.svc.ListarTx(ctx, sid, f)
+	d, err := c.svc.ListarTx(ctx, sid, f, qs["filtros"] == "1")
 	if err != nil {
 		return respostaErro(err)
 	}

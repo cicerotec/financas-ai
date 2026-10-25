@@ -199,7 +199,7 @@ func TestGetTxSemPrevistosComRotuloEFiltros(t *testing.T) {
 	mk("a4", "2019-03-13T15:00:00.000Z", "FOO", nil)
 	mk("p1", "2019-03-14T15:00:00.000Z", "PREVISTO", nil)               // antigo: previsto pelo nome
 	mk("p2", "2019-03-15T15:00:00.000Z", "PAGO", doc{"previsto": true}) // previsto pelo marcador
-	c, d := chamar(t, "own", "GET", "spaces/s1/tx", map[string]string{"de": "2019-03-01", "ate": "2019-03-31"}, "")
+	c, d := chamar(t, "own", "GET", "spaces/s1/tx", map[string]string{"de": "2019-03-01", "ate": "2019-03-31", "filtros": "1"}, "")
 	esperar(t, "periodo de 2019", c, 200)
 	ids := idsDe(d)
 	if strings.Contains(ids, "p1") || strings.Contains(ids, "p2") || len(itensDe(d)) != 4 {
@@ -224,12 +224,12 @@ func TestGetTxSemPrevistosComRotuloEFiltros(t *testing.T) {
 		t.Error("sem meses")
 	}
 	// com o filtro de status ativo, a lista de filtros nao encolhe
-	_, d = chamar(t, "own", "GET", "spaces/s1/tx", map[string]string{"de": "2019-03-01", "ate": "2019-03-31", "status": "PAGO"}, "")
+	_, d = chamar(t, "own", "GET", "spaces/s1/tx", map[string]string{"de": "2019-03-01", "ate": "2019-03-31", "status": "PAGO", "filtros": "1"}, "")
 	if idsDe(d) != "a3" || len(d["filtros"].(map[string]any)["status"].([]any)) != 4 {
 		t.Errorf("status=PAGO: %v", d)
 	}
 	// um periodo recente nao traz os de 2019
-	_, d = chamar(t, "own", "GET", "spaces/s1/tx", map[string]string{"de": "2026-10-01"}, "")
+	_, d = chamar(t, "own", "GET", "spaces/s1/tx", map[string]string{"de": "2026-10-01", "filtros": "1"}, "")
 	for _, x := range d["filtros"].(map[string]any)["status"].([]any) {
 		if x == "CREDITO IN" || x == "FOO" {
 			t.Errorf("o periodo recente nao tem %v", x)
@@ -248,7 +248,7 @@ func TestGetTxComVariasPaginas(t *testing.T) {
 	}
 	total, cursor := 0, ""
 	for pg := 0; pg < 10; pg++ {
-		qs := map[string]string{"de": "2025-05-01", "ate": "2025-05-31", "limite": "500"}
+		qs := map[string]string{"de": "2025-05-01", "ate": "2025-05-31", "limite": "500", "filtros": "1"}
 		if cursor != "" {
 			qs["cursor"] = cursor
 		}
@@ -606,5 +606,54 @@ func TestReclassificarOPassadoNaoPassaPelaTrava(t *testing.T) {
 		}
 		vs := versoesDe(t, f, id)
 		confereVersao(t, vs[len(vs)-1], float64(len(vs)), "update", "own")
+	}
+}
+
+// Sem filtros=1, GET /tx nao faz a leitura extra do periodo para os filtros de status.
+func TestGetTxSoCalculaFiltrosAPedido(t *testing.T) {
+	relogioPrev(t)
+	f := cenario(t)
+	_, d := chamar(t, "own", "GET", "spaces/s1/tx", nil, "")
+	if _, tem := d["filtros"]; tem {
+		t.Error("filtros so a pedido")
+	}
+	antes := f.lidosNoQuery
+	chamar(t, "own", "GET", "spaces/s1/tx", map[string]string{"filtros": "1"}, "")
+	umaLeitura := f.lidosNoQuery - antes
+	antes = f.lidosNoQuery
+	chamar(t, "own", "GET", "spaces/s1/tx", nil, "")
+	if f.lidosNoQuery-antes >= umaLeitura {
+		t.Errorf("sem filtros deveria ler menos: %d x %d", f.lidosNoQuery-antes, umaLeitura)
+	}
+}
+
+// Futuros reaproveita a leitura enquanto o contador de alteracoes nao muda; qualquer escrita de lancamento faz ler de novo.
+func TestFuturosReaproveitaALeituraAteAlguemGravar(t *testing.T) {
+	relogioPrev(t)
+	f := cenario(t)
+	previsto(t, f, "p1", nov05, nil)
+	c, _ := chamar(t, "own", "POST", "spaces/s1/tx", nil, corpo(hoje24, "PAGO", 1, "")) // uma escrita: o contador passa a existir
+	esperar(t, "escrita", c, 201)
+	chamar(t, "own", "GET", "spaces/s1/futuros", nil, "")
+	antes := f.lidosNoQuery
+	_, d := chamar(t, "own", "GET", "spaces/s1/futuros", nil, "")
+	if f.lidosNoQuery != antes {
+		t.Errorf("a segunda chamada nao deveria ler a particao (leu %d itens)", f.lidosNoQuery-antes)
+	}
+	if len(d["meses"].([]any)) != 1 {
+		t.Errorf("mesmo resultado: %v", d)
+	}
+	// alguem grava um previsto novo: o contador muda e a leitura e refeita
+	c, _ = chamar(t, "mem", "POST", "spaces/s1/tx", nil, corpo(nov05, "PAGO", 5, ""))
+	esperar(t, "outra escrita", c, 201)
+	_, d = chamar(t, "own", "GET", "spaces/s1/futuros", nil, "")
+	if f.lidosNoQuery == antes || len(d["meses"].([]any)[0].(map[string]any)["itens"].([]any)) != 2 {
+		t.Errorf("depois de uma escrita le de novo e traz o previsto novo: %v", d)
+	}
+	// o resultado do cache nao e alterado por quem chama (decorar mexe numa copia)
+	_, d = chamar(t, "own", "GET", "spaces/s1/futuros", nil, "")
+	_, d = chamar(t, "own", "GET", "spaces/s1/futuros", nil, "")
+	if len(d["meses"].([]any)[0].(map[string]any)["itens"].([]any)) != 2 {
+		t.Errorf("repetir nao muda nada: %v", d)
 	}
 }
