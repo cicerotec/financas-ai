@@ -51,7 +51,7 @@ func TestValidarSerie(t *testing.T) {
 
 func TestSerieNaCriacaoEdicaoELote(t *testing.T) {
 	f := cenario(t)
-	corpo := `{"dataEvento":"2026-10-10T12:00:00.000Z","valor":50,"tipo":"saida","status":"PREVISTO","banco":"ITAU","descricao":"Seguro",
+	corpo := `{"dataEvento":"2026-10-10T12:00:00.000Z","valor":50,"tipo":"saida","status":"PAGO","banco":"ITAU","descricao":"Seguro",
 		"serie":{"id":"serie0000abc","indice":2,"intervalo":12}}`
 	st, d := chamar(t, "mem", "POST", "spaces/s1/tx", nil, corpo)
 	esperar(t, "criar com serie", st, 201)

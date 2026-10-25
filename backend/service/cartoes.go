@@ -8,7 +8,6 @@ import (
 	"math"
 	"regexp"
 	"sort"
-	"strings"
 	"time"
 
 	"financas/domain"
@@ -119,7 +118,7 @@ func (s *Cartoes) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 		if !ok {
 			continue
 		}
-		rs := domain.RegistrosDoCartao(c, nome, itens, listas)
+		rs := domain.RegistrosDoCartao(c, nome, itens)
 		atual := domain.FaturaAtual(c, hoje)
 		fech := domain.FechamentoDe(c, atual)
 		dias := domain.NumeroDoDia(fech) - domain.NumeroDoDia(hoje)
@@ -218,7 +217,7 @@ func (s *Cartoes) registros(ctx context.Context, sid string, c domain.Cartao, ba
 	if err != nil {
 		return nil, err
 	}
-	return domain.RegistrosDoCartao(c, banco, itens, listas), nil
+	return domain.RegistrosDoCartao(c, banco, itens), nil
 }
 
 func montarFatura(c domain.Cartao, banco, ym, atual, hoje, sub string, dono bool, rs []domain.RegistroFatura) domain.Doc {
@@ -628,7 +627,7 @@ func (s *Cartoes) Desconferir(ctx context.Context, sid, banco, ym string) (domai
 
 // RegistrarDiferenca: POST /spaces/{sid}/cartoes/{banco}/faturas/{ym}/diferenca (R23 e R24). Cria o lancamento do que falta (valorBanco - total).
 func (s *Cartoes) RegistrarDiferenca(ctx context.Context, sid, sub, banco, ym string) (domain.Doc, error) {
-	c, total, _, listas, err := s.totalAgora(ctx, sid, banco, ym)
+	c, total, _, _, err := s.totalAgora(ctx, sid, banco, ym)
 	if err != nil {
 		return nil, err
 	}
@@ -641,15 +640,14 @@ func (s *Cartoes) RegistrarDiferenca(ctx context.Context, sid, sub, banco, ym st
 		return nil, &ErroValidacao{"nao falta valor na fatura: o valor do app do cartao nao e maior que o total"}
 	}
 	status := ""
-	arr, _ := listas["status"].([]any)
-	for _, x := range arr {
-		if n, ok := x.(string); ok && strings.ToUpper(strings.TrimSpace(domain.Normalizar(n))) == "CREDITO" {
-			status = n
+	for _, e := range domain.Catalogo { // o status de credito que o servidor sugere (CREDITO)
+		if e.Selecionavel && e.Credito {
+			status = e.Nome
 			break
 		}
 	}
 	if status == "" {
-		return nil, &ErroValidacao{"cadastre um status CREDITO na aba Listas para registrar a diferenca"}
+		return nil, &ErroValidacao{"nao ha status de credito para registrar a diferenca"}
 	}
 	_, fim := domain.PeriodoFatura(c, ym)
 	data, err := time.ParseInLocation("2006-01-02T15:04:05", fim+"T12:00:00", domain.FusoApp)

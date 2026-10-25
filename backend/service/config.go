@@ -25,9 +25,12 @@ type ErroConflitoConfig struct{ Atual domain.Doc }
 func (e *ErroConflitoConfig) Error() string { return domain.ErrConflitoConfig.Error() }
 
 // Config le e grava as configuracoes compartilhadas (listas, tags, combos, saldos, cartoes) e a aparencia de cada pessoa.
-type Config struct{ repo RepositorioConfig }
+type Config struct {
+	repo RepositorioConfig
+	rel  Relogio
+}
 
-func NewConfig(repo RepositorioConfig) *Config { return &Config{repo: repo} }
+func NewConfig(repo RepositorioConfig, rel Relogio) *Config { return &Config{repo: repo, rel: rel} }
 
 // semItem e o que se devolve quando a configuracao ainda nao existe.
 func semItem(d domain.Doc) domain.Doc {
@@ -36,6 +39,9 @@ func semItem(d domain.Doc) domain.Doc {
 	}
 	return domain.Publico(d)
 }
+
+// statusDeListas sao os campos de CFG#LISTAS que o catalogo de status do servidor substituiu (item 41).
+var statusDeListas = []string{"status", "statusReal", "afetaSaldoBanco", "statusFuturo"}
 
 // Ler devolve a configuracao compartilhada; sem item, so {"version": 0}.
 func (s *Config) Ler(ctx context.Context, sid, nome string) (domain.Doc, error) {
@@ -46,6 +52,11 @@ func (s *Config) Ler(ctx context.Context, sid, nome string) (domain.Doc, error) 
 	}
 	out := semItem(d)
 	if strings.EqualFold(nome, "listas") {
+		// a lista de status e do servidor (item 41): so as selecionaveis sugeridas hoje; as caixas de status deixam de ser lidas e de sair
+		for _, k := range statusDeListas {
+			delete(out, k)
+		}
+		out["status"] = domain.SugeridosPara("", s.rel.Agora())
 		if err := s.juntarMeios(ctx, sid, out); err != nil {
 			return nil, err
 		}
@@ -76,12 +87,11 @@ func (s *Config) juntarMeios(ctx context.Context, sid string, listas domain.Doc)
 		meios = append(meios, domain.Doc{"nome": nome, "cartao": cartao, "ativo": true})
 	}
 	listas["meios"] = meios
-	// o ajuste de fatura que cada status de credito traz por padrao (CREDITO EX +1, CREDITO IN -1, CREDITO 0): o front so consulta, sem olhar o nome do status
+	// o ajuste de fatura que cada status de credito do catalogo traz por padrao (CREDITO EX +1, CREDITO IN -1, CREDITO 0): o front so consulta, sem olhar o nome do status
 	padrao := domain.Doc{}
-	status, _ := listas["status"].([]any)
-	for _, x := range status {
-		if st, ok := x.(string); ok && domain.EhCredito(st) {
-			padrao[st] = domain.AjustePadrao(st)
+	for _, e := range domain.Catalogo {
+		if e.Credito {
+			padrao[e.Nome] = e.AjustePadrao
 		}
 	}
 	listas["faturaPadrao"] = padrao
@@ -98,6 +108,14 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 	case "listas":
 		delete(body, "meios") // derivados pelo servidor na leitura, nunca gravados
 		delete(body, "faturaPadrao")
+		// o status e as caixas de status sao do servidor (item 41): o corpo e ignorado e o que esta gravado continua como esta
+		atual, _ := s.repo.Ler(ctx, sid, "listas")
+		for _, k := range statusDeListas {
+			delete(body, k)
+			if v, ok := atual[k]; ok {
+				body[k] = v
+			}
+		}
 	}
 	res, err := s.repo.Salvar(ctx, sid, nome, body, esperada)
 	switch {

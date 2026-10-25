@@ -4,7 +4,7 @@ O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](in
 (`P-T<n>` para o backend da fase A), para o PR dizer exatamente o que cobriu. Quando este texto e o do intent divergirem, vale o
 plan.
 
-**Estado:** rascunho para aprovação, revisto em 2026-10-24. Nada implementado. O nome do campo, **`previsto`** (booleano), foi aprovado pelo dono em 2026-10-24. Vem
+**Estado:** aprovado pelo dono em 2026-10-24. **Fase A implementada** (`feature/futuros-previsto-fase-a`). Desvios da fase A em relação a este texto: (1) a trava de **criar** e de **excluir** também passou a seguir o efeito no saldo (um previsto ou um status que não conta, como `CREDITO`, não pede confirmação de mês fechado); (2) `GET /tx` calcula `filtros.status` lendo o período inteiro e só na primeira página (sem `cursor`); (3) `GET /status` e `GET /futuros` usam a ação `tx.ler`; (4) o antigo (só pelo nome) não ganha o marcador gravado ao ser editado; (5) `GET /cfg/listas` também devolve `faturaPadrao` (derivado do catálogo, item 33a); (6) os caches de saldo foram invalidados uma vez (`BaseCache` passou a `v3`). O nome do campo, **`previsto`** (booleano), foi aprovado pelo dono em 2026-10-24. Vem
 **depois** dos itens 40 ([`saldo-servidor`](../saldo-servidor/spec.md)) e 33 fatiado ([`fatura-servidor`](../fatura-servidor/spec.md)).
 
 ## Regras

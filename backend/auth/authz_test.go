@@ -46,6 +46,8 @@ func TestMatrizDePermissoes(t *testing.T) {
 		{PapelMember, AcaoReabrirMes, Negado},
 		{PapelMember, AcaoLerHistorico, SoDono},
 		{PapelMember, AcaoRestaurar, SoDono},
+		{PapelOwner, AcaoConfirmarTx, Liberado},
+		{PapelMember, AcaoConfirmarTx, SoDono},
 		{PapelOwner, AcaoLerCartao, Liberado},
 		{PapelOwner, AcaoEscreverCartao, Liberado},
 		{PapelMember, AcaoLerCartao, Liberado},
@@ -61,7 +63,7 @@ func TestMatrizDePermissoes(t *testing.T) {
 func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 	todas := []Acao{AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 		AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-		AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoLerCartao, AcaoEscreverCartao}
+		AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao}
 	for _, a := range todas {
 		if Permitido(PapelOwner, a) != Liberado {
 			t.Errorf("owner deveria poder %q", a)
@@ -102,7 +104,7 @@ func TestPapelDesconhecidoOuVazioNaoPodeNada(t *testing.T) {
 	for _, papel := range []string{"", "viewer", "OWNER", "Member", "admin"} {
 		for _, a := range []Acao{AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoLerCartao, AcaoEscreverCartao, "inexistente"} {
+			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao, "inexistente"} {
 			if got := Permitido(papel, a); got != Negado {
 				t.Errorf("papel %q, Acao %q: esperado Negado, veio %v", papel, a, got)
 			}
@@ -162,6 +164,17 @@ func TestRotaParaAcao(t *testing.T) {
 		{"PUT", []string{"tx", "abc123", "versoes", "2", "restaurar"}, "", false},
 		{"POST", []string{"tx", "abc123", "versoes", "2", "restaurar", "x"}, "", false},
 		{"POST", []string{"tx", "abc123", "outra", "2", "restaurar"}, "", false},
+		// item 41: confirmar, futuros, status e transferencias
+		{"POST", []string{"tx", "abc", "confirmar"}, AcaoConfirmarTx, true},
+		{"GET", []string{"tx", "abc", "confirmar"}, "", false},
+		{"PUT", []string{"tx", "abc", "confirmar"}, "", false},
+		{"POST", []string{"tx", "abc", "outra"}, "", false},
+		{"GET", []string{"futuros"}, AcaoLerTx, true},
+		{"POST", []string{"futuros"}, "", false},
+		{"GET", []string{"status"}, AcaoLerTx, true},
+		{"PUT", []string{"status"}, "", false},
+		{"POST", []string{"transferencias"}, AcaoCriarTx, true},
+		{"GET", []string{"transferencias"}, "", false},
 		// cartoes (item 33a): as leituras e os comandos
 		{"GET", []string{"cartoes"}, AcaoLerCartao, true},
 		{"POST", []string{"cartoes"}, AcaoEscreverCartao, true},

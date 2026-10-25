@@ -105,7 +105,7 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 			return nil, nil, "", nil, ErrInterno
 		}
 		c.versao = versaoDe(c.item)
-		c.base = domain.BaseCache(c.cfg, listas)
+		c.base = domain.BaseCache(c.cfg)
 		if p, ok := domain.PontoDePartida(c.item, c.cfg, c.base, atual); ok {
 			c.partida = &p
 		}
@@ -119,7 +119,7 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 		} else {
 			c.semDe = true
 		}
-		c.acc = domain.NovoAcumulador(listas, de)
+		c.acc = domain.NovoAcumulador(de)
 		por[nome] = c
 	}
 	if len(bancos) == 0 {

@@ -11,11 +11,6 @@ import (
 // Saldo calculado no servidor (item 40, .ai/specs/saldo-servidor). Tudo aqui e funcao pura: o instante, a configuracao e os
 // lancamentos vem de quem chama, e o resultado e o mesmo que o navegador calculava (cascata mensal, arredondada a cada mes).
 
-// padraoAfetaSaldo e padraoStatusFuturo sao o que valia quando a configuracao do espaco nao diz (o padrao do app).
-var (
-	padraoAfetaSaldo = map[string]bool{"PAGO": true, "CONTAS": true}
-)
-
 // ConfigBanco e o que CFG#SALDOS guarda de um banco (um meio de pagamento): o ponto de partida do controle.
 type ConfigBanco struct {
 	Existe       bool    // ha configuracao para o banco; sem ela o saldo comeca do primeiro movimento
@@ -41,30 +36,6 @@ func ConfigBancoDe(cfgSaldos Doc, banco string) ConfigBanco {
 // Arred arredonda a 2 casas como o navegador fazia (Math.round: a metade vai para cima).
 func Arred(v float64) float64 { return math.Floor(v*100+0.5) / 100 }
 
-// afetaSaldoDe devolve o mapa efetivo de "afeta o saldo do banco": o de CFG#LISTAS, ou o padrao se o espaco nao o tem.
-func afetaSaldoDe(listas Doc) map[string]bool {
-	if m, ok := listas["afetaSaldoBanco"].(map[string]any); ok {
-		r := map[string]bool{}
-		for k, v := range m {
-			r[k], _ = v.(bool)
-		}
-		return r
-	}
-	return padraoAfetaSaldo
-}
-
-// statusFuturoDe devolve o mapa efetivo de "evento futuro": o de CFG#LISTAS, ou o padrao se o espaco nao o tem.
-func statusFuturoDe(listas Doc) map[string]bool {
-	if m, ok := listas["statusFuturo"].(map[string]any); ok {
-		r := map[string]bool{}
-		for k, v := range m {
-			r[k], _ = v.(bool)
-		}
-		return r
-	}
-	return StatusFuturoPadrao
-}
-
 func ligados(m map[string]bool) string {
 	var ks []string
 	for k, v := range m {
@@ -76,29 +47,29 @@ func ligados(m map[string]bool) string {
 	return strings.Join(ks, ",")
 }
 
-// ContaNoSaldo diz se um lancamento entra no saldo do seu banco: nao esta excluido nem oculto, o status afeta o saldo do banco
-// e nao e de evento futuro. Hoje a regra le CFG#LISTAS (afetaSaldoBanco e statusFuturo), como o navegador; o item 41 a troca
-// pelo catalogo de status do backend.
-func ContaNoSaldo(l Lancamento, listas Doc) bool {
-	if Excluido(l) {
+// ContaNoSaldo diz se um lancamento entra no saldo do seu banco: nao esta excluido, oculto nem previsto, e o status (pelo catalogo do
+// servidor) mexe no saldo. A configuracao de Listas (afetaSaldoBanco, statusFuturo) deixou de ser lida (item 41).
+func ContaNoSaldo(l Lancamento) bool {
+	if Excluido(l) || EhPrevisto(l) {
 		return false
 	}
 	if o, _ := l["oculto"].(bool); o {
 		return false
 	}
-	status, _ := l["status"].(string)
-	if statusFuturoDe(listas)[status] {
-		return false
-	}
-	return afetaSaldoDe(listas)[status]
+	return ContaNoSaldoStatus(StatusDe(l))
 }
 
-// BaseCache e a assinatura da configuracao com a qual um cache foi calculado: saldo inicial, data de inicio e quais status
-// afetam o saldo e quais sao de evento futuro. Um cache so vale para a base em que foi calculado. O prefixo v2 invalida os caches
-// que o navegador gravava antes do item 40.
-func BaseCache(cfg ConfigBanco, listas Doc) string {
-	return "v2|" + strconv.FormatFloat(cfg.SaldoInicial, 'f', -1, 64) + "|" + cfg.DataInicio + "|" +
-		ligados(afetaSaldoDe(listas)) + "/" + ligados(statusFuturoDe(listas))
+// BaseCache e a assinatura da configuracao com a qual um cache foi calculado: saldo inicial, data de inicio e as regras de status do catalogo
+// (quais contam no saldo). Um cache so vale para a base em que foi calculado. O prefixo v3 invalida os caches calculados com a regra
+// de Listas, que o catalogo substituiu (item 41).
+func BaseCache(cfg ConfigBanco) string {
+	var contam []string
+	for _, e := range Catalogo {
+		if e.ContaNoSaldo && !e.Previsto {
+			contam = append(contam, e.Nome)
+		}
+	}
+	return "v3|" + strconv.FormatFloat(cfg.SaldoInicial, 'f', -1, 64) + "|" + cfg.DataInicio + "|" + strings.Join(contam, ",")
 }
 
 // InicioDoControle devolve o instante em que a data de inicio (AAAA-MM-DD) comeca a valer: 00:00 em Sao Paulo.
@@ -147,19 +118,18 @@ func LimiteAPartirDe(cfg ConfigBanco, p *Partida) (time.Time, bool) {
 
 // Acumulador soma, por mes, o que os lancamentos de um banco contam no saldo.
 type Acumulador struct {
-	listas Doc
 	de     *time.Time
 	porMes map[string]float64
 }
 
 // NovoAcumulador cria um acumulador; de, se houver, e o instante a partir do qual os lancamentos contam.
-func NovoAcumulador(listas Doc, de *time.Time) *Acumulador {
-	return &Acumulador{listas: listas, de: de, porMes: map[string]float64{}}
+func NovoAcumulador(de *time.Time) *Acumulador {
+	return &Acumulador{de: de, porMes: map[string]float64{}}
 }
 
 // Somar acrescenta um lancamento (ja do banco certo) se ele conta no saldo e e do periodo.
 func (a *Acumulador) Somar(l Lancamento) {
-	if !ContaNoSaldo(l, a.listas) {
+	if !ContaNoSaldo(l) {
 		return
 	}
 	data, _ := l["dataEvento"].(string)
@@ -335,20 +305,12 @@ func MesesDoPainel(mapa map[string]float64, conf map[string]Doc, atual string) [
 	return out
 }
 
-// StatusDeAjuste devolve o status de um lancamento de ajuste da conferencia: o primeiro (PAGO e depois os da lista) que conta no
-// saldo. Vazio se nenhum conta.
-func StatusDeAjuste(listas Doc) string {
-	cands := []string{"PAGO"}
-	if arr, ok := listas["status"].([]any); ok {
-		for _, x := range arr {
-			if s, ok := x.(string); ok {
-				cands = append(cands, s)
-			}
-		}
-	}
-	for _, c := range cands {
-		if ContaNoSaldo(Lancamento{"status": c}, listas) {
-			return c
+// StatusDeAjuste devolve o status de um lancamento de ajuste da conferencia: o primeiro selecionavel do catalogo que conta no saldo
+// (PAGO). Vazio se nenhum conta.
+func StatusDeAjuste() string {
+	for _, e := range Catalogo {
+		if e.Selecionavel && e.ContaNoSaldo && !e.Previsto {
+			return e.Nome
 		}
 	}
 	return ""

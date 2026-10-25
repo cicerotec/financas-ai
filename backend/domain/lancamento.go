@@ -91,7 +91,7 @@ func Identidade(l Lancamento) string {
 
 // Protegidos tira do corpo os campos que so o servidor define.
 func Protegidos(d Doc) {
-	for _, k := range []string{"PK", "SK", "id", "criadoEm", "criadoPor", "excluidoEm", "confirmaMesFechado", "confirmouMesFechado"} {
+	for _, k := range []string{"PK", "SK", "id", "criadoEm", "criadoPor", "excluidoEm", "confirmaMesFechado", "confirmouMesFechado", "previsto"} {
 		delete(d, k)
 	}
 }
@@ -198,6 +198,7 @@ func ValidarFaturaAjuste(d Doc) error {
 type FiltroTx struct {
 	De, Ate, Banco, Q, Status string
 	Asc                       bool
+	SemPrevistos, SoPrevistos bool // item 41: o Historico nao traz previstos; Futuros traz so eles
 	Limite                    int
 	Cursor                    string
 }

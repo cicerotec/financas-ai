@@ -120,7 +120,7 @@ func TestSaldosGravaOCacheDosMesesEncerrados(t *testing.T) {
 	if len(caches) != 9 || caches["2026-10"] != nil || !quase(caches["2026-01"].(float64), 70) || !quase(caches["2026-09"].(float64), 70) {
 		t.Errorf("de janeiro a setembro (o mes atual nunca e cache): %v", caches)
 	}
-	if st["base"] != "v2|100|2026-01-01|CONTAS,PAGO/CREDITANDO,PREVISTO,TRANSFERINDO" || st["version"] != 1.0 {
+	if st["base"] != "v3|100|2026-01-01|PAGO,CONTAS" || st["version"] != 1.0 {
 		t.Errorf("base e version inesperados: %v / %v", st["base"], st["version"])
 	}
 	// a segunda chamada nao regrava (nada mudou)

@@ -4,7 +4,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -164,19 +163,14 @@ func RotuloMes(ym string) string {
 
 // ---------- o que entra na fatura (R5 a R8) ----------
 
-func normStatus(s string) string { return strings.ToUpper(strings.TrimSpace(Normalizar(s))) }
-
-// EhCredito: o status (sem acento, em maiusculas) comeca com CREDITO.
-func EhCredito(status string) bool { return strings.HasPrefix(normStatus(status), "CREDITO") }
+// EhCredito: o status e de credito pelo catalogo (compra de cartao).
+func EhCredito(status string) bool { e, ok := EntradaDe(status); return ok && e.Credito }
 
 // AjustePadrao e o deslocamento de fatura de um status: CREDITO EX empurra a compra para a fatura seguinte (+1) e CREDITO IN puxa uma
-// compra posterior ao fechamento para a fatura que fecha neste mes (-1). Ate o item 41, e uma constante do backend.
+// compra posterior ao fechamento para a fatura que fecha neste mes (-1). Vem da entrada do catalogo.
 func AjustePadrao(status string) int {
-	switch strings.Join(strings.Fields(normStatus(status)), " ") {
-	case "CREDITO EX":
-		return 1
-	case "CREDITO IN":
-		return -1
+	if e, ok := EntradaDe(status); ok {
+		return e.AjustePadrao
 	}
 	return 0
 }
@@ -186,24 +180,11 @@ func AjusteEfetivo(l Lancamento) int {
 	if n, ok := l["faturaAjuste"].(float64); ok {
 		return int(n)
 	}
-	s, _ := l["status"].(string)
-	return AjustePadrao(s)
-}
-
-// statusReal e o contrario de evento futuro: nao e status futuro e a configuracao nao o marca como nao real.
-func statusRealDe(listas Doc, status string) bool {
-	if statusFuturoDe(listas)[status] {
-		return false
-	}
-	m, _ := listas["statusReal"].(map[string]any)
-	if v, ok := m[status].(bool); ok && !v {
-		return false
-	}
-	return true
+	return AjustePadrao(StatusDe(l))
 }
 
 // ContaNaFatura diz se um lancamento entra na fatura do cartao: e do banco, de credito, nao esta excluido nem oculto e nao e de evento futuro.
-func ContaNaFatura(l Lancamento, banco string, listas Doc) bool {
+func ContaNaFatura(l Lancamento, banco string) bool {
 	if b, _ := l["banco"].(string); b != banco {
 		return false
 	}
@@ -214,7 +195,7 @@ func ContaNaFatura(l Lancamento, banco string, listas Doc) bool {
 		return false
 	}
 	status, _ := l["status"].(string)
-	return status != "" && EhCredito(status) && statusRealDe(listas, status)
+	return status != "" && EhCredito(status) && !EhPrevisto(l)
 }
 
 // RegistroFatura e uma compra do cartao pronta para a fatura.
@@ -231,10 +212,10 @@ type RegistroFatura struct {
 }
 
 // RegistrosDoCartao monta as compras do cartao, na ordem de entrada (o chamador manda a mais recente primeiro, como a consulta antiga).
-func RegistrosDoCartao(c Cartao, banco string, itens []Doc, listas Doc) []RegistroFatura {
+func RegistrosDoCartao(c Cartao, banco string, itens []Doc) []RegistroFatura {
 	var rs []RegistroFatura
 	for _, l := range itens {
-		if !ContaNaFatura(l, banco, listas) {
+		if !ContaNaFatura(l, banco) {
 			continue
 		}
 		data, _ := l["dataEvento"].(string)

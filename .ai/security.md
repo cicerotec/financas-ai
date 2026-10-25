@@ -33,6 +33,7 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `tx.ler` (lançamentos e notas) | sim | sim |
 | `tx.criar` | sim | sim |
 | `tx.editar` (inclui ocultar e ajustar fatura) | todos | **só os criados por ela** (`criadoPor == sub`) |
+| `tx.confirmar` (`POST /tx/{id}/confirmar`: tira o marcador `previsto`) | todos | **só os criados por ela** |
 | `tx.excluir` | sim | **não** |
 | `tx.importar` (lote) | sim | **não** |
 | `historico.ler` (busca por mês e versões de um lançamento) | todos | **só os criados por ela** |
@@ -117,7 +118,7 @@ manual.
 | Sem MFA no login do app | Senha vazada basta para entrar | item 37 (prioridade alta) |
 | Histórico de versões só dos lançamentos, e sem tela de recuperação ainda (PITR só em prod, janela de 35 dias) | Configurações e fechamentos continuam sem versão; recuperar um lançamento ainda é pelo banco | item 31 (fases 2 e 3) |
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
-| `excluirDoTotal` e o status do ajuste de conferência montados pelo front a partir do nome do status | O servidor grava a decisão do cliente | itens 33 e 40 |
+| `excluirDoTotal` montado pelo front a partir do nome do status | **Fechada na fase A do item 41 (2026-10-24):** o servidor calcula `excluirDoTotal` pelo catálogo e o valor do corpo é descartado; o front ainda o envia, ignorado | item 41 (fase C tira o envio) |
 | Campos opcionais do lançamento gravados como vêm | Valor inesperado persiste. **`faturaAjuste` já é validado** (só `-1`, `0` ou `+1`, e só em crédito; item 33a, fase A, 2026-10-24); os outros campos opcionais seguem como vêm | itens 33 e 41 |
 | Resumo do Telegram acima de 4096 caracteres | Nenhum aviso chega naquele dia (disponibilidade, não vazamento) | item 28, item 34 |
 
@@ -132,7 +133,7 @@ manual.
   Todo endpoint novo que receba um valor calculável nasce com um teste que tenta forjá-lo. O que o cliente pode mandar é
   dado de entrada (o saldo do extrato, a data escolhida, o valor digitado).
 - **O status é do backend:** mudar `status`, `statusReal`, `afetaSaldoBanco` ou `statusFuturo` pela API de configuração
-  é ignorado (e a tabela de ações acima passa a refletir isso quando a mudança for feita).
+  é **ignorado** (`PUT /cfg/listas` mantém o que está gravado; item 41, fase A). O catálogo de status e o marcador `previsto` são do servidor.
 - **Nunca logar** token, e-mail, corpo da requisição, descrição ou valor de lançamento.
 - **Dado novo que o member não deve ver** nasce filtrado na origem (backend), não escondido na tela.
 - **Permissão nova na infra** exige atualizar as roles do Actions antes do merge (veja o guardrails).
