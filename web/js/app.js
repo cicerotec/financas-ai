@@ -2024,7 +2024,7 @@ function pedirPagamentoFatura(f){
     };
     let lista = await sugerir(hoje);
     const opcoes = (itens, atual)=>itens.map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
-    const meios = listas.banco.filter(b=>b!==f.meio);
+    const meios = listas.banco;
     const meioInicial = f.sugestao.pagador && meios.includes(f.sugestao.pagador) ? f.sugestao.pagador : meios[0];
     document.getElementById('modalMsg').textContent = 'Já paguei a fatura ' + f.rotulo + ' · ' + f.meio;
     document.getElementById('modalExtra').innerHTML =
@@ -2724,7 +2724,7 @@ function conferenciaHtml(f){
 
 // as opcoes de "Paga com": nenhum e os meios da lista, menos o proprio cartao
 function opcoesPagador(cartao, atual){
-  return '<option value="">(nenhum)</option>' + listas.banco.filter(x=>x!==cartao).map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
+  return '<option value="">(nenhum)</option>' + listas.banco.map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
 }
 function linhaCfg(chave, rotulo, valor, ym){
   return `<button type="button" class="cfg-lin" data-ed="${chave}" data-ym="${ym||''}"><span>${rotulo}</span><span class="v">${esc(valor)} ›</span></button>`;
