@@ -36,7 +36,8 @@ func (s *Lancamentos) derivar(l domain.Lancamento) {
 		l["previsto"] = true
 	}
 	par, _ := l["transferParId"].(string)
-	l["excluirDoTotal"] = domain.ForaDoTotalStatus(domain.StatusDe(l)) || par != ""
+	// um lancamento com a marca pagaFatura (pagamento de fatura) tambem sai do total: o gasto ja contou nas compras de credito (R10 do pagar-fatura)
+	l["excluirDoTotal"] = domain.ForaDoTotalStatus(domain.StatusDe(l)) || par != "" || domain.TemPagaFatura(l)
 }
 
 // comPrevisto acrescenta previsto: true na resposta quando o lancamento e previsto, tambem o antigo (derivado, nao gravado), para o front nao olhar o status.
@@ -97,6 +98,9 @@ func (s *Lancamentos) Confirmar(ctx context.Context, sid, id, de string, body do
 	s.derivar(novo)
 	if err := domain.ValidarTx(novo); err != nil {
 		return nil, &ErroValidacao{err.Error()}
+	}
+	if err := s.travaDeFatura(ctx, sid).Checar(antes, novo); err != nil {
+		return nil, err
 	}
 	exigiu := false
 	var alvos []domain.Alvo
@@ -183,6 +187,33 @@ func (s *Lancamentos) Futuros(ctx context.Context, sid string, ocultos bool) (do
 		mes := domain.MesDe(data)
 		porMes[mes] = append(porMes[mes], item)
 	}
+	// as faturas a pagar (itens 33b e 35): entram na lista propria, nos meses (pelo vencimento) e nos atrasados, e somam no resumo
+	faturas := []domain.Doc{}
+	if s.faturas != nil {
+		seq, okSeq := s.ef.Seq(ctx, sid)
+		fs, err := s.faturas.AFuturos(ctx, sid, seq, okSeq)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range fs {
+			faturas = append(faturas, f)
+			valor, _ := f["valor"].(float64)
+			venc, _ := f["vencimento"].(string)
+			pagar += valor
+			if venc < hoje {
+				nAtr++
+				valorAtr += valor
+				atrasados = append(atrasados, f)
+			} else {
+				porMes[venc[:7]] = append(porMes[venc[:7]], f)
+			}
+		}
+		sort.SliceStable(atrasados, func(i, j int) bool { return diaDoItem(atrasados[i]) < diaDoItem(atrasados[j]) })
+		for _, g := range porMes {
+			g := g
+			sort.SliceStable(g, func(i, j int) bool { return diaDoItem(g[i]) < diaDoItem(g[j]) })
+		}
+	}
 	meses := []domain.Doc{}
 	chaves := make([]string, 0, len(porMes))
 	for m := range porMes {
@@ -194,7 +225,7 @@ func (s *Lancamentos) Futuros(ctx context.Context, sid string, ocultos bool) (do
 	}
 	return domain.Doc{
 		"resumo":    domain.Doc{"pagar": domain.Arred(pagar), "receber": domain.Arred(receber), "atrasados": domain.Doc{"n": nAtr, "valor": domain.Arred(valorAtr)}},
-		"atrasados": atrasados, "meses": meses, "truncado": truncado,
+		"atrasados": atrasados, "meses": meses, "faturas": faturas, "truncado": truncado,
 	}, nil
 }
 
@@ -249,6 +280,16 @@ func (s *Lancamentos) lerPrevistos(ctx context.Context, sid string) ([]domain.Do
 		s.mu.Unlock()
 	}
 	return itens, nil
+}
+
+// diaDoItem e o dia (AAAA-MM-DD) de um item de Futuros: o vencimento de uma fatura ou o dia da data de um previsto.
+func diaDoItem(d domain.Doc) string {
+	if v, ok := d["vencimento"].(string); ok && d["tipo"] == "fatura" {
+		return v
+	}
+	data, _ := d["dataEvento"].(string)
+	dia, _ := domain.DiaBR(data)
+	return dia
 }
 
 // decorar acrescenta ao lancamento o que a listagem mostra pronto: previsto (derivado), rotulo e corPadrao do catalogo (R12a, R17).

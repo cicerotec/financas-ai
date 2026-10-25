@@ -209,7 +209,7 @@ início sempre.
 |---|---|---|
 | Calculado | a soma dos lançamentos do período (com `faturaAjuste`) | **calculado no servidor** (`GET /cartoes/{meio}/faturas/{ym}`, item 33a fase A; a aba Cartão ainda calcula no navegador até a fase B) |
 | Da fatura | a operadora (app ou documento) | `faturas[ym].valorBanco`, digitado |
-| Do boleto / pago | o que de fato sai da conta | lançamento do banco criado à mão, sem ligação com a fatura |
+| Do boleto / pago | o que de fato sai da conta | um lançamento normal, de qualquer valor e em qualquer meio, que o dono pode **marcar** (`pagaFatura`) como pagamento da fatura; a marca é só uma label para achar depois (itens 33b e 35) |
 
 Caso real que originou isto: um estorno entrou no dia do corte; a fatura (extrato do cartão) trouxe um valor e o
 pagamento efetivo foi outro, menor. Nada ligava a fatura ao pagamento, e a explicação virou um lançamento de valor zero

@@ -73,6 +73,8 @@ type ErroValidacao struct{ Msg string }
 func (e *ErroValidacao) Error() string { return e.Msg }
 
 type Lancamentos struct {
+	cfg     RepositorioConfig // CFG#CARTOES: valida a marca pagaFatura e trava a fatura conferida (UsarCartoes)
+	faturas FaturasDeFuturos  // as faturas de Futuros
 	mu      sync.Mutex
 	futuros map[string]*cacheFuturos // a leitura dos previstos de cada espaco, valida enquanto o contador de alteracoes nao mudar
 	repo    Repositorio
@@ -113,6 +115,12 @@ func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.La
 		return nil, &ErroValidacao{err.Error()}
 	}
 	if err := validarStatus(domain.StatusDe(body)); err != nil {
+		return nil, err
+	}
+	if err := s.validarMarca(ctx, sid, body); err != nil {
+		return nil, err
+	}
+	if err := s.travaDeFatura(ctx, sid).Checar(nil, body); err != nil {
 		return nil, err
 	}
 	s.derivar(body)
@@ -178,6 +186,14 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 			return nil, err
 		}
 	}
+	if _, mexeu := patch["pagaFatura"]; mexeu {
+		if err := s.validarMarca(ctx, sid, novo); err != nil {
+			return nil, err
+		}
+	}
+	if err := s.travaDeFatura(ctx, sid).Checar(antes, novo); err != nil {
+		return nil, err
+	}
 	s.derivar(novo)
 	var alvos []domain.Alvo
 	exigiu := false
@@ -225,6 +241,9 @@ func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de, sub string, conf
 	if antigo == nil || domain.Excluido(antigo) {
 		return domain.Doc{"ok": true}, nil
 	}
+	if err := s.travaDeFatura(ctx, sid).Checar(antigo, nil); err != nil {
+		return nil, err
+	}
 	al, temAlvo := alvoDoEfeito(antigo)
 	exigiu := false
 	if temAlvo {
@@ -270,6 +289,7 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 	vistas := map[string]bool{}
 	ultimas := map[string]int{} // maior versao por id, contando o que este lote ja vai gravar
 	tr := s.ef.Travas(ctx, sid)
+	trF := s.travaDeFatura(ctx, sid)
 	var alvos []domain.Alvo
 	var aceitos []domain.Lancamento
 	var mudancas []domain.Mudanca
@@ -291,6 +311,14 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 		if e, ok := domain.EntradaDe(domain.StatusDe(d)); !ok || e.Nome != domain.StatusDe(d) { // o backup aceita qualquer status do catalogo, inclusive os antigos
 			rejeitados = append(rejeitados, domain.Doc{"indice": i, "motivo": "status invalido"})
 			continue
+		}
+		if err := s.validarMarca(ctx, sid, d); err != nil {
+			var ev *ErroValidacao
+			if errors.As(err, &ev) {
+				rejeitados = append(rejeitados, domain.Doc{"indice": i, "motivo": ev.Msg})
+				continue
+			}
+			return nil, err
 		}
 		s.derivar(d)
 		if marcado {
@@ -334,6 +362,14 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 		if err != nil {
 			log.Println("importar: buscar:", err)
 			return nil, ErrInterno
+		}
+		if err := trF.Checar(antigo, d); err != nil {
+			var fc *domain.ErroFaturaConferida
+			if errors.As(err, &fc) {
+				rejeitados = append(rejeitados, domain.Doc{"indice": i, "codigo": "fatura_conferida", "motivo": err.Error()})
+				continue
+			}
+			return nil, err
 		}
 		// id novo nao grava versao (decisao 8 do plan), a menos que a importacao tenha exigido confirmacao de mes fechado.
 		// id que ja existe e sobrescrita: grava versao (e, se ainda nao tinha, a v1 com o estado de antes).

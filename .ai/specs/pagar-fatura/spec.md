@@ -3,7 +3,7 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id
 (`G-T<n>` para o backend da fase A), para o PR dizer exatamente o que cobriu. Quando este texto e o do intent divergirem, vale o plan.
 
-**Estado:** rascunho para aprovação (2026-10-25), revisto no mesmo dia: o pagamento é um lançamento normal e a marca é só uma label. Nada implementado. Nomes como
+**Estado:** aprovado pelo dono em 2026-10-25. **Fase A implementada** (backend). Desvios: o `pagador` é um meio da lista e diferente do próprio cartão (R4), mas pode ser outro cartão (a decisão de proibir cartão pagando cartão saiu); `GET /futuros` traz as faturas inteiras (com `tipo: "fatura"`) também dentro de `atrasados` e `meses`, não só os três campos do exemplo. Nomes como
 no spec do item 33a: o `banco` gravado chama-se **`meio`** nas rotas e respostas novas; o status, na tela, é a **forma de pagamento**.
 
 ## Regras
