@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje (`backend/domain/fatura.go`, `service/cartoes.go`,
 `service/previsto.go`, `service/lancamento.go`, `service/fechamento.go`, `web/js/app.js`). O roteiro verificável é o [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação do dono (2026-10-25).
+**Estado:** rascunho para aprovação do dono (2026-10-25), revisto no mesmo dia: o pagamento é um lançamento normal e a marca é só uma label.
 
 ## Onde o código está hoje
 
@@ -14,48 +14,48 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 | A trava de mês de um banco é uma interface `Travas` que cada chamada de escrita consulta (`Checar(alvo, confirmado)`) e que devolve `ErroMesConferido` ou `ErroMesFechado` | `service/lancamento.go`, `service/fechamento.go` | A trava de fatura é **outra** consulta, na mesma chamada, com erro próprio (`ErroFaturaConferida`, `409 fatura_conferida`), sem confirmação que a destrave |
 | O efeito de um lançamento no saldo é `EfeitoSaldo` (meio, mês, valor) e a trava compara o efeito de antes e de depois | `domain/previsto.go` | O **efeito na fatura** é o par irmão: `EfeitoFatura` (cartão, fatura, valor) e `MudaFatura(antes, depois)` |
 | `GET /futuros` lê os previstos de um `Query` com `De` (mês passado em diante) e guarda o resultado pelo contador de alterações | `service/previsto.go` (`lerPrevistos`) | As faturas entram na mesma resposta; o cálculo delas entra no mesmo cache |
-| `POST /tx/{id}/confirmar` confirma um previsto com valor, data e status e devolve `desfazer` | `service/previsto.go` | Pagar a fatura é um **comando parecido**, na rota do cartão, que cria o lançamento de pagamento |
-| `excluirDoTotal` é calculado pelo servidor (catálogo e `transferParId`) | `service.derivar` | O pagamento de fatura também sai do total (`pagaFatura`) |
-| O front não lê `excluirDoTotal` em lugar nenhum hoje (Histórico sem total até o item 42; Tendências só conta lançamentos com tag) | `web/js` | "Não conta de novo como gasto" fica garantido pelo campo e por o pagamento não ter tag; o item 42 passa a respeitar o campo |
+| `excluirDoTotal` é calculado pelo servidor (catálogo e `transferParId`) | `service.derivar` | O lançamento que leva a marca `pagaFatura` também sai do total |
+| `faturaAjuste` é um campo que o dono escolhe e o servidor só valida (`-1`, `0`, `+1`, e só em crédito) | `domain.ValidarFaturaAjuste` | A marca `pagaFatura` é do mesmo tipo: dado escolhido pelo dono, validado pelo servidor |
+| O front não lê `excluirDoTotal` em lugar nenhum hoje (Histórico sem total até o item 42; Tendências só conta lançamentos com tag) | `web/js` | "Não conta de novo como gasto" fica garantido pelo campo; o item 42 passa a respeitá-lo |
 
 ## Desenho
 
-- **Dados novos, todos opcionais, dentro de `CFG#CARTOES.porBanco[meio]`** (sem item, chave ou índice novo):
-  - `pagador` (texto): o meio com que a fatura costuma ser paga; `faturas[ym].pagador` troca só aquela fatura.
-  - `diaVencimento` (1 a 31): o dia do vencimento; `faturas[ym].vencimento` (`AAAA-MM-DD`) acerta só aquela fatura.
-  - Um atributo opcional no **lançamento de pagamento**: `pagaFatura = { meio, ym }`, gravado só pelo servidor (entra em `Protegidos`; o backup,
-    como o `previsto`, o mantém). **Aguarda a aprovação do dono no spec.**
+- **Dados novos, todos opcionais:**
+  - Dentro de `CFG#CARTOES.porBanco[meio]` (sem item, chave ou índice novo): `pagador` (o meio com que a fatura costuma ser paga) e `diaVencimento` (1 a 31); em
+    `faturas[ym]`: `pagador` e `vencimento` (`AAAA-MM-DD`).
+  - No **lançamento**: `pagaFatura = { meio, ym }`, a marca. É **escolhida pelo dono** (vem do cliente, como o `faturaAjuste`) e o servidor só valida: o `meio`
+    é um cartão, o `ym` é um mês válido, e o lançamento **não é uma compra de crédito** (um lançamento do próprio cartão não paga fatura). `null` remove.
 - **Funções puras em `domain/`:**
-  - `VencimentoDe(cartao, ym)`: o vencimento da fatura `ym` é `faturas[ym].vencimento`, se existir; senão o **primeiro dia depois do fechamento** de
-    `ym` cujo dia do mês é `diaVencimento` (limitado ao último dia do mês); sem `diaVencimento` nem `vencimento` da fatura, não há vencimento e a fatura não entra em Futuros.
+  - `VencimentoDe(cartao, ym)`: `faturas[ym].vencimento`, se existir; senão o **primeiro dia depois do fechamento** de `ym` cujo dia do mês é `diaVencimento`
+    (limitado ao último dia do mês); sem nenhum dos dois, não há vencimento e a fatura não entra em Futuros.
   - `PagadorDe(cartao, ym)`: `faturas[ym].pagador`, senão `pagador` do cartão, senão vazio.
+  - `ValidarPagaFatura(d, cartoes)`: confere a marca (cartão, mês, lançamento que não é crédito).
   - `EfeitoFatura(l, cartao)` e `MudaFatura(antes, depois)`: a fatura em que a compra cai (R7 do item 33a: `FaturaBase` + `AjusteEfetivo`), o valor com sinal e se
     conta (crédito, não oculto, não excluído, não previsto). Muda quando o par (fatura, valor) muda.
-- **`service.Cartoes` ganha:**
-  - os campos novos nos comandos de `PUT /cartoes/{meio}` e `PUT .../faturas/{ym}`;
-  - `POST /cartoes/{meio}/faturas/{ym}/pagar` com `{ valor, dataEvento, status, pagador? }`;
-  - as faturas pagas e a pagar, para Futuros e para o painel da aba Cartão.
-- **A trava de fatura conferida** (`service/faturas_travadas.go`): um objeto por chamada, como as `Travas`, que lê `CFG#CARTOES` uma vez e responde
-  `ChecarFatura(antes, depois)`. As rotas que escrevem lançamento (criar, editar, excluir, importar, restaurar, confirmar) chamam `ChecarFatura` junto
-  com a trava de mês. Só roda quando o lançamento é de crédito de um meio que é cartão.
-- **O pagamento:** `Cartoes.Pagar` valida (fatura de cartão, `valor > 0`, data não futura, status selecionável, pagador na lista de meios e diferente do cartão,
-  fatura ainda sem pagamento), monta o lançamento (saída no pagador, descrição "Pagamento da fatura <mmm/aa> <cartão>", sem tags, `pagaFatura`,
-  `excluirDoTotal` verdadeiro) e o grava por `Lancamentos.Criar`, o mesmo caminho de escrita de qualquer lançamento (travas de mês, histórico, contador).
-  Quem acha o pagamento de uma fatura é uma leitura do período dela em diante (do fechamento até hoje), filtrando `pagaFatura`.
-- **Futuros ganha o grupo `faturas`** na resposta de `GET /futuros`: para cada cartão com vencimento, a fatura **fechada e não paga**
-  (valor = `valorBanco` se informado, senão o total calculado) e a **aberta** (total até agora), cada uma com `vencimento`, `pagador`, `atrasada` e
-  o botão de pagar. Entram nos `meses` pelo mês do vencimento e em `atrasados` quando o vencimento já passou, sempre dentro da janela de Futuros.
-- **O front não decide nada:** mostra o que `GET /futuros` e `GET /cartoes/{meio}/faturas/{ym}` mandam (vencimento, pagador, pagamento, diferença), e as
-  linhas de fatura têm o mesmo gesto de confirmar. Os campos de pagador e vencimento são entradas do dono, validadas pelo servidor.
+- **A marca não faz regra.** O único efeito dela no servidor é `excluirDoTotal` (para o pagamento não contar de novo como gasto) e a fatura sair de Futuros. Não há
+  limite de pagamentos por fatura, nem de valor, nem de meio; excluir ou editar o lançamento é normal.
+- **Não existe um comando "pagar".** "Já paguei" usa o `POST /tx` de sempre, com a marca no corpo. O que o servidor ajuda é a **sugestão** que vem no item de fatura
+  de `GET /futuros` (`sugestao: { descricao, valor, pagador }`), para o app não montar texto nem valor.
+- **Quem acha os lançamentos marcados:** uma leitura da janela da fatura (do início do período dela a 120 dias depois do fechamento), filtrando `pagaFatura`. É a
+  mesma leitura que a aba Cartão já faz das compras, estendida; sem índice novo. Marca fora da janela não aparece na fatura (limite anotado no spec).
+- **Futuros ganha o grupo `faturas`** na resposta de `GET /futuros`: para cada cartão com vencimento, a fatura **fechada sem pagamento marcado** (valor = `valorBanco`
+  se informado, senão o total calculado) e a **aberta** (total até agora), cada uma com `vencimento`, `pagador`, `atrasada` e a `sugestao`. Entram nos `meses` pelo mês
+  do vencimento e em `atrasados` quando o vencimento já passou, sempre dentro da janela de Futuros.
+- **`GET /cartoes/{meio}/faturas/{ym}`** devolve também `pagamentos` (os lançamentos marcados: id, dia, meio, valor, status), `totalPago` e `diferencaPaga`
+  (só informação).
+- **A trava da fatura conferida** (`service/faturas_travadas.go`): um objeto por chamada, como as `Travas`, que lê `CFG#CARTOES` uma vez e responde
+  `ChecarFatura(antes, depois)`. As rotas que escrevem lançamento (criar, editar, excluir, importar, restaurar, confirmar) a chamam junto com a trava de mês. Só roda
+  quando o lançamento é uma compra de crédito de um meio que é cartão.
+- **O front não decide nada:** mostra o que o servidor manda. Os campos de pagador, vencimento e a marca são entradas do dono, validadas pelo servidor.
 
 ## Fases (cada uma é um PR)
 
-- **Fase A, backend, só acrescenta:** os campos novos nos comandos do cartão, as funções puras, a trava de fatura conferida, `POST .../pagar`, as
-  extensões de `GET /cartoes/{meio}/faturas/{ym}` e de `GET /futuros`, a ação de permissão, testes que falham antes e docs (`modelo-de-dados`,
-  `security`, `arquitetura`). **Antes de ligar a trava no dev**, uma leitura confere, em cada espaço, quais faturas já estão conferidas.
-- **Fase B, as telas (demo antes, aprovada):** a seção do cartão ganha "Paga com", "Vence dia" e, por fatura, "Vencimento" e "Paga com"; o painel da
-  fatura mostra o pagamento e a diferença; Futuros ganha as linhas de fatura com "Já paguei" (janela de confirmar com valor, data, status e "Paga com");
-  a mensagem de fatura conferida aparece quando uma escrita é recusada. O release só depois da B (a trava recusa escritas que o app de hoje faz).
+- **Fase A, backend, só acrescenta:** os campos novos nos comandos do cartão, as funções puras, a validação da marca, a trava de fatura conferida, as extensões de
+  `GET /cartoes/{meio}/faturas/{ym}` e de `GET /futuros`, testes que falham antes e docs (`modelo-de-dados`, `security`, `arquitetura`). **Antes de ligar a trava no dev**,
+  uma leitura confere, em cada espaço, quais faturas já estão conferidas.
+- **Fase B, as telas (demo antes, aprovada):** a seção do cartão ganha "Paga com" e "Vence dia" e, por fatura, "Vencimento" e "Paga com"; a fatura mostra os pagamentos
+  marcados; Futuros ganha as linhas de fatura com "Já paguei"; o Lançar ganha a linha "Paga a fatura"; o Histórico mostra a etiqueta; a mensagem de fatura conferida
+  aparece quando uma escrita é recusada. O release só depois da B (a trava recusa escritas que o app de hoje faz).
 
 ## Riscos
 
@@ -63,20 +63,21 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 |---|---|
 | A trava de fatura conferida recusa uma escrita que o app de hoje faz (o app antigo não conhece o erro) | O release só depois da fase B; o erro vem com mensagem clara (como o de mês conferido) e o app mostra a mensagem do servidor |
 | Uma fatura conferida por engano trava as compras dela | O "Desfazer conferência" reabre; a trava vale só para a fatura conferida, não para as vizinhas |
-| Compra lançada depois da conferência com data de fatura conferida | Recusada (R7); o dono desfaz a conferência, lança e confere de novo |
-| O pagamento criado no mês fechado de um banco | Passa pela trava de mês normal (conferido recusa; fechado por data pede confirmação), como qualquer lançamento |
-| Pagar a fatura duas vezes | Uma fatura tem um pagamento; o segundo é recusado (`409 fatura_paga`) até o primeiro ser excluído; excluir o pagamento faz a fatura voltar para Futuros |
-| O valor da fatura fechada muda com compra antiga lançada depois | O dono digita o valor da operadora (`valorBanco`); conferir trava. Sem isso a fatura mostra o calculado, como a aba Cartão já faz |
-| Ler os pagamentos a cada abertura de Futuros pesa | A leitura vai do fechamento da fatura em diante (dias), cabe no cache pelo contador de alterações |
-| Pagador igual ao cartão, ou um cartão pagando outro cartão | O servidor recusa pagador que seja um meio que é cartão (decisão 4 abaixo) |
+| Compra lançada depois da conferência com data de fatura conferida | Recusada; o dono desfaz a conferência, lança e confere de novo |
+| A marca pode ficar errada (cartão ou mês trocado) | É só uma label: edita-se o lançamento e troca-se a marca; nada mais depende dela além da linha de Futuros |
+| O pagamento marcado de uma fatura fica fora da janela de leitura (pago muito tempo depois) | A fatura continua em Futuros como não paga até o dono marcar um pagamento dentro da janela; limite anotado, sem custo de índice |
+| Ler os lançamentos marcados a cada abertura de Futuros pesa | A leitura vai do início do período da fatura a 120 dias depois do fechamento, e o resultado fica no cache pelo contador de alterações |
+| Marca em lançamento de crédito do próprio cartão | O servidor recusa (a marca é de pagamento, não de compra) |
 
 ## Decisões que o plan fixou e o dono pode contestar
 
 1. **O cartão não vira entidade, não ganha id e não há migração** (decisão do dono, 2026-10-25).
-2. **Uma fatura tem um pagamento** (sem parcial nem mínimo).
-3. **O valor mostrado da fatura fechada** é `valorBanco` (o que a operadora cobra, digitado pelo dono) e, sem ele, o total calculado.
-4. **O pagador não pode ser um meio que é cartão** (cartão paga fatura pelo banco, não por outro cartão).
-5. **O pagamento não leva tags** e sai do total (`excluirDoTotal`), para não contar de novo como gasto.
-6. **Só o dono** configura o pagador, o vencimento e paga a fatura.
-7. **Fatura sem vencimento** (nem `diaVencimento` no cartão nem `vencimento` na fatura) não aparece em Futuros: o dono só ganha a linha depois de dizer quando vence. **Sem `pagador`** a linha aparece e o pagador é escolhido na janela de pagar.
-8. **A trava de fatura conferida não tem confirmação que a destrave:** só "Desfazer conferência".
+2. **O pagamento é um lançamento normal e a marca é uma label:** sem limite de pagamentos, de valor ou de meio; sem estado "paga" com consequência.
+3. **A marca é escolhida pelo dono** (no Lançar e na edição; "Já paguei" já a leva preenchida) e validada pelo servidor.
+4. **O valor mostrado da fatura fechada** é `valorBanco` (o que a operadora cobra, digitado pelo dono) e, sem ele, o total calculado.
+5. **Um lançamento com a marca sai do total** (`excluirDoTotal`), para não contar de novo como gasto. É o único efeito da marca.
+6. **A linha de Futuros some** quando existe pelo menos um lançamento marcado com a fatura (e não excluído).
+7. **Só o dono** configura o pagador e o vencimento. A marca vale para quem pode editar o lançamento.
+8. **Fatura sem vencimento** (nem `diaVencimento` no cartão nem `vencimento` na fatura) não aparece em Futuros. **Sem `pagador`** a linha aparece e o meio é escolhido na janela de pagar.
+9. **A trava de fatura conferida não tem confirmação que a destrave:** só "Desfazer conferência".
+10. **O pagador sugerido** precisa ser um meio da lista e diferente do próprio cartão; fora isso é livre (o pagamento em si é um lançamento comum, no meio que o dono quiser).
