@@ -783,3 +783,10 @@ body[data-aba="historico"] main{max-width:1600px;}
 .td-lrodape .bate{color:var(--accent);font-weight:600;}
 .td-lrodape .nbate{color:var(--danger);font-weight:600;}
 .td-corte{color:var(--danger);}
+
+/* Painel do cartao: linhas que abrem uma janelinha para editar e blocos recolhiveis (demo .ai/demos/demo-pagar-fatura.html) */
+.cfg-grupo{margin:6px 0;}
+.cfg-lin{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:11px 2px;background:transparent;border:0;border-top:1px solid var(--border);border-radius:0;color:var(--text);font:inherit;text-align:left;cursor:pointer;}
+.cfg-lin:first-child{border-top:0;}
+.cfg-lin .v{color:var(--muted);text-align:right;overflow-wrap:anywhere;}
+.cfg-tit{display:flex;justify-content:space-between;width:100%;padding:8px 2px;margin:4px 0 0;background:transparent;border:0;border-radius:0;color:var(--text);font:inherit;font-weight:600;text-align:left;cursor:pointer;}

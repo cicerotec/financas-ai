@@ -72,29 +72,37 @@ li{margin:3px 0}
 
 <!-- CARTÃO -->
 <section class="tela" id="t-cartao">
-  <p class="nota">Novo na seção do cartão: <b>Paga com</b>, <b>Vence dia</b> e, em cada fatura, <b>Vencimento</b>, <b>Paga com</b> e a lista <b>Pagamentos desta fatura</b>.</p>
+  <p class="nota">O painel do cartão na ordem que o dono pediu: configurar o cartão (recolhido), a fatura, as compras, o total, os dados da fatura e os pagamentos. Cada linha abre uma janelinha para editar.</p>
   <div class="card">
-    <b class="t">CARTAO-A · fatura atual</b>
-    <button class="lin" type="button"><span>Fecha dia</span><span class="v">28</span></button>
-    <button class="lin novo" type="button"><span>Vence dia</span><span class="v">5 ›</span></button>
-    <button class="lin novo" type="button"><span>Paga com (padrão)</span><span class="v">BANCO-A ›</span></button>
-  </div>
-  <div class="card">
-    <b class="t">Fatura set/26 · fechada em 28/09</b>
-    <div class="pg"><span>Total calculado</span><span>R$ 3.000,00</span></div>
-    <div class="pg"><span>Valor da operadora</span><span>R$ 2.500,00</span></div>
-    <button class="lin novo" type="button"><span>Vencimento</span><span class="v">05/10/2026 ›</span></button>
-    <button class="lin novo" type="button"><span>Paga com (só esta fatura)</span><span class="v">BANCO-A ›</span></button>
-    <div class="gt">Pagamentos desta fatura</div>
+    <button class="lin" type="button" id="tgCfg" style="font-weight:600"><span>Configurar cartão</span><span class="v" id="tgCfgSeta">▾</span></button>
+    <div id="cfgCartao" hidden>
+      <button class="lin" type="button" data-ed="Início do controle (AAAA-MM)|2026-01|texto"><span>Início do controle</span><span class="v">2026-01 ›</span></button>
+      <button class="lin novo" type="button" data-ed="Paga com (padrão do cartão)|BANCO-A|meio"><span>Paga com (padrão)</span><span class="v">BANCO-A ›</span></button>
+      <button class="lin novo" type="button" data-ed="Vence dia (1 a 31)|5|numero"><span>Vence dia</span><span class="v">5 ›</span></button>
+      <div class="acoes"><button class="btn" type="button">Remover este cartão</button></div>
+    </div>
+    <div class="abas" style="margin:10px 0 6px"><button type="button" aria-pressed="false">‹</button><button type="button" aria-pressed="false">Anterior</button><button type="button" aria-pressed="true">Atual</button><button type="button" aria-pressed="false">Próxima</button><button type="button" aria-pressed="false">›</button></div>
+    <p class="m" style="margin:0 0 6px">Período: 26/09/2026 a 25/10/2026 · aberta</p>
+    <button class="lin" type="button" style="font-weight:600"><span>Compras</span><span class="v">▴</span></button>
+    <div class="pg"><span>30/09 · Combustível</span><span>R$ 210,00</span></div>
+    <div class="pg"><span>03/10 · Roupa</span><span>R$ 480,00</span></div>
+    <div class="pg"><span>05/10 · Gás</span><span>R$ 155,14</span></div>
+    <div class="pg"><span>11/10 · Viagem</span><span>R$ 997,21</span></div>
+    <div class="pg" style="margin-top:8px"><span class="m">Total da fatura</span><b>R$ 1.842,35</b></div>
+    <button class="lin" type="button" data-ed="Fechamento desta fatura|2026-10-25|texto"><span>Fechamento</span><span class="v">25/10/2026 ›</span></button>
+    <button class="lin novo" type="button" data-ed="Vencimento desta fatura|2026-11-05|texto"><span>Vencimento</span><span class="v">05/11/2026 ›</span></button>
+    <button class="lin novo" type="button" data-ed="Paga com (só esta fatura)|BANCO-A|meio"><span>Paga com</span><span class="v">BANCO-A ›</span></button>
+    <button class="lin" type="button" data-ed="Valor no app do cartão|1842.35|numero"><span>Valor no app do cartão</span><span class="v">R$ 1.842,35 ›</span></button>
+    <p class="m" style="margin:6px 0 0">Bateu ✓ · <button class="btn" type="button">Marcar como conferida</button></p>
+    <button class="lin" type="button" style="font-weight:600;margin-top:8px"><span>Pagamentos desta fatura</span><span class="v">▴</span></button>
     <div class="pg"><span>05/10 · BANCO-A <span class="pill fat">Fatura set/26</span></span><span class="out">R$ 600,00</span></div>
     <div class="pg"><span>05/10 · BANCO-B <span class="pill fat">Fatura set/26</span></span><span class="out">R$ 1.900,00</span></div>
-    <div class="pg"><b>Soma</b><b>R$ 2.500,00</b></div>
-    <p class="m" style="margin:6px 0 0">Só informação: a soma bate com o valor da operadora (diferença R$ 0,00). Pagar com dois meios, ou pagar o mínimo, é normal.</p>
+    <p class="m" style="margin:4px 0 0">Soma R$ 2.500,00</p>
   </div>
   <div class="card">
     <b class="t">Fatura ago/26 · conferida 🔒</b>
     <p class="m" style="margin:0">Travada: mudar valor, data, meio ou ajuste de uma compra desta fatura é recusado até você tocar em <b>Desfazer conferência</b>.</p>
-    <div class="trava" role="status">A fatura ago/26 do cartão CARTAO-A está conferida e travada: desfaça a conferência para alterar.</div>
+    <div class="trava" role="status">A fatura ago/26 do cartão Bradesco está conferida e travada: desfaça a conferência para alterar.</div>
     <div class="acoes"><button class="btn" type="button">Desfazer conferência</button></div>
   </div>
 </section>
@@ -162,10 +170,19 @@ li{margin:3px 0}
   </div>
 </div>
 
+<div class="ov" id="ovEd" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Editar">
+    <h3 id="edTit">Editar</h3>
+    <p class="m" style="margin:0 0 8px">Os campos novos e os antigos usam a mesma janela.</p>
+    <div class="fr"><label id="edLab">Valor</label><span class="val" id="edVal">—</span></div>
+    <div class="acoes"><button class="btn" type="button" id="edCancelar">Cancelar</button><button class="btn" type="button" id="edLimpar">Limpar</button><button class="btn pri" type="button" id="edSalvar">Salvar</button></div>
+  </div>
+</div>
+
 <div class="cx">
   <b>O que você aprova</b>
   <ul>
-    <li>A seção do cartão com <b>Paga com</b> e <b>Vence dia</b>, e em cada fatura <b>Vencimento</b>, <b>Paga com</b> e <b>Pagamentos desta fatura</b>.</li>
+    <li>O painel do cartão na ordem do desenho do dono: <b>Configurar cartão</b> recolhido, a fatura, as <b>Compras</b>, o total, <b>Fechamento / Vencimento / Paga com / Valor no app</b> e <b>Pagamentos desta fatura</b>, tudo em linhas que abrem uma janelinha para editar.</li>
     <li>As faturas em <b>Futuros</b> (fechada com o valor da operadora, aberta com o total até agora), com <b>Já paguei</b>.</li>
     <li>A linha opcional <b>Paga a fatura</b> no Lançar e a etiqueta no Histórico.</li>
     <li>A fatura <b>conferida</b> travada, com <b>Desfazer conferência</b> para reabrir.</li>
@@ -186,7 +203,13 @@ li{margin:3px 0}
   document.getElementById('confirmar').addEventListener('click',function(){ov.hidden=true;toast.hidden=false;setTimeout(function(){toast.hidden=true;},6000);});
   document.getElementById('desf').addEventListener('click',function(){toast.hidden=true;});
   ov.addEventListener('click',function(e){if(e.target===ov)ov.hidden=true;});
-  document.addEventListener('keydown',function(e){if(e.key==='Escape')ov.hidden=true;});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){ov.hidden=true;document.getElementById('ovEd').hidden=true;}});
+  var ovEd=document.getElementById('ovEd');
+  document.getElementById('tgCfg').addEventListener('click',function(){var c=document.getElementById('cfgCartao');c.hidden=!c.hidden;document.getElementById('tgCfgSeta').textContent=c.hidden?'▾':'▴';});
+  document.querySelectorAll('[data-ed]').forEach(function(b){b.addEventListener('click',function(){
+    var p=b.getAttribute('data-ed').split('|');document.getElementById('edTit').textContent=p[0];document.getElementById('edLab').textContent=p[2]==='meio'?'Meio':(p[2]==='numero'?'Número':'Texto');document.getElementById('edVal').textContent=p[1];ovEd.hidden=false;});});
+  ['edCancelar','edLimpar','edSalvar'].forEach(function(i){document.getElementById(i).addEventListener('click',function(){ovEd.hidden=true;});});
+  ovEd.addEventListener('click',function(e){if(e.target===ovEd)ovEd.hidden=true;});
   var op=document.getElementById('marcaOpcoes');
   document.getElementById('abrirMarca').addEventListener('click',function(){op.hidden=!op.hidden;});
   op.querySelectorAll('[data-m]').forEach(function(b){b.addEventListener('click',function(){
