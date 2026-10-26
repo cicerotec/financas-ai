@@ -1,6 +1,6 @@
 # Backlog e roadmap
 
-Atualizado em 2026-10-25. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
+Atualizado em 2026-10-26. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
 ordem de prioridade e levam a etiqueta **[Agora]**, **[Próximo]** ou **[Depois]**. A numeração é fixa (não renumerar:
 outros trechos referenciam os números). Os detalhes de cada assunto ficam em `.ai/`. Marque `[x]` ao concluir e
 retire o item do índice "Seções".
@@ -22,25 +22,21 @@ Só o que ainda não foi feito, na ordem de prioridade (**[Agora]**, depois **[P
 com o salto para o registro real. **Ao concluir um item, marque `[x]` no registro e tire a linha daqui.** Bugs
 pendentes: nenhum.
 
-- [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
-- [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
-- [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
-- [\[UX/UI\] - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
-- [\[UX/UI\] - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
-- [\[Processo\] - **\[Próximo\] Remover `financas-app.html`:**](#item-36)
-- [\[Infra\] - **\[Depois\] AWS Budget de US$ 1 e backup periódico:**](#item-11)
-- [\[Backend\] - **\[Depois\] Open Finance (visão):**](#item-39)
-- [\[Backend\] - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
-- [\[Backend\] - **\[Depois\] Reclassificação em massa (admin):**](#item-44)
-- [\[Front\] - **\[Depois\] Futuros: atrasados antigos buscados por ano:**](#item-45)
-- [\[Backend\] - **\[Depois\] Colaboração, Fase 1:**](#item-12)
-- [\[Backend\] - **\[Depois\] Colaboração, Fase 2:**](#item-13)
-- [\[Backend\] - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
-- [\[Backend\] - **\[Depois\] Segurança e escala:**](#item-18)
-- [\[Backend\] - **\[Depois\] Tela de permissões por usuário:**](#item-27)
-- [\[Front\] - **\[Depois\] Fechamento mensal, melhorias:**](#item-23)
-- [\[Front\] - **\[Depois\] Ideias:**](#item-20)
-- [\[Processo\] - **\[Depois\] Testes automatizados:**](#item-16)
+- [\[Infra\] - 37 - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
+- [\[Backend\] - 34 - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
+- [\[UX/UI\] - 42 - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
+- [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
+- [\[Infra\] - 11 - **\[Depois\] AWS Budget de US$ 1 e backup periódico:**](#item-11)
+- [\[Backend\] - 39 - **\[Depois\] Open Finance (visão):**](#item-39)
+- [\[Backend\] - 43 - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
+- [\[Backend\] - 44 - **\[Depois\] Reclassificação em massa (admin):**](#item-44)
+- [\[Front\] - 45 - **\[Depois\] Futuros: atrasados antigos buscados por ano:**](#item-45)
+- [\[Backend\] - 12 - **\[Depois\] Colaboração, Fase 1:**](#item-12)
+- [\[Backend\] - 13 - **\[Depois\] Colaboração, Fase 2:**](#item-13)
+- [\[Backend\] - 15 - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
+- [\[Backend\] - 18 - **\[Depois\] Segurança e escala:**](#item-18)
+- [\[Backend\] - 27 - **\[Depois\] Tela de permissões por usuário:**](#item-27)
+- [\[Front\] - 20 - **\[Depois\] Ideias:**](#item-20)
 
 ### Infra (AWS, SAM, ambientes, custo, backup)
 - 37. [ ] <a id="item-37"></a>**[Próximo] MFA no login do app (Cognito):** hoje o login é só e-mail e senha; num app de finanças, uma senha
@@ -68,7 +64,8 @@ pendentes: nenhum.
     Function URL, recurso esquecido). Console: Billing > Budgets > Create budget > Cost budget; os 2 primeiros são grátis.
   - **Backup:** o PITR do DynamoDB está ligado **só em prod** pelo `template.yaml` (`!If [EhDev, false, true]`; ligar
     no console sem mudar o template seria desfeito no próximo deploy). Falta o backup periódico; enquanto isso, o
-    botão Exportar (`.json`) é a cópia manual.
+    botão Exportar (`.json`) é a cópia manual. Plano em fases (dump cifrado fora da AWS, restauração testada, espelho do
+    código, automação e vigília) em [`.ai/specs/backup/`](.ai/specs/backup/plan.md); rascunho para aprovação (2026-10-26).
 
 ### Backend (Go, DynamoDB, Cognito, API)
 Os itens 31 a 34 vêm das decisões de 2026-10-10 (erro grave: uma edição sobrescreveu um registro e o dado se perdeu).
@@ -271,9 +268,9 @@ DynamoDB sem discutir com o dono.**
   cargas virão: meses anteriores à data de início do banco são histórico e não são travados pelo fechamento mensal.
   Antes de importar, conferir na planilha as datas fora do mês da aba (no app o mês é o da data, não o da aba).
 - 9. [x] **Importação do `.xlsx` usando o endpoint de lote** (25 por chamada, com contador de progresso e erro tratado).
-- 23. [ ] <a id="item-23"></a>**[Depois] Fechamento mensal, melhorias:** "ver mais" na lista (hoje mostra os últimos 12 meses); aviso quando
-  um mês conferido deixa de bater com o que foi guardado; "reabrir tudo" de uma vez (hoje reabre do mais novo para o
-  mais antigo, um por vez); conferir meses anteriores ao último conferido sem reabrir os mais novos.
+- 23. [x] <a id="item-23"></a>**Fechamento mensal, melhorias** (descartado em 2026-10-26, por decisão do dono): os meses fecham sozinhos
+  (item 38) e a conferência com o extrato é opcional, então "ver mais" na lista, aviso de mês conferido que deixou de
+  bater, "reabrir tudo" e conferir meses anteriores sem reabrir os mais novos não são mais necessários. Nada foi feito.
 - 17. [x] <a id="item-17"></a>**[Depois] Cartão: valor pago e observação** por fatura (exceções como extrato diferente do pago).
   Evoluído e absorvido pelo item 35 (concluído em 2026-10-25).
 - 35. [x] <a id="item-35"></a>**[Depois] Pagar fatura: meio pagador, vencimento e vínculo com o pagamento.** A **operadora manda**: o extrato dela
@@ -304,7 +301,7 @@ DynamoDB sem discutir com o dono.**
   aviso e de repetição (17 controles, pouco usáveis no celular). Passar "Repetir" e "Avisar" para linhas-resumo que
   abrem as telas cheias do Prever (a lógica e os componentes já existem em `web/index.html`, bloco "Prever e Estender").
   Pelo padrão, começa com uma demo do formulário completo para aprovação.
-- 21. [ ] <a id="item-21"></a>**[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em [`.ai/ux.md`](.ai/ux.md)): barra de navegação
+- 21. [x] <a id="item-21"></a>**Próximos passos de UX** (encerrado em 2026-10-26: o dono considera bom o uso no celular como está; o que sobrou não será feito) (vindos de observar o uso real; detalhes em [`.ai/ux.md`](.ai/ux.md)): barra de navegação
   inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
   acessibilidade das abas, unificar o seletor de tags (agora no item 42).
 - 48. [x] <a id="item-48"></a>**Aviso padrão do cartão, copiado para a fatura ao definir o vencimento** (concluído em 2026-10-26 no #249; conferido em dev pelo dono): o cartão ganha `porBanco[meio].aviso` (mesmo formato do aviso da fatura, só um modelo). Quando o dono define o **primeiro vencimento** de uma fatura (o momento em que ela vira registro em Futuros) e a fatura ainda não tem aviso, o servidor **copia** o padrão para `faturas[ym].aviso` na mesma gravação; depois o dono muda pelo botão Avisar. Mudar o padrão não altera faturas já copiadas; nenhuma leitura grava; o passado não é tocado. Dado novo: `porBanco[meio].aviso` (aprovado pelo dono em 2026-10-26). Em Configurar cartão, linha **Aviso (padrão)** que abre a mesma tela de aviso (demo antes). Extensão do item 46, em [`.ai/specs/aviso-fatura/`](.ai/specs/aviso-fatura/intent.md).
@@ -330,7 +327,7 @@ DynamoDB sem discutir com o dono.**
 
 ### Processo e qualidade (testes, releases, docs)
 - 10. [x] **Primeira release `v0.1.0`** (2026-10-04): PR `develop → main` (#6), tag anotada e release no GitHub.
-- 16. [ ] <a id="item-16"></a>**[Depois] Testes automatizados** do front (a lógica de faturas e de eventos futuros).
+- 16. [x] <a id="item-16"></a>**Testes automatizados** do front (descartado em 2026-10-26: a lógica de faturas e de eventos futuros foi para o servidor, que tem seus testes; o front já tem os `web/*.test.js` do que sobrou nele).
 - 26. [x] **Tag e release automáticas após o deploy da produção**: o job `lancar-versao` (em `deploy-prod.yml`) cria a
   tag anotada e a release depois do deploy da `main`. Versão pelos commits (`feat:` sobe o número do meio, o resto
   sobe o último) com os rótulos `release:minor|patch` no PR de release por cima; o PR de release recebe um comentário
@@ -341,7 +338,7 @@ DynamoDB sem discutir com o dono.**
   do `GITHUB_TOKEN`; vermelho sem efeito); por isso o CI passou a rodar só em `push`, e o check dele aparece no PR.
 - 19. [x] **Script de release**: dispensado e substituído pela automação dos itens 25 e 26 (PR de release aberto pelo
   robô, tag e release criadas depois do deploy da produção). Funcionou na v0.7.0.
-- 36. [ ] <a id="item-36"></a>**[Próximo] Remover `financas-app.html`** (versão original em arquivo único, de quando o app rodava no ambiente
+- 36. [x] <a id="item-36"></a>**Remover `financas-app.html`** (concluído em 2026-10-26: arquivo e linha do README apagados) (versão original em arquivo único, de quando o app rodava no ambiente
   do Claude, com 2188 linhas e cópia da mesma lógica que hoje está em `web/index.html`). Só o README o cita; nenhum
   deploy, workflow, template ou script o usa. Apagar o arquivo e a linha do README.
 
