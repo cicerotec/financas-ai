@@ -265,6 +265,7 @@ ações; a linha toda continua tocável. Se o valor e o "⋯" deixam menos de 12
 em 320 px), o valor desce para a segunda linha, à direita. **Realce:** ao passar o mouse (`@media (hover:hover)`),
 focar ou tocar (`:active`), a linha ganha fundo `color-mix(in srgb, <cor do status> 16%, var(--card))`, a cor que o
 usuário escolheu em Listas, Aparência. Grupos com título por mês e um grupo "Atrasados" no topo, em `--danger`.
+**Atrasados por ano** (aprovado em 2026-10-26, item 45, demo [`demos/demo-atrasados-por-ano.html`](demos/demo-atrasados-por-ano.html)): o grupo "Atrasados" traz, **na linha do título, à direita**, "Anos anteriores [ano ▾] [Ver]" (seletor nativo; a lista de anos vem do servidor) e, dentro, blocos recolhíveis **Ano › Mês** (título com ▾/▴, quantidade e valor do ano, quantidade do mês, ambos calculados pelo servidor, sem os ocultos). Os atrasados do mês passado em diante abrem por padrão; um ano buscado (`GET /futuros?ano=`, uma consulta só dele) chega recolhido e some ao sair da tela. O resumo do topo continua contando só a janela. Ano sem atrasados avisa "Nenhum atrasado em AAAA".
 **Saldo do mês** (aprovado em 2026-10-11): à direita do título de cada mês, só o valor (13 px, negrito, `nowrap`),
 com sinal e cor (`+` em `--income`, `-` em `--danger`, zero em `--muted`) e o cálculo a receber menos a pagar, sem os
 ocultos. "Atrasados" não tem saldo (o resumo do topo já mostra). Evento oculto fica a 50% de opacidade.

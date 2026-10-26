@@ -109,9 +109,15 @@ func (c *Lancamentos) PostConfirmar(ctx context.Context, sid, id, de string, bod
 	return Out(200, d)
 }
 
-// GetFuturos: GET /spaces/{sid}/futuros[?ocultos=1]
+// GetFuturos: GET /spaces/{sid}/futuros[?ocultos=1] ou, com ?ano=AAAA, os atrasados de um ano anterior (item 45)
 func (c *Lancamentos) GetFuturos(ctx context.Context, sid string, qs map[string]string) (Resp, error) {
-	d, err := c.svc.Futuros(ctx, sid, qs["ocultos"] == "1")
+	var d domain.Doc
+	var err error
+	if ano, ok := qs["ano"]; ok {
+		d, err = c.svc.FuturosAno(ctx, sid, ano, qs["ocultos"] == "1")
+	} else {
+		d, err = c.svc.Futuros(ctx, sid, qs["ocultos"] == "1")
+	}
 	if err != nil {
 		return respostaErro(err)
 	}
