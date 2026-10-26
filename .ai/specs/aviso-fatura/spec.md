@@ -2,7 +2,7 @@
 
 Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
-**Estado:** demo e spec aprovadas pelo dono em 2026-10-26. **Fases A (backend, #244) e B (telas, `feature/aviso-fatura-fase-b`) implementadas.**
+**Estado:** demo e spec aprovadas pelo dono em 2026-10-26. **Concluído em 2026-10-26:** fases A (backend, #244) e B (telas, #246) implementadas e conferidas em dev pelo dono.
 
 ## Regras
 
