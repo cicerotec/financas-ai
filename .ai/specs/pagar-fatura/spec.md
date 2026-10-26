@@ -18,9 +18,12 @@ no spec do item 33a: o `banco` gravado chama-se **`meio`** nas rotas e respostas
 - **R5.** Os comandos de R2 e R3 valem a regra de R25 do item 33a: controle otimista de `CFG#CARTOES`, tentam de novo, gravam só estes campos.
 
 **Vencimento e pagador**
-- **R6.** O **vencimento da fatura `ym`** (`domain.VencimentoDe`) é: `faturas[ym].vencimento`, se existir; senão o **primeiro dia depois do fechamento de `ym`** cujo dia
-  do mês é `diaVencimento` (limitado ao último dia daquele mês); sem nenhum dos dois, **não há vencimento**.
-- **R7.** O **pagador da fatura** (`domain.PagadorDe`) é `faturas[ym].pagador`, senão `pagador` do cartão, senão vazio. É só uma **sugestão**: o pagamento sai do meio que o dono escolher.
+- **R6.** O **vencimento da fatura `ym`** (`domain.VencimentoDe`) é **só** `faturas[ym].vencimento`; sem ele, **não há vencimento** e a fatura não entra em Futuros. O
+  `diaVencimento` do cartão **nunca decide o vencimento de uma fatura** (decisão do dono, 2026-10-25: o vencimento muda de fatura a fatura, as passadas já foram pagas e
+  mudar o dia do cartão não pode mexer nelas). Ele só gera uma **sugestão** (`domain.VencimentoSugerido`: o primeiro dia depois do fechamento de `ym` cujo dia do mês é
+  `diaVencimento`, limitado ao último dia do mês) que `GET .../faturas/{ym}` devolve em `preencher.vencimento` para a janelinha de editar vir preenchida.
+- **R7.** O **pagador da fatura** (`domain.PagadorDe`) é **só** `faturas[ym].pagador`, senão vazio. O `pagador` do cartão é apenas uma **sugestão** (`domain.PagadorSugerido`:
+  o da fatura, senão o do cartão), devolvida em `preencher.pagador` e usada para pré-selecionar o meio no "Já paguei"; não vale para nenhuma fatura existente. O pagamento sai do meio que o dono escolher.
 
 **A marca `pagaFatura`** (uma label no lançamento; não faz regra)
 - **R8.** Um lançamento pode levar `pagaFatura: { meio, ym }`: "este lançamento pagou a fatura `ym` do cartão `meio`". O campo é **escolhido pelo dono** e vem no corpo de
@@ -120,7 +123,7 @@ Relógio fixo em 2026-10-25; dados fictícios; as funções puras são testadas 
 
 | Id | Cenário | Resultado esperado |
 |---|---|---|
-| G-T1 | `VencimentoDe`: fatura com `vencimento`; só `diaVencimento` maior e menor que o dia do fechamento; dia 31 em abril; sem nenhum dos dois | o do mês certo, limitado ao mês; vazio sem nenhum |
+| G-T1 | `VencimentoDe`: fatura com `vencimento`; só `diaVencimento` no cartão; sem nenhum dos dois. `VencimentoSugerido`: dia maior e menor que o dia do fechamento; dia 31 em abril | só o da fatura (vazio sem ele); a sugestão cai no mês certo, limitada ao mês |
 | G-T2 | `PagadorDe`: da fatura, do cartão, nenhum | a precedência de R7 |
 | G-T3 | `EfeitoFatura` e `MudaFatura`: valor, data para outra fatura, `faturaAjuste`, oculto, excluído, previsto, status que deixa de ser crédito, descrição/tags/marca | muda nos que mudam o par (fatura, valor); não muda em descrição, tags e marca |
 | G-T4 | `PUT /cartoes/{meio}` com `pagador` válido (inclusive o próprio nome do cartão), fora da lista, `diaVencimento` 0 e 32, `null` | `200`; `400`; `400`; remove o campo |

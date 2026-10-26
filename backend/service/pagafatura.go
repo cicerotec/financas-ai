@@ -192,7 +192,9 @@ func (s *Cartoes) AFuturos(ctx context.Context, sid string, seq float64, seqOk b
 			}
 			if pagador != "" {
 				item["pagador"] = pagador
-				item["sugestao"].(domain.Doc)["pagador"] = pagador
+			}
+			if sug := domain.PagadorSugerido(c, ym); sug != "" {
+				item["sugestao"].(domain.Doc)["pagador"] = sug
 			}
 			itens = append(itens, item)
 		}

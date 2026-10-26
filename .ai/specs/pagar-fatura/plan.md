@@ -26,9 +26,9 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
   - No **lançamento**: `pagaFatura = { meio, ym }`, a marca. É **escolhida pelo dono** (vem do cliente, como o `faturaAjuste`) e o servidor só valida: o `meio`
     é um cartão, o `ym` é um mês válido, e o lançamento **não é uma compra de crédito** (o débito do mesmo banco do cartão pode levar a marca). `null` remove.
 - **Funções puras em `domain/`:**
-  - `VencimentoDe(cartao, ym)`: `faturas[ym].vencimento`, se existir; senão o **primeiro dia depois do fechamento** de `ym` cujo dia do mês é `diaVencimento`
-    (limitado ao último dia do mês); sem nenhum dos dois, não há vencimento e a fatura não entra em Futuros.
-  - `PagadorDe(cartao, ym)`: `faturas[ym].pagador`, senão `pagador` do cartão, senão vazio.
+  - `VencimentoDe(cartao, ym)`: **só** `faturas[ym].vencimento`; sem ele não há vencimento e a fatura não entra em Futuros. O `diaVencimento` do cartão **não decide
+    nenhuma fatura** (decisão do dono, 2026-10-25); `VencimentoSugerido` (o primeiro dia depois do fechamento cujo dia do mês é `diaVencimento`) só preenche a janelinha de editar.
+  - `PagadorDe(cartao, ym)`: **só** `faturas[ym].pagador`. `PagadorSugerido` (da fatura, senão do cartão) só preenche a janelinha e pré-seleciona o meio no "Já paguei".
   - `ValidarPagaFatura(d, cartoes)`: confere a marca (cartão, mês, lançamento que não é crédito).
   - `EfeitoFatura(l, cartao)` e `MudaFatura(antes, depois)`: a fatura em que a compra cai (R7 do item 33a: `FaturaBase` + `AjusteEfetivo`), o valor com sinal e se
     conta (crédito, não oculto, não excluído, não previsto). Muda quando o par (fatura, valor) muda.
@@ -78,6 +78,6 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 5. **Um lançamento com a marca sai do total** (`excluirDoTotal`), para não contar de novo como gasto. É o único efeito da marca.
 6. **A linha de Futuros some** quando existe pelo menos um lançamento marcado com a fatura (e não excluído).
 7. **Só o dono** configura o pagador e o vencimento. A marca vale para quem pode editar o lançamento.
-8. **Fatura sem vencimento** (nem `diaVencimento` no cartão nem `vencimento` na fatura) não aparece em Futuros. **Sem `pagador`** a linha aparece e o meio é escolhido na janela de pagar.
+8. **Fatura sem `vencimento` próprio** (o `diaVencimento` do cartão não conta) não aparece em Futuros. **Sem `pagador`** a linha aparece e o meio é escolhido na janela de pagar.
 9. **A trava de fatura conferida não tem confirmação que a destrave:** só "Desfazer conferência".
 10. **O pagador sugerido** precisa ser um meio da lista (pode ser o próprio nome do cartão: o débito do mesmo banco); fora isso é livre (o pagamento em si é um lançamento comum, no meio que o dono quiser).
