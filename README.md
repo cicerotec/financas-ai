@@ -32,7 +32,6 @@ traduz para as rotas da Lambda.
 | `scripts/` | Deploy, sessão com MFA, publicação do front, convite de usuários e manutenção (ver abaixo) |
 | `.ai/` | Documentos de projeto e contexto para quem constrói com IA: regras (`guardrails.md`), arquitetura, padrão de telas e demos, deploy, avisos |
 | `docs/` | Só a coleção do Postman (`docs/postman/`) |
-| `financas-app.html` | Versão original em arquivo único, de quando o app rodava no ambiente do Claude. Mantida como referência; o app atual é o de `web/` |
 | `BACKLOG.md` | Roadmap por área, decisões, detalhes e fluxo de branches e versões |
 
 ## Rodando no seu computador

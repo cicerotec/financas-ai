@@ -327,7 +327,7 @@ Spec: [`specs/futuros-previsto/`](specs/futuros-previsto/spec.md), regras R9 a R
    de Listas; mudou.)
 5. Avisos pelo despachante e canais (item 34).
 6. Pagar fatura com valor do boleto e vínculo (item 35).
-7. Remover `financas-app.html`, que só o README cita (item 36).
+7. Remover `financas-app.html` (item 36; feito em 2026-10-26).
 
 Cada passo é uma fatia vertical (front, controller, service, domain, adapter) de uma regra por vez, com o app seguindo
 no ar. Nenhum passo cria chave no DynamoDB sem aprovação do dono.
