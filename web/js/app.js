@@ -2871,8 +2871,8 @@ function valorAtualDoCampo(chave){
     case 'pagadorCartao': return cfg.pagador || '';
     case 'vencDia': return cfg.diaVencimento==null ? '' : String(cfg.diaVencimento);
     case 'fechamento': return f.periodo.fim;
-    case 'vencimento': return f.vencimento || '';
-    case 'pagadorFatura': return f.pagador || '';
+    case 'vencimento': return f.vencimento || (f.preencher && f.preencher.vencimento) || ''; // o dia do cartao so sugere
+    case 'pagadorFatura': return f.pagador || (f.preencher && f.preencher.pagador) || ''; // o padrao do cartao so sugere
     case 'valorBanco': return f.valorBanco===null ? '' : String(f.valorBanco);
   }
   return '';

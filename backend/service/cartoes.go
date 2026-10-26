@@ -225,6 +225,15 @@ func (s *Cartoes) Fatura(ctx context.Context, sid, sub string, dono bool, banco,
 	if p := domain.PagadorDe(c, ym); p != "" {
 		out["pagador"] = p
 	}
+	// so para preencher o campo ao editar: o padrao do cartao nao vale para a fatura (ver domain.VencimentoDe)
+	sug := domain.Doc{"vencimento": nil, "pagador": nil}
+	if v := domain.VencimentoSugerido(c, ym); v != "" {
+		sug["vencimento"] = v
+	}
+	if p := domain.PagadorSugerido(c, ym); p != "" {
+		sug["pagador"] = p
+	}
+	out["preencher"] = sug
 	pgs, totalPago, err := s.pagamentosDa(ctx, sid, c, banco, ym)
 	if err != nil {
 		return nil, err
