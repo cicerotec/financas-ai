@@ -149,7 +149,7 @@
 
   // ---------- configuracoes (documentos) ----------
   // A aparencia e pessoal (cada pessoa a sua); o resto de config/listas e compartilhado.
-  const PESSOAL = ['statusCor', 'estiloCor', 'layoutSaldos', 'ordemSaldos', 'ordemManual'];
+  const PESSOAL = ['tema', 'statusCor', 'estiloCor', 'layoutSaldos', 'ordemSaldos', 'ordemManual'];
   const versoes = {};
   const limpa = (b) => { const o = Object.assign({}, b); delete o.version; return o; };
   async function lerCfg(nome) {
