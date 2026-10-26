@@ -282,7 +282,7 @@ DynamoDB sem discutir com o dono.**
     o que se paga. O sistema propõe, o dono confirma ou corrige, e a diferença fica à vista (hoje vira um lançamento de valor zero como nota solta).
   - **Meio pagador:** escolhido na seção do cartão, na aba Cartão. Vale para o cartão inteiro como padrão e **pode ser trocado em cada fatura**,
     porque ninguém sabe onde haverá saldo (cartão do SANTANDER pago pelo NUBANK, em débito).
-  - **Vencimento:** informado na seção do cartão (dia padrão e ajuste por fatura). É a data em que a fatura aparece em Futuros.
+  - **Vencimento:** a data **de cada fatura** (o dia do cartão só sugere, não vale para nenhuma fatura; decisão do dono, 2026-10-25). É a data em que a fatura aparece em Futuros; sem ela, a fatura não aparece.
   - **Em Futuros**, no meio pagador, até duas linhas por cartão, **calculadas pelo servidor** (não são previstos gravados):
     **fatura fechada** (valor **congelado** no fechamento: só mudam o valor da operadora, o do boleto e ajuste ou estorno explícito;
     passado o vencimento sem pagar, fica como **atrasada**) e **fatura aberta** (total vivo, muda a cada compra no crédito). Ao fechar,

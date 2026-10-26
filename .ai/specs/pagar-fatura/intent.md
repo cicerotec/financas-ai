@@ -32,7 +32,7 @@ lançamento) e para a fatura **sair de Futuros** quando já foi paga.
 - **O cartão continua sendo uma entrada de `CFG#CARTOES`**, identificado pelo nome do meio (`meios[].cartao`). Não vira entidade própria, não ganha id, e os
   lançamentos continuam apontando para ele pelo `banco`.
 - **Não há migração do passado.** O passado está correto.
-- **Dados novos aprovados:** `pagador` (padrão no cartão e troca por fatura) e vencimento (dia padrão no cartão e data por fatura), dentro da entrada do
+- **Dados novos aprovados:** `pagador` (padrão no cartão e troca por fatura) e vencimento (dia no cartão **só como sugestão** e data por fatura, que é a que vale), dentro da entrada do
   cartão em `CFG#CARTOES`. **A marca** é um atributo opcional do lançamento, `pagaFatura` (o cartão e o mês), que o dono escolhe.
 - **O pagamento é um evento normal, a marca é só uma label** (a ideia central acima).
 - **A fatura conferida passa a ser travada**, com "Desfazer conferência" para reabrir.

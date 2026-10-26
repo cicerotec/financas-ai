@@ -10,7 +10,7 @@ no spec do item 33a: o `banco` gravado chama-se **`meio`** nas rotas e respostas
 
 **Dados do cartão** (dentro de `CFG#CARTOES.porBanco[meio]`, opcionais, escritos só pelos comandos)
 - **R1.** O cartão guarda `pagador` (nome de um meio da lista) e `diaVencimento` (inteiro de 1 a 31). Cada fatura (`faturas[ym]`) guarda `pagador` e `vencimento`
-  (`AAAA-MM-DD`). Sem eles, valem os do cartão; sem os do cartão, não há.
+  (`AAAA-MM-DD`). **Só os da fatura valem para a fatura**; os do cartão são apenas sugestão para preencher (R6 e R7), e uma fatura sem os dela fica sem eles.
 - **R2.** `PUT /spaces/{sid}/cartoes/{meio}` aceita, além de `inicio`, `pagador` (texto ou `null`) e `diaVencimento` (inteiro de 1 a 31 ou `null`). `null` remove o campo.
 - **R3.** `PUT /spaces/{sid}/cartoes/{meio}/faturas/{ym}` aceita, além de `fechamento` e `valorBanco`, `pagador` (texto ou `null`) e `vencimento` (data real ou `null`). O
   `vencimento` precisa ser **depois do fechamento** da fatura e no máximo 45 dias depois dele. Fatura de histórico (anterior ao `inicio`) aceita `valorBanco` e nada mais.
@@ -132,7 +132,7 @@ Relógio fixo em 2026-10-25; dados fictícios; as funções puras são testadas 
 | G-T7 | **Marca válida:** `POST /tx` com a marca; o segundo lançamento em outro meio com a mesma marca; mesmo meio duas vezes; valor diferente do total; `PUT` que troca e que remove (`null`) | `201`/`200` sempre; nada é recusado; a marca muda e sai |
 | G-T8 | O lançamento com a marca: `excluirDoTotal` verdadeiro, mesmo que o corpo mande `false`; saldo do meio de saída diminui como qualquer saída | derivado pelo servidor; saldo normal |
 | G-T9 | `GET .../faturas/{ym}` sem e com pagamentos marcados (dois meios), um excluído, um fora da janela | `pagamentos`, `totalPago`, `diferencaPaga`; o excluído e o de fora não entram |
-| G-T10 | `GET /futuros` com fatura fechada sem marca, aberta, com marca, sem vencimento, de cartão sem `diaVencimento`, de mês anterior à janela | só as sem marca e com vencimento, na janela; `valor` da fechada = `valorBanco` ou total; `atrasada`; `sugestao` |
+| G-T10 | `GET /futuros` com fatura fechada sem marca, aberta, com marca, sem vencimento próprio (mesmo com `diaVencimento` no cartão), de mês anterior à janela | só as sem marca e com vencimento, na janela; `valor` da fechada = `valorBanco` ou total; `atrasada`; `sugestao` |
 | G-T11 | `GET /futuros`: o `resumo` soma as faturas; excluir o lançamento marcado faz a fatura voltar | somas certas; volta |
 | G-T12 | **Trava:** com a fatura conferida, `POST /tx` de crédito no período dela, `PUT` do valor, da data (para outra fatura), do `faturaAjuste`, `DELETE`, restaurar, importar | `409 fatura_conferida` em cada um; nada gravado |
 | G-T13 | **Trava:** editar descrição/nota/tags/marca, ocultar uma compra de **outra** fatura, lançar em fatura **não** conferida, lançar o pagamento (não é crédito) | passam |
@@ -145,7 +145,7 @@ Os testes que rejeitam ou travam (G-T4, G-T5, G-T6, G-T12, G-T15) são escritos 
 
 ## O que muda no front (fase B; demo antes)
 
-- **Aba Cartão, seção de cada cartão:** "Paga com" (lista de meios) e "Vence dia" (1 a 31). Em cada fatura: "Vencimento" (data) e "Paga com" (só daquela fatura). O painel da
+- **Aba Cartão, seção de cada cartão:** "Paga com" (lista de meios) e "Vence dia" (1 a 31), que só sugerem e não valem para nenhuma fatura. Em cada fatura: "Vencimento" (data) e "Paga com" (só daquela fatura). O painel da
   fatura ganha **"Pagamentos desta fatura"**: a lista dos lançamentos marcados (data, meio, valor), a soma e a diferença para o valor da fatura, só como informação.
   "Desfazer conferência" avisa que a fatura está travada.
 - **Futuros:** as faturas aparecem no meio pagador sugerido, na data do vencimento, com o valor, "fechada" ou "aberta" e "atrasada". **"Já paguei"** abre a janela de confirmar
