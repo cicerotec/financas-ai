@@ -9,6 +9,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192-v1.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon-v1.png">
 <link rel="stylesheet" href="css/app.css">
+<script src="js/tema.js"></script>
 </head>
 <body>
 <header>
@@ -203,7 +204,9 @@
   </div>
   <div class="card">
     <b>Aparência</b>
-    <p class="muted">Como as cores dos status aparecem no Histórico. A cor de cada status você escolhe na bolinha, no cartão Status logo abaixo.</p>
+    <div class="muted" style="margin-top:8px;">Tema <span style="color:var(--faint);">· vale em qualquer aparelho seu</span></div>
+    <div class="tema-op" id="temaBtns" role="group" aria-label="Tema"></div>
+    <p class="muted" style="margin-top:14px;">Como as cores dos status aparecem no Histórico. A cor de cada status você escolhe na bolinha, no cartão Status logo abaixo.</p>
     <div class="tags" id="estiloCorBtns"></div>
     <div id="prevCor" style="margin-top:10px;"></div>
     <div class="muted" style="margin-top:14px;">Layout dos saldos</div>

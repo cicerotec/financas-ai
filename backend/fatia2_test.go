@@ -96,6 +96,20 @@ func TestF2Aparencia(t *testing.T) {
 	if d["tema"] != nil {
 		t.Error("a aparencia de um nao pode aparecer para o outro")
 	}
+	// item do tema: so automatico, claro e escuro; o resto e recusado e nao grava
+	for _, ok := range []string{"auto", "claro", "escuro"} {
+		if st, _ := chamar(t, "own", "PUT", "spaces/s1/aparencia", nil, `{"tema":"`+ok+`"}`); st != 200 {
+			t.Errorf("tema %q: %d, esperado 200", ok, st)
+		}
+	}
+	for _, ruim := range []string{`"roxo"`, `""`, `1`, `null`} {
+		if st, _ := chamar(t, "own", "PUT", "spaces/s1/aparencia", nil, `{"tema":`+ruim+`}`); st != 400 {
+			t.Errorf("tema %s: %d, esperado 400", ruim, st)
+		}
+	}
+	if got := f.ler(t, pkEspaco, "USER#own#CFG#APARENCIA"); got == nil || got["tema"] != "escuro" {
+		t.Errorf("o tema recusado nao pode ter gravado: %v", got)
+	}
 	f.falharPut = errors.New("fora do ar")
 	st, d = chamar(t, "mem", "PUT", "spaces/s1/aparencia", nil, `{"tema":"claro"}`)
 	esperar(t, "erro do banco", st, 500)

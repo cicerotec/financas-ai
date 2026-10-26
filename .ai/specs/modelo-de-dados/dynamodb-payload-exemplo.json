@@ -159,6 +159,7 @@
     {
       "PK": "SPACE#ws-familia-demo",
       "SK": "USER#sub-demo-dono#CFG#APARENCIA",
+      "tema": "escuro",
       "estiloCor": "faixa",
       "statusCor": {
         "PAGO": "#639922",

@@ -3,6 +3,7 @@ let papelAtual = 'owner', meuSub = '';
 let lancamentosParaImportar = [];
 let listas = { status: [], banco: [] }; // status: a lista que o servidor manda (forma de pagamento); o app so a exibe
 let statusCor = {};
+let tema = 'auto'; // da aparencia da pessoa: auto (segue o aparelho), claro ou escuro (js/tema.js aplica)
 let estiloCor = 'ambos';
 let corAberta = null;
 const COR_PALETA = ['#639922','#BA7517','#378ADD','#7F77DD','#888780','#D85A30','#1D9E75','#D4537E','#E24B4A'];
@@ -771,6 +772,7 @@ async function init(){
       if(d && d.faturaPadrao) faturaPadrao = clonar(d.faturaPadrao);
       if(d && d.statusCorPadrao) coresPadrao = clonar(d.statusCorPadrao);
       if(d && d.statusCor) statusCor = clonar(d.statusCor);
+      tema = (d && d.tema) || 'auto'; Tema.escolher(tema);
       if(d && d.estiloCor) estiloCor = d.estiloCor;
       if(d && d.layoutSaldos) layoutSaldos = d.layoutSaldos;
       if(d && d.ordemSaldos) ordemSaldos = d.ordemSaldos;
@@ -988,6 +990,13 @@ function renderListas(){
 }
 
 function renderAparencia(){
+  const NOMES_TEMA = {auto:'Automático', claro:'Claro', escuro:'Escuro'};
+  document.getElementById('temaBtns').innerHTML = [['auto','🌗','segue o aparelho'],['claro','☀️','sempre claro'],['escuro','🌙','sempre escuro']].map(([k,ic,sub])=>
+    `<button type="button" data-tema="${k}" aria-pressed="${tema===k}"><span>${ic} ${NOMES_TEMA[k]}</span><small>${sub}</small></button>`).join('');
+  document.querySelectorAll('[data-tema]').forEach(b=>b.onclick=()=>{
+    tema = b.dataset.tema; Tema.escolher(tema);
+    salvarListas(); renderAparencia(); toast('Tema: '+NOMES_TEMA[tema]+'.');
+  });
   const op = [['linha','Linha inteira'],['faixa','Faixa + selo'],['ambos','Os dois juntos'],['nenhum','Sem cor']];
   document.getElementById('estiloCorBtns').innerHTML = op.map(([k,t])=>
     `<span class="tag ${estiloCor===k?'on':''}" data-estilo-cor="${k}">${t}</span>`).join('');
@@ -1034,7 +1043,7 @@ function renderAparencia(){
 
 async function salvarListas(){
   if(!db) return;
-  await db.doc("config/listas").set({banco: listas.banco, statusCor, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
+  await db.doc("config/listas").set({banco: listas.banco, statusCor, tema, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
 }
 async function removerBanco(banco){
   if(!db) return;

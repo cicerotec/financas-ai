@@ -413,6 +413,9 @@
           "SK": {
             "S": "USER#sub-demo-dono#CFG#APARENCIA"
           },
+          "tema": {
+            "S": "escuro"
+          },
           "estiloCor": {
             "S": "faixa"
           },

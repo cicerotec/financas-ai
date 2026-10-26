@@ -196,6 +196,9 @@ Demo [`demos/demo-tendencias-tags.html`](demos/demo-tendencias-tags.html); imple
   mudar enquanto se edita (a barra de baixo resume) e editar custa um toque a mais ("Editar consulta"), o modo avançado outro; botões de tag ocupam mais
   altura que uma lista com centenas de tags (a busca fica no topo da janela); montar uma expressão custa um toque a mais por tag; a consulta não é guardada ao sair do app.
 
+## Tema (cartão Aparência de Listas)
+Demo [`demos/demo-tema.html`](demos/demo-tema.html), aprovada em 2026-10-26; implementação em `web/index.html` (`#temaBtns`), `web/js/tema.js` e `renderAparencia` de `web/js/app.js`. **Tema** é o primeiro item do cartão Aparência, com três botões (Automático, Claro, Escuro; 64 px de altura) e vale na hora, sem Salvar. Dono e membro veem o mesmo cartão. A escolha fica na conta, no campo `tema` de `USER#<sub>#CFG#APARENCIA` (`PUT /aparencia` recusa outro valor); o aparelho guarda só uma cópia (`localStorage`, `financas.tema`) para aplicar o tema antes da API responder.
+
 ## Configurações (tela)
 Demo [`demos/demo-configuracoes.html`](demos/demo-configuracoes.html), aprovada pelo dono em 2026-10-23; implementação em `web/index.html` (`#tab-configuracoes`) e `web/css/app.css` (bloco "Aba Configurações"). É a antiga aba Importar, **só do dono** (`body.papel-member` esconde o botão e o item do menu). O id da aba passou de `importar` para `configuracoes`.
 - **Três seções recolhidas** (`<details class="cfg-sec">`, abertas só por toque, no celular e no computador): **Cartão** (só "Importar fechamentos da planilha"), **Importar** (arquivo da planilha, colar dados, backup .json; a prévia e o "Arquivo x banco de dados" continuam abrindo dentro dela) e **Exportar** (o cartão "Exportar seus dados" como era). Cada cabeçalho tem 64 px, título em negrito e uma linha de resumo.
