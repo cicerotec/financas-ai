@@ -231,6 +231,7 @@ function pvData(iso){ return new Date(iso).toLocaleDateString('pt-BR'); }
 
 // Copias a criar, com o que ja existe marcado, a partir do estado das telas.
 function pvCalcular(){
+  if(pv.fatura) return {docs:[pv.base], iguais:new Set(), erro:''}; // o aviso da fatura nao cria copias
   const aviso = Recorrencia.avisoDoEstado(pv.aviso);
   let erro = Recorrencia.validar(pv.meses, pv.qtd);
   if(!erro && aviso === 'incompleto') erro = 'Escolha pelo menos um prazo de aviso ou ligue "Insistir depois do vencimento".';
@@ -298,12 +299,14 @@ function pvTelaAvisar(){
   const venc = new Date((c.docs[0] || pv.base).dataEvento);
   const datas = [...av.dias].sort((a,b)=>b-a).map(d=>{ const x = new Date(venc); x.setDate(x.getDate()-d); return `<b>${pvData(x)}</b>`; }).join(', ');
   return tcCabeca('Avisar no Telegram','voltar')+
+    (pv.fatura ? `<p class="tc-ctx">Fatura ${esc(pv.fatura.rotulo)} · ${esc(pv.fatura.meio)}</p>` : '')+
     `<div class="tc-card">${tcInterruptor('sw','Avisar','',av.on)}</div>`+
     (av.on
       ? `<div class="tc-card">${lista}</div><div class="tc-card">${outro}</div>`+
         `<div class="tc-card">${tcInterruptor('ins','Insistir depois do vencimento','Avisa todo dia, até pagar',av.insistir)}</div>`+
         `<p class="tc-nota">Para um vencimento em ${pvData(venc)}, avisa em ${datas||'nenhum dia'}${av.insistir?' e todo dia depois':''}.</p>${pvBalao(c)}`
-      : '<p class="tc-nota">Sem aviso, o lançamento só aparece em Futuros.</p>');
+      : '<p class="tc-nota">Sem aviso, o lançamento só aparece em Futuros.</p>')+
+    (pv.erro ? `<div class="tc-erro" role="alert">${esc(pv.erro)}</div>` : '');
 }
 
 // Janela de baixo com rodas (Outro prazo, Outro intervalo, Repetir quantas vezes).
@@ -366,7 +369,7 @@ function pvRender(topo){
   const antes = el.querySelector('.tc-scr');
   const y = (!topo && antes) ? antes.scrollTop : 0;
   const tela = pv.tela==='rep' ? pvTelaRepetir() : pv.tela==='avi' ? pvTelaAvisar() : pvTelaPrincipal();
-  el.innerHTML = `<div class="tc-scr"><div class="tc-col">${tela}</div></div>${pv.tela==='main' ? pvBarra() : ''}${pvHtmlJanela()}`;
+  el.innerHTML = `<div class="tc-scr"><div class="tc-col">${tela}</div></div>${pv.fatura ? pvBarraFatura() : pv.tela==='main' ? pvBarra() : ''}${pvHtmlJanela()}`;
   el.querySelector('.tc-scr').scrollTop = y;
   pvMontarRodas();
   Voltar.sync(); // as telas internas (Repetir, Avisar, Status) e a janela de rodas contam como camadas do botao voltar
@@ -374,7 +377,7 @@ function pvRender(topo){
 function pvVoltar(){
   if(!pv || pv.ocupado) return;
   if(pv.sheet){ pv.sheet = null; return pvRender(false); }
-  if(pv.tela !== 'main'){ pv.tela = 'main'; return pvRender(true); }
+  if(pv.tela !== 'main' && !pv.fatura){ pv.tela = 'main'; return pvRender(true); }
   fecharPrever();
 }
 function fecharPrever(){
@@ -416,6 +419,8 @@ function pvClique(e){
   if(!b || !pv) return;
   const a = b.dataset.a, av = pv.aviso;
   if(a==='fechar') return pvVoltar();
+  if(a==='voltar' && pv.fatura) return pvVoltar();
+  if(a==='salvarFatura') return pvSalvarFatura();
   if(a==='voltar'){ pv.tela = 'main'; pv.sheet = null; return pvRender(true); }
   if(a==='ir'){ pv.tela = b.dataset.to; pv.erro = ''; return pvRender(true); }
   if(a==='criar') return pvCriar();
@@ -467,6 +472,51 @@ function abrirPrever(base, ctx){
   pvRender(true);
   const voltar = el.querySelector('.tc-hd button');
   if(voltar) voltar.focus();
+}
+
+// Aviso da fatura do cartao (item 46): a MESMA tela "Avisar no Telegram" do Prever, sem a tela principal por tras; o Salvar fica no rodape e a seta so desiste.
+// Demo: .ai/demos/demo-aviso-fatura.html. O servidor valida o aviso e exige o vencimento da fatura (que ja existe: so assim a fatura aparece em Futuros).
+function pvBarraFatura(){
+  return `<div class="tc-barra"><button type="button" class="tc-criar" id="tcCriar" data-a="salvarFatura" aria-busy="${pv.ocupado}">${pv.ocupado ? 'Salvando…' : 'Salvar'}</button></div>`;
+}
+function abrirAvisoFatura(f){
+  if(!f) return;
+  fecharPrever();
+  const aviso = f.aviso && typeof f.aviso === 'object' ? f.aviso : null;
+  pv = {
+    fatura:{meio:f.meio, ym:f.ym, rotulo:f.rotulo},
+    base:{dataEvento:f.vencimento + 'T12:00:00.000Z', descricao:'Fatura ' + f.rotulo + ' · ' + f.meio, valor:f.valor, tipo:'saida', banco:f.meio},
+    ctx:{}, tela:'avi', sheet:null, erro:'', ocupado:false, progresso:'', qtd:1, meses:1,
+    aviso:{on:!!aviso, dias:aviso && Array.isArray(aviso.dias) ? [...aviso.dias] : [1,0], insistir:aviso ? aviso.insistir === true : true}
+  };
+  const el = document.createElement('div');
+  el.className = 'tc'; el.id = 'tc';
+  el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
+  el.setAttribute('aria-label','Avisar no Telegram');
+  el.addEventListener('click', pvClique);
+  document.body.appendChild(el);
+  document.documentElement.style.overflow = 'hidden';
+  pvRender(true);
+  const voltar = el.querySelector('.tc-hd button');
+  if(voltar) voltar.focus();
+}
+async function pvSalvarFatura(){
+  if(!pv || !pv.fatura || pv.ocupado) return;
+  const aviso = Recorrencia.avisoDoEstado(pv.aviso);
+  if(aviso === 'incompleto'){ pv.erro = 'Escolha pelo menos um prazo de aviso ou ligue "Insistir depois do vencimento".'; return pvRender(false); }
+  const {meio, ym} = pv.fatura;
+  pv.ocupado = true; pv.erro = ''; pvRender(false);
+  try{
+    await db.cartaoFechamento(meio, ym, {aviso: aviso || null});
+    fecharPrever();
+    toast(aviso ? '✓ Aviso da fatura salvo' : '✓ Aviso da fatura desligado');
+    carregarFuturos();
+  }catch(err){
+    console.error(err);
+    if(!pv) return;
+    pv.ocupado = false; pv.erro = msgErro(err, 'Não foi possível salvar o aviso. Tente de novo.');
+    pvRender(false);
+  }
 }
 
 // Botao Prever (registro sem serie) ou Estender (registro de uma serie: parte da ultima ocorrencia carregada).
@@ -1981,16 +2031,17 @@ function htmlFaturaFuturo(f){
   const valor = htmlValorLinha({tipo:'saida', valor:f.valor});
   const pagador = f.pagador ? esc(f.pagador) : 'a definir';
   const nome = `Fatura ${esc(f.rotulo)} · ${esc(f.meio)}`;
-  const botao = ehOwner() ? `<button type="button" class="pri" data-acao="pagarFatura" data-id="${chave}">Já paguei</button>` : '';
+  const botao = ehOwner() ? `<button type="button" data-acao="avisarFatura" data-id="${chave}">Avisar</button><button type="button" class="pri" data-acao="pagarFatura" data-id="${chave}">Já paguei</button>` : '';
+  const sino = f.aviso ? `🔔 ${esc(Recorrencia.fraseAviso({on:true, dias:f.aviso.dias, insistir:f.aviso.insistir}))}` : '';
   return `<div class="fut-row" style="--cor:var(--faint)">
     <button type="button" class="fut-m" data-fut-abrir="${chave}" aria-haspopup="dialog">
-      <span class="l"><span class="d">${nome}</span><span class="mt">${dia} · ${pagador} · ${f.estado}</span></span>
+      <span class="l"><span class="d">${nome}</span><span class="mt">${dia} · ${pagador} · ${f.estado}</span>${sino?`<span class="mt fut-sino">${sino}</span>`:''}</span>
       <span class="r">${valor}${prazo}</span>
       <span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>
     </button>
     <div class="fut-dk" tabindex="0">
       <span>${dia}</span>
-      <span class="dd"><span class="dl"><span class="d" title="${nome}">${nome}</span></span><span class="sub">${f.estado==='aberta'?'ainda cresce a cada compra':'fechada'}</span></span>
+      <span class="dd"><span class="dl"><span class="d" title="${nome}">${nome}</span></span><span class="sub">${f.estado==='aberta'?'ainda cresce a cada compra':'fechada'}</span>${sino?`<span class="sub fut-sino">${sino}</span>`:''}</span>
       <span class="bk" title="${pagador}">${pagador}</span>
       <span class="st"><span class="muted">${f.estado}</span></span>
       <span class="v">${valor}${prazo}</span>
@@ -2006,7 +2057,7 @@ function abrirAcoesFatura(chave){
   ov.className = 'fut-ov'; ov.id = 'futOv';
   ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Ações da fatura ${esc(f.rotulo)}">
     <h3>Fatura ${esc(f.rotulo)} · ${esc(f.meio)}</h3><p class="mm">${fmtMoeda(f.valor)} · vence ${fmtDataCompleta(f.vencimento)} · ${f.estado}</p>
-    ${ehOwner() ? `<button type="button" class="fut-ac pri" data-acao="pagarFatura" data-id="${esc(chave)}">Já paguei</button>` : '<p class="muted" style="margin:8px">Só o dono lança o pagamento da fatura.</p>'}</div>`;
+    ${ehOwner() ? `<button type="button" class="fut-ac pri" data-acao="pagarFatura" data-id="${esc(chave)}">Já paguei</button><button type="button" class="fut-ac" data-acao="avisarFatura" data-id="${esc(chave)}">Avisar no Telegram</button>` : '<p class="muted" style="margin:8px">Só o dono lança o pagamento da fatura.</p>'}</div>`;
   ov.addEventListener('click', e=>{
     const b = e.target.closest('button[data-acao]');
     if(b){ fecharAcoesFuturo(); executarAcaoRegistro(b.dataset.acao, b.dataset.id); return; }
@@ -2157,6 +2208,7 @@ async function desfazerConfirmacao(id, versao){
 }
 function executarAcaoRegistro(acao, id){
   if(acao==='pagarFatura') return pagarFatura(id);
+  if(acao==='avisarFatura') return abrirAvisoFatura(faturaPorChave(id));
   if(acao==='confirmar') confirmarPrevisto(id);
   if(acao==='editar') iniciarEdicao(id);
   if(acao==='copiar') iniciarCopia(id);
