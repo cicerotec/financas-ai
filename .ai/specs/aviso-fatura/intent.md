@@ -20,6 +20,12 @@ O dono quer ligar o aviso **na própria fatura**, com a mesma tela e os mesmos p
    além da Query dos avisos.
 5. Dado novo aprovado: `aviso` dentro de `faturas[ym]` do cartão (`CFG#CARTOES`), com o mesmo formato do aviso do lançamento. Nada além disso.
 
+## Extensão: aviso padrão do cartão (item 48, 2026-10-26)
+
+O dono pede um **aviso padrão no cartão** (`porBanco.<Banco>.aviso`, mesmo formato do aviso da fatura). Ele **não vale para nenhuma fatura existente**: é só o modelo que é **copiado** para
+`faturas[ym].aviso` **no momento em que a fatura ganha o primeiro vencimento** (o momento em que ela vira registro em Futuros). Daí em diante a fatura tem o aviso dela e o dono muda
+pelo botão **Avisar** de Futuros. Mudar o padrão depois **não altera** nenhuma fatura já copiada, e nada grava ao *mostrar* a fatura (nenhuma leitura grava).
+
 ## Fora
 
 - Aviso padrão por cartão; avisos por e-mail ou WhatsApp (item 34); mexer em qualquer fatura ou lançamento do passado.
