@@ -1,0 +1,147 @@
+<title>Aviso da fatura</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Demo do aviso no Telegram para a fatura do cartão (item 46). Mostra a linha da fatura em Futuros, a tela Avisar (a mesma do Prever) e a mensagem. */
+:root{
+  --bg:#f1f0ec; --card:#ffffff; --fg:#1d2220; --muted:#5c645e; --line:#e4e2dc; --ck:#d3d6d2;
+  --accent:#2f6f4f; --accent-bg:#dcefe5; --on-accent:#ffffff; --danger:#b3413a; --danger-bg:#f8e6e2; --warn-bg:#f6ecd2;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121513; --card:#1f2421; --fg:#e8ebe7; --muted:#a3aaa4; --line:#2e3430; --ck:#3b413d;
+  --accent:#5fb98a; --accent-bg:#1c3a2e; --on-accent:#0d1f16; --danger:#e08a83; --danger-bg:#3a1f1c; --warn-bg:#3a3320; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#121513; --card:#1f2421; --fg:#e8ebe7; --muted:#a3aaa4; --line:#2e3430; --ck:#3b413d;
+  --accent:#5fb98a; --accent-bg:#1c3a2e; --on-accent:#0d1f16; --danger:#e08a83; --danger-bg:#3a1f1c; --warn-bg:#3a3320; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding-block:18px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:640px;margin-inline:auto}
+h1{font-size:20px;margin:0 0 4px;text-wrap:balance}
+.abas{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.abas button{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:18px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer}
+.abas button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tela[hidden]{display:none}
+.nota{background:var(--accent-bg);border-radius:10px;padding:9px 11px;font-size:13px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 10px}
+.m{color:var(--muted);font-size:13px}
+.ev{display:flex;justify-content:space-between;gap:10px;padding:6px 0}
+.ev .d{font-weight:600;overflow-wrap:anywhere}
+.r{text-align:right;white-space:nowrap}
+.out{color:var(--danger)}
+.atras{color:var(--danger);font-weight:600;font-size:12.5px}
+.gt{font-size:13px;font-weight:600;color:var(--muted);margin:14px 2px 6px}
+.gt.bad{color:var(--danger)}
+.btn{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:10px;padding:7px 11px;font:inherit;font-size:13px;cursor:pointer}
+.btn.pri{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.acoes{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.sino{font-size:12.5px;color:var(--accent);font-weight:600}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:5;padding:0 0 env(safe-area-inset-bottom,0px)}
+.ov[hidden]{display:none}
+.sheet{background:var(--card);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:16px;max-height:90vh;overflow:auto}
+.sheet h3{margin:0 0 2px;font-size:16px}
+.fr{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:50px;border-top:1px solid var(--line)}
+.fr label{font-weight:600}
+.sw{width:46px;height:26px;border-radius:13px;border:0;background:var(--ck);position:relative;cursor:pointer;flex:none}
+.sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+.sw[aria-checked="true"]{background:var(--accent)}
+.sw[aria-checked="true"] i{left:23px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chip{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:18px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);font-weight:600}
+.aviso-sem{background:var(--warn-bg);border-radius:10px;padding:8px 10px;font-size:13px;margin:8px 0}
+.bal{background:var(--accent-bg);border-radius:14px;padding:10px 12px;font-size:14px;margin:8px 0;white-space:pre-line}
+.cx{border:1px dashed var(--line);border-radius:14px;padding:12px 14px;margin-top:20px}
+ul{padding-left:20px;margin:6px 0}
+li{margin:3px 0}
+</style>
+<main>
+<h1>Aviso da fatura no Telegram</h1>
+<div class="abas" role="group" aria-label="Telas">
+  <button type="button" data-t="futuros" aria-pressed="true">Futuros</button>
+  <button type="button" data-t="avisar" aria-pressed="false">Tela Avisar</button>
+  <button type="button" data-t="msg" aria-pressed="false">Mensagem</button>
+</div>
+
+<section class="tela" id="t-futuros">
+  <p class="nota">A linha da fatura ganha o botão <b>Avisar</b>, ao lado do <b>Já paguei</b>. Quando o aviso está ligado, aparece o 🔔 com o resumo. No celular, as duas ações ficam na janelinha da linha, como nas outras.</p>
+  <div class="gt">Novembro de 2026</div>
+  <div class="card">
+    <div class="ev"><span><span class="d">Fatura out/26 · SANTANDER</span><br><span class="m">18/11/2026 · SANTANDER · aberta, ainda cresce</span><br><span class="sino" id="sinoA" hidden>🔔 1 dia antes, no dia e insiste depois</span></span>
+      <span class="r"><b class="out">-R$ 1.847,19</b><br><span class="m">em 23 dias</span></span></div>
+    <div class="acoes"><button class="btn" type="button" id="avisarA">Avisar</button><button class="btn pri" type="button">Já paguei</button></div>
+  </div>
+  <div class="card">
+    <div class="ev"><span><span class="d">Fatura out/26 · MERCADO PAGO</span><br><span class="m">16/11/2026 · MERCADO PAGO · aberta, ainda cresce</span><br><span class="sino">🔔 3 dias antes e no dia</span></span>
+      <span class="r"><b class="out">-R$ 612,40</b><br><span class="m">em 21 dias</span></span></div>
+    <div class="acoes"><button class="btn" type="button">Avisar</button><button class="btn pri" type="button">Já paguei</button></div>
+  </div>
+</section>
+
+<section class="tela" id="t-avisar" hidden>
+  <p class="nota">É a <b>mesma tela</b> "Avisar no Telegram" do Prever, com os mesmos atalhos. Só o texto de baixo muda, para falar da fatura. Se a fatura ainda não tem vencimento, a tela pede o vencimento primeiro (último cartão abaixo).</p>
+  <div class="card">
+    <b>Avisar no Telegram · Fatura out/26 · SANTANDER</b>
+    <p class="m" style="margin:2px 0 0">Vencimento 18/11/2026</p>
+    <div class="fr"><label>Avisar</label><button class="sw" type="button" role="switch" aria-checked="true" id="sw" aria-label="Avisar"><i></i></button></div>
+    <div id="opcoes">
+      <div class="m">Avisar quantos dias antes</div>
+      <div class="chips" id="chips">
+        <button class="chip" type="button" data-d="7" aria-pressed="false">7 dias</button>
+        <button class="chip" type="button" data-d="3" aria-pressed="false">3 dias</button>
+        <button class="chip" type="button" data-d="1" aria-pressed="true">1 dia</button>
+        <button class="chip" type="button" data-d="0" aria-pressed="true">No dia</button>
+      </div>
+      <div class="fr"><label>Insistir depois do vencimento<br><span class="m" style="font-weight:400">Avisa todo dia, até pagar</span></label><button class="sw" type="button" role="switch" aria-checked="true" id="ins" aria-label="Insistir"><i></i></button></div>
+      <p class="m" id="resumoAv">Avisa em 17/11/2026 e 18/11/2026 e todo dia depois, até a fatura sair de Futuros.</p>
+    </div>
+    <div class="acoes"><button class="btn" type="button">Cancelar</button><button class="btn pri" type="button">Salvar</button></div>
+  </div>
+  <div class="card">
+    <b>Fatura sem vencimento</b>
+    <div class="aviso-sem">Esta fatura ainda não tem vencimento. Defina o vencimento na aba Cartão para poder avisar.</div>
+    <div class="acoes"><button class="btn pri" type="button">Definir vencimento</button></div>
+  </div>
+</section>
+
+<section class="tela" id="t-msg" hidden>
+  <p class="nota">O aviso da fatura sai no <b>mesmo resumo diário das 08:00</b>, junto com os avisos dos lançamentos. O valor é o da fatura naquele dia. A fatura paga some do resumo sozinha.</p>
+  <div class="bal">🔔 Avisos de 17/11/2026
+• Vence amanhã (18/11/2026): Fatura out/26 · SANTANDER - R$ 1.847,19
+• Vence em 3 dias (20/11/2026): Condomínio - R$ 480,00 (ITAÚ)</div>
+  <div class="bal">🔔 Avisos de 20/11/2026
+• Atrasado há 2 dias (18/11/2026): Fatura out/26 · SANTANDER - R$ 1.847,19</div>
+</section>
+
+<div class="cx">
+  <b>O que você aprova</b>
+  <ul>
+    <li>O botão <b>Avisar</b> na linha da fatura em Futuros (e na janelinha do celular) e o 🔔 com o resumo quando está ligado.</li>
+    <li>A mesma tela do Prever, com os mesmos prazos e o "insistir", valendo só para aquela fatura.</li>
+    <li>O aviso no resumo diário, e a fatura paga saindo dele sozinha.</li>
+    <li>Sem vencimento na fatura, não há aviso: a tela manda definir o vencimento.</li>
+  </ul>
+</div>
+</main>
+<script>
+(function(){
+  var abas=document.querySelectorAll('.abas button');
+  function mostrar(t){
+    abas.forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-t')===t));});
+    ['futuros','avisar','msg'].forEach(function(n){document.getElementById('t-'+n).hidden=(n!==t);});
+  }
+  abas.forEach(function(b){b.addEventListener('click',function(){mostrar(b.getAttribute('data-t'));});});
+  document.getElementById('avisarA').addEventListener('click',function(){mostrar('avisar');document.getElementById('sinoA').hidden=false;});
+  function tg(el){el.addEventListener('click',function(){el.setAttribute('aria-checked',String(el.getAttribute('aria-checked')!=='true'));resumo();});}
+  var sw=document.getElementById('sw'),ins=document.getElementById('ins');tg(sw);tg(ins);
+  document.getElementById('chips').addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;b.setAttribute('aria-pressed',String(b.getAttribute('aria-pressed')!=='true'));resumo();});
+  function resumo(){
+    var on=sw.getAttribute('aria-checked')==='true';
+    document.getElementById('opcoes').hidden=!on;
+    var ds=[].filter.call(document.querySelectorAll('.chip[aria-pressed="true"]'),function(){return true}).map(function(b){return +b.getAttribute('data-d')}).sort(function(a,b){return b-a});
+    var datas=ds.map(function(d){return (18-d)+'/11/2026'}).join(' e ');
+    var i=ins.getAttribute('aria-checked')==='true';
+    document.getElementById('resumoAv').textContent=(!datas&&!i)?'Escolha pelo menos um prazo ou ligue "Insistir".':'Avisa em '+(datas||'nenhum dia')+(i?' e todo dia depois, até a fatura sair de Futuros':'')+'.';
+  }
+})();
+</script>

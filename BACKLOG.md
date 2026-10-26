@@ -24,6 +24,7 @@ pendentes: nenhum.
 
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
+- [\[Backend\] - **\[Próximo\] Aviso no Telegram para a fatura do cartão:**](#item-46)
 - [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
 - [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
 - [\[UX/UI\] - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
@@ -207,6 +208,7 @@ DynamoDB sem discutir com o dono.**
   registros mudam, quais travas pegam), grava **uma versão do histórico por registro** com o autor e respeita as travas de data pelo efeito no saldo (mês conferido recusa,
   mês fechado pede confirmação). Serve a quatro usos: o pedido de um dono novo que não gosta de `PAGO` e `CREDITO`, o desmembramento futuro do `PAGO`, a migração do `faturaAjuste`
   explícito nos lançamentos antigos (fatia b do item 33) e trocar o passado de uma vez (um `PAGO` de 2018 para `PIX`). Depende dos itens 31 (histórico) e 41.
+- 46. [ ] <a id="item-46"></a>**[Próximo] Aviso no Telegram para a fatura do cartão (2026-10-26):** hoje só um lançamento tem aviso; a fatura, que é calculada pelo servidor, só tem o botão Já paguei. O aviso passa a ser ligado **na própria fatura** em Futuros (botão Avisar, mesma tela do Prever), só para aquela fatura (o cartão não tem aviso padrão) e só se ela tiver vencimento. Dado novo: `faturas[ym].aviso` (mesmo formato do lançamento) mais o item auxiliar já existente em `AVISOS#ATIVOS`; **desempenho: dias sem aviso não leem nada além da Query dos avisos**. A fatura paga some do resumo sozinha. Intent, plan e spec (rascunho) em [`.ai/specs/aviso-fatura/`](.ai/specs/aviso-fatura/intent.md); demo `.ai/demos/demo-aviso-fatura.html`.
 - 45. [ ] <a id="item-45"></a>**[Depois] Futuros: os atrasados antigos são buscados por ano, sob demanda (anotado em 2026-10-25):** hoje Futuros olha só **do mês passado em diante**
   (decisão do dono: ler todos os atrasados de todos os anos de uma vez sobrecarrega a tabela e não faz sentido). Quem tem um previsto mais antigo (por exemplo, um `PREVISTO` esquecido de 2019)
   não o vê em lugar nenhum, porque o Histórico nunca mostra previstos. **A forma de buscar os atrasados vai mudar na tela:** em vez de uma lista única, os atrasados mais antigos passam a ser
