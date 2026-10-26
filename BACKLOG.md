@@ -25,9 +25,9 @@ pendentes: nenhum.
 - [\[Infra\] - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
 - [\[Backend\] - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[Backend\] - **\[Próximo\] Aviso no Telegram para a fatura do cartão:**](#item-46)
-- [\[UX/UI\] - **\[Próximo\] Formulário de Lançar no padrão de telas:**](#item-30)
 - [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
 - [\[UX/UI\] - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
+- [\[UX/UI\] - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
 - [\[Processo\] - **\[Próximo\] Remover `financas-app.html`:**](#item-36)
 - [\[Infra\] - **\[Depois\] AWS Budget de US$ 1 e backup periódico:**](#item-11)
 - [\[Backend\] - **\[Depois\] Open Finance (visão):**](#item-39)
@@ -301,13 +301,14 @@ DynamoDB sem discutir com o dono.**
 - 20. [ ] <a id="item-20"></a>**[Depois] Ideias** (seção no fim deste arquivo).
 
 ### UX/UI (usabilidade do que já existe)
-- 30. [ ] <a id="item-30"></a>**[Próximo] Formulário de Lançar no padrão de telas**: hoje o Lançar ainda mostra à vista os controles antigos de
+- 30. [x] <a id="item-30"></a>**Formulário de Lançar no padrão de telas** (concluído; confirmado pelo dono em 2026-10-26): hoje o Lançar ainda mostra à vista os controles antigos de
   aviso e de repetição (17 controles, pouco usáveis no celular). Passar "Repetir" e "Avisar" para linhas-resumo que
   abrem as telas cheias do Prever (a lógica e os componentes já existem em `web/index.html`, bloco "Prever e Estender").
   Pelo padrão, começa com uma demo do formulário completo para aprovação.
 - 21. [ ] <a id="item-21"></a>**[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em [`.ai/ux.md`](.ai/ux.md)): barra de navegação
   inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
   acessibilidade das abas, unificar o seletor de tags (agora no item 42).
+- 47. [ ] <a id="item-47"></a>**[Próximo] Tela "Avisar no Telegram" como componente reutilizável (2026-10-26):** hoje a tela de aviso são funções soltas do Prever (`pvTelaAvisar`, `pvBalao`, o estado `pv`), amarradas a um lançamento. O dono quer que ela seja um **padrão**, reformulado para ser reaproveitado pelas buscas do Histórico, das Tendências e do Futuros (item 42) e pelo aviso da fatura (item 46). Pede um componente com entradas claras (título, vencimento de referência, textos, balão, o que o Salvar faz) e uma demo própria antes de qualquer tela, atualizando `.ai/padrao-de-telas.md`. O item 46 usa a tela como está, só parametrizada, para não esperar este item; este item depois troca os dois pelos mesmo componente. Junto do item 42.
 - 42. [ ] <a id="item-42"></a>**[Próximo] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências** (guarda-chuva; raciocínio e regras em
   [`.ai/ux.md`](.ai/ux.md), seção "Filtro único e lista da consulta"). Hoje Tendências (filtro avançado de tags com E, OU e NÃO), Histórico (status, banco, tags e
   combos, só "todas" ou "qualquer uma") e Futuros têm cada um o seu filtro, e os números e as consultas divergem. A ideia é **um filtro compartilhado**: uma janela

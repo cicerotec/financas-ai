@@ -46,6 +46,10 @@ GET /spaces/{sid}/futuros                        faturas[].aviso = { dias, insis
 
 ## Telas (fase B, depois da demo aprovada)
 
-- Botão **Avisar** na linha da fatura (desktop) e na janelinha de ações (celular); abre a tela "Avisar no Telegram" já existente; salva com `PUT .../faturas/{ym}`; o 🔔 e o resumo
-  vêm do `aviso` da linha. O front não calcula prazo nem decide por status.
+- **A tela é a mesma do Prever** ("Avisar no Telegram": interruptor, prazos como linhas com check, Outro prazo, Insistir, frase de datas e o balão "Assim chega no Telegram"), só com o
+  título, o vencimento e a mensagem falando da fatura. Demo: `.ai/demos/demo-aviso-fatura.html` (copia a de `demo-repeticao-e-aviso.html`).
+- **Única diferença:** não há tela principal por trás, então o botão **Salvar** fica fixo no rodapé e a seta ← só desiste. Sem aviso, o texto continua "Sem aviso, o lançamento só aparece em Futuros.".
+- Em Futuros: tocar na fatura abre a janelinha de ações com **Já paguei** e **Avisar no Telegram** (no desktop, o botão **Avisar** ao lado do Já paguei); o 🔔 e o resumo vêm do `aviso` da
+  linha. Salva com `PUT .../faturas/{ym}`. O front não calcula prazo nem decide por status.
+- A reformulação da tela como componente reutilizável é o **item 47** (junto do item 42); o item 46 só a parametriza.
 - Testes do front: `web/*.test.js` sem chamada a função indefinida e sem nome de status.

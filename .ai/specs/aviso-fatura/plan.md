@@ -37,7 +37,8 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 ## Fases
 
 - **A (backend):** campo, validação, sincronização do item auxiliar, rotina diária, `aviso` na linha de `GET /futuros`, testes. Só acrescenta.
-- **B (tela):** botão Avisar e o 🔔, com demo aprovada.
+- **B (tela):** botão Avisar e o 🔔, reaproveitando a tela "Avisar no Telegram" do Prever parametrizada (título, vencimento, balão da fatura, Salvar no rodapé), com demo aprovada. A reformulação da tela como
+  componente reutilizável é o item 47, que depois troca os dois usos pelo mesmo componente.
 
 ## Riscos
 
