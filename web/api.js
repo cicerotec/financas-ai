@@ -418,7 +418,13 @@
   // Futuros (item 41): o servidor devolve os previstos, o resumo, os Atrasados e os meses prontos. Cada item e guardado no cache do shim (precisa da dataEvento para editar).
   const futuros = async () => {
     const b = (await api('GET', (await base()) + '/futuros?ocultos=1')).body;
-    (b.atrasados || []).forEach(guardar);
+    (b.atrasados || []).forEach((a) => (a.meses || []).forEach((m) => (m.itens || []).forEach(guardar)));
+    (b.meses || []).forEach((m) => (m.itens || []).forEach(guardar));
+    return b;
+  };
+  // Atrasados de um ano anterior, so a pedido (item 45): o servidor devolve o grupo do ano pronto ({ano, n, valor, meses}).
+  const futurosAno = async (ano) => {
+    const b = (await api('GET', (await base()) + '/futuros?ocultos=1&ano=' + encodeURIComponent(ano))).body;
     (b.meses || []).forEach((m) => (m.itens || []).forEach(guardar));
     return b;
   };
@@ -493,6 +499,7 @@
     saldos,
     conferirMes,
     futuros,
+    futurosAno,
     transferir,
     statusSugeridos,
     confirmarPrevisto,

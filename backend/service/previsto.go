@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"sort"
+	"strconv"
 	"time"
 
 	"financas/domain"
@@ -225,8 +227,98 @@ func (s *Lancamentos) Futuros(ctx context.Context, sid string, ocultos bool) (do
 	}
 	return domain.Doc{
 		"resumo":    domain.Doc{"pagar": domain.Arred(pagar), "receber": domain.Arred(receber), "atrasados": domain.Doc{"n": nAtr, "valor": domain.Arred(valorAtr)}},
-		"atrasados": atrasados, "meses": meses, "faturas": faturas, "truncado": truncado,
+		"atrasados": agruparAtrasados(atrasados), "anosAnteriores": anosAnteriores(agora), "meses": meses, "faturas": faturas, "truncado": truncado,
 	}, nil
+}
+
+// primeiroAnoDeFuturos e o primeiro ano que o seletor de atrasados antigos oferece (a base do dono comeca em 2016).
+const primeiroAnoDeFuturos = 2016
+
+// anosAnteriores lista, do mais novo para o mais velho, os anos que ainda tem dias fora da janela de Futuros e podem ser buscados com ?ano= (item 45).
+func anosAnteriores(agora time.Time) []int {
+	corte := inicioDeFuturos(agora)
+	topo, _ := strconv.Atoi(corte[:4])
+	if corte[5:] == "01-01" { // a janela comeca em janeiro: o ano inteiro dela ja vem em GET /futuros
+		topo--
+	}
+	anos := []int{}
+	for a := topo; a >= primeiroAnoDeFuturos; a-- {
+		anos = append(anos, a)
+	}
+	return anos
+}
+
+// agruparAtrasados organiza os atrasados (ja do mais antigo para o mais novo) em anos e, dentro de cada ano, em meses, com a quantidade e a soma de cada ano
+// (item 45). O front so exibe e recolhe; nao agrupa nem soma.
+func agruparAtrasados(itens []domain.Doc) []domain.Doc {
+	anos := []domain.Doc{}
+	for _, it := range itens {
+		dia := diaDoItem(it)
+		if len(dia) < 7 {
+			continue
+		}
+		ano, mes := dia[:4], dia[:7]
+		if len(anos) == 0 || anos[len(anos)-1]["ano"] != ano {
+			anos = append(anos, domain.Doc{"ano": ano, "n": 0, "valor": 0.0, "meses": []domain.Doc{}})
+		}
+		a := anos[len(anos)-1]
+		ms := a["meses"].([]domain.Doc)
+		if len(ms) == 0 || ms[len(ms)-1]["mes"] != mes {
+			ms = append(ms, domain.Doc{"mes": mes, "n": 0, "itens": []domain.Doc{}})
+		}
+		m := ms[len(ms)-1]
+		m["itens"] = append(m["itens"].([]domain.Doc), it)
+		if oculto, _ := it["oculto"].(bool); !oculto { // o oculto aparece na lista (a pedido) mas nunca entra na conta
+			valor, _ := it["valor"].(float64)
+			a["n"] = a["n"].(int) + 1
+			a["valor"] = domain.Arred(a["valor"].(float64) + valor)
+			m["n"] = m["n"].(int) + 1
+		}
+		a["meses"] = ms
+	}
+	return anos
+}
+
+// FuturosAno: GET /spaces/{sid}/futuros?ano=AAAA. Os previstos atrasados de UM ano anterior ao que Futuros ja traz (item 45), numa consulta so pelo intervalo
+// da data na chave (sem ler a particao inteira e sem cache: so a pedido). Devolve o grupo do ano pronto: {ano, n, valor, meses}. Ano que ja esta na
+// janela de Futuros (do mes passado em diante) devolve so o que for anterior a ela, e ano sem atrasados devolve n = 0.
+func (s *Lancamentos) FuturosAno(ctx context.Context, sid, ano string, ocultos bool) (domain.Doc, error) {
+	a, err := strconv.Atoi(ano)
+	if len(ano) != 4 || err != nil || a < 2000 || a > 2100 {
+		return nil, &ErroValidacao{"ano invalido"}
+	}
+	corte := inicioDeFuturos(s.rel.Agora()) // os previstos a partir daqui ja vem em GET /futuros
+	// a chave guarda a data em UTC e o dia de Futuros e o de Sao Paulo: pega um dia a mais de cada lado e confere o dia na volta
+	f := domain.FiltroTx{SoPrevistos: true, Asc: true, Limite: 500,
+		De: fmt.Sprintf("%04d-12-31", a-1), Ate: fmt.Sprintf("%04d-01-02", a+1)}
+	var itens []domain.Doc
+	for {
+		pag, proximo, err := s.repo.Listar(ctx, sid, f)
+		if err != nil {
+			log.Println("futuros ano:", err)
+			return nil, ErrListar
+		}
+		for _, l := range pag {
+			if o, _ := l["oculto"].(bool); o && !ocultos {
+				continue
+			}
+			data, _ := l["dataEvento"].(string)
+			dia, _ := domain.DiaBR(data)
+			if dia[:4] != ano || dia >= corte {
+				continue
+			}
+			itens = append(itens, decorar(domain.CopiaRasa(l)))
+		}
+		if proximo == "" {
+			break
+		}
+		f.Cursor = proximo
+	}
+	g := agruparAtrasados(itens)
+	if len(g) == 0 {
+		return domain.Doc{"ano": ano, "n": 0, "valor": 0.0, "meses": []domain.Doc{}}, nil
+	}
+	return g[0], nil
 }
 
 // inicioDeFuturos e o primeiro dia (AAAA-MM-DD, Sao Paulo) do mes anterior ao de agora: os previstos mais antigos que isso nao entram em Futuros.

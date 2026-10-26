@@ -288,9 +288,24 @@ func TestFuturosGruposEResumo(t *testing.T) {
 	if r["pagar"] != 699.9 || r["receber"] != 7200.0 || r["atrasados"].(map[string]any)["n"] != 2.0 || r["atrasados"].(map[string]any)["valor"] != 659.9 {
 		t.Errorf("resumo: %v", r)
 	}
-	atras := d["atrasados"].([]any)
-	if len(atras) != 2 || atras[0].(map[string]any)["id"] != "atrasado" || atras[1].(map[string]any)["id"] != "antigo" {
-		t.Errorf("atrasados, mais antigos primeiro: %v", atras)
+	// item 45: os atrasados vem agrupados em ano > mes, com a quantidade e a soma do ano
+	anos := d["atrasados"].([]any)
+	if len(anos) != 1 {
+		t.Fatalf("um ano de atrasados: %v", anos)
+	}
+	a26 := anos[0].(map[string]any)
+	if a26["ano"] != "2026" || a26["n"] != 2.0 || a26["valor"] != 659.9 {
+		t.Errorf("grupo do ano: %v", a26)
+	}
+	atras := a26["meses"].([]any)
+	if len(atras) != 2 || atras[0].(map[string]any)["mes"] != "2026-09" || atras[1].(map[string]any)["mes"] != "2026-10" {
+		t.Fatalf("meses dos atrasados: %v", atras)
+	}
+	if set := atras[0].(map[string]any)["itens"].([]any); len(set) != 1 || set[0].(map[string]any)["id"] != "atrasado" {
+		t.Errorf("setembro: %v", set)
+	}
+	if out := atras[1].(map[string]any)["itens"].([]any); len(out) != 1 || out[0].(map[string]any)["id"] != "antigo" {
+		t.Errorf("outubro: %v", out)
 	}
 	meses := d["meses"].([]any)
 	if len(meses) != 3 || meses[0].(map[string]any)["mes"] != "2026-10" || meses[1].(map[string]any)["mes"] != "2026-11" || meses[2].(map[string]any)["mes"] != "2026-12" {
@@ -332,6 +347,49 @@ func TestFuturosIgnoraOsPrevistosAnterioresAoMesPassado(t *testing.T) {
 	}
 	if d["resumo"].(map[string]any)["atrasados"].(map[string]any)["n"] != 1.0 {
 		t.Errorf("so setembro esta atrasado: %v", d["resumo"])
+	}
+}
+
+// Item 45: os atrasados de um ano antigo so saem a pedido (GET /futuros?ano=), agrupados por mes, sem oculto e sem o que ja esta na janela.
+func TestFuturosPorAno(t *testing.T) {
+	relogioPrev(t) // 24/10/2026: a janela comeca em 01/09/2026
+	f := cenario(t)
+	previsto(t, f, "mar19", "2019-03-10T15:00:00.000Z", doc{"valor": 980.0})
+	previsto(t, f, "nov19", "2019-11-02T15:00:00.000Z", doc{"valor": 412.5})
+	previsto(t, f, "oculto19", "2019-11-03T15:00:00.000Z", doc{"valor": 50.0, "oculto": true})
+	previsto(t, f, "ano22", "2022-06-15T15:00:00.000Z", nil)
+	previsto(t, f, "setembro", "2026-09-01T15:00:00.000Z", nil)
+	c, d := chamar(t, "own", "GET", "spaces/s1/futuros", map[string]string{"ano": "2019"}, "")
+	esperar(t, "futuros ano", c, 200)
+	if d["ano"] != "2019" || d["n"] != 2.0 || d["valor"] != 1392.5 {
+		t.Errorf("grupo de 2019: %v", d)
+	}
+	meses := d["meses"].([]any)
+	if len(meses) != 2 || meses[0].(map[string]any)["mes"] != "2019-03" || meses[1].(map[string]any)["mes"] != "2019-11" || strings.Contains(fmt.Sprint(d), "oculto19") || strings.Contains(fmt.Sprint(d), "ano22") {
+		t.Errorf("meses de 2019: %v", meses)
+	}
+	_, d = chamar(t, "own", "GET", "spaces/s1/futuros", map[string]string{"ano": "2019", "ocultos": "1"}, "")
+	if d["n"] != 2.0 || d["valor"] != 1392.5 || !strings.Contains(fmt.Sprint(d["meses"]), "oculto19") || d["meses"].([]any)[1].(map[string]any)["n"] != 1.0 {
+		t.Errorf("ocultos=1 traz o oculto na lista, mas ele nao entra na conta: %v", d)
+	}
+	_, dj := chamar(t, "own", "GET", "spaces/s1/futuros", nil, "")
+	anos := fmt.Sprint(dj["anosAnteriores"])
+	if !strings.HasPrefix(anos, "[2026 2025 2024") || !strings.HasSuffix(anos, "2017 2016]") {
+		t.Errorf("anos do seletor: %v", anos)
+	}
+	_, d = chamar(t, "own", "GET", "spaces/s1/futuros", map[string]string{"ano": "2018"}, "")
+	if d["ano"] != "2018" || d["n"] != 0.0 || len(d["meses"].([]any)) != 0 {
+		t.Errorf("ano sem atrasados: %v", d)
+	}
+	// o ano da janela devolve so o que e anterior a ela: setembro ja vem em GET /futuros
+	_, d = chamar(t, "own", "GET", "spaces/s1/futuros", map[string]string{"ano": "2026"}, "")
+	if d["n"] != 0.0 {
+		t.Errorf("setembro de 2026 esta na janela: %v", d)
+	}
+	for _, ruim := range []string{"19", "abcd", "1999", ""} {
+		if c, _ := chamar(t, "own", "GET", "spaces/s1/futuros", map[string]string{"ano": ruim}, ""); c != 400 {
+			t.Errorf("ano %q: %d, esperado 400", ruim, c)
+		}
 	}
 }
 
