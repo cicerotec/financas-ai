@@ -15,11 +15,8 @@ func TestVencimentoDe(t *testing.T) {
 		quer string
 	}{
 		{"escolhido na fatura", cartaoV(28, 5, map[string]FaturaCfg{"2026-10": {Vencimento: "2026-11-09"}}), "2026-10", "2026-11-09"},
-		{"dia menor que o do fechamento: mes seguinte", cartaoV(28, 5, nil), "2026-10", "2026-11-05"},
-		{"dia maior que o do fechamento: no mesmo mes", cartaoV(10, 20, nil), "2026-10", "2026-10-20"},
-		{"dia igual ao do fechamento: o mes seguinte (tem que ser depois)", cartaoV(10, 10, nil), "2026-10", "2026-11-10"},
-		{"dia 31 em abril", cartaoV(20, 31, nil), "2026-04", "2026-04-30"},
-		{"virada de ano", cartaoV(28, 5, nil), "2026-12", "2027-01-05"},
+		{"o dia do cartao nao vale para a fatura", cartaoV(28, 5, nil), "2026-10", ""},
+		{"nem para outra fatura", cartaoV(28, 5, map[string]FaturaCfg{"2026-10": {Vencimento: "2026-11-09"}}), "2026-09", ""},
 		{"sem nenhum dos dois", cartaoV(28, 0, nil), "2026-10", ""},
 	}
 	for _, x := range casos {
@@ -29,11 +26,36 @@ func TestVencimentoDe(t *testing.T) {
 	}
 }
 
+// A sugestao do vencimento (so para preencher o campo) segue o dia do cartao.
+func TestVencimentoSugerido(t *testing.T) {
+	casos := []struct {
+		nome string
+		c    Cartao
+		ym   string
+		quer string
+	}{
+		{"dia menor que o do fechamento: mes seguinte", cartaoV(28, 5, nil), "2026-10", "2026-11-05"},
+		{"dia maior que o do fechamento: no mesmo mes", cartaoV(10, 20, nil), "2026-10", "2026-10-20"},
+		{"dia igual ao do fechamento: o mes seguinte (tem que ser depois)", cartaoV(10, 10, nil), "2026-10", "2026-11-10"},
+		{"dia 31 em abril", cartaoV(20, 31, nil), "2026-04", "2026-04-30"},
+		{"virada de ano", cartaoV(28, 5, nil), "2026-12", "2027-01-05"},
+		{"sem dia", cartaoV(28, 0, nil), "2026-10", ""},
+	}
+	for _, x := range casos {
+		if got := VencimentoSugerido(x.c, x.ym); got != x.quer {
+			t.Errorf("%s: %q, esperado %q", x.nome, got, x.quer)
+		}
+	}
+}
+
 // G-T2: a precedencia do pagador.
 func TestPagadorDe(t *testing.T) {
 	c := Cartao{Pagador: "BANCO-A", Faturas: map[string]FaturaCfg{"2026-10": {Pagador: "BANCO-B"}}}
-	if PagadorDe(c, "2026-10") != "BANCO-B" || PagadorDe(c, "2026-09") != "BANCO-A" || PagadorDe(Cartao{}, "2026-09") != "" {
-		t.Error("pagador: da fatura, depois do cartao, depois nenhum")
+	if PagadorDe(c, "2026-10") != "BANCO-B" || PagadorDe(c, "2026-09") != "" || PagadorDe(Cartao{}, "2026-09") != "" {
+		t.Error("pagador: so o da fatura; o padrao do cartao nao vale para ela")
+	}
+	if PagadorSugerido(c, "2026-10") != "BANCO-B" || PagadorSugerido(c, "2026-09") != "BANCO-A" || PagadorSugerido(Cartao{}, "2026-09") != "" {
+		t.Error("sugestao: da fatura, depois do cartao, depois nenhum")
 	}
 }
 

@@ -5,12 +5,13 @@ import "errors"
 // Pagar a fatura do cartao (itens 33b e 35, .ai/specs/pagar-fatura). O pagamento e um lancamento normal; a marca pagaFatura e so uma label (que cartao e que
 // mes ele pagou), escolhida pelo dono. Funcoes puras: a configuracao do cartao vem de quem chama.
 
-// VencimentoDe e o vencimento da fatura ym: o escolhido para a fatura; senao o primeiro dia depois do fechamento cujo dia do mes e o diaVencimento do cartao
-// (limitado ao ultimo dia do mes); sem nenhum dos dois, "" (nao ha vencimento).
-func VencimentoDe(c Cartao, ym string) string {
-	if v := c.Faturas[ym].Vencimento; v != "" {
-		return v
-	}
+// VencimentoDe e o vencimento da fatura ym: SO o escolhido para a fatura; sem ele, "" (a fatura nao tem vencimento e nao entra em Futuros). O dia do
+// cartao nunca decide o vencimento de uma fatura (decisao do dono, 2026-10-25): o vencimento muda de fatura a fatura e as passadas ja foram pagas.
+func VencimentoDe(c Cartao, ym string) string { return c.Faturas[ym].Vencimento }
+
+// VencimentoSugerido e so uma sugestao para preencher o campo: o primeiro dia depois do fechamento cujo dia do mes e o diaVencimento do cartao (limitado
+// ao ultimo dia do mes); sem diaVencimento, "". Nunca entra em exibicao nem em calculo.
+func VencimentoSugerido(c Cartao, ym string) string {
 	if c.DiaVencimento < 1 {
 		return ""
 	}
@@ -30,8 +31,11 @@ func VencimentoDe(c Cartao, ym string) string {
 	return ""
 }
 
-// PagadorDe e o pagador sugerido da fatura ym: o da fatura, senao o do cartao, senao "".
-func PagadorDe(c Cartao, ym string) string {
+// PagadorDe e o pagador da fatura ym: SO o escolhido para a fatura, senao "". O padrao do cartao nao vale para as faturas existentes.
+func PagadorDe(c Cartao, ym string) string { return c.Faturas[ym].Pagador }
+
+// PagadorSugerido e so uma sugestao para preencher o campo e pre-selecionar o meio no "Ja paguei": o da fatura, senao o padrao do cartao, senao "".
+func PagadorSugerido(c Cartao, ym string) string {
 	if p := c.Faturas[ym].Pagador; p != "" {
 		return p
 	}

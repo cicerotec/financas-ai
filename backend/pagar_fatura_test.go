@@ -242,7 +242,11 @@ func TestFuturosTrazAsFaturas(t *testing.T) {
 		t.Fatal("sem vencimento nenhuma fatura entra")
 	}
 	putCartao(t, "CARTAO-A", `{"pagador":"BANCO-B","diaVencimento":5}`)
-	putFatura(t, "2026-09", `{"valorBanco":2500}`)
+	if len(faturasDeFuturos(t)) != 0 {
+		t.Fatal("o dia e o pagador do cartao nao fazem fatura nenhuma entrar")
+	}
+	putFatura(t, "2026-09", `{"valorBanco":2500,"vencimento":"2026-10-05","pagador":"BANCO-B"}`)
+	putFatura(t, "2026-10", `{"vencimento":"2026-11-05"}`)
 	fs := faturasDeFuturos(t)
 	set, out := umaFatura(t, fs, "CARTAO-A", "2026-09"), umaFatura(t, fs, "CARTAO-A", "2026-10")
 	if set == nil || out == nil || len(fs) != 2 {
@@ -357,4 +361,29 @@ func TestCartaoPagoPeloDebitoDoMesmoBanco(t *testing.T) {
 	}
 	c, _ = chamar(t, "own", "POST", "spaces/s1/tx", nil, pagamento("CARTAO-A", 10, hoje24, marcaSet))
 	esperar(t, "debito do proprio banco do cartao leva a marca", c, 201)
+}
+
+// O dia de vencimento e o pagador do cartao so sugerem: nao mudam nenhuma fatura (decisao do dono, 2026-10-25).
+func TestPadroesDoCartaoSoSugerem(t *testing.T) {
+	cenarioCartao(t)
+	putCartao(t, "CARTAO-A", `{"pagador":"BANCO-B","diaVencimento":16}`)
+	_, d := fatura(t, "own", "CARTAO-A", "2026-09")
+	if d["vencimento"] != nil || d["pagador"] != nil {
+		t.Errorf("a fatura nao herda o padrao: %v / %v", d["vencimento"], d["pagador"])
+	}
+	p := d["preencher"].(map[string]any)
+	if p["vencimento"] != "2026-10-16" || p["pagador"] != "BANCO-B" {
+		t.Errorf("sugestao para preencher: %v", p)
+	}
+	putFatura(t, "2026-09", `{"vencimento":"2026-10-16","pagador":"BANCO-B"}`)
+	putCartao(t, "CARTAO-A", `{"pagador":"BANCO-A","diaVencimento":30}`)
+	_, d = fatura(t, "own", "CARTAO-A", "2026-09")
+	if d["vencimento"] != "2026-10-16" || d["pagador"] != "BANCO-B" {
+		t.Errorf("mudar o padrao nao mexe na fatura: %v / %v", d["vencimento"], d["pagador"])
+	}
+	putFatura(t, "2026-09", `{"vencimento":null}`)
+	_, d = fatura(t, "own", "CARTAO-A", "2026-09")
+	if d["vencimento"] != nil {
+		t.Errorf("limpar tira o vencimento da fatura: %v", d["vencimento"])
+	}
 }
