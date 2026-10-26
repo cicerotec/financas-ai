@@ -68,7 +68,8 @@ pendentes: nenhum.
     Function URL, recurso esquecido). Console: Billing > Budgets > Create budget > Cost budget; os 2 primeiros são grátis.
   - **Backup:** o PITR do DynamoDB está ligado **só em prod** pelo `template.yaml` (`!If [EhDev, false, true]`; ligar
     no console sem mudar o template seria desfeito no próximo deploy). Falta o backup periódico; enquanto isso, o
-    botão Exportar (`.json`) é a cópia manual.
+    botão Exportar (`.json`) é a cópia manual. Plano em fases (dump cifrado fora da AWS, restauração testada, espelho do
+    código, automação e vigília) em [`.ai/specs/backup/`](.ai/specs/backup/plan.md); rascunho para aprovação (2026-10-26).
 
 ### Backend (Go, DynamoDB, Cognito, API)
 Os itens 31 a 34 vêm das decisões de 2026-10-10 (erro grave: uma edição sobrescreveu um registro e o dado se perdeu).
