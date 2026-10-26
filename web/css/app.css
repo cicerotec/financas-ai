@@ -363,6 +363,7 @@ body[data-aba="futuros"] main{max-width:1600px;}
 .fut-mais{flex:none;width:28px;height:36px;display:grid;place-items:center;color:var(--muted);}
 .fut-mais svg{display:block;}
 .fut-prazo{display:block;font-size:12px;color:var(--muted);}
+.fut-sino{color:var(--accent);font-weight:600;}
 .fut-prazo.atras{color:var(--danger);font-weight:600;}
 .fut-dk,.fut-cab{display:none;}
 .fut-tabela{overflow-x:auto;}
