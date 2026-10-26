@@ -299,13 +299,15 @@ function pvTelaAvisar(){
   const venc = new Date((c.docs[0] || pv.base).dataEvento);
   const datas = [...av.dias].sort((a,b)=>b-a).map(d=>{ const x = new Date(venc); x.setDate(x.getDate()-d); return `<b>${pvData(x)}</b>`; }).join(', ');
   return tcCabeca('Avisar no Telegram','voltar')+
-    (pv.fatura ? `<p class="tc-ctx">Fatura ${esc(pv.fatura.rotulo)} · ${esc(pv.fatura.meio)}</p>` : '')+
+    (pv.fatura ? `<p class="tc-ctx">${pv.fatura.padrao ? 'Aviso padrão' : 'Fatura ' + esc(pv.fatura.rotulo)} · ${esc(pv.fatura.meio)}</p>` : '')+
     `<div class="tc-card">${tcInterruptor('sw','Avisar','',av.on)}</div>`+
     (av.on
       ? `<div class="tc-card">${lista}</div><div class="tc-card">${outro}</div>`+
         `<div class="tc-card">${tcInterruptor('ins','Insistir depois do vencimento','Avisa todo dia, até pagar',av.insistir)}</div>`+
-        `<p class="tc-nota">Para um vencimento em ${pvData(venc)}, avisa em ${datas||'nenhum dia'}${av.insistir?' e todo dia depois':''}.</p>${pvBalao(c)}`
-      : '<p class="tc-nota">Sem aviso, o lançamento só aparece em Futuros.</p>')+
+        (pv.fatura && pv.fatura.padrao
+          ? `<p class="tc-nota">Para cada fatura, avisa ${datas||'nenhum prazo'}${av.insistir?' e todo dia depois':''} do vencimento. Vale quando a fatura ganha o vencimento.</p>${pvBalao(c)}`
+          : `<p class="tc-nota">Para um vencimento em ${pvData(venc)}, avisa em ${datas||'nenhum dia'}${av.insistir?' e todo dia depois':''}.</p>${pvBalao(c)}`)
+      : `<p class="tc-nota">${pv.fatura && pv.fatura.padrao ? 'Sem aviso padrão, as faturas novas ficam sem aviso até você ligar em Futuros.' : 'Sem aviso, o lançamento só aparece em Futuros.'}</p>`)+
     (pv.erro ? `<div class="tc-erro" role="alert">${esc(pv.erro)}</div>` : '');
 }
 
@@ -500,13 +502,46 @@ function abrirAvisoFatura(f){
   const voltar = el.querySelector('.tc-hd button');
   if(voltar) voltar.focus();
 }
+// O aviso padrao do cartao (item 48): a mesma tela, aberta pela linha "Aviso (padrao)" de Configurar cartao. E so o modelo que o servidor copia para a fatura
+// quando ela ganha o primeiro vencimento; nao muda nenhuma fatura existente.
+function abrirAvisoPadrao(meio){
+  const cfg = ((cartoesResumo && cartoesResumo.cartoes) || []).find(c=>c.meio===meio) || {};
+  const f = cartaoFatura;
+  if(!f) return;
+  fecharPrever();
+  const aviso = cfg.aviso && typeof cfg.aviso === 'object' ? cfg.aviso : null;
+  pv = {
+    fatura:{meio, ym:null, rotulo:f.rotulo, padrao:true},
+    base:{dataEvento:(f.vencimento || f.periodo.fim) + 'T12:00:00.000Z', descricao:'Fatura ' + f.rotulo + ' · ' + meio, valor:f.total, tipo:'saida', banco:meio},
+    ctx:{}, tela:'avi', sheet:null, erro:'', ocupado:false, progresso:'', qtd:1, meses:1,
+    aviso:{on:!!aviso, dias:aviso && Array.isArray(aviso.dias) ? [...aviso.dias] : [1,0], insistir:aviso ? aviso.insistir === true : true}
+  };
+  const el = document.createElement('div');
+  el.className = 'tc'; el.id = 'tc';
+  el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
+  el.setAttribute('aria-label','Avisar no Telegram');
+  el.addEventListener('click', pvClique);
+  document.body.appendChild(el);
+  document.documentElement.style.overflow = 'hidden';
+  pvRender(true);
+  const voltar = el.querySelector('.tc-hd button');
+  if(voltar) voltar.focus();
+}
 async function pvSalvarFatura(){
   if(!pv || !pv.fatura || pv.ocupado) return;
   const aviso = Recorrencia.avisoDoEstado(pv.aviso);
   if(aviso === 'incompleto'){ pv.erro = 'Escolha pelo menos um prazo de aviso ou ligue "Insistir depois do vencimento".'; return pvRender(false); }
-  const {meio, ym} = pv.fatura;
+  const {meio, ym, padrao} = pv.fatura;
   pv.ocupado = true; pv.erro = ''; pvRender(false);
   try{
+    if(padrao){
+      await db.cartaoConfig(meio, {aviso: aviso || null});
+      fecharPrever();
+      toast(aviso ? '✓ Aviso padrão salvo. Vale para as próximas faturas que ganharem vencimento' : '✓ Aviso padrão desligado');
+      msgCartao = 'Salvo ✓';
+      await recarregarCartao();
+      return;
+    }
     await db.cartaoFechamento(meio, ym, {aviso: aviso || null});
     fecharPrever();
     toast(aviso ? '✓ Aviso da fatura salvo' : '✓ Aviso da fatura desligado');
@@ -2800,6 +2835,7 @@ function painelCartaoHtml(){
         + linhaCfg('inicio', 'Início do controle', f.inicio || 'sem limite', '')
         + linhaCfg('pagadorCartao', 'Paga com (padrão)', cfg.pagador || '(nenhum)', '')
         + linhaCfg('vencDia', 'Vence dia', cfg.diaVencimento==null ? '(nenhum)' : String(cfg.diaVencimento), '')
+        + linhaCfg('avisoPadrao', 'Aviso (padrão)', cfg.aviso ? Recorrencia.fraseAviso({on:true, dias:cfg.aviso.dias, insistir:cfg.aviso.insistir}) : '(nenhum)', '')
         + `<div style="margin-top:8px;"><button class="ghost" data-rm="${esc(b)}" style="font-size:12px;">Remover este cartão</button></div></div>`;
     }
   }
@@ -2946,6 +2982,7 @@ function pedirCampoCartao(c, atual, meio){
   });
 }
 async function editarCampoCartao(chave, ym, meio){
+  if(chave === 'avisoPadrao') return abrirAvisoPadrao(meio);
   const c = CAMPOS_CARTAO[chave];
   if(!c || !cartaoFatura) return;
   const v = await pedirCampoCartao(c, valorAtualDoCampo(chave), meio);
