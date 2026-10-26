@@ -2,7 +2,7 @@
 
 Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
-**Estado:** rascunho para aprovação (2026-10-26). Nada implementado.
+**Estado:** demo e spec aprovadas pelo dono em 2026-10-26. **Fase A (backend) implementada** (`feature/aviso-fatura-fase-a`); a fase B (telas) é a próxima.
 
 ## Regras
 
@@ -11,8 +11,8 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
   `vencimento`** (nem o que está sendo gravado na mesma chamada). Limpar o `vencimento` de uma fatura com aviso remove o aviso junto.
 - **R3.** Ao gravar, o servidor mantém o item auxiliar `AVISOS#ATIVOS` / `<sid>#fatura#<meio>#<ym>` (`tipo: "fatura"`, `meio`, `ym`, `venc`, `dias`, `insistir`): grava com aviso,
   atualiza o `venc` quando o vencimento muda, apaga sem aviso. Falha ao sincronizar vai ao log e não derruba a gravação.
-- **R4.** A rotina diária decide **só pelas datas** (`DecidirAviso`) e só lê o `CFG#CARTOES` e as compras do cartão quando for avisar. Aviso de fatura **paga** (pagamento marcado),
-  sem valor (`valor ≤ 0`), sem `aviso` ou sem `vencimento`: nada é enviado e o item é removido. Mais de 60 dias de atraso: o item sai.
+- **R4.** A rotina diária decide **só pelas datas** (`DecidirAviso`) e só lê o `CFG#CARTOES` e as compras do cartão quando for avisar. Fatura **paga** (pagamento marcado) ou sem valor (`valor ≤ 0`): nada é enviado e o item **fica**, para voltar a avisar se o pagamento for desfeito.
+  Sem `aviso` ou sem `vencimento` na configuração (item velho): nada é enviado e o item sai. Mais de 60 dias de atraso: o item sai.
 - **R5.** A linha do resumo é "Fatura <rótulo> · <meio>", saída, com o **valor da fatura no dia** (o do app do cartão se informado, senão o total, como em Futuros). Vai ao chat do dono do
   espaço, no mesmo resumo diário dos lançamentos.
 - **R6.** `GET /futuros` devolve `aviso` (objeto ou `null`) em cada linha de fatura. Nada mais muda na leitura.
@@ -36,9 +36,9 @@ GET /spaces/{sid}/futuros                        faturas[].aviso = { dias, insis
 | G-T3 | Gravar o aviso | item auxiliar criado com `venc`, `dias`, `insistir` |
 | G-T4 | Mudar o vencimento da fatura com aviso | item auxiliar com o `venc` novo |
 | G-T5 | Limpar o aviso; limpar o vencimento | item removido; aviso removido junto |
-| G-T6 | Falha ao sincronizar o item | a gravação do `CFG#CARTOES` segue `200` e o erro vai ao log |
+| G-T6 | Falha ao sincronizar o item | a gravação do `CFG#CARTOES` segue `200` e o erro vai ao log (garantido pelo código: a sincronização só faz `log.Println`; sem teste, o banco de teste não falha só esta escrita) |
 | G-T7 | Rotina diária: 1 dia antes, no dia, depois (insistir), 61 dias depois | avisa nos três primeiros; no último remove o item |
-| G-T8 | Rotina diária com a fatura paga (lançamento marcado) e com o pagamento desfeito | não avisa e remove o item; volta a avisar se o item for recriado |
+| G-T8 | Rotina diária com a fatura paga (lançamento marcado) e com o pagamento desfeito | não avisa, o item fica; volta a avisar quando o pagamento é desfeito |
 | G-T9 | Dia sem aviso a disparar | só a Query de `AVISOS#ATIVOS` (contagem de leituras no fake) |
 | G-T10 | Resumo com fatura e lançamento no mesmo chat | uma mensagem, fatura com o valor do dia |
 | G-T11 | `GET /futuros` | `aviso` na linha da fatura; `null` sem aviso |

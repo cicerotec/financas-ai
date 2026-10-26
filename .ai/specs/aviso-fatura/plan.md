@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje (`backend/service/avisos.go`, `repository/avisos.go`, `domain/aviso.go`, `domain/aviso_envio.go`,
 `service/cartoes.go`, `service/pagafatura.go`, `web/js/app.js`). O roteiro verificável é o [`spec.md`](spec.md). Demo: `.ai/demos/demo-aviso-fatura.html`.
 
-**Estado:** rascunho para aprovação (2026-10-26).
+**Estado:** aprovado pelo dono em 2026-10-26. **Fase A implementada** (`feature/aviso-fatura-fase-a`).
 
 ## Onde o código está hoje
 
@@ -24,8 +24,8 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
   (`Avisos.SincronizarFatura`). Mudar o vencimento de uma fatura com aviso atualiza o `venc` do item; limpar o aviso ou o vencimento apaga o item. Falha ao sincronizar vai ao log e
   não derruba o salvamento (como nos lançamentos).
 - **Enviar:** em `Avisos.Rodar`, o item de fatura passa por `DecidirAviso(hoje, venc, dias, insistir)` como os outros. Só se decidir avisar, o servidor lê o `CFG#CARTOES`, confere
-  que o `aviso` e o `vencimento` ainda existem, calcula a fatura (uma Query das compras da janela, a mesma de `AFuturos`) e confere que **não há pagamento marcado**. Fatura paga,
-  sem valor ou com aviso desligado: o item é removido (ou ignorado) e nada é enviado. Depois de 60 dias de atraso (`MaxAtrasoAviso`) o item sai, como nos lançamentos.
+  que o `aviso` e o `vencimento` ainda existem, calcula a fatura (uma Query das compras da janela, a mesma de `AFuturos`) e confere que **não há pagamento marcado**. Fatura paga
+  ou sem valor: nada é enviado e o item fica (volta a avisar se o pagamento for desfeito); com aviso desligado na configuração, o item é removido. Depois de 60 dias de atraso (`MaxAtrasoAviso`) o item sai, como nos lançamentos.
 - **Destino:** o chat do dono do espaço (a fatura não tem "criador"); membros não recebem o aviso da fatura.
 - **Tela (demo aprovada antes):** botão **Avisar** na linha da fatura em Futuros (e na janelinha de ações do celular), que abre a tela "Avisar no Telegram" já existente (`pvTelaAvisar`,
   interruptor, atalhos de dias, "insistir"). O 🔔 e o resumo ("1 dia antes, no dia e insiste depois") aparecem na linha quando ligado. O servidor manda `aviso` na linha da fatura em
