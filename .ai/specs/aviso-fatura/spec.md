@@ -27,6 +27,25 @@ PUT ...                                           { "aviso": null }             
 GET /spaces/{sid}/futuros                        faturas[].aviso = { dias, insistir } | null
 ```
 
+## Extensão: aviso padrão do cartão (item 48)
+
+- **R9.** `porBanco[meio].aviso` é `{ dias, insistir }` (R1). `PUT /spaces/{sid}/cartoes/{meio}` aceita `aviso` (objeto ou `null`); só o dono; `400` se inválido. Não altera faturas.
+- **R10.** `GET /spaces/{sid}/cartoes` devolve `aviso` (objeto ou `null`) em cada cartão.
+- **R11.** Ao gravar o `vencimento` de uma fatura **sem vencimento anterior** e **sem `aviso`**, e o cartão tendo `aviso` padrão, o servidor grava `faturas[ym].aviso` = cópia do padrão **na mesma
+  escrita** e sincroniza o item auxiliar (R3). Corpo com `aviso` (inclusive `null`): vale o do corpo, sem cópia.
+- **R12.** Não copia quando: a fatura já tinha vencimento (só a data mudou); já tem `aviso`; o cartão não tem padrão; é fatura de histórico (anterior ao início do controle, que já recusa vencimento).
+- **R13.** Mudar ou apagar o padrão não altera nenhuma fatura já copiada. Nenhuma leitura grava.
+
+| # | Cenário | Esperado |
+|---|---|---|
+| G-T13 | `PUT /cartoes/{meio}` com `aviso` válido, inválido, `null` | `200`; `400`; remove; faturas intactas |
+| G-T14 | `GET /cartoes` | `aviso` do cartão; `null` sem padrão |
+| G-T15 | Definir o 1º vencimento de uma fatura com padrão no cartão | `faturas[ym].aviso` = padrão; item auxiliar criado; Futuros traz o `aviso` |
+| G-T16 | Trocar a data do vencimento depois; desligar o aviso e trocar a data | não copia de novo; aviso segue como estava (ou desligado) |
+| G-T17 | Corpo com `aviso` próprio ou `null` junto do vencimento | vale o do corpo, sem cópia |
+| G-T18 | Mudar o padrão depois | faturas já copiadas ficam como estavam |
+| G-T19 | `GET` da fatura e de faturas antigas | nada é gravado (versão do `CFG#CARTOES` igual) |
+
 ## Testes
 
 | # | Cenário | Esperado |

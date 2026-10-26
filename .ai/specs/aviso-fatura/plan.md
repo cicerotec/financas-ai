@@ -34,6 +34,17 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 - **Desempenho:** gravar = 1 `PutItem`/`DeleteItem` por mudança de aviso (mais a gravação do `CFG#CARTOES` que já existe). Ler = a Query diária que já existe + leituras só nos dias em que
   um aviso dispara. Futuros não lê nada a mais (o `aviso` vem do `CFG#CARTOES` que já é lido).
 
+## Extensão: aviso padrão do cartão (item 48)
+
+- **Dado novo (um só, aprovado em 2026-10-26):** `CFG#CARTOES.porBanco[meio].aviso = { dias, insistir }`, ao lado de `pagador` e `diaVencimento` (que também só sugerem).
+- **Gravar o padrão:** `PUT /cartoes/{meio}` aceita `aviso` (`null` remove), validado por `ValidarAviso`. Só o dono. Não mexe em nenhuma fatura nem cria item auxiliar.
+- **Copiar:** em `Cartoes.Fechamento`, quando a chamada **define o vencimento de uma fatura que ainda não tinha vencimento** e a fatura **não tem aviso**, o servidor grava, na mesma
+  escrita do `CFG#CARTOES`, `faturas[ym].aviso` = cópia do padrão do cartão (se houver). O item auxiliar é sincronizado como já é hoje. Se o corpo trouxer `aviso` (inclusive `null`), vale o
+  do corpo e não há cópia. Trocar a data de uma fatura que já tem vencimento não copia nada; desligar o aviso da fatura também não o traz de volta.
+- **Sem leitura que grava:** `GET` continua só lendo; o cache de Futuros não é invalidado por navegar. O passado não é tocado: só ganham aviso as faturas em que o dono define um vencimento.
+- **Leitura:** `GET /cartoes` devolve o `aviso` padrão de cada cartão (para a linha da tela).
+- **Tela (demo aprovada antes):** em Configurar cartão, a linha **Aviso (padrão)** abre a mesma tela "Avisar no Telegram", sem vencimento de referência (a frase diz "Para cada fatura, avisa…").
+
 ## Fases
 
 - **A (backend):** campo, validação, sincronização do item auxiliar, rotina diária, `aviso` na linha de `GET /futuros`, testes. Só acrescenta.

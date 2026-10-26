@@ -27,6 +27,7 @@ pendentes: nenhum.
 - [\[UX/UI\] - **\[Próximo\] Próximos passos de UX:**](#item-21)
 - [\[UX/UI\] - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
 - [\[UX/UI\] - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
+- [\[Backend\] - **\[Próximo\] Aviso padrão do cartão, copiado para a fatura ao definir o vencimento:**](#item-48)
 - [\[Processo\] - **\[Próximo\] Remover `financas-app.html`:**](#item-36)
 - [\[Infra\] - **\[Depois\] AWS Budget de US$ 1 e backup periódico:**](#item-11)
 - [\[Backend\] - **\[Depois\] Open Finance (visão):**](#item-39)
@@ -307,6 +308,7 @@ DynamoDB sem discutir com o dono.**
 - 21. [ ] <a id="item-21"></a>**[Próximo] Próximos passos de UX** (vindos de observar o uso real; detalhes em [`.ai/ux.md`](.ai/ux.md)): barra de navegação
   inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
   acessibilidade das abas, unificar o seletor de tags (agora no item 42).
+- 48. [ ] <a id="item-48"></a>**[Próximo] Aviso padrão do cartão, copiado para a fatura ao definir o vencimento (2026-10-26):** o cartão ganha `porBanco[meio].aviso` (mesmo formato do aviso da fatura, só um modelo). Quando o dono define o **primeiro vencimento** de uma fatura (o momento em que ela vira registro em Futuros) e a fatura ainda não tem aviso, o servidor **copia** o padrão para `faturas[ym].aviso` na mesma gravação; depois o dono muda pelo botão Avisar. Mudar o padrão não altera faturas já copiadas; nenhuma leitura grava; o passado não é tocado. Dado novo: `porBanco[meio].aviso` (aprovado pelo dono em 2026-10-26). Em Configurar cartão, linha **Aviso (padrão)** que abre a mesma tela de aviso (demo antes). Extensão do item 46, em [`.ai/specs/aviso-fatura/`](.ai/specs/aviso-fatura/intent.md).
 - 47. [ ] <a id="item-47"></a>**[Próximo] Tela "Avisar no Telegram" como componente reutilizável (2026-10-26):** hoje a tela de aviso são funções soltas do Prever (`pvTelaAvisar`, `pvBalao`, o estado `pv`), amarradas a um lançamento. O dono quer que ela seja um **padrão**, reformulado para ser reaproveitado pelas buscas do Histórico, das Tendências e do Futuros (item 42) e pelo aviso da fatura (item 46). Pede um componente com entradas claras (título, vencimento de referência, textos, balão, o que o Salvar faz) e uma demo própria antes de qualquer tela, atualizando `.ai/padrao-de-telas.md`. O item 46 usa a tela como está, só parametrizada, para não esperar este item; este item depois troca os dois pelos mesmo componente. Junto do item 42.
 - 42. [ ] <a id="item-42"></a>**[Próximo] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências** (guarda-chuva; raciocínio e regras em
   [`.ai/ux.md`](.ai/ux.md), seção "Filtro único e lista da consulta"). Hoje Tendências (filtro avançado de tags com E, OU e NÃO), Histórico (status, banco, tags e

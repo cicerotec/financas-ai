@@ -154,11 +154,12 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
 <h1>Aviso da fatura no Telegram</h1>
 <p class="sub">Demonstração: toque nas linhas. Nada é salvo no app. A tela de aviso é a mesma do Prever.</p>
 <div style="display:flex;gap:6px;margin:0 0 10px">
-  <button type="button" id="aF" class="ab on">Futuros</button>
+  <button type="button" id="aC" class="ab on">Cartão</button>
+  <button type="button" id="aF" class="ab">Futuros</button>
   <button type="button" id="aA" class="ab">Tela Avisar</button>
 </div>
 <div class="phone" id="phone">
-  <div class="scr tel on" id="tFut">
+  <div class="scr tel" id="tFut">
     <div class="gt">Novembro de 2026</div>
     <div class="lista">
       <button type="button" class="fr" id="linhaS"><span><span class="d">Fatura out/26 · SANTANDER</span><span class="m">18/11/2026 · SANTANDER · aberta, ainda cresce</span><span class="sino" id="sinoS" hidden>🔔 1 dia antes, no dia e insiste depois</span></span><span class="r"><span class="out">-R$ 1.847,19</span><span class="m">em 23 dias</span></span></button>
@@ -174,6 +175,21 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
       </div>
     </div>
   </div>
+  <div class="scr tel on" id="tCar">
+    <div class="gt">Santander · Configurar cartão</div>
+    <div class="lista">
+      <button type="button" class="fr"><span class="d" style="font-weight:400">Início do controle</span><span class="m">2026-01 ›</span></button>
+      <button type="button" class="fr"><span class="d" style="font-weight:400">Paga com (padrão)</span><span class="m">(nenhum) ›</span></button>
+      <button type="button" class="fr"><span class="d" style="font-weight:400">Vence dia</span><span class="m">16 ›</span></button>
+      <button type="button" class="fr" id="linhaPad"><span class="d" style="font-weight:400">Aviso (padrão)</span><span class="m" id="valPad">1 dia antes e no dia, insiste depois ›</span></button>
+    </div>
+    <div class="gt">Fatura out/26 · aberta</div>
+    <div class="lista">
+      <button type="button" class="fr"><span class="d" style="font-weight:400">Fechamento</span><span class="m">28/10/2026 ›</span></button>
+      <button type="button" class="fr" id="linhaVenc"><span class="d" style="font-weight:400">Vencimento</span><span class="m" id="valVenc">(nenhum) ›</span></button>
+    </div>
+    <div class="note">Escolher o vencimento faz a fatura virar registro em Futuros; nesse momento o <b>aviso padrão é copiado</b> para ela. Mudar o padrão depois não altera faturas já copiadas.</div>
+  </div>
   <div class="scr tel com-barra" id="tAv"></div>
   <div class="barra tel" id="barraAv"><button type="button" class="criar" id="salvar">Salvar</button></div>
   <div class="toast" id="toast" hidden></div>
@@ -185,9 +201,10 @@ h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
 <li>Diferença única: como não há tela principal por trás, o botão <b>Salvar</b> fica fixo no rodapé; a seta ← só desiste.</li>
 <li>Sem aviso, vale o texto de hoje: "Sem aviso, o lançamento só aparece em Futuros."</li>
 <li>A fatura sem vencimento nem aparece em Futuros, então não tem como ligar o aviso nela.</li>
+<li><b>Aviso (padrão)</b> em Configurar cartão, na mesma tela. Ao escolher o vencimento de uma fatura, o padrão é <b>copiado</b> para ela (e a linha entra em Futuros já com o 🔔); depois dá para mudar em <b>Avisar</b>. Mudar o padrão não altera faturas já copiadas.</li>
 </ul></div>
 <script>
-var VENC=new Date(2026,10,18,9,0), st={on:true,dias:[1,0],insistir:true};
+var VENC=new Date(2026,10,18,9,0), st={on:true,dias:[1,0],insistir:true}, modo='fatura', pad={on:true,dias:[1,0],insistir:true};
 var ROT={0:'No dia',1:'1 dia antes',3:'3 dias antes',7:'7 dias antes'};
 function pd(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
 function sub(d){var x=new Date(VENC);x.setDate(x.getDate()-d);return x;}
@@ -197,34 +214,42 @@ function tela(){
   var datas=ds.map(function(d){return '<b>'+pd(sub(d))+'</b>';}).join(', ');
   var big=ds[0], q=big===0?'Vence hoje':'Vence em '+big+' '+(big===1?'dia':'dias');
   var h='<div class="hd"><button type="button" id="volta" aria-label="Voltar">&larr;</button><h2>Avisar no Telegram</h2></div>'+
-  '<p class="ctx">Fatura out/26 · SANTANDER</p>'+
+  '<p class="ctx">'+(modo==='padrao'?'Aviso padrão · SANTANDER':'Fatura out/26 · SANTANDER')+'</p>'+
   '<div class="card"><div class="li"><span class="t"><b>Avisar</b></span><button type="button" class="sw" id="sw" role="switch" aria-checked="'+st.on+'" aria-label="Avisar"><i></i></button></div></div>';
   if(st.on){
     h+='<div class="card">'+l+'</div>'+
     '<div class="card"><button type="button" class="li" id="outro"><span class="t">Outro prazo<span class="s">'+st.dias.length+' de 6 prazos</span></span><span class="go" aria-hidden="true">&rsaquo;</span></button></div>'+
     '<div class="card"><div class="li"><span class="t"><b>Insistir depois do vencimento</b><span class="s">Avisa todo dia, até pagar</span></span><button type="button" class="sw" id="ins" role="switch" aria-checked="'+st.insistir+'" aria-label="Insistir"><i></i></button></div></div>'+
-    '<p class="note">Para um vencimento em '+pd(VENC)+', avisa em '+(datas||'nenhum dia')+(st.insistir?' e todo dia depois':'')+'.</p>'+
+    '<p class="note">'+(modo==='padrao'?'Para cada fatura, avisa '+(ds.length?ds.map(function(d){return d===0?'no dia':ROT[d]?ROT[d].toLowerCase():d+" dias antes"}).join(', '):'nenhum prazo')+(st.insistir?' e todo dia depois':'')+' do vencimento. Vale quando a fatura ganha o vencimento.':'Para um vencimento em '+pd(VENC)+', avisa em '+(datas||'nenhum dia')+(st.insistir?' e todo dia depois':'')+'.')+'</p>'+
     (ds.length?'<div class="card" style="margin-top:10px"><div class="balao"><div class="q">Assim chega no Telegram</div><div>🔔 Avisos de '+pd(sub(big))+'<br>&bull; '+q+' ('+pd(VENC)+'): Fatura out/26 · SANTANDER &mdash; R$ 1.847,19 (SANTANDER)</div></div></div>':'');
-  } else { h+='<p class="note">Sem aviso, o lançamento só aparece em Futuros.</p>'; }
+  } else { h+='<p class="note">'+(modo==='padrao'?'Sem aviso padrão, as faturas novas ficam sem aviso até você ligar em Futuros.':'Sem aviso, o lançamento só aparece em Futuros.')+'</p>'; }
   document.getElementById('tAv').innerHTML=h;
 }
 function mostrar(n){
+  document.getElementById('tCar').classList.toggle('on',n==='c');
   document.getElementById('tFut').classList.toggle('on',n==='f');
   document.getElementById('tAv').classList.toggle('on',n==='a');
   document.getElementById('barraAv').classList.toggle('on',n==='a');
+  document.getElementById('aC').classList.toggle('on',n==='c');
   document.getElementById('aF').classList.toggle('on',n==='f');
   document.getElementById('aA').classList.toggle('on',n==='a');
   if(n==='a'){tela();}
 }
+function frase(a){var ds=a.dias.slice().sort(function(x,y){return y-x}).map(function(d){return d===0?'no dia':ROT[d].toLowerCase()});var f=ds.join(' e ');if(a.insistir)f+=(f?', ':'')+'insiste depois';return f.charAt(0).toUpperCase()+f.slice(1);}
 function aviso(m){var t=document.getElementById('toast');t.textContent=m;t.hidden=false;setTimeout(function(){t.hidden=true;},2200);}
-document.getElementById('aF').onclick=function(){mostrar('f');};
-document.getElementById('aA').onclick=function(){mostrar('a');};
+document.getElementById('aC').onclick=function(){mostrar('c');};
+document.getElementById('aF').onclick=function(){modo='fatura';mostrar('f');};
+document.getElementById('aA').onclick=function(){modo='fatura';mostrar('a');};
+document.getElementById('linhaPad').onclick=function(){modo='padrao';st=JSON.parse(JSON.stringify(pad));mostrar('a');};
+document.getElementById('linhaVenc').onclick=function(){document.getElementById('valVenc').textContent='05/11/2026 ›';aviso('Vencimento definido. Aviso copiado do padrão: '+frase(pad));document.getElementById('sinoS').hidden=false;};
 document.getElementById('linhaS').onclick=function(){document.getElementById('ovAc').hidden=false;};
 document.getElementById('fecharAc').onclick=function(){document.getElementById('ovAc').hidden=true;};
 document.getElementById('abrirAv').onclick=function(){document.getElementById('ovAc').hidden=true;mostrar('a');};
-document.getElementById('salvar').onclick=function(){document.getElementById('sinoS').hidden=!st.on;mostrar('f');aviso(st.on?'Aviso da fatura salvo':'Aviso da fatura desligado');};
+document.getElementById('salvar').onclick=function(){
+  if(modo==='padrao'){pad=JSON.parse(JSON.stringify(st));document.getElementById('valPad').textContent=(pad.on?frase(pad):'Desligado')+' ›';mostrar('c');aviso('Aviso padrão salvo. Vale para as próximas faturas que ganharem vencimento');return;}
+  document.getElementById('sinoS').hidden=!st.on;mostrar('f');aviso(st.on?'Aviso da fatura salvo':'Aviso da fatura desligado');};
 document.getElementById('tAv').addEventListener('click',function(e){
-  if(e.target.closest('#volta')){mostrar('f');return;}
+  if(e.target.closest('#volta')){mostrar(modo==='padrao'?'c':'f');return;}
   if(e.target.closest('#sw')){st.on=!st.on;tela();return;}
   if(e.target.closest('#ins')){st.insistir=!st.insistir;tela();return;}
   if(e.target.closest('#outro')){aviso('Abre a janela de rodas do Prever, igual');return;}
