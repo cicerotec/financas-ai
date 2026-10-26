@@ -18,6 +18,7 @@ type Cartao struct {
 	Inicio        string // AAAA-MM; vazio = sem inicio
 	Pagador       string // o meio com que a fatura costuma ser paga (so uma sugestao); vazio = nenhum
 	DiaVencimento int    // 1 a 31; 0 = sem vencimento padrao
+	Aviso         Doc    // { dias, insistir }: so o modelo copiado para a fatura quando ela ganha o primeiro vencimento (item 48); nunca vale por si
 	Faturas       map[string]FaturaCfg
 }
 
@@ -47,6 +48,7 @@ func CartaoDe(cfgCartoes Doc, banco string) (Cartao, bool) {
 	if n, ok := b["diaVencimento"].(float64); ok {
 		c.DiaVencimento = int(n)
 	}
+	c.Aviso, _ = b["aviso"].(map[string]any)
 	fs, _ := b["faturas"].(map[string]any)
 	for ym, v := range fs {
 		m, _ := v.(map[string]any)

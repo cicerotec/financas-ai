@@ -140,15 +140,22 @@ func (s *Cartoes) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 		if !temMin || dias < minDias {
 			minDias, temMin = dias, true
 		}
-		var pagador, diaVenc any
+		var pagador, diaVenc, avisoPadrao any
 		if c.Pagador != "" {
 			pagador = c.Pagador
 		}
 		if c.DiaVencimento > 0 {
 			diaVenc = c.DiaVencimento
 		}
+		if dias, insistir, tem := domain.LerAviso(domain.Doc{"aviso": c.Aviso}); tem {
+			lista := make([]any, len(dias))
+			for i, n := range dias {
+				lista[i] = float64(n)
+			}
+			avisoPadrao = domain.Doc{"dias": lista, "insistir": insistir}
+		}
 		cartoes = append(cartoes, domain.Doc{
-			"pagador": pagador, "diaVencimento": diaVenc,
+			"pagador": pagador, "diaVencimento": diaVenc, "aviso": avisoPadrao,
 			"meio":                 nome,
 			"fatura":               domain.Doc{"ym": atual, "fechamento": fech, "diasAteFechar": dias, "total": t},
 			"conferidasQueMudaram": conferidasQueMudaram(c, rs, atual),
@@ -483,8 +490,17 @@ func (s *Cartoes) Inicio(ctx context.Context, sid, banco string, body domain.Doc
 	ini, temIni := body["inicio"]
 	pag, temPag := body["pagador"]
 	dv, temDV := body["diaVencimento"]
-	if !temIni && !temPag && !temDV {
-		return nil, &ErroValidacao{"informe inicio (AAAA-MM), pagador e/ou diaVencimento (ou null para limpar)"}
+	av, temAv := body["aviso"]
+	if !temIni && !temPag && !temDV && !temAv {
+		return nil, &ErroValidacao{"informe inicio (AAAA-MM), pagador, diaVencimento e/ou aviso (ou null para limpar)"}
+	}
+	var avNorm any
+	if temAv {
+		d := domain.Doc{"aviso": av}
+		if err := domain.ValidarAviso(d); err != nil {
+			return nil, &ErroValidacao{err.Error()}
+		}
+		avNorm = d["aviso"]
 	}
 	var iniTxt string
 	if temIni && ini != nil {
@@ -537,6 +553,13 @@ func (s *Cartoes) Inicio(ctx context.Context, sid, banco string, body domain.Doc
 				delete(c, "diaVencimento")
 			} else {
 				c["diaVencimento"] = dia
+			}
+		}
+		if temAv {
+			if avNorm == nil {
+				delete(c, "aviso")
+			} else {
+				c["aviso"] = avNorm
 			}
 		}
 		return nil
@@ -649,6 +672,7 @@ func (s *Cartoes) Fechamento(ctx context.Context, sid, banco, ym string, body do
 		if cur == nil {
 			cur = map[string]any{}
 		}
+		vencAntes, _ := cur["vencimento"].(string)
 		if temFech {
 			if fech == nil {
 				delete(cur, "fechamento")
@@ -695,6 +719,12 @@ func (s *Cartoes) Fechamento(ctx context.Context, sid, banco, ym string, body do
 					return &ErroValidacao{"o vencimento precisa ser depois do fechamento (" + fech + ") e no maximo 45 dias depois dele"}
 				}
 				cur["vencimento"] = vencTxt
+			}
+		}
+		// item 48: ao definir o PRIMEIRO vencimento (a fatura vira registro em Futuros), copia o aviso padrao do cartao se a fatura ainda nao tem aviso
+		if temVenc && venc != nil && vencAntes == "" && !temAv && cur["aviso"] == nil {
+			if padrao, ok := c["aviso"].(map[string]any); ok {
+				cur["aviso"] = copiaAviso(padrao)
 			}
 		}
 		if temAv {
@@ -863,4 +893,16 @@ func (s *Cartoes) RegistrarDiferenca(ctx context.Context, sid, sub, banco, ym st
 		return nil, err
 	}
 	return s.Fatura(ctx, sid, sub, true, banco, ym)
+}
+
+// copiaAviso devolve uma copia do aviso (o padrao do cartao vira o aviso proprio da fatura, sem compartilhar a lista).
+func copiaAviso(a map[string]any) map[string]any {
+	out := map[string]any{}
+	for k, v := range a {
+		if l, ok := v.([]any); ok {
+			v = append([]any(nil), l...)
+		}
+		out[k] = v
+	}
+	return out
 }

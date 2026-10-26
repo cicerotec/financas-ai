@@ -199,3 +199,139 @@ func TestFuturosTrazOAvisoDaFatura(t *testing.T) {
 		t.Errorf("aviso na linha: %v", a)
 	}
 }
+
+// ---------- item 48: aviso padrao do cartao, copiado para a fatura ao definir o primeiro vencimento ----------
+
+const avisoPadrao = `{"dias":[1,0],"insistir":true}`
+
+// G-T13 e G-T14: o padrao do cartao (valido, invalido, null) e a leitura.
+func TestAvisoPadraoDoCartao(t *testing.T) {
+	f := cenarioAvisoFatura(t)
+	for nome, corpo := range map[string]string{
+		"dia 31":       `{"aviso":{"dias":[31]}}`,
+		"nao e objeto": `{"aviso":"1"}`,
+		"vazio":        `{"aviso":{}}`,
+	} {
+		c, _ := putCartao(t, "CARTAO-A", corpo)
+		esperar(t, nome, c, 400)
+	}
+	c, _ := putCartao(t, "CARTAO-A", `{"aviso":`+avisoPadrao+`}`)
+	esperar(t, "padrao valido", c, 200)
+	if cartaoGravado(t, f, "CARTAO-A")["aviso"] == nil {
+		t.Fatal("padrao gravado")
+	}
+	_, l := chamar(t, "own", "GET", "spaces/s1/cartoes", nil, "")
+	var a1 any
+	for _, x := range l["cartoes"].([]any) {
+		m := x.(map[string]any)
+		if m["meio"] == "CARTAO-A" {
+			a1 = m["aviso"]
+		}
+		if m["meio"] == "CARTAO-B" && m["aviso"] != nil {
+			t.Errorf("CARTAO-B sem padrao: %v", m["aviso"])
+		}
+	}
+	if a, _ := a1.(map[string]any); a == nil || a["insistir"] != true || len(a["dias"].([]any)) != 2 {
+		t.Errorf("GET /cartoes traz o padrao: %v", a1)
+	}
+	c, _ = putCartao(t, "CARTAO-A", `{"aviso":null}`)
+	esperar(t, "limpar o padrao", c, 200)
+	if _, tem := cartaoGravado(t, f, "CARTAO-A")["aviso"]; tem {
+		t.Error("aviso:null remove o padrao")
+	}
+	c, _ = chamar(t, "mem", "PUT", "spaces/s1/cartoes/CARTAO-A", nil, `{"aviso":`+avisoPadrao+`}`)
+	esperar(t, "member", c, 403)
+}
+
+// G-T15 e G-T16: o padrao e copiado so ao definir o primeiro vencimento; depois nao volta.
+func TestAvisoPadraoECopiadoNoPrimeiroVencimento(t *testing.T) {
+	f := cenarioAvisoFatura(t)
+	putCartao(t, "CARTAO-A", `{"aviso":`+avisoPadrao+`}`)
+	if _, tem := faturaGravada(t, f, "2026-10")["aviso"]; faturaGravada(t, f, "2026-10") != nil && tem {
+		t.Fatal("definir o padrao nao mexe em fatura nenhuma")
+	}
+	c, _ := putFatura(t, "2026-10", `{"vencimento":"2026-11-05"}`)
+	esperar(t, "primeiro vencimento", c, 200)
+	g := faturaGravada(t, f, "2026-10")
+	a, _ := g["aviso"].(map[string]any)
+	if a == nil || a["insistir"] != true || len(a["dias"].([]any)) != 2 {
+		t.Fatalf("aviso copiado: %v", g)
+	}
+	if x := auxFatura(t, f, "2026-10"); x == nil || x["venc"] != "2026-11-05" {
+		t.Errorf("item auxiliar criado junto: %v", x)
+	}
+	if a, _ := umaFatura(t, faturasDeFuturos(t), "CARTAO-A", "2026-10")["aviso"].(map[string]any); a == nil {
+		t.Error("Futuros ja traz o aviso")
+	}
+	// trocar so a data nao copia de novo; desligar e trocar a data tambem nao
+	putFatura(t, "2026-10", `{"aviso":null}`)
+	putFatura(t, "2026-10", `{"vencimento":"2026-11-09"}`)
+	if _, tem := faturaGravada(t, f, "2026-10")["aviso"]; tem {
+		t.Error("desligado e data trocada: o aviso nao volta")
+	}
+	// apagar o vencimento e definir de novo e um primeiro vencimento outra vez: copia de novo
+	putFatura(t, "2026-10", `{"vencimento":null}`)
+	putFatura(t, "2026-10", `{"vencimento":"2026-11-05"}`)
+	if faturaGravada(t, f, "2026-10")["aviso"] == nil {
+		t.Error("sem vencimento e sem aviso, o proximo vencimento copia o padrao")
+	}
+}
+
+// G-T17: o aviso do corpo vale e nao ha copia; sem padrao no cartao nao copia nada.
+func TestAvisoPadraoNaoSobrepoeOQueVemNoCorpo(t *testing.T) {
+	f := cenarioAvisoFatura(t)
+	putCartao(t, "CARTAO-A", `{"aviso":`+avisoPadrao+`}`)
+	putFatura(t, "2026-10", `{"vencimento":"2026-11-05","aviso":{"dias":[7],"insistir":false}}`)
+	a, _ := faturaGravada(t, f, "2026-10")["aviso"].(map[string]any)
+	if a == nil || a["insistir"] != false || len(a["dias"].([]any)) != 1 {
+		t.Errorf("vale o do corpo: %v", a)
+	}
+	putFatura(t, "2026-10", `{"vencimento":null}`)
+	putFatura(t, "2026-10", `{"vencimento":"2026-11-05","aviso":null}`)
+	if _, tem := faturaGravada(t, f, "2026-10")["aviso"]; tem {
+		t.Error("aviso:null no corpo: sem aviso e sem copia")
+	}
+	// cartao sem padrao: nada e copiado
+	c, _ := chamar(t, "own", "PUT", "spaces/s1/cartoes/CARTAO-A/faturas/2026-09", nil, `{"vencimento":"2026-10-05"}`)
+	esperar(t, "outra fatura", c, 200)
+	putCartao(t, "CARTAO-A", `{"aviso":null}`)
+	putFatura(t, "2026-10", `{"vencimento":null}`)
+	putFatura(t, "2026-10", `{"vencimento":"2026-11-05"}`)
+	if _, tem := faturaGravada(t, f, "2026-10")["aviso"]; tem {
+		t.Error("sem padrao no cartao, nada e copiado")
+	}
+}
+
+// G-T18: mudar o padrao depois nao altera as faturas ja copiadas.
+func TestMudarOPadraoNaoAlteraFaturasCopiadas(t *testing.T) {
+	f := cenarioAvisoFatura(t)
+	putCartao(t, "CARTAO-A", `{"aviso":`+avisoPadrao+`}`)
+	putFatura(t, "2026-10", `{"vencimento":"2026-11-05"}`)
+	putCartao(t, "CARTAO-A", `{"aviso":{"dias":[7],"insistir":false}}`)
+	a, _ := faturaGravada(t, f, "2026-10")["aviso"].(map[string]any)
+	if a == nil || a["insistir"] != true || len(a["dias"].([]any)) != 2 {
+		t.Errorf("a fatura ja copiada fica como estava: %v", a)
+	}
+	putCartao(t, "CARTAO-A", `{"aviso":null}`)
+	if faturaGravada(t, f, "2026-10")["aviso"] == nil {
+		t.Error("apagar o padrao nao tira o aviso da fatura")
+	}
+}
+
+// G-T19: ler a fatura (inclusive as antigas) nao grava nada.
+func TestLerAFaturaNaoGrava(t *testing.T) {
+	f := cenarioAvisoFatura(t)
+	putCartao(t, "CARTAO-A", `{"aviso":`+avisoPadrao+`}`)
+	antes := f.ler(t, pkEspaco, "CFG#CARTOES")["version"]
+	for _, ym := range []string{"2026-07", "2026-08", "2026-09", "2026-10", "2026-11"} {
+		fatura(t, "own", "CARTAO-A", ym)
+	}
+	chamar(t, "own", "GET", "spaces/s1/cartoes", nil, "")
+	faturasDeFuturos(t)
+	if f.ler(t, pkEspaco, "CFG#CARTOES")["version"] != antes {
+		t.Error("nenhuma leitura grava a configuracao")
+	}
+	if faturaGravada(t, f, "2026-09") != nil {
+		t.Error("as faturas antigas continuam sem nada")
+	}
+}

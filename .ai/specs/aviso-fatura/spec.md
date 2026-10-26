@@ -29,6 +29,8 @@ GET /spaces/{sid}/futuros                        faturas[].aviso = { dias, insis
 
 ## Extensão: aviso padrão do cartão (item 48)
 
+**Estado:** demo e spec aprovadas pelo dono em 2026-10-26; backend e tela implementados (`feature/aviso-padrao-cartao`).
+
 - **R9.** `porBanco[meio].aviso` é `{ dias, insistir }` (R1). `PUT /spaces/{sid}/cartoes/{meio}` aceita `aviso` (objeto ou `null`); só o dono; `400` se inválido. Não altera faturas.
 - **R10.** `GET /spaces/{sid}/cartoes` devolve `aviso` (objeto ou `null`) em cada cartão.
 - **R11.** Ao gravar o `vencimento` de uma fatura **sem vencimento anterior** e **sem `aviso`**, e o cartão tendo `aviso` padrão, o servidor grava `faturas[ym].aviso` = cópia do padrão **na mesma
