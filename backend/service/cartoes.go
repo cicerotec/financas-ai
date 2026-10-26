@@ -45,7 +45,17 @@ type Cartoes struct {
 	cfg     RepositorioConfig
 	rel     Relogio
 	criador CriadorDeLancamento
+	avisos  SincronizadorAvisoFatura
 }
+
+// SincronizadorAvisoFatura mantem o item auxiliar do aviso de uma fatura (item 46). Falha so vai ao log.
+type SincronizadorAvisoFatura interface {
+	SincronizarFatura(ctx context.Context, sid, meio, ym, venc string, dias []int, insistir bool)
+	RemoverFatura(ctx context.Context, sid, meio, ym string)
+}
+
+// UsarAvisos liga o sincronizador do aviso das faturas (montado depois do Avisos, que por sua vez le as faturas daqui).
+func (s *Cartoes) UsarAvisos(a SincronizadorAvisoFatura) { s.avisos = a }
 
 func NewCartoes(lanc LeitorDeLancamentos, cfg RepositorioConfig, rel Relogio, criador CriadorDeLancamento) *Cartoes {
 	return &Cartoes{lanc: lanc, cfg: cfg, rel: rel, criador: criador, faturas: map[string]*cacheFaturas{}}
@@ -560,8 +570,17 @@ func (s *Cartoes) Fechamento(ctx context.Context, sid, banco, ym string, body do
 	vb, temVB := body["valorBanco"]
 	pag, temPag := body["pagador"]
 	venc, temVenc := body["vencimento"]
-	if !temFech && !temVB && !temPag && !temVenc {
-		return nil, &ErroValidacao{"informe fechamento, valorBanco, pagador e/ou vencimento"}
+	av, temAv := body["aviso"]
+	if !temFech && !temVB && !temPag && !temVenc && !temAv {
+		return nil, &ErroValidacao{"informe fechamento, valorBanco, pagador, vencimento e/ou aviso"}
+	}
+	var avNorm any
+	if temAv {
+		d := domain.Doc{"aviso": av}
+		if err := domain.ValidarAviso(d); err != nil {
+			return nil, &ErroValidacao{err.Error()}
+		}
+		avNorm = d["aviso"]
 	}
 	var pagTxt, vencTxt string
 	if temPag && pag != nil {
@@ -605,12 +624,14 @@ func (s *Cartoes) Fechamento(ctx context.Context, sid, banco, ym string, body do
 		}
 		vbNum = n
 	}
+	var vencFinal string
+	var avisoFinal map[string]any
 	err := s.atualizar(ctx, sid, func(por map[string]any) error {
 		c, err := cartaoDe(por, banco)
 		if err != nil {
 			return err
 		}
-		if fechTexto != "" || pagTxt != "" || vencTxt != "" {
+		if fechTexto != "" || pagTxt != "" || vencTxt != "" || avNorm != nil {
 			if ini, _ := c["inicio"].(string); ini != "" && ym < ini {
 				return &ErroValidacao{"fatura de historico (anterior ao inicio do controle) so aceita o valor do banco"}
 			}
@@ -676,6 +697,21 @@ func (s *Cartoes) Fechamento(ctx context.Context, sid, banco, ym string, body do
 				cur["vencimento"] = vencTxt
 			}
 		}
+		if temAv {
+			if avNorm == nil {
+				delete(cur, "aviso")
+			} else {
+				if v, _ := cur["vencimento"].(string); v == "" {
+					return &ErroValidacao{"defina o vencimento da fatura antes de ligar o aviso"}
+				}
+				cur["aviso"] = avNorm
+			}
+		}
+		if v, _ := cur["vencimento"].(string); v == "" {
+			delete(cur, "aviso") // sem vencimento nao ha aviso
+		}
+		vencFinal, _ = cur["vencimento"].(string)
+		avisoFinal, _ = cur["aviso"].(map[string]any)
 		if len(cur) == 0 {
 			delete(fs, ym)
 		} else {
@@ -686,6 +722,13 @@ func (s *Cartoes) Fechamento(ctx context.Context, sid, banco, ym string, body do
 	})
 	if err != nil {
 		return nil, err
+	}
+	if (temAv || temVenc) && s.avisos != nil {
+		if dias, insistir, tem := domain.LerAviso(domain.Doc{"aviso": avisoFinal}); tem && vencFinal != "" {
+			s.avisos.SincronizarFatura(ctx, sid, banco, ym, vencFinal, dias, insistir)
+		} else {
+			s.avisos.RemoverFatura(ctx, sid, banco, ym)
+		}
 	}
 	return domain.Doc{"meio": banco, "ym": ym}, nil
 }

@@ -193,6 +193,14 @@ func (s *Cartoes) AFuturos(ctx context.Context, sid string, seq float64, seqOk b
 			if pagador != "" {
 				item["pagador"] = pagador
 			}
+			item["aviso"] = nil
+			if dias, insistir, tem := domain.LerAviso(domain.Doc{"aviso": c.Faturas[ym].Aviso}); tem {
+				lista := make([]any, len(dias))
+				for i, n := range dias {
+					lista[i] = float64(n)
+				}
+				item["aviso"] = domain.Doc{"dias": lista, "insistir": insistir}
+			}
 			if sug := domain.PagadorSugerido(c, ym); sug != "" {
 				item["sugestao"].(domain.Doc)["pagador"] = sug
 			}
@@ -261,4 +269,49 @@ func (s *Cartoes) pagamentosDa(ctx context.Context, sid string, c domain.Cartao,
 		soma += valor
 	}
 	return out, domain.Arred(soma), nil
+}
+
+// FaturaAviso e o que a rotina de avisos precisa saber de uma fatura no dia de avisar.
+type FaturaAviso struct {
+	Existe   bool // a fatura ainda tem aviso e vencimento
+	Venc     string
+	Dias     []int
+	Insistir bool
+	Valor    float64
+	Paga     bool // ha lancamento marcado com a fatura
+}
+
+// FaturaParaAviso le a fatura so quando a rotina decidiu avisar (item 46): a configuracao do cartao e, se ainda vale, o valor do dia e se ja foi paga.
+func (s *Cartoes) FaturaParaAviso(ctx context.Context, sid, meio, ym string) (FaturaAviso, error) {
+	cfgC, err := s.cfg.Ler(ctx, sid, "cartoes")
+	if err != nil {
+		return FaturaAviso{}, err
+	}
+	c, ok := domain.CartaoDe(cfgC, meio)
+	if !ok {
+		return FaturaAviso{}, nil
+	}
+	fc := c.Faturas[ym]
+	dias, insistir, tem := domain.LerAviso(domain.Doc{"aviso": fc.Aviso})
+	if !tem || fc.Vencimento == "" {
+		return FaturaAviso{}, nil
+	}
+	out := FaturaAviso{Existe: true, Venc: fc.Vencimento, Dias: dias, Insistir: insistir}
+	ini, fim := domain.PeriodoFatura(c, ym)
+	marcados, err := s.marcados(ctx, sid, instanteDoDia(ini, -1), instanteDoDia(domain.SomaDias(fim, 120), 2))
+	if err != nil {
+		return FaturaAviso{}, err
+	}
+	if out.Paga = temMarca(marcados, meio, ym); out.Paga {
+		return out, nil
+	}
+	rs, err := s.registros(ctx, sid, c, meio, ym, nil)
+	if err != nil {
+		return FaturaAviso{}, err
+	}
+	out.Valor = domain.TotalFatura(rs, ym)
+	if fc.ValorBanco != nil && ym < domain.FaturaAtual(c, s.hoje()) {
+		out.Valor = *fc.ValorBanco
+	}
+	return out, nil
 }

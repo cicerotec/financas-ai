@@ -53,6 +53,35 @@ type Avisos struct {
 	notificador Notificador
 	rel         Relogio
 	ambiente    string
+	faturas     LeitorFaturaAviso
+}
+
+// LeitorFaturaAviso le uma fatura no dia de avisar (item 46); quem implementa e o service de cartoes.
+type LeitorFaturaAviso interface {
+	FaturaParaAviso(ctx context.Context, sid, meio, ym string) (FaturaAviso, error)
+}
+
+// UsarFaturas liga a leitura das faturas (montada depois, porque os cartoes tambem usam os avisos).
+func (s *Avisos) UsarFaturas(l LeitorFaturaAviso) { s.faturas = l }
+
+// idAvisoFatura e o id do item auxiliar de uma fatura, que nao colide com o de um lancamento.
+func idAvisoFatura(meio, ym string) string { return "fatura#" + meio + "#" + ym }
+
+// SincronizarFatura grava o item auxiliar do aviso de uma fatura. Falha so vai ao log.
+func (s *Avisos) SincronizarFatura(ctx context.Context, sid, meio, ym, venc string, dias []int, insistir bool) {
+	lista := make([]any, len(dias))
+	for i, n := range dias {
+		lista[i] = float64(n)
+	}
+	item := domain.Doc{"id": idAvisoFatura(meio, ym), "tipo": "fatura", "meio": meio, "ym": ym, "venc": venc, "dias": lista, "insistir": insistir}
+	if err := s.repo.Sincronizar(ctx, sid, item); err != nil {
+		log.Println("aviso: gravar item auxiliar da fatura:", err)
+	}
+}
+
+// RemoverFatura apaga o item auxiliar do aviso de uma fatura.
+func (s *Avisos) RemoverFatura(ctx context.Context, sid, meio, ym string) {
+	s.Remover(ctx, sid, idAvisoFatura(meio, ym))
 }
 
 func NewAvisos(repo RepositorioAvisos, lancamentos LeitorLancamento, cfg RepositorioConfig, contatos LeitorContatos,
@@ -144,6 +173,22 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 		if kind == domain.SemAviso {
 			continue
 		}
+		if tipo, _ := aux["tipo"].(string); tipo == "fatura" {
+			if linha, ok := s.linhaDaFatura(ctx, sid, aux, hoje); ok {
+				esp := espacos[sid]
+				if esp == nil {
+					esp = &contextoEspaco{ownerSub: s.dono.Dono(ctx, sid)}
+					espacos[sid] = esp
+				}
+				// a fatura nao tem criador: o aviso vai para o dono do espaco
+				if esp.ownerSub != "" {
+					if chat := chatDe(sid, esp.ownerSub); chat != "" {
+						porChat[chat] = append(porChat[chat], linha)
+					}
+				}
+			}
+			continue
+		}
 		tx, err := s.lancamentos.Buscar(ctx, sid, data, id)
 		if err != nil {
 			log.Println("avisos: ler lancamento:", err)
@@ -222,4 +267,30 @@ func (s *Avisos) Testar(ctx context.Context, sid, sub string) error {
 		return ErrTelegramRecusou
 	}
 	return nil
+}
+
+// linhaDaFatura confere a fatura de verdade na hora de avisar (item 46): o aviso e o vencimento ainda existem, nao foi paga e tem valor. Devolve a linha do resumo.
+func (s *Avisos) linhaDaFatura(ctx context.Context, sid string, aux domain.Doc, hoje string) (domain.LinhaAviso, bool) {
+	meio, _ := aux["meio"].(string)
+	ym, _ := aux["ym"].(string)
+	if s.faturas == nil || meio == "" || ym == "" {
+		return domain.LinhaAviso{}, false
+	}
+	fa, err := s.faturas.FaturaParaAviso(ctx, sid, meio, ym)
+	if err != nil {
+		log.Println("avisos: ler fatura:", err)
+		return domain.LinhaAviso{}, false
+	}
+	if !fa.Existe {
+		s.RemoverFatura(ctx, sid, meio, ym)
+		return domain.LinhaAviso{}, false
+	}
+	if fa.Paga || !(fa.Valor > 0) {
+		return domain.LinhaAviso{}, false // o item fica: se o pagamento for desfeito, volta a avisar
+	}
+	kind, n := domain.DecidirAviso(hoje, fa.Venc, fa.Dias, fa.Insistir)
+	if kind == domain.SemAviso {
+		return domain.LinhaAviso{}, false
+	}
+	return domain.LinhaAviso{Kind: kind, N: n, Venc: fa.Venc, Tipo: "saida", Descricao: "Fatura " + domain.RotuloMes(ym) + " · " + meio, Valor: fa.Valor, Banco: meio}, true
 }

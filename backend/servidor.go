@@ -38,6 +38,8 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 	saldos := service.NewSaldos(lancRepo, cfgRepo, saldosRepo, rel)
 	cartoes := service.NewCartoes(lancRepo, cfgRepo, rel, lancSvc)
 	lancSvc.UsarCartoes(cfgRepo, cartoes)
+	cartoes.UsarAvisos(avisos)
+	avisos.UsarFaturas(cartoes)
 	return &Servidor{
 		lanc:    controller.NewLancamentos(lancSvc),
 		esp:     controller.NewEspacos(service.NewEspacos(espacos)),

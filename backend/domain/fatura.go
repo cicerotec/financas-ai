@@ -28,6 +28,7 @@ type FaturaCfg struct {
 	Conferida  Doc      // { total, em, por }, gravado so pelo servidor
 	Pagador    string   // troca o pagador so desta fatura
 	Vencimento string   // AAAA-MM-DD escolhido para esta fatura
+	Aviso      Doc      // { dias, insistir }: aviso no Telegram desta fatura (item 46); so existe com Vencimento
 }
 
 // CartaoDe le a configuracao de um cartao de CFG#CARTOES; false se o banco nao e cartao.
@@ -53,6 +54,7 @@ func CartaoDe(cfgCartoes Doc, banco string) (Cartao, bool) {
 		f.Fechamento, _ = m["fechamento"].(string)
 		f.Pagador, _ = m["pagador"].(string)
 		f.Vencimento, _ = m["vencimento"].(string)
+		f.Aviso, _ = m["aviso"].(map[string]any)
 		if n, ok := m["valorBanco"].(float64); ok {
 			f.ValorBanco = &n
 		}
