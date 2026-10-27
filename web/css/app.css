@@ -17,7 +17,9 @@
   --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
     --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e; --danger-bg:#3a1f1a;
 }
-html{scroll-padding-top:env(safe-area-inset-top,0px);}
+html{scroll-padding-top:env(safe-area-inset-top,0px);color-scheme:light dark;} /* controles nativos (lista, calendario, rolagem) seguem o aparelho */
+:root[data-theme="light"]{color-scheme:light;}
+:root[data-theme="dark"]{color-scheme:dark;}
 *{box-sizing:border-box;}
 /* faixa do ambiente de teste: so aparece quando o config.js do ambiente traz "ambiente": "dev" */
 .faixa-ambiente{position:sticky;top:0;z-index:6;height:26px;line-height:26px;text-align:center;background:#e8710a;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;}
@@ -179,7 +181,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .linhas>.lh:first-child{border-top:0;}
 .lh .r{flex:none;width:72px;font-size:15px;color:var(--text);}
 .lh select,.lh input[type=datetime-local]{font-family:inherit;flex:1;min-width:0;width:auto;height:44px;border:0;background:transparent;padding:0;font-size:15px;color:var(--muted);text-align:right;text-align-last:right;appearance:none;-webkit-appearance:none;cursor:pointer;}
-.lh select option{text-align:left;color:var(--text);}
+.lh select option{text-align:left;color:var(--text);background:var(--bg);} /* o select e transparente: sem fundo na opcao, a lista nativa abre branca com texto claro no escuro */
 .lh .v{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;color:var(--muted);font-size:14px;}
 .lh .chip{background:var(--accent-bg);color:var(--text);border-radius:999px;padding:3px 10px;font-size:13px;}
 .mais-det{display:none;padding:4px 16px 14px;border-top:1px solid var(--border);}
