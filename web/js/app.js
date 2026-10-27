@@ -176,6 +176,20 @@ function novoSerieId(){
   return 'ser' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10).padEnd(8, '0');
 }
 function dataCurta(d){ return d.toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'}); }
+// Prever, Estender e repetir ao lancar comparam com os lancamentos e os previstos: ninguem os le na subida, entao sao lidos aqui, a pedido.
+async function lerDadosParaDuplicados(){
+  await Promise.all([lancsOuv ? lancsOuv.garantir() : null, garantirFuturos()]);
+}
+// Aviso de duplicado ao salvar: uma consulta pontual pela data do lancamento (nao precisa dos 1000 carregados).
+async function jaExisteIgual(doc, ignorarId){
+  try{
+    const snap = await db.collection("lancamentos").where("dataEvento", ">=", doc.dataEvento).where("dataEvento", "<=", doc.dataEvento).get();
+    return snap.docs.some(d=>d.id!==ignorarId && chaveLancamento(d.data())===chaveLancamento(doc));
+  }catch(e){
+    console.warn('Não consegui conferir duplicados', e); // o aviso e uma ajuda: sem ele, salva
+    return false;
+  }
+}
 function chavesExistentes(){ return new Set(lancamentosCache.concat(futurosLista()).filter(x=>!x.oculto).map(Recorrencia.chaveDuplicado)); }
 
 // Repeticao ao lancar: so em evento futuro novo (na edicao nao aparece). "Total de ocorrencias" inclui o proprio lancamento.
@@ -559,6 +573,7 @@ async function pvSalvarFatura(){
 async function preverLancamento(id){
   const l = acharLancamento(id);
   if(!l || !db) return;
+  await lerDadosParaDuplicados(); // a serie e os duplicados olham os lancamentos e os previstos: lidos so agora
   let base = l, ctx;
   if(l.serie){
     const ultima = Recorrencia.ultimaDaSerie(lancamentosCache.concat(futurosLista()), l.serie.id) || l;
@@ -780,7 +795,7 @@ async function init(){
       // A lista de status e as caixas sao do servidor (item 41): o app nao completa nem regrava nada aqui.
       renderListas();
       renderSaldos();
-      try{ renderHistorico(); }catch(e){}
+      if(abaAtual()==='historico'){ try{ renderHistorico(); }catch(e){} }
     }, ()=>{ renderListas(); });
 
     db.doc("config/tags").onSnapshot(snap=>{
@@ -799,17 +814,18 @@ async function init(){
       renderCombosLista();
     }, ()=>{});
 
-    await carregarSaldosConfig();
-
-    db.collection("lancamentos").orderBy("dataEvento","desc").limit(1000).onSnapshot(snap=>{
+    // Cada tela le o que e dela, so quando esta aberta (irParaAba): Lancar usa so as configuracoes acima. Os lancamentos
+    // (1000 mais recentes) sao lidos sob demanda por Historico e Tendencias; Futuros le por conta propria (carregarFuturos).
+    lancsOuv = db.collection("lancamentos").orderBy("dataEvento","desc").limit(1000).sobDemanda(snap=>{
       lancamentosCache = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(l=>!exclusaoPendente.has(l.id) && !l.previsto); // previsto e de Futuros
-      agendarFuturos();
       try{ renderTagPicker(); }catch(e){}
       cartaoUltimaCalc = 0;
-      renderHistorico();
-      try{ desenharGrafico(); }catch(e){}
-      renderCartao();
+      const aba = abaAtual();
+      if(aba==='historico') renderHistorico();
+      if(aba==='tendencias'){ try{ desenharGrafico(); }catch(e){} }
     }, ()=>{ document.getElementById('listaLancamentos').innerHTML = '<p class="muted">Sem acesso ao histórico nesta visualização.</p>'; });
+    // Futuros muda quando um lancamento muda (confirmar, excluir, editar): se a tela esta aberta le de novo; se nao, so marca.
+    if(db.aoMudarLancamentos) db.aoMudarLancamentos(()=>{ if(abaAtual()==='futuros') agendarFuturos(); else futurosSujo = true; });
   } else {
     document.getElementById('iaStatus').textContent = "Banco de dados indisponível nesta visualização.";
   }
@@ -895,12 +911,50 @@ function irParaAba(t){
   });
   document.querySelectorAll('main section').forEach(sec=>sec.classList.add('hidden'));
   document.getElementById('tab-'+t).classList.remove('hidden');
+  // Cada tela le so o que e dela. Historico e Tendencias leem os lancamentos (sob demanda); as outras saem deles.
+  const usaLancamentos = t==='historico' || t==='tendencias';
+  if(lancsOuv && !usaLancamentos) lancsOuv.pausar();
   if(t==='saldos') carregarSaldosConfig().then(()=>carregarSaldos(false));
   if(t==='cartao') carregarCartoes(false);
   if(t==='futuros') carregarFuturos();
-  if(t==='versoes') abrirVersoes();
-  if(t==='tendencias' && typeof tendRender==='function') tendRender();
+  if(t==='versoes') carregarScript('js/versoes.js').then(()=>{ if(abaAtual()==='versoes') abrirVersoes(); });
+  if(t==='configuracoes') carregarScript(XLSX_URL).catch(e=>console.error(e)); // a leitura de planilhas (~1 MB) so serve a importacao
+  if(t==='historico') entrarHistorico();
+  if(t==='tendencias') entrarTendencias();
   Voltar.sync();
+}
+// scripts de telas que nem toda sessao abre: baixados na primeira visita
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+const scriptsCarregados = new Map();
+function carregarScript(src){
+  if(!scriptsCarregados.has(src)){
+    scriptsCarregados.set(src, new Promise((ok, falha)=>{
+      const s = document.createElement('script');
+      s.src = src; s.onload = ok;
+      s.onerror = ()=>{ scriptsCarregados.delete(src); falha(new Error('Não consegui carregar ' + src)); };
+      document.body.appendChild(s);
+    }));
+  }
+  return scriptsCarregados.get(src);
+}
+let lancsOuv = null; // leitura sob demanda dos 1000 lancamentos mais recentes (ver o init)
+async function entrarHistorico(){
+  if(lancsOuv && !lancsOuv.carregado()){
+    document.getElementById('contadorHistorico').textContent = 'Buscando...';
+    document.getElementById('somaHistorico').innerHTML = '';
+    document.getElementById('listaLancamentos').innerHTML = '';
+  }
+  if(lancsOuv) await lancsOuv.ativar();
+  if(abaAtual()==='historico') renderHistorico();
+}
+async function entrarTendencias(){
+  const raiz = document.getElementById('tendRaiz');
+  if(raiz && !raiz.children.length) raiz.innerHTML = '<p class="muted">Carregando...</p>';
+  try{
+    await carregarScript('js/tendencias.js');
+    if(lancsOuv) await lancsOuv.ativar();
+  }catch(e){ console.error(e); if(raiz) raiz.innerHTML = '<p class="muted">Não consegui carregar a tela. Tente de novo.</p>'; return; }
+  if(abaAtual()==='tendencias') tendRender();
 }
 function setupTabs(){
   document.querySelectorAll('nav button').forEach(b=>{
@@ -1419,12 +1473,13 @@ async function salvarLancamentoInterno(){
       doc.serie = {id: serieId, indice: 1, intervalo: rep.intervaloMeses};
       copias = Recorrencia.montarCopias(doc, {intervaloMeses:rep.intervaloMeses, quantidade:rep.quantidade-1, status:statusEscolhido,
         aviso: doc.aviso || null, numerar:false, serieId, indiceInicial:2});
+      await lerDadosParaDuplicados();
       const existentes = chavesExistentes();
       const iguais = copias.filter(c=>existentes.has(Recorrencia.chaveDuplicado(c))).length;
       if(iguais && !(await confirmarModal(`${iguais} das repetições já existem (mesmo status, descrição, valor, banco e dia). Criar mesmo assim?`))) return;
     }
   }
-  const jaExiste = lancamentosCache.some(l=>l.id!==editandoId && chaveLancamento(l)===chaveLancamento(doc));
+  const jaExiste = await jaExisteIgual(doc, editandoId);
   if(jaExiste && !(await confirmarModal("Já existe um lançamento igual (mesmo status, descrição, valor, banco e data). Salvar mesmo assim?"))) return;
   if(editandoId){
     const idEditado = editandoId;
@@ -1541,6 +1596,14 @@ function diaLocal(l){ return chaveDia(new Date(l.dataEvento)); }
 // ---------- Futuros: o servidor manda tudo pronto (GET /futuros): previstos, resumo, Atrasados e meses ----------
 let futurosDados = null, futurosCarregando = false, futurosRepetir = false;
 let futurosTimer;
+let futurosSujo = true; // algo mudou desde a ultima leitura (ou nunca leu): quem precisa dos previstos le de novo
+// Futuros so e lido por quem precisa: a aba Futuros e os gestos que olham a serie ou os duplicados (Prever, Estender, repetir ao lancar).
+async function garantirFuturos(){
+  if(!db || typeof db.futuros !== 'function') return;
+  if(futurosDados && !futurosSujo && !futurosCarregando) return;
+  await carregarFuturos();
+  while(futurosCarregando) await new Promise(r=>setTimeout(r, 50)); // uma leitura que ja estava em curso
+}
 // Atrasados por ano (item 45): os anos antigos buscados a pedido e quais blocos (ano ou mes) a pessoa abriu ou fechou. O servidor agrupa e conta; aqui so se guarda a escolha.
 let futurosAnosExtra = [], futurosBlocos = {}, futurosAnoSel = '', futurosAnoBuscando = false;
 // varias leituras de lancamentos seguidas (a abertura do app, uma gravacao) viram uma leitura so de Futuros
@@ -1549,12 +1612,13 @@ async function carregarFuturos(){
   if(!db || typeof db.futuros !== 'function') return;
   if(futurosCarregando){ futurosRepetir = true; return; } // alguem gravou durante a leitura: le de novo no fim
   futurosCarregando = true;
+  futurosSujo = false;
   try{
     futurosDados = await db.futuros();
     // os anos antigos ja buscados sao lidos de novo, para nao mostrar o que acabou de ser confirmado ou excluido
     if(futurosAnosExtra.length) futurosAnosExtra = await Promise.all(futurosAnosExtra.map(g=>db.futurosAno(g.ano)));
   }
-  catch(e){ console.error('Falha ao ler os Futuros', e); }
+  catch(e){ console.error('Falha ao ler os Futuros', e); futurosSujo = true; }
   finally{
     futurosCarregando = false;
     renderFuturos();
@@ -2524,7 +2588,7 @@ document.getElementById('filMostrarOcultos').addEventListener('change', renderHi
 document.getElementById('filOrdenacao').addEventListener('change', renderHistorico);
 
 // O grafico de Tendencias e a consulta por tags vivem em js/tendencias.js (tendRender).
-function desenharGrafico(){ if(typeof tendRender==='function') tendRender(); }
+function desenharGrafico(){ if(abaAtual()==='tendencias' && typeof tendRender==='function') tendRender(); }
 
 async function carregarSaldosConfig(){
   if(!db) return;
@@ -3362,6 +3426,7 @@ async function importarFechamentos(){
   if(!inp.files.length){ st.textContent = 'Escolha a planilha (.xlsx) primeiro.'; return; }
   st.textContent = 'Lendo...';
   try{
+    await carregarScript(XLSX_URL);
     const wb = XLSX.read(new Uint8Array(await inp.files[0].arrayBuffer()), {type:'array'});
     const {achados, semMes} = extrairFechamentos(wb);
     const todos = Object.keys(achados);
@@ -3411,6 +3476,7 @@ async function processarArquivo(){
   statusEl.textContent = "Lendo...";
   const arrayBuffer = await inp.files[0].arrayBuffer();
   try{
+    await carregarScript(XLSX_URL);
     const wb = XLSX.read(new Uint8Array(arrayBuffer), {type:'array', cellDates:false});
     let resultadoFinal = [], ignoradasFinal = 0, achouAlguma = false;
     wb.SheetNames.forEach(nome=>{

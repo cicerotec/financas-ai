@@ -223,8 +223,9 @@
     });
   }
   function escreverNoCache(op, d) {
+    avisarMudanca();
     ouvintes.forEach((L) => {
-      if (L.tipo !== 'col' || !L.docs) return;
+      if (L.tipo !== 'col' || !L.carregado) return; // ainda nao leu nada: a primeira leitura ja traz o registro novo
       const docs = L.docs.filter((x) => x.id !== d.id); // tira a versao antiga, se estava na lista
       if (op === 'put' && casa(d, L.q.w)) docs.push(Object.assign({}, d));
       ordenar(docs, L.q.ord);
@@ -269,21 +270,47 @@
     return res.slice(0, q.lim);
   }
 
+  // Cada ouvinte e uma leitura que uma tela precisa. `ativo === false` (leitura sob demanda) quer dizer que a tela que a usa
+  // nao esta aberta: uma mudanca so a marca como `suja` e ela e relida quando a tela voltar a pedi-la. Nada e lido por
+  // uma tela que ninguem esta vendo.
   const ouvintes = new Set();
   let agendado = null;
-  function disparar(L) {
-    L.run().then(L.cb).catch((e) => { if (L.err) L.err(e); });
+  const pendentes = [];
+  let ultimaLeituraDocs = Date.now();
+  const DOCS_TTL = 600000; // configuracoes lidas ha mais de 10 min sao relidas na proxima checagem
+  const aoMudar = new Set(); // quem quer saber que os lancamentos mudaram (ex.: Futuros, que le por conta propria)
+  function avisarMudanca() { aoMudar.forEach((f) => { try { f(); } catch (e) { console.error(e); } }); }
+  // Uma leitura por vez em cada ouvinte: se pedirem de novo durante a leitura, le outra vez no fim (e nao duas ao mesmo tempo).
+  function carregar(L) {
+    if (L.emCurso) { L.refazer = true; return L.emCurso; }
+    L.emCurso = L.run()
+      .then((s) => { L.carregado = true; L.suja = false; if (L.tipo === 'doc') ultimaLeituraDocs = Date.now(); L.cb(s); })
+      .catch((e) => { if (L.err) L.err(e); })
+      .then(() => { L.emCurso = null; if (L.refazer) { L.refazer = false; carregar(L); } });
+    return L.emCurso;
   }
-  function atualizarOuvintes(tipo) {
+  const disparar = carregar;
+  // tipo ('col' ou 'doc') e nome (so 'doc': 'listas', 'tags'...) limitam o que e relido; sem nome, todos do tipo.
+  function atualizarOuvintes(tipo, nome) {
+    pendentes.push([tipo, nome]);
     clearTimeout(agendado);
-    agendado = setTimeout(() => ouvintes.forEach((L) => { if (!tipo || L.tipo === tipo) disparar(L); }), 150);
+    agendado = setTimeout(() => {
+      const lote = pendentes.splice(0);
+      ouvintes.forEach((L) => {
+        if (!lote.some(([t, n]) => (!t || L.tipo === t) && (!n || L.nome === n))) return;
+        if (L.ativo === false) { L.suja = true; return; }
+        carregar(L);
+      });
+      if (lote.some(([t]) => !t || t === 'col')) avisarMudanca();
+    }, 150);
   }
-  // A cada poucos minutos (aba visivel) e ao voltar para a aba: configuracoes sao poucos itens pequenos, entao
-  // recarregam; os lancamentos so recarregam se o seq mudou (ou se nao deu para ler).
+  // A cada poucos minutos (aba visivel) e ao voltar para a aba: so o seq (uma leitura minuscula) e so se algum lancamento ja
+  // foi lido; os lancamentos so sao relidos se o seq mudou. As configuracoes nao tem seq: so envelhecem (DOCS_TTL).
   async function checar() {
     if (document.visibilityState !== 'visible') return;
     ultimaChecagem = Date.now();
-    atualizarOuvintes('doc');
+    if (Date.now() - ultimaLeituraDocs > DOCS_TTL) atualizarOuvintes('doc');
+    if (![...ouvintes].some((L) => L.tipo === 'col' && L.carregado)) return; // nenhuma tela leu lancamentos: nada a conferir
     try {
       const s = await lerSeq();
       if (s === null || s !== seqConhecido) atualizarOuvintes('col');
@@ -299,9 +326,8 @@
   Consulta.prototype.orderBy = function (f, d) { return new Consulta(this.w, [f, d || 'asc'], this.lim); };
   Consulta.prototype.limit = function (n) { return new Consulta(this.w, this.ord, n); };
   Consulta.prototype.get = async function () { return snapDocs(await rodar(this)); };
-  Consulta.prototype.onSnapshot = function (cb, err) {
-    const q = this;
-    const L = { tipo: 'col', q, docs: [] };
+  function ouvinteDeLancamentos(q, cb, err, ativo) {
+    const L = { tipo: 'col', q, docs: [], ativo, carregado: false, suja: false };
     L.run = async () => {
       const s = await lerSeq().catch(() => null); // lido ANTES dos lancamentos: nada gravado no meio se perde
       L.docs = await rodar(q);
@@ -309,8 +335,26 @@
       return snapDocs(L.docs);
     };
     L.cb = cb; L.err = err;
-    ouvintes.add(L); disparar(L);
+    ouvintes.add(L);
+    return L;
+  }
+  Consulta.prototype.onSnapshot = function (cb, err) {
+    const L = ouvinteDeLancamentos(this, cb, err, true);
+    disparar(L);
     return () => ouvintes.delete(L);
+  };
+  // Leitura sob demanda: nao le nada ate a tela pedir. `ativar()` le (se nunca leu ou se mudou desde a ultima vez) e passa a
+  // reler a cada mudanca; `pausar()` para de reler (a tela saiu) e so marca que mudou; `garantir()` le uma vez, sem ativar,
+  // para quem precisa dos dados num gesto (ex.: conferir duplicados). Os tres devolvem uma promessa da leitura.
+  Consulta.prototype.sobDemanda = function (cb, err) {
+    const L = ouvinteDeLancamentos(this, cb, err, false);
+    const garantir = () => (!L.carregado || L.suja ? carregar(L) : Promise.resolve());
+    return {
+      ativar: () => { L.ativo = true; return garantir(); },
+      pausar: () => { L.ativo = false; },
+      garantir,
+      carregado: () => L.carregado
+    };
   };
   Consulta.prototype.add = async function (obj) {
     const b = await base();
@@ -408,7 +452,7 @@
   // Acrescenta tags que ainda nao existem (o servidor ignora as repetidas). Vale para dono e membro.
   async function adicionarTags(tags) {
     await api('POST', (await base()) + '/tags', { tags });
-    atualizarOuvintes('doc');
+    atualizarOuvintes('doc', 'tags');
   }
 
   // Fechamento mensal por banco (so no app com servidor). Os 409 voltam como { status, body }
@@ -496,6 +540,7 @@
   const dbShim = {
     importarLancamentos,
     adicionarTags,
+    aoMudarLancamentos: (f) => { aoMudar.add(f); return () => aoMudar.delete(f); },
     saldos,
     conferirMes,
     futuros,
@@ -526,9 +571,9 @@
       const snap = (d) => ({ exists: d !== undefined, data: () => d });
       return {
         get: async () => snap(await lerCfg(nome)),
-        set: async (obj) => { await gravarCfg(nome, obj); atualizarOuvintes('doc'); },
+        set: async (obj) => { await gravarCfg(nome, obj); atualizarOuvintes('doc', nome); }, // so este documento e relido
         onSnapshot: (cb, err) => {
-          const L = { tipo: 'doc', run: async () => snap(await lerCfg(nome)), cb, err };
+          const L = { tipo: 'doc', nome, run: async () => snap(await lerCfg(nome)), cb, err };
           ouvintes.add(L); disparar(L);
           return () => ouvintes.delete(L);
         }
