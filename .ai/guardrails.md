@@ -25,6 +25,12 @@ Referência: [`arquitetura.md`](arquitetura.md) (decisões de 2026-10-10).
 - **Não crie, renomeie nem remova chave ou campo no DynamoDB sem discutir com o dono.** Cada campo (como
   `faturaAjuste`) carrega uma decisão que não é óbvia no código.
 - Nada se sobrescreve sem versão no histórico (item 31 do backlog).
+- **Cada tela lê só o que é dela, e só quando está aberta (2026-10-27).** A subida (tela Lançar) lê `listas`, `aparencia`,
+  `tags` e `combos` e nada mais. Os 1000 lançamentos são do Histórico e da Tendências (`sobDemanda` em `web/api.js`,
+  `irParaAba` em `web/js/app.js`); `/futuros` é da aba Futuros e dos gestos que olham a série (Prever, Estender, repetir
+  ao lançar); scripts pesados (`tendencias.js`, `versoes.js`, `xlsx`) vêm na primeira visita. Recarregar é pelo nome
+  (gravar `tags` relê só `tags`), nunca "tudo", e o timer só confere o `seq` se alguma tela já leu lançamentos.
+  `web/carga.test.js` falha se a subida voltar a ler o que não é dela. Tela nova declara o que lê em `irParaAba`.
 
 ## Telas
 Regra de 2026-10-08: **nenhuma alteração de tela vai para o código antes de uma demo aprovada** pelo dono. Ele vê só o
