@@ -151,6 +151,12 @@ func (s *Config) LerAparencia(ctx context.Context, sid, sub string) (domain.Doc,
 // GravarAparencia substitui a aparencia da pessoa (so a dela).
 func (s *Config) GravarAparencia(ctx context.Context, sid, sub string, body domain.Doc) (domain.Doc, error) {
 	domain.Protegidos(body)
+	// o tema e escolha da pessoa, mas so existem tres: automatico (segue o aparelho), claro e escuro
+	if t, ok := body["tema"]; ok {
+		if s, _ := t.(string); s != "auto" && s != "claro" && s != "escuro" {
+			return nil, &ErroValidacao{"tema invalido"}
+		}
+	}
 	res, err := s.repo.GravarAparencia(ctx, sid, sub, body)
 	switch {
 	case errors.Is(err, domain.ErrDadosInvalidos):

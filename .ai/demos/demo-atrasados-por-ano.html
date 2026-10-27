@@ -1,0 +1,159 @@
+<title>Atrasados por ano</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a tela Futuros inteira (resumo, ocultos, tabela, grupos); so o grupo Atrasados muda: ano > mes recolhiveis e o seletor de ano na linha do titulo. */
+:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--faint:#8c938d;--line:#e4e2dc;--ck:#d3d6d2;--accent:#0f6b4f;--onaccent:#ffffff;--accent-bg:#dcefe5;--danger:#a3321f;--danger-bg:#f8e6e2;--ok:#1d6b45;--pv-bg:#cfe0b8;--pv-fg:#26391a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;--pv-bg:#33442a;--pv-fg:#d6e8c2;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--faint:#7b827c;--line:#2e3430;--ck:#3b413d;--accent:#5fc9a0;--onaccent:#08231a;--accent-bg:#1c3a2e;--danger:#f08a76;--danger-bg:#3a1f1a;--ok:#6fd6a4;--pv-bg:#33442a;--pv-fg:#d6e8c2;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.4;margin:0;padding-block:18px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.pg{max-width:1240px;margin-inline:auto}
+h1{font-size:18px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 12px;max-width:75ch}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.ctl button{padding:8px 12px;border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:10px;font:inherit;font-size:14px}
+.ctl button[aria-pressed="true"]{background:var(--card);border-color:var(--accent);color:var(--accent);font-weight:600}
+.frame{border:1px solid var(--line);border-radius:14px;background:var(--bg);margin-inline:auto;overflow-x:auto}
+.frame:not(.fone) .scr{min-width:1120px}
+.frame.fone{max-width:390px}
+.scr{position:relative;padding:0 14px 24px;min-height:600px}
+/* cabecalho do app */
+.hd{display:flex;align-items:center;gap:8px;min-height:52px;margin:0 -14px 10px;padding:0 14px;border-bottom:1px solid var(--line)}
+.hd .t{flex:1;font-size:18px;font-weight:700}
+.hd .t small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
+.pills{display:flex;gap:6px;flex:1}
+.pills span{border:1px solid var(--line);background:var(--card);padding:7px 12px;border-radius:20px;font-size:13px;white-space:nowrap}
+.pills span.on{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
+.fone .pills{display:none}
+.frame:not(.fone) .hd{padding-block:10px}
+.frame:not(.fone) .hd .t{flex:none}
+.usr{margin-left:auto;font-size:13px;color:var(--muted)}
+.dots{font-size:22px;color:var(--fg);padding:0 8px}
+.frame:not(.fone) .dots{display:none}
+.fone .usr{display:none}
+/* resumo */
+.sum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 10px}
+.sum div{background:var(--card);border-radius:14px;padding:10px 12px;min-width:0}
+.sum small{display:block;color:var(--muted);font-size:12px}
+.sum b{font-size:18px;font-weight:600;display:block;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sum .at{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:10px;background:var(--danger-bg)}
+.sum .at b{font-size:16px;color:var(--danger)}
+.frame:not(.fone) .sum{grid-template-columns:repeat(3,minmax(0,1fr));max-width:600px}
+.frame:not(.fone) .sum .at{display:block}
+.opt{display:flex;align-items:center;gap:10px;padding:4px 4px 8px;color:var(--muted);font-size:13px}
+.sw{width:44px;height:26px;border-radius:13px;background:var(--ck);position:relative;flex:none}
+.sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+/* grupos */
+.cab{display:none;grid-template-columns:92px minmax(150px,1fr) 90px 120px 130px 300px;gap:12px;padding:4px 14px;font-size:12px;color:var(--faint)}
+.frame:not(.fone) .cab{display:grid}
+.cab span:nth-child(5){text-align:right}
+.gt{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:600;color:var(--muted);margin:12px 4px 6px;min-height:36px}
+.gt.bad{color:var(--danger)}
+.anos{display:flex;align-items:center;gap:6px;font-weight:400}
+.anos label{font-size:12px;color:var(--muted)}
+.anos select{height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);font:inherit;font-size:14px;padding:0 8px}
+.anos button{height:36px;padding:0 14px;border-radius:10px;border:0;background:var(--accent);color:var(--onaccent);font:inherit;font-size:14px;font-weight:600}
+.anos button[disabled]{opacity:.6}
+.anos select:focus-visible,.anos button:focus-visible,.tg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card{background:var(--card);border-radius:16px;overflow:hidden;margin:0 0 6px}
+.tg{display:flex;align-items:baseline;justify-content:space-between;gap:10px;width:100%;box-sizing:border-box;border:0;border-top:1px solid var(--line);background:var(--bg2);color:var(--danger);font:inherit;font-size:13px;font-weight:600;padding:0 14px;min-height:44px;text-align:left;cursor:pointer;align-items:center}
+.card>.tg:first-child{border-top:0}
+.tg.mes{background:transparent;color:var(--muted);padding-left:26px;font-weight:600}
+.tg .n{color:var(--muted);font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dt{display:grid;grid-template-columns:92px minmax(150px,1fr) 90px 120px 130px 300px;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line)}
+.dt .tx{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.dt .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dt .v small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+.dt .v.at,.ev .v.at{color:var(--danger)}
+.dt .v.at small{color:var(--danger);font-weight:600}
+.pv{display:inline-block;padding:2px 8px;border-radius:8px;font-weight:700;font-size:13px;background:var(--pv-bg);color:var(--pv-fg)}
+.acts{display:flex;gap:4px;justify-content:flex-end;opacity:.3}
+.acts span{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12.5px;white-space:nowrap}
+.ev{display:flex;align-items:center;gap:10px;padding:11px 8px 11px 14px;min-height:62px;border-top:1px solid var(--line)}
+.ev .l{flex:1;min-width:0}
+.ev .d{font-weight:600;overflow-wrap:anywhere}
+.ev .m{display:block;color:var(--muted);font-size:12.5px}
+.ev .r{text-align:right;flex:none}
+.ev .v{font-weight:600;display:block;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ev .p{font-size:12px;color:var(--danger);font-weight:600}
+.ev .mais{color:var(--muted);width:20px;text-align:center}
+.card>.dt:first-child,.card>.ev:first-child{border-top:0}
+.toast{position:absolute;left:14px;right:14px;bottom:14px;background:var(--fg);color:var(--bg);border-radius:12px;padding:11px 14px;font-size:13px}
+.dec{margin-top:16px;border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--muted);max-width:800px}
+.dec b{color:var(--fg)}
+.dec ul{margin:6px 0 0;padding-left:18px}
+</style>
+<div class="pg">
+<h1>Futuros: atrasados por ano (item 45)</h1>
+<p class="sub">A tela inteira como é hoje; só o grupo <b>Atrasados</b> muda. Toque nos títulos com ▾/▴ para abrir e fechar. Na linha do título, escolha um ano e toque em Ver: só 2019 e 2022 têm atrasados neste exemplo.</p>
+<div class="ctl">
+  <button id="bFone" aria-pressed="false">Celular</button>
+  <button id="bLargo" aria-pressed="true">Computador</button>
+  <button id="bTema" aria-pressed="false">Tema escuro</button>
+  <button id="bReset">Recomeçar</button>
+</div>
+<div class="frame" id="frame"><div class="scr" id="scr"></div></div>
+<div class="dec">
+<b>O que a proposta muda</b>
+<ul>
+<li>Só o grupo <b>Atrasados</b>. Resumo, "Mostrar ocultos", cabeçalho da tabela, linhas, ações e os grupos por mês ficam exatamente como estão.</li>
+<li>Dentro de Atrasados, as linhas passam a vir sob títulos <b>Ano</b> e <b>Mês</b> recolhíveis (▾/▴, o mesmo gesto de "Configurar cartão"), com quantidade e valor. Mês passado em diante: abertos. Anos buscados: chegam recolhidos.</li>
+<li>O seletor de ano fica <b>na mesma linha do título "Atrasados"</b>, à direita. Cada Ver é uma consulta só daquele ano (<code>GET /futuros?ano=2019</code>).</li>
+</ul>
+<b>O que se perde / custo</b>
+<ul>
+<li>O seletor lista, a partir do ano da janela (que ainda tem meses fora dela) até 2016, inclusive os vazios; saber quais têm atrasado exigiria ler a tabela. Ano vazio responde "Nenhum atrasado em 2018".</li>
+<li>Anos buscados ficam só na tela; somem ao sair de Futuros.</li>
+<li><b>Pergunta:</b> o resumo do topo continua contando só do mês passado em diante (como na demo) ou soma também os anos buscados?</li>
+</ul>
+</div>
+</div>
+<script>
+const F=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const MES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+// item: [descricao, banco, data, valor, prazo, tipo]
+const recentes=[{m:9,itens:[['Internet','Nubank','28/09/2026',120,'atrasado 28 dias']]},{m:10,itens:[['Agua','C6','09/10/2026',648.13,'atrasado 17 dias'],['Condomínio','Itau','10/10/2026',507.38,'atrasado 16 dias'],['Mercado','Nubank','10/10/2026',227.77,'atrasado 16 dias']]}];
+const antigos={2019:[{m:3,itens:[['IPVA do carro','Bradesco','10/03/2019',980,'atrasado 7 anos']]},{m:11,itens:[['Seguro residencial','Itau','02/11/2019',412.5,'atrasado 6 anos']]}],2022:[{m:6,itens:[['Matrícula do curso','Nubank','15/06/2022',350,'atrasado 4 anos']]}]};
+const futuros=[{t:'Novembro de 2026',itens:[['Aluguel','Itau','05/11/2026',1500,'em 10 dias'],['Internet','Nubank','28/11/2026',120,'em 33 dias']]}];
+let aberto,carregados,msg,carregando,anoSel,fone=false;
+function reset(){aberto={};carregados=[];msg='';carregando=false;anoSel='2026';draw()}
+const qtd=bl=>bl.reduce((s,b)=>s+b.itens.length,0);
+const soma=bl=>bl.reduce((s,b)=>s+b.itens.reduce((t,i)=>t+i[3],0),0);
+function linha(i,atr){
+  const v=`-${F(i[3])}`;
+  if(fone)return `<div class="ev"><div class="l"><span class="d">${i[0]}</span><span class="m">${i[2]} · <span class="pv">PREVISTO</span> · ${i[1]}</span></div><div class="r"><span class="v ${atr?'at':''}">${v}</span><span class="p" style="${atr?'':'color:var(--muted);font-weight:400'}">${i[4]}</span></div><span class="mais">⋯</span></div>`;
+  return `<div class="dt"><span>${i[2]}</span><span class="tx">${i[0]}</span><span>${i[1]}</span><span><span class="pv">PREVISTO</span></span><span class="v ${atr?'at':''}">${v}<small style="${atr?'':'color:var(--muted);font-weight:400'}">${i[4]}</small></span><span class="acts"><span>Confirmar</span><span>Editar</span><span>Copiar</span><span>Prever</span><span>Ocultar</span><span>Excluir</span></span></div>`}
+function ano(a,bl){
+  const k=String(a),ab=aberto[k]!==undefined?aberto[k]:a===2026;
+  let h=`<button class="tg" data-k="${k}" aria-expanded="${ab}"><span>${a} ${ab?'▴':'▾'}</span><span class="n">${qtd(bl)} · ${F(soma(bl))}</span></button>`;
+  if(ab)bl.forEach(b=>{const kk=a+'-'+b.m,ab2=aberto[kk]!==false;
+    h+=`<button class="tg mes" data-k="${kk}" aria-expanded="${ab2}"><span>${MES[b.m-1]} ${ab2?'▴':'▾'}</span><span class="n">${b.itens.length}</span></button>`;
+    if(ab2)h+=b.itens.map(i=>linha(i,true)).join('')});
+  return h}
+function draw(){
+  let h=`<div class="hd"><div class="t"><small>Finanças</small>Futuros</div><div class="pills"><span>Lançar</span><span>Histórico</span><span>Listas</span><span>Tendências</span><span>Cartão</span><span>Saldos</span><span class="on">Futuros</span><span>Configurações</span></div><span class="usr">Cicero ▾</span><span class="dots">⋮</span></div>`;
+  h+=`<div class="sum"><div><small>A pagar</small><b>${F(389279.99)}</b></div><div><small>A receber</small><b>${F(137373.06)}</b></div><div class="at"><small>Atrasados</small><b>58 · ${F(32529.41)}</b></div></div>`;
+  h+=`<div class="opt"><span class="sw"><i></i></span>Mostrar ocultos (ficam fora dos totais)</div>`;
+  h+=`<div class="cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span>Valor</span><span></span></div>`;
+  const anos=[];for(let a=2026;a>=2016;a--)anos.push(a);
+  h+=`<div class="gt bad"><span>Atrasados</span><span class="anos"><label for="ano">Anos anteriores</label><select id="ano">${anos.map(a=>`<option ${String(a)===anoSel?'selected':''}>${a}</option>`).join('')}</select><button id="ver" ${carregando?'disabled':''}>${carregando?'Buscando...':'Ver'}</button></span></div>`;
+  h+=`<div class="card">${ano(2026,recentes)}`+carregados.slice().sort((a,b)=>b-a).map(a=>ano(a,antigos[a])).join('')+`</div>`;
+  futuros.forEach(g=>{h+=`<div class="gt"><span>${g.t}</span></div><div class="card">${g.itens.map(i=>linha(i,false)).join('')}</div>`});
+  if(msg)h+=`<div class="toast" role="status">${msg}</div>`;
+  document.getElementById('scr').innerHTML=h}
+document.getElementById('scr').addEventListener('click',e=>{
+  const t=e.target.closest('.tg');
+  if(t){const k=t.dataset.k,cur=t.getAttribute('aria-expanded')==='true';aberto[k]=!cur;msg='';draw();return}
+  if(e.target.id==='ver'){
+    anoSel=document.getElementById('ano').value;const a=+anoSel;msg='';
+    if(carregados.includes(a)){msg=`${a} já está na tela.`;draw();return}
+    carregando=true;draw();
+    setTimeout(()=>{carregando=false;
+      if(antigos[a]){carregados.push(a);aberto[String(a)]=false;msg=`${a}: ${qtd(antigos[a])} atrasado${qtd(antigos[a])>1?'s':''}. Toque no ano para abrir.`}
+      else msg=`Nenhum atrasado em ${a}.`;
+      draw();setTimeout(()=>{msg='';draw()},3500)},700)}});
+const fr=document.getElementById('frame');
+function modo(f){fone=f;fr.classList.toggle('fone',f);bFone.setAttribute('aria-pressed',f);bLargo.setAttribute('aria-pressed',!f);draw()}
+bFone.onclick=()=>modo(true);bLargo.onclick=()=>modo(false);bReset.onclick=reset;
+bTema.onclick=()=>{const d=document.documentElement.dataset.theme==='dark';document.documentElement.dataset.theme=d?'light':'dark';bTema.setAttribute('aria-pressed',!d)};
+reset();
+</script>

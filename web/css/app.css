@@ -103,6 +103,11 @@ button.ghost{background:transparent;border:1px solid var(--border);color:var(--t
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
 .tag{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:3px 9px;font-size:12px;cursor:pointer;}
 .tag.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+/* Tema (demos/demo-tema.html): tres botoes grandes no cartao Aparencia */
+.tema-op{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px;}
+.tema-op button{min-height:64px;margin:0;width:auto;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:14px;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:inherit;cursor:pointer;}
+.tema-op button small{color:var(--muted);font-size:11.5px;text-align:center;}
+.tema-op button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-bg);font-weight:600;}
 .item{border-bottom:1px solid var(--border);padding:10px 0;}
 .excluindo{opacity:.55;pointer-events:none;}
 .excluindo .item-desc::after,.excluindo .fut-m .d::after{content:' · Excluindo…';font-weight:400;}
@@ -341,6 +346,18 @@ body[data-aba="futuros"] main{max-width:1600px;}
 .fut-sw input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 .fut-titulo{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;color:var(--muted);margin:12px 4px 6px;}
 .fut-titulo.atras{color:var(--danger);}
+/* Atrasados por ano (item 45, demos/demo-atrasados-por-ano.html): o seletor de anos anteriores na linha do titulo e os blocos Ano > Mes recolhiveis */
+.fut-titulo{flex-wrap:wrap;align-items:center;min-height:36px;}
+.fut-anos{display:flex;align-items:center;gap:6px;font-weight:400;}
+.fut-anos label{font-size:12px;color:var(--muted);}
+.fut-anos select,.fut-anos button{height:36px;border-radius:10px;font:inherit;font-size:14px;}
+.fut-anos select{border:1px solid var(--border);background:var(--card);color:var(--text);padding:0 8px;}
+.fut-anos button{border:0;background:var(--accent);color:var(--accent-ink);padding:0 14px;margin:0;width:auto;font-weight:600;cursor:pointer;}
+.fut-anos button[disabled]{opacity:.6;cursor:default;}
+.fut-bloco{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;box-sizing:border-box;border:0;border-top:1px solid var(--border);border-radius:0;background:color-mix(in srgb,var(--muted) 10%,var(--card));color:var(--danger);font:inherit;font-size:13px;font-weight:600;padding:0 14px;min-height:44px;text-align:left;cursor:pointer;}
+.fut-grupo>.fut-bloco:first-child{border-top:0;}
+.fut-bloco.mes{background:transparent;color:var(--muted);padding-left:26px;}
+.fut-bloco-n{color:var(--muted);font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums;}
 /* Soma de valores (renda menos gasto): saldo do mês em Futuros e total do Histórico. Nunca quebra no meio. */
 .soma-valor{flex:none;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);}
 .soma-valor.pos{color:var(--income);}

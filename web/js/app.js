@@ -3,6 +3,7 @@ let papelAtual = 'owner', meuSub = '';
 let lancamentosParaImportar = [];
 let listas = { status: [], banco: [] }; // status: a lista que o servidor manda (forma de pagamento); o app so a exibe
 let statusCor = {};
+let tema = 'auto'; // da aparencia da pessoa: auto (segue o aparelho), claro ou escuro (js/tema.js aplica)
 let estiloCor = 'ambos';
 let corAberta = null;
 const COR_PALETA = ['#639922','#BA7517','#378ADD','#7F77DD','#888780','#D85A30','#1D9E75','#D4537E','#E24B4A'];
@@ -771,6 +772,7 @@ async function init(){
       if(d && d.faturaPadrao) faturaPadrao = clonar(d.faturaPadrao);
       if(d && d.statusCorPadrao) coresPadrao = clonar(d.statusCorPadrao);
       if(d && d.statusCor) statusCor = clonar(d.statusCor);
+      tema = (d && d.tema) || 'auto'; Tema.escolher(tema);
       if(d && d.estiloCor) estiloCor = d.estiloCor;
       if(d && d.layoutSaldos) layoutSaldos = d.layoutSaldos;
       if(d && d.ordemSaldos) ordemSaldos = d.ordemSaldos;
@@ -988,6 +990,13 @@ function renderListas(){
 }
 
 function renderAparencia(){
+  const NOMES_TEMA = {auto:'Automático', claro:'Claro', escuro:'Escuro'};
+  document.getElementById('temaBtns').innerHTML = [['auto','🌗','segue o aparelho'],['claro','☀️','sempre claro'],['escuro','🌙','sempre escuro']].map(([k,ic,sub])=>
+    `<button type="button" data-tema="${k}" aria-pressed="${tema===k}"><span>${ic} ${NOMES_TEMA[k]}</span><small>${sub}</small></button>`).join('');
+  document.querySelectorAll('[data-tema]').forEach(b=>b.onclick=()=>{
+    tema = b.dataset.tema; Tema.escolher(tema);
+    salvarListas(); renderAparencia(); toast('Tema: '+NOMES_TEMA[tema]+'.');
+  });
   const op = [['linha','Linha inteira'],['faixa','Faixa + selo'],['ambos','Os dois juntos'],['nenhum','Sem cor']];
   document.getElementById('estiloCorBtns').innerHTML = op.map(([k,t])=>
     `<span class="tag ${estiloCor===k?'on':''}" data-estilo-cor="${k}">${t}</span>`).join('');
@@ -1034,7 +1043,7 @@ function renderAparencia(){
 
 async function salvarListas(){
   if(!db) return;
-  await db.doc("config/listas").set({banco: listas.banco, statusCor, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
+  await db.doc("config/listas").set({banco: listas.banco, statusCor, tema, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
 }
 async function removerBanco(banco){
   if(!db) return;
@@ -1532,13 +1541,19 @@ function diaLocal(l){ return chaveDia(new Date(l.dataEvento)); }
 // ---------- Futuros: o servidor manda tudo pronto (GET /futuros): previstos, resumo, Atrasados e meses ----------
 let futurosDados = null, futurosCarregando = false, futurosRepetir = false;
 let futurosTimer;
+// Atrasados por ano (item 45): os anos antigos buscados a pedido e quais blocos (ano ou mes) a pessoa abriu ou fechou. O servidor agrupa e conta; aqui so se guarda a escolha.
+let futurosAnosExtra = [], futurosBlocos = {}, futurosAnoSel = '', futurosAnoBuscando = false;
 // varias leituras de lancamentos seguidas (a abertura do app, uma gravacao) viram uma leitura so de Futuros
 function agendarFuturos(){ clearTimeout(futurosTimer); futurosTimer = setTimeout(carregarFuturos, 400); }
 async function carregarFuturos(){
   if(!db || typeof db.futuros !== 'function') return;
   if(futurosCarregando){ futurosRepetir = true; return; } // alguem gravou durante a leitura: le de novo no fim
   futurosCarregando = true;
-  try{ futurosDados = await db.futuros(); }
+  try{
+    futurosDados = await db.futuros();
+    // os anos antigos ja buscados sao lidos de novo, para nao mostrar o que acabou de ser confirmado ou excluido
+    if(futurosAnosExtra.length) futurosAnosExtra = await Promise.all(futurosAnosExtra.map(g=>db.futurosAno(g.ano)));
+  }
   catch(e){ console.error('Falha ao ler os Futuros', e); }
   finally{
     futurosCarregando = false;
@@ -1549,17 +1564,58 @@ async function carregarFuturos(){
 // todos os previstos que o servidor mandou (sem os que acabaram de ser excluidos aqui)
 function futurosLista(){
   if(!futurosDados) return [];
-  return [...futurosDados.atrasados, ...futurosDados.meses.flatMap(m=>m.itens)].filter(l=>l.tipo!=='fatura' && !exclusaoPendente.has(l.id));
+  const atrasados = [...futurosDados.atrasados, ...futurosAnosExtra].flatMap(a=>a.meses.flatMap(m=>m.itens));
+  return [...atrasados, ...futurosDados.meses.flatMap(m=>m.itens)].filter(l=>l.tipo!=='fatura' && !exclusaoPendente.has(l.id));
 }
-// os grupos para mostrar: Atrasados e um por mes. O servidor ja agrupou; aqui so se esconde o oculto (a chave "Mostrar ocultos") e o que acabou de ser excluido.
+// os grupos para mostrar: Atrasados (anos e meses recolhiveis) e um por mes. O servidor ja agrupou e contou; aqui so se esconde o oculto (a chave "Mostrar ocultos") e o que acabou de ser excluido.
 function futurosGrupos(){
   const mostrar = document.getElementById('futMostrarOcultos').checked;
   const ok = l=> (mostrar || !l.oculto) && !exclusaoPendente.has(l.id);
   const grupos = [];
-  const atrasados = futurosDados.atrasados.filter(ok);
-  if(atrasados.length) grupos.push({titulo:'Atrasados', atrasado:true, itens:atrasados});
+  const anos = [];
+  // os anos buscados vem do mais novo para o mais velho, depois do ano da janela
+  [...futurosDados.atrasados.map(a=>({a, busca:false})), ...futurosAnosExtra.slice().sort((x,y)=>y.ano-x.ano).map(a=>({a, busca:true}))].forEach(({a, busca})=>{
+    const meses = a.meses.map(m=>({mes:m.mes, n:m.n, itens:m.itens.filter(ok)})).filter(m=>m.itens.length);
+    if(meses.length) anos.push({ano:a.ano, n:a.n, valor:a.valor, busca, meses});
+  });
+  grupos.push({titulo:'Atrasados', atrasado:true, anos});
   futurosDados.meses.forEach(m=>{ const itens = m.itens.filter(ok); if(itens.length) grupos.push({titulo:rotuloMes(m.mes), atrasado:false, itens}); });
   return grupos;
+}
+// aberto por padrao: o ano da janela e todos os meses; o ano buscado chega recolhido
+function futurosBlocoAberto(chave, padrao){ return chave in futurosBlocos ? futurosBlocos[chave] : padrao; }
+function htmlBlocoAtrasados(a){
+  const ka = 'a'+a.ano, aberto = futurosBlocoAberto(ka, !a.busca);
+  let h = `<button type="button" class="fut-bloco" data-fut-bloco="${ka}" aria-expanded="${aberto}"><span>${esc(a.ano)} ${aberto?'▴':'▾'}</span><span class="fut-bloco-n">${a.n} · ${fmtMoeda(a.valor)}</span></button>`;
+  if(!aberto) return h;
+  a.meses.forEach(m=>{
+    const km = 'm'+m.mes, ab = futurosBlocoAberto(km, true);
+    h += `<button type="button" class="fut-bloco mes" data-fut-bloco="${km}" aria-expanded="${ab}"><span>${esc(MESES_NOME[+m.mes.slice(5)-1])} ${ab?'▴':'▾'}</span><span class="fut-bloco-n">${m.n}</span></button>`;
+    if(ab) h += m.itens.map(l=>l.tipo==='fatura'?htmlFaturaFuturo(l):htmlEventoFuturo(l)).join('');
+  });
+  return h;
+}
+// a linha do titulo Atrasados leva o seletor dos anos anteriores (a lista de anos vem do servidor)
+function htmlTituloAtrasados(){
+  const anos = futurosDados.anosAnteriores || [];
+  if(!anos.length) return '<div class="fut-titulo atras"><span>Atrasados</span></div>';
+  const sel = futurosAnoSel || String(anos[0]);
+  return `<div class="fut-titulo atras"><span>Atrasados</span><span class="fut-anos"><label for="futAno">Anos anteriores</label>`+
+    `<select id="futAno">${anos.map(a=>`<option ${String(a)===sel?'selected':''}>${a}</option>`).join('')}</select>`+
+    `<button type="button" id="futAnoVer" ${futurosAnoBuscando?'disabled':''}>${futurosAnoBuscando?'Buscando...':'Ver'}</button></span></div>`;
+}
+async function buscarAtrasadosDoAno(){
+  const ano = (document.getElementById('futAno')||{}).value;
+  if(!ano || futurosAnoBuscando) return;
+  futurosAnoSel = ano;
+  if(futurosAnosExtra.some(g=>String(g.ano)===ano)){ toast(ano+' já está na tela.'); return; }
+  futurosAnoBuscando = true; renderFuturos();
+  try{
+    const g = await db.futurosAno(ano);
+    if(g.n || g.meses.length){ futurosAnosExtra.push(g); toast(`${ano}: ${g.n} atrasado${g.n===1?'':'s'}. Toque no ano para abrir.`); }
+    else toast('Nenhum atrasado em '+ano+'.');
+  }catch(e){ console.error('Falha ao buscar os atrasados do ano', e); toast('Não foi possível buscar os atrasados de '+ano+'.', true); }
+  finally{ futurosAnoBuscando = false; renderFuturos(); }
 }
 function chipAviso(l){
   const a = l && l.aviso;
@@ -1609,15 +1665,16 @@ function renderFuturos(){
   document.getElementById('futMetricaAtras').classList.toggle('alerta', r.atrasados.n > 0);
   document.getElementById('futMetricaAtras').classList.toggle('sem-atraso', r.atrasados.n === 0);
   const grupos = futurosGrupos();
-  if(!grupos.length){
-    el.innerHTML = '<p class="muted">Nenhum evento futuro. Crie um lançamento na aba Lançar com uma data futura.</p>';
-    return;
-  }
+  // o grupo Atrasados sempre existe (leva o seletor dos anos anteriores); sem nada nele, ele some da lista, mas o seletor continua
+  const vazio = grupos.every(g=>g.atrasado ? !g.anos.length : !g.itens.length);
+  const semAtrasados = grupos[0].anos.length === 0;
   el.innerHTML = (futurosDados.truncado ? '<p class="muted">Mostrando os 1000 primeiros eventos.</p>' : '') +
+    (vazio ? '<p class="muted">Nenhum evento futuro. Crie um lançamento na aba Lançar com uma data futura.</p>' : '') +
     '<div class="fut-tabela"><div class="fut-tabela-in">'+
-    '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>'+
-    grupos.map(g=>
-      `<div class="fut-titulo ${g.atrasado?'atras':''}"><span>${esc(g.titulo)}</span></div><div class="fut-grupo">${g.itens.map(l=>l.tipo==='fatura'?htmlFaturaFuturo(l):htmlEventoFuturo(l)).join('')}</div>`).join('')+
+    (vazio ? '' : '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>')+
+    grupos.map(g=> g.atrasado
+      ? htmlTituloAtrasados() + (semAtrasados ? '' : `<div class="fut-grupo">${g.anos.map(htmlBlocoAtrasados).join('')}</div>`)
+      : `<div class="fut-titulo"><span>${esc(g.titulo)}</span></div><div class="fut-grupo">${g.itens.map(l=>l.tipo==='fatura'?htmlFaturaFuturo(l):htmlEventoFuturo(l)).join('')}</div>`).join('')+
     '</div></div>';
 }
 
@@ -2313,7 +2370,11 @@ function limparTudoHist(){
 document.getElementById('listaFuturos').addEventListener('click', e=>{
   const b = e.target.closest('[data-fut-abrir]');
   if(b) abrirAcoesFuturo(b.dataset.futAbrir);
+  const bl = e.target.closest('[data-fut-bloco]');
+  if(bl){ futurosBlocos[bl.dataset.futBloco] = bl.getAttribute('aria-expanded') !== 'true'; renderFuturos(); }
+  if(e.target.closest('#futAnoVer')) buscarAtrasadosDoAno();
 });
+document.getElementById('listaFuturos').addEventListener('change', e=>{ if(e.target.id === 'futAno') futurosAnoSel = e.target.value; });
 document.getElementById('futMostrarOcultos').addEventListener('change', renderFuturos);
 document.getElementById('buscaIncluiFuturos').addEventListener('change', renderHistorico);
 function inicioPeriodoHist(p){ const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - DIAS_PERIODO[p]); return d; }
