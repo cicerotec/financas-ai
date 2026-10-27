@@ -116,7 +116,7 @@ assert.strictEqual(els.usrDrop.hidden, true, 'clique fora fecha');
 // ---------- as acoes ----------
 limpa(); els.usrBtn.ouvintes.click({ stopPropagation() {} });
 clique('sair');
-assert.deepStrictEqual(JSON.parse(JSON.stringify(chamadas)), [['fecharMenuApp', false], ['sair']], 'Sair fecha o menu e encerra a sessao');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(chamadas)), [['sair']], 'Sair so encerra a sessao: fechar o menu do app dispara o history.go(-1) do voltar.js e cancela a navegacao do logout');
 assert.strictEqual(els.usrDrop.hidden, true);
 
 limpa(); clique('listas');

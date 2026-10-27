@@ -22,6 +22,7 @@ const chamadas = [];
 const ctx = {
   console, setTimeout, Number, String, Array, JSON, Math, Date, Intl, RegExp, Promise, Error,
   document: {
+    readyState: 'complete', // o script e carregado na primeira visita a tela, depois do DOMContentLoaded
     getElementById: (id) => elementos[id] || (id === 'tab-versoes' || id === 'modalOverlay' ? elemento(id) : null),
     createElement: () => ({ id: '', className: '', innerHTML: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, querySelector() { return null; }, remove() { delete elementos[this.id]; } }),
     body: { style: {}, dataset: { aba: 'versoes' }, appendChild(el) { elementos[el.id] = el; el.remove = () => { delete elementos[el.id]; }; } },
@@ -76,7 +77,8 @@ const espera = () => new Promise((r) => setTimeout(r, 5));
 const igual = (a, b, msg) => assert.strictEqual(JSON.stringify(a), JSON.stringify(b), msg); // objetos do vm tem outro prototipo
 
 (async () => {
-  V.vsPreparar(); // o DOMContentLoaded do navegador
+  // carregado depois do DOMContentLoaded (lazy): os cliques ja precisam estar ligados, sem ninguem chamar vsPreparar
+  assert.strictEqual(typeof escuta.sec.click, 'function', 'o clique da tela esta ligado ao carregar o script');
 
   // celular: lista do mes atual
   V.abrirVersoes(); await espera();

@@ -55,7 +55,9 @@ function usPreparar(){
   document.addEventListener('click', e=>{
     // as acoes do bloco valem no menu do celular e no menu do computador
     const a = e.target.closest && e.target.closest('[data-conta]');
-    if(a && a.dataset.conta === 'sair'){ if(typeof fecharMenuApp === 'function') fecharMenuApp(false); usFechar(false); if(window.claude && claude.sair) claude.sair(); return; }
+    // Sair nao fecha o menu do app: ele e uma camada do botao voltar, e fecha-lo faz o voltar.js pedir history.go(-1), que cancela a navegacao
+    // para o logout (7 ms depois, "cancelado" no inspetor) e a pessoa continua no app. A pagina vai embora sozinha.
+    if(a && a.dataset.conta === 'sair'){ usFechar(false); if(window.claude && claude.sair) claude.sair(); return; }
     if(a && a.dataset.conta === 'listas'){ if(typeof fecharMenuApp === 'function') fecharMenuApp(false); usFechar(false); irParaAba('listas'); return; }
     if(!drop.hidden && !(e.target.closest && e.target.closest('#usrDrop'))) usFechar(false); // clique fora
   });
