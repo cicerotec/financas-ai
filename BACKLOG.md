@@ -30,7 +30,6 @@ pendentes: nenhum.
 - [\[Backend\] - 39 - **\[Depois\] Open Finance (visão):**](#item-39)
 - [\[Backend\] - 43 - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
 - [\[Backend\] - 44 - **\[Depois\] Reclassificação em massa (admin):**](#item-44)
-- [\[Front\] - 45 - **\[Depois\] Futuros: atrasados antigos buscados por ano:**](#item-45)
 - [\[Backend\] - 12 - **\[Depois\] Colaboração, Fase 1:**](#item-12)
 - [\[Backend\] - 13 - **\[Depois\] Colaboração, Fase 2:**](#item-13)
 - [\[Backend\] - 15 - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
