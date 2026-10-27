@@ -295,4 +295,6 @@ function vsPreparar(){
   document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && vsAberto && document.getElementById('modalOverlay').classList.contains('hidden')) vsFechar(); });
   if(window.matchMedia) window.matchMedia('(min-width:1160px)').addEventListener('change', ()=>{ if(document.body.dataset.aba === 'versoes') vsRender(); });
 }
-document.addEventListener('DOMContentLoaded', vsPreparar);
+// o script vem na primeira visita a tela (carregarScript), quando o DOMContentLoaded ja passou: ai prepara na hora
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', vsPreparar);
+else vsPreparar();
