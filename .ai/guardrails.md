@@ -31,6 +31,9 @@ Referência: [`arquitetura.md`](arquitetura.md) (decisões de 2026-10-10).
   ao lançar); scripts pesados (`tendencias.js`, `versoes.js`, `xlsx`) vêm na primeira visita. Recarregar é pelo nome
   (gravar `tags` relê só `tags`), nunca "tudo", e o timer só confere o `seq` se alguma tela já leu lançamentos.
   `web/carga.test.js` falha se a subida voltar a ler o que não é dela. Tela nova declara o que lê em `irParaAba`.
+  Excluir ou desfazer um previsto de ano antigo (buscado a pedido, fora de `GET /futuros`) relê só aquele ano, nunca
+  `/futuros` nem os outros anos: `GET /futuros/ano` não tem cache e estourou os 5 RCU em 2026-10-27 (`futuros ano:
+  ProvisionedThroughputExceededException` no log).
 
 ## Telas
 Regra de 2026-10-08: **nenhuma alteração de tela vai para o código antes de uma demo aprovada** pelo dono. Ele vê só o

@@ -1607,16 +1607,34 @@ async function garantirFuturos(){
 // Atrasados por ano (item 45): os anos antigos buscados a pedido e quais blocos (ano ou mes) a pessoa abriu ou fechou. O servidor agrupa e conta; aqui so se guarda a escolha.
 let futurosAnosExtra = [], futurosBlocos = {}, futurosAnoSel = '', futurosAnoBuscando = false;
 // varias leituras de lancamentos seguidas (a abertura do app, uma gravacao) viram uma leitura so de Futuros
-function agendarFuturos(){ clearTimeout(futurosTimer); futurosTimer = setTimeout(carregarFuturos, 400); }
-async function carregarFuturos(){
+function agendarFuturos(){
+  clearTimeout(futurosTimer);
+  const soAnos = futurosSoAnos; futurosSoAnos = null; // vale so para a leitura agendada por esta gravacao; outra mudanca no meio cancela e le tudo
+  futurosTimer = setTimeout(()=>carregarFuturos(soAnos), 400);
+}
+// Excluir (ou desfazer) um previsto de um ano antigo buscado a pedido: ele nao esta em GET /futuros, entao so aquele ano e lido de novo.
+// anoDoItemAntigo guarda o ano de cada item excluido, para o Desfazer saber onde ele estava.
+let futurosSoAnos = null;
+const anoDoItemAntigo = new Map();
+function anoAntigoDoItem(id){
+  const g = futurosAnosExtra.find(g=>g.meses.some(m=>m.itens.some(i=>i.id===id)));
+  return g ? String(g.ano) : '';
+}
+function lerSoOAnoAntigo(ano){ if(ano) (futurosSoAnos = futurosSoAnos || new Set()).add(ano); }
+async function carregarFuturos(soAnos){
   if(!db || typeof db.futuros !== 'function') return;
   if(futurosCarregando){ futurosRepetir = true; return; } // alguem gravou durante a leitura: le de novo no fim
+  const soOsAnos = !!(soAnos && soAnos.size && futurosDados && !futurosSujo);
   futurosCarregando = true;
   futurosSujo = false;
   try{
-    futurosDados = await db.futuros();
-    // os anos antigos ja buscados sao lidos de novo, para nao mostrar o que acabou de ser confirmado ou excluido
-    if(futurosAnosExtra.length) futurosAnosExtra = await Promise.all(futurosAnosExtra.map(g=>db.futurosAno(g.ano)));
+    if(soOsAnos){
+      futurosAnosExtra = await Promise.all(futurosAnosExtra.map(g=>soAnos.has(String(g.ano)) ? db.futurosAno(g.ano) : g));
+    }else{
+      futurosDados = await db.futuros();
+      // os anos antigos ja buscados sao lidos de novo, para nao mostrar o que acabou de ser confirmado ou excluido
+      if(futurosAnosExtra.length) futurosAnosExtra = await Promise.all(futurosAnosExtra.map(g=>db.futurosAno(g.ano)));
+    }
   }
   catch(e){ console.error('Falha ao ler os Futuros', e); futurosSujo = true; }
   finally{
@@ -2102,11 +2120,15 @@ function cortar(t, n){ t = String(t || ''); return t.length > n ? t.slice(0, n) 
 async function iniciarExclusao(id, desc){
   if(excluindo.has(id)) return;
   excluindo.add(id); atualizarVistas();
+  const anoAntigo = anoAntigoDoItem(id);
+  if(anoAntigo) anoDoItemAntigo.set(id, anoAntigo);
+  lerSoOAnoAntigo(anoAntigo);
   let r;
   try{
     r = await db.collection("lancamentos").doc(id).delete();
   }catch(err){
     console.error(err);
+    futurosSoAnos = null; anoDoItemAntigo.delete(id);
     excluindo.delete(id); atualizarVistas();
     if(err && err.codigo === 'cancelado'){ toast(err.message); return; }
     if(err && err.codigo === 'mes_conferido'){ toast(err.message, true); return; }
@@ -2131,13 +2153,15 @@ async function iniciarExclusao(id, desc){
 async function desfazerExclusao(id, versao){
   const falha = (m)=>{ exclusaoPendente.delete(id); toast((m || 'Não foi possível desfazer.') + ' O lançamento continua excluído: recupere em Histórico de versões.', true); };
   if(!versao){ falha(); return; }
+  lerSoOAnoAntigo(anoDoItemAntigo.get(id));
   try{
     const r = await db.restaurarVersao(id, versao);
-    if(r.status !== 200){ falha(r.body && r.body.erro); return; }
+    if(r.status !== 200){ futurosSoAnos = null; falha(r.body && r.body.erro); return; }
     devolverLocal(id);
     toast('Exclusão desfeita');
   }catch(err){
     console.error(err);
+    futurosSoAnos = null;
     falha(msgErro(err));
   }
 }
