@@ -33,6 +33,17 @@ button{font:inherit;color:inherit;cursor:pointer}
 .fichas span{border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:13px}
 .fichas span.on{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
 .ph{opacity:.75}
+/* subsecoes do cartao Aparencia: mesmo desenho das de Configuracoes (borda, titulo em maiusculas pequenas) */
+.subs{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.sub{border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.sub .st{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin:0 0 4px;font-weight:600}
+.sub .mut{margin:2px 0 10px}
+.prev{display:flex;align-items:center;gap:10px;margin-top:10px;border:1px solid var(--line);border-left:0;border-radius:8px;overflow:hidden;padding-right:12px}
+.prev i{align-self:stretch;width:4px;flex:none}
+.prev div{flex:1;padding:8px 0}
+.prev small{display:block;color:var(--muted);font-size:12.5px}
+.prev small u{text-decoration:none;font-weight:700;background:var(--accent-bg);border-radius:6px;padding:1px 6px;color:var(--fg)}
+.prev em{font-style:normal;font-weight:600;color:#c0503f}
 .nota{max-width:720px;margin:16px auto 0;background:var(--card);border-radius:16px;padding:14px 16px;font-size:13px}
 .nota h3{margin:0 0 6px;font-size:14px}
 .nota ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
@@ -52,7 +63,8 @@ button{font:inherit;color:inherit;cursor:pointer}
   <div class="toast" id="toast" hidden role="status"></div>
 </div>
 <div class="nota"><h3>O que a proposta faz e o que se perde</h3><ul>
-  <li><b>Tema</b> é o primeiro item do cartão Aparência de Listas, antes das cores dos status e dos saldos, que ficam como estão.</li>
+  <li><b>O cartão Aparência passa a ter três subseções</b>, no mesmo desenho das de Configurações (caixa com borda e rótulo pequeno em maiúsculas): <b>Tema</b>, <b>Status</b> (estilo das cores e a prévia) e <b>Saldos</b> (layout e ordem). O conteúdo de Status e Saldos não muda, só ganha a separação.</li>
+  <li><b>Custo:</b> um nível a mais de caixas dentro do cartão, que ocupa uns 30 px a mais de altura no celular.</li>
   <li><b>Três opções:</b> Automático (segue o claro/escuro do aparelho, como o app já faz hoje), Claro e Escuro. Vale na hora, sem botão Salvar.</li>
   <li><b>Dono e membro</b> veem o mesmo cartão, porque Aparência já é pessoal e aberta aos dois. Nada muda em Configurações.</li>
   <li><b>Onde fica guardado (aprovado em 2026-10-26):</b> na conta da pessoa, no campo <code>tema</code> do item <code>USER#&lt;sub&gt;#CFG#APARENCIA</code> (<code>auto</code>, <code>claro</code> ou <code>escuro</code>; ausente vale <code>auto</code>). Vale em qualquer aparelho.</li>
@@ -69,11 +81,16 @@ function render(){
    `<div class="card ph"><b>Seu nome</b><p class="mut">Como você aparece para quem divide o espaço.</p></div>`+
    `<div class="card ph"><b>Avisos no Telegram</b><p class="mut">Seu Id do Telegram para receber os avisos.</p></div>`+
    `<div class="card"><b>Aparência</b>
-      <div class="rot" style="margin-top:8px">Tema <span style="color:var(--faint)">· vale em qualquer aparelho seu</span></div>
-      <div class="op" role="group" aria-label="Tema">${op}</div>
-      <div class="rot">Cores dos status no Histórico</div><div class="fichas"><span class="on">Texto</span><span>Fundo</span><span>Borda</span></div>
-      <div class="rot">Layout dos saldos</div><div class="fichas"><span class="on">Lista</span><span>Grade</span></div>
-      <div class="rot">Ordem dos saldos</div><div class="fichas"><span class="on">Automática</span><span>Manual</span></div></div>`+
+      <div class="subs">
+      <div class="sub"><div class="st">Tema</div><p class="mut">Vale em qualquer aparelho seu.</p>
+        <div class="op" role="group" aria-label="Tema">${op}</div></div>
+      <div class="sub"><div class="st">Status</div><p class="mut">Como as cores dos status aparecem no Histórico. A cor de cada status você escolhe na bolinha, no cartão Forma de pagamento.</p>
+        <div class="fichas"><span>Linha inteira</span><span class="on">Faixa + selo</span><span>Os dois juntos</span><span>Sem cor</span></div>
+        <div class="prev"><i style="background:#3f9a62"></i><div><b>Exemplo de lançamento</b><small><u>PAGO</u> · Banco</small></div><em>-R$ 10,00</em></div></div>
+      <div class="sub"><div class="st">Saldos</div>
+        <div class="rot" style="margin-top:6px">Layout dos saldos</div><div class="fichas"><span class="on">Uma linha por banco</span><span>Quadradinhos</span></div>
+        <div class="rot">Ordem dos saldos</div><div class="fichas"><span>Ordem da lista</span><span class="on">Maior saldo</span><span>Manual</span></div></div>
+      </div></div>`+
    `<div class="card ph"><b>Forma de pagamento</b><p class="mut">Os status e a cor de cada um.</p></div>`+
    (dono?`<div class="card ph"><b>Bancos / contas</b></div><div class="card ph"><b>Tags</b></div><div class="card ph"><b>Combos de tags</b></div>`:'');
   $('corpo').querySelectorAll('.op button').forEach(b=>b.onclick=()=>{escolha=b.dataset.k;aplica();render();const t=$('toast');t.hidden=false;t.textContent='Tema: '+NOME[escolha]+'.';clearTimeout(window._t);window._t=setTimeout(()=>t.hidden=true,2500)});
