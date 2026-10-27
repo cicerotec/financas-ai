@@ -103,6 +103,11 @@ button.ghost{background:transparent;border:1px solid var(--border);color:var(--t
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
 .tag{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:3px 9px;font-size:12px;cursor:pointer;}
 .tag.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+/* Subsecoes do cartao Aparencia (demos/demo-tema.html): Tema, Status e Saldos, no desenho das de Configuracoes */
+.ap-subs{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+.ap-sub{border:1px solid var(--border);border-radius:14px;padding:12px 14px;}
+.ap-sub .muted{margin:2px 0 6px;}
+.ap-st{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:0 0 4px;}
 /* Tema (demos/demo-tema.html): tres botoes grandes no cartao Aparencia */
 .tema-op{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px;}
 .tema-op button{min-height:64px;margin:0;width:auto;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:14px;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:inherit;cursor:pointer;}
