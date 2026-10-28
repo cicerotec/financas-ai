@@ -111,7 +111,7 @@ parâmetro `semPrevistos=1` que só a B liga. Não está no spec; é só dizer.)
 | A cópia de um Prever com data passada (série antiga) deixa de ser previsto | É a regra da data; a cópia vira lançamento comum e conta no saldo. Vai nas decisões abaixo |
 | `GET /futuros` lê a partição inteira (os `PREVISTO` antigos, de qualquer ano, continuam em Atrasados), e a base vai de 2016 em diante | Medir no dev com **10 anos de dados fictícios** (gerar mais lançamentos em `scripts/dados-ficticios.py`); sem chave nova; se pesar, um GSI só com a aprovação do dono |
 | As caixas de `CFG#LISTAS` de algum espaço diferirem do catálogo (alguém mexeu num padrão) | A conferência de leitura antes do deploy (R9b); a divergência vira decisão do dono antes de ligar |
-| Reclassificar o passado por engano | Cada troca é uma versão do histórico (quem, quando), reversível pela restauração; a trava de data segue o efeito no saldo; a troca em massa é só do admin (item 44) |
+| Reclassificar o passado por engano | Cada troca é uma versão do histórico (quem, quando), reversível pela restauração; a trava de data segue o efeito no saldo; não há troca em massa por admin (item 44 removido em 2026-10-27) |
 | Um status criado em Listas que o dono esqueceu | O dono confirmou que não há; a conferência acima também lista qualquer status de `CFG#LISTAS` ou de lançamento fora do catálogo |
 
 ## Decisões que o plan fixou e o dono pode contestar
