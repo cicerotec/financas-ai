@@ -1723,24 +1723,42 @@ function prazoFuturo(l){
   return {t:`em ${n} dia${n===1?'':'s'}`, atras:false};
 }
 function dataBR(l){ return new Date(l.dataEvento).toLocaleDateString('pt-BR'); }
-// Acoes de um evento, na ordem e com as mesmas permissoes de antes. t = texto da janela; c = texto curto da tabela.
+// Acoes de um evento, na ordem e com as mesmas permissoes de antes. t = nome da acao (janela do celular e dica do botao da tabela); i = o icone.
 function acoesDoEvento(l){
   const a = [];
   // Confirmar vale so para previsto (o servidor manda previsto: true); em saida o texto e "Já paguei", em entrada "Já recebi"
-  if(l.previsto && podeMexer(l)) a.push({k:'confirmar', t:l.tipo==='saida'?'Já paguei':'Já recebi', c:'Confirmar', pri:true});
-  if(podeMexer(l)) a.push({k:'editar', t:'Editar', c:'Editar'});
-  a.push({k:'copiar', t:'Copiar', c:'Copiar'});
-  if(!l.transferParId) a.push({k:'prever', t:l.serie?'Estender série':'Prever próximas datas', c:l.serie?'Estender':'Prever'});
-  if(podeMexer(l)) a.push({k:'ocultar', t:l.oculto?'Mostrar':'Ocultar', c:l.oculto?'Mostrar':'Ocultar'});
-  if(ehOwner()) a.push({k:'excluir', t:'Excluir', c:'Excluir', perigo:true});
+  if(l.previsto && podeMexer(l)) a.push({k:'confirmar', i:'confirmar', t:l.tipo==='saida'?'Já paguei':'Já recebi', pri:true});
+  if(podeMexer(l)) a.push({k:'editar', i:'editar', t:'Editar'});
+  a.push({k:'copiar', i:'copiar', t:'Copiar'});
+  if(!l.transferParId) a.push({k:'prever', i:l.serie?'estender':'prever', t:l.serie?'Estender série':'Prever próximas datas'});
+  if(podeMexer(l)) a.push({k:'ocultar', i:l.oculto?'mostrar':'ocultar', t:l.oculto?'Mostrar':'Ocultar'});
+  if(ehOwner()) a.push({k:'excluir', i:'excluir', t:'Excluir', perigo:true});
   return a;
 }
+// Botoes da tabela: so o icone (traco de 2 px, herda a cor), com o nome em title e aria-label. Cada acao tem o seu lugar fixo na coluna de acoes
+// (6 lugares), e a que nao existe na linha deixa o lugar vazio: assim cada icone cai sempre na mesma coluna. Demo: .ai/demos/demo-icones-acoes.html (opcao 1 de cada).
+const ICONES_ACAO = {
+  confirmar: '<path d="M5 13l4 4L19 7"/>',
+  editar: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
+  copiar: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+  prever: '<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/><path d="M12 13v4M10 15h4"/>',
+  estender: '<path d="M4 6h12M4 12h8M4 18h8"/><path d="M18 14v6M15 17h6"/>',
+  ocultar: '<path d="M3 3l18 18"/><path d="M10.6 6.2A9.5 9.5 0 0 1 12 6c5 0 9 4 10 6-.5 1-1.5 2.4-3 3.6M6.5 7.5C4.4 8.9 3 10.8 2 12c1 2 5 6 10 6 1.4 0 2.7-.3 3.9-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  mostrar: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  excluir: '<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
+  avisar: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/>'
+};
+const LUGAR_ACAO = {confirmar:1, editar:2, copiar:3, prever:4, avisar:4, ocultar:5, excluir:6};
+function botaoAcao(k, icone, nome, id, cls){
+  return `<button type="button" class="${cls||''}" data-acao="${k}" data-id="${id}" style="grid-column:${LUGAR_ACAO[icone==='estender'?'prever':icone==='mostrar'?'ocultar':icone]||LUGAR_ACAO[k]}" title="${esc(nome)}" aria-label="${esc(nome)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES_ACAO[icone]}</svg></button>`;
+}
+const botoesDoEvento = (l, id)=>acoesDoEvento(l).map(a=>botaoAcao(a.k, a.i, a.t, id, (a.perigo?'perigo':'')+(a.pri?'pri':''))).join('');
 const PONTOS_FUT = '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.7" fill="currentColor"/><circle cx="10" cy="10" r="1.7" fill="currentColor"/><circle cx="16" cy="10" r="1.7" fill="currentColor"/></svg>';
 function htmlEventoFuturo(l){
   const p = prazoFuturo(l), id = esc(l.id);
   const serie = l.serie && l.serie.indice ? `série ${l.serie.indice}` : '';
   const prazo = `<span class="fut-prazo ${p.atras?'atras':''}">${p.t}</span>`;
-  const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}${a.pri?'pri':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
+  const botoes = botoesDoEvento(l, id);
   const cor = estiloCor==='nenhum' ? 'var(--faint)' : corStatus(l.status);
   const sub = [serie, l.oculto?'oculto':''].filter(Boolean).join(' · ');
   return `<div class="fut-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}" style="--cor:${cor}">
@@ -1802,7 +1820,7 @@ function htmlLinhaHist(l, busca){
   const cor = estiloCor==='nenhum' ? 'var(--faint)' : corStatus(l.status);
   const tags = (l.tags||[]).map(t=>'#'+esc(t)).join(' ');
   const fut = '';
-  const botoes = acoesDoEvento(l).map(a=>`<button type="button" class="${a.perigo?'perigo':''}${a.pri?'pri':''}" data-acao="${a.k}" data-id="${id}">${a.c}</button>`).join('');
+  const botoes = botoesDoEvento(l, id);
   return `<div class="fut-row hist-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}" style="--cor:${cor}">
     <div class="fut-m" role="button" tabindex="0" data-fut-abrir="${id}" aria-haspopup="dialog">
       <span class="l"><span class="d">${esc(l.descricao)}</span>
@@ -2165,7 +2183,7 @@ function htmlFaturaFuturo(f){
   const valor = htmlValorLinha({tipo:'saida', valor:f.valor});
   const pagador = f.pagador ? esc(f.pagador) : 'a definir';
   const nome = `Fatura ${esc(f.rotulo)} · ${esc(f.meio)}`;
-  const botao = ehOwner() ? `<button type="button" data-acao="avisarFatura" data-id="${chave}">Avisar</button><button type="button" class="pri" data-acao="pagarFatura" data-id="${chave}">Já paguei</button>` : '';
+  const botao = ehOwner() ? botaoAcao('avisarFatura','avisar','Avisar',chave)+botaoAcao('pagarFatura','confirmar','Já paguei',chave,'pri') : '';
   const sino = f.aviso ? `🔔 ${esc(Recorrencia.fraseAviso({on:true, dias:f.aviso.dias, insistir:f.aviso.insistir}))}` : '';
   return `<div class="fut-row" style="--cor:var(--faint)">
     <button type="button" class="fut-m" data-fut-abrir="${chave}" aria-haspopup="dialog">

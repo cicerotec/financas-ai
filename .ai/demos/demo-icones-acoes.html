@@ -1,0 +1,184 @@
+<title>Ícones das ações</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: uma galeria de 8 ícones por ação (clique para escolher) e, no topo, a tabela de Futuros ao vivo com os ícones escolhidos. Tokens iguais aos do app. */
+:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--line:#e4e2dc;--accent:#0f6b4f;--onaccent:#ffffff;--faint:#8c938d;--accent-bg:#dcefe5;--danger:#c0503f;--saida:#c0503f;--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--line:#2e3430;--accent:#5fc9a0;--onaccent:#08231a;--faint:#7b827c;--accent-bg:#1c3a2e;--danger:#e0705f;--saida:#e8806f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--line:#2e3430;--accent:#5fc9a0;--onaccent:#08231a;--faint:#7b827c;--accent-bg:#1c3a2e;--danger:#e0705f;--saida:#e8806f;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg2);color:var(--fg);font:15px/1.4 var(--font);margin:0;padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.w{max-width:1040px;margin:0 auto}
+h1{font-size:18px;margin:0 0 4px}
+.sub{margin:0;color:var(--muted);font-size:13px}
+h2{font-size:14px;margin:0 0 8px}
+.card{background:var(--card);border-radius:16px;padding:14px 16px;margin-top:14px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px}
+.seg{display:inline-flex;background:var(--bg);border-radius:12px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:8px 12px;border-radius:10px;font-size:13px;min-height:40px}
+.seg button[aria-pressed="true"]{background:var(--card);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+/* tabela de Futuros ao vivo (mesma grade do app, com a coluna de ações estreita) */
+.tab{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.tab-in{min-width:880px}
+.cab,.lin{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px auto;align-items:center;gap:12px;padding:10px 14px}
+.cab{font-size:12px;color:var(--faint);padding-block:6px;border-bottom:1px solid var(--line)}
+.lin{border-top:1px solid var(--line);transition:background .12s}
+.cab+.lin{border-top:0}
+.lin:hover{background:color-mix(in srgb,var(--cor) 16%,var(--card))}
+.lin.oc{opacity:.5}
+.lin .d{font-weight:600}
+.lin .sb{display:block;font-size:12.5px;color:var(--muted)}
+.selo{padding:1px 8px;border-radius:8px;font-weight:600;background:color-mix(in srgb,var(--cor) 32%,transparent)}
+.v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;color:var(--saida)}
+.v small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+/* seis lugares fixos: cada ação tem o seu, e a que não existe na linha deixa o lugar vazio */
+.acoes{display:grid;grid-template-columns:repeat(6,var(--bt,40px));gap:4px;justify-content:end;opacity:.25;transition:opacity .12s}
+.lin:hover .acoes,.lin:focus-within .acoes{opacity:1}
+.ab{width:var(--bt,40px);height:var(--bt,40px);display:grid;place-items:center;border:1px solid var(--line);background:transparent;border-radius:9px;padding:0;color:var(--fg)}
+.ab.pri{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.ab.pg{color:var(--danger)}
+.ab svg{width:20px;height:20px;display:block}
+.nota{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+/* galeria */
+.gal{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}
+.op{border:2px solid var(--line);background:var(--bg);border-radius:12px;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px 2px}
+.op svg{width:28px;height:28px;display:block}
+.op span{font-size:11.5px;color:var(--muted)}
+.op[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-bg)}
+.op[aria-pressed="true"] span{color:var(--fg);font-weight:600}
+.res{font-size:13px;display:flex;flex-wrap:wrap;gap:6px 14px}
+.res b{font-weight:600}
+@media (max-width:620px){.gal{grid-template-columns:repeat(4,minmax(0,1fr))}}
+</style>
+<div class="w">
+  <h1>Ícones das ações em Futuros e Histórico</h1>
+  <p class="sub">Escolha um ícone para cada ação (8 opções cada). A tabela de cima muda na hora; passe o mouse numa linha para ver os botões acesos e sobre um botão para ver o nome. Me diga os números, por exemplo "Confirmar 3, Editar 1, Copiar 4…", ou peça mais 8 opções de qualquer ação.</p>
+  <div class="ctl">
+    <div class="seg" role="group" aria-label="Tamanho do botão"><button id="t36" aria-pressed="false">Botão 36</button><button id="t40" aria-pressed="true">Botão 40</button><button id="t44" aria-pressed="false">Botão 44</button></div>
+  </div>
+  <div class="card">
+    <h2>Como fica (Futuros, janela de 1160 px ou mais)</h2>
+    <div class="tab"><div class="tab-in" id="tab"></div></div>
+    <p class="nota" id="larg"></p>
+  </div>
+  <div class="card"><h2>Sua escolha</h2><div class="res" id="res"></div></div>
+  <div id="gals"></div>
+</div>
+<script>
+(function(){
+  var S='stroke-linecap="round" stroke-linejoin="round"';
+  var I={
+    confirmar:['<path d="M5 13l4 4L19 7"/>',
+      '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+      '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
+      '<path d="M2 13l4 4L14 8"/><path d="M10 15l2 2 9-10"/>',
+      '<path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+      '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 10l2 2 4-4"/>',
+      '<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/><path d="M9 15l2 2 4-4"/>',
+      '<path d="M7 11v9H4v-9z"/><path d="M7 11l4-7c1.5 0 2.5 1 2.2 2.5L13 10h5.5a2 2 0 0 1 2 2.4l-1.2 6A2 2 0 0 1 17.3 20H7"/>'],
+    editar:['<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
+      '<path d="M11 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3L12 16l-4 1 1-4z"/>',
+      '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+      '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
+      '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+      '<path d="M16 3l5 5-11 11H5v-5z"/><path d="M14 5l5 5"/>',
+      '<path d="M4 21h16"/><path d="M6 17l9-9 3 3-9 9H6z"/>',
+      '<path d="M4 6h10M4 12h6M4 18h6"/><path d="M20 10l-6 6-3 1 1-3 6-6z"/>'],
+    copiar:['<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+      '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 3h6v4H9z"/>',
+      '<path d="M8 4h9a2 2 0 0 1 2 2v11"/><rect x="4" y="8" width="12" height="12" rx="2"/>',
+      '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M14 11v6M11 14h6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+      '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+      '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 14h6M12 11v6"/>',
+      '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
+      '<path d="M4 4h10v10H4z"/><path d="M10 10h10v10H10z"/>'],
+    prever:['<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/><path d="M12 13v4M10 15h4"/>',
+      '<path d="M4 5l8 7-8 7z"/><path d="M13 5l8 7-8 7z"/>',
+      '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>',
+      '<circle cx="12" cy="11" r="7"/><path d="M8 20h8"/><path d="M9 9a3.5 3.5 0 0 1 3-2"/>',
+      '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+      '<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/><path d="M9 15h6M13 13l2 2-2 2"/>',
+      '<path d="M5 5l10 7-10 7z"/><path d="M19 5v14"/>',
+      '<circle cx="12" cy="12" r="9"/><path d="M8 12h8M13 9l3 3-3 3"/>'],
+    estender:['<path d="M4 6h12M4 12h8M4 18h8"/><path d="M18 14v6M15 17h6"/>',
+      '<path d="M4 12h12M12 8l4 4-4 4"/><path d="M20 5v14"/>',
+      '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+      '<path d="M4 12h2M9 12h2"/><path d="M15 8l4 4-4 4"/>',
+      '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+      '<path d="M4 6h16M4 11h16M4 16h10"/><path d="M18 14v6M15 17l3 3 3-3"/>',
+      '<path d="M5 20v-6M12 20V9M19 20V4"/>',
+      '<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>'],
+    ocultar:['<path d="M3 3l18 18"/><path d="M10.6 6.2A9.5 9.5 0 0 1 12 6c5 0 9 4 10 6-.5 1-1.5 2.4-3 3.6M6.5 7.5C4.4 8.9 3 10.8 2 12c1 2 5 6 10 6 1.4 0 2.7-.3 3.9-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+      '<path d="M3 10c2 3 5.5 5 9 5s7-2 9-5"/><path d="M6 13.5l-1.5 2.5M12 15v3M18 13.5l1.5 2.5"/>',
+      '<path d="M4 5h16v4H4z"/><path d="M5 9v10h14V9"/><path d="M10 13h4"/>',
+      '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
+      '<circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/>',
+      '<path d="M8 3v4a1 1 0 0 1-1 1H3M21 8h-4a1 1 0 0 1-1-1V3M3 16h4a1 1 0 0 1 1 1v4M16 21v-4a1 1 0 0 1 1-1h4"/>',
+      '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+      '<path d="M5 21V10a7 7 0 0 1 14 0v11l-3-2-2 2-2-2-2 2-2-2z"/><path d="M10 11h.01M14 11h.01"/>'],
+    mostrar:['<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+      '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M6 12s2.5-4 6-4 6 4 6 4-2.5 4-6 4-6-4-6-4z"/><circle cx="12" cy="12" r="1.6"/>',
+      '<path d="M4 5h16v4H4z"/><path d="M5 9v10h14V9"/><path d="M12 17v-5M10 14l2-2 2 2"/>',
+      '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+      '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+      '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+      '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
+      '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'],
+    excluir:['<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
+      '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>',
+      '<path d="M6 6l12 12M18 6L6 18"/>',
+      '<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/>',
+      '<path d="M21 5H9l-7 7 7 7h12z"/><path d="M17 9l-6 6M11 9l6 6"/>',
+      '<path d="M20 20H9l-5-5a2 2 0 0 1 0-2.8L13 3.2a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8L12 20"/>',
+      '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11l4 4M14 11l-4 4"/>',
+      '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9l6 6M15 9l-6 6"/>']
+  };
+  var NOME={confirmar:'Confirmar',editar:'Editar',copiar:'Copiar',prever:'Prever próximas datas',estender:'Estender série',ocultar:'Ocultar',mostrar:'Mostrar',excluir:'Excluir'};
+  var ORDEM=['confirmar','editar','copiar','prever','estender','ocultar','mostrar','excluir'];
+  var esc={confirmar:0,editar:0,copiar:0,prever:0,estender:0,ocultar:0,mostrar:0,excluir:0};
+  var bt=40;
+  var $=function(i){return document.getElementById(i)};
+  function svg(n,k){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '+S+' aria-hidden="true">'+I[n][k]+'</svg>'}
+  var LUGAR={confirmar:1,editar:2,copiar:3,prever:4,estender:4,ocultar:5,mostrar:5,excluir:6};
+  function btn(n,cls,dica){var t=dica||NOME[n];return '<button type="button" class="ab '+(cls||'')+'" style="grid-column:'+LUGAR[n]+'" title="'+t+'" aria-label="'+t+'">'+svg(n,esc[n])+'</button>'}
+  function lin(d,sub,banco,sel,cor,val,dias,oc,acoes){
+    return '<div class="lin'+(oc?' oc':'')+'" style="--cor:'+cor+'"><span>09/11/2026</span><span><span class="d">'+d+'</span>'+(sub?'<span class="sb">'+sub+'</span>':'')+'</span><span>'+banco+'</span><span><span class="selo">'+sel+'</span></span><span class="v">'+val+'<small>'+dias+'</small></span><span class="acoes">'+acoes+'</span></div>';
+  }
+  function tabela(){
+    var JP='Já paguei'; // dica do Confirmar de uma saída (em entrada: Já recebi), a mesma da janela de ações do celular
+    var PV='Prever próximas datas', ES='Estender série';
+    var a1=btn('confirmar','pri',JP)+btn('editar')+btn('copiar')+btn('prever',0,PV)+btn('ocultar')+btn('excluir','pg');
+    var a2=btn('confirmar','pri',JP)+btn('editar')+btn('copiar')+btn('estender',0,ES)+btn('ocultar')+btn('excluir','pg');
+    var a3=btn('confirmar','pri',JP)+btn('editar')+btn('copiar')+btn('prever',0,PV)+btn('mostrar')+btn('excluir','pg');
+    var a4=btn('editar')+btn('copiar')+btn('ocultar')+btn('excluir','pg'); // transferência: sem Prever e já lançada (sem Confirmar)
+    var a5=btn('copiar')+btn('prever',0,PV); // membro: só o que o papel permite
+    var a6=btn('confirmar','pri','Já recebi')+btn('editar')+btn('copiar')+btn('prever',0,PV)+btn('ocultar')+btn('excluir','pg');
+    $('tab').innerHTML='<div class="cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>'+
+      lin('Condominio','','Nubank','PREVISTO','#639922','-R$ 238,08','em 12 dias',false,a1)+
+      lin('Agua','série 1','C6','PREVISTO','#639922','-R$ 648,13','em 12 dias',false,a2)+
+      lin('Seguro do carro','oculto','Itau','PREVISTO','#639922','-R$ 224,26','em 12 dias',true,a3)+
+      lin('Transferência de SANTANDER','','INTER','CONTAS','#7F77DD','+R$ 500,00','',false,a4)+
+      lin('Transferência para INTER','','SANTANDER','CONTAS','#7F77DD','-R$ 500,00','',false,a4)+
+      lin('Freela de novembro','','Nubank','PREVISTO','#639922','+R$ 900,00','em 12 dias',false,a6)+
+      lin('Mercado (visto por membro)','','C6','PAGO','#1D9E75','-R$ 86,60','',false,a5);
+    var larg=6*bt+5*4;
+    $('larg').textContent='Coluna de ações: '+larg+' px (hoje são 400 px, com os rótulos escritos). São 6 lugares fixos e cada ação tem o seu: Confirmar, Editar, Copiar, Prever ou Estender, Ocultar ou Mostrar, Excluir. Linha sem uma ação deixa o lugar vazio (transferência, membro), então cada ícone cai sempre na mesma coluna.';
+    document.documentElement.style.setProperty('--bt',bt+'px');
+  }
+  function resumo(){
+    $('res').innerHTML=ORDEM.map(function(n){return '<span><b>'+NOME[n]+'</b> '+(esc[n]+1)+'</span>'}).join('');
+  }
+  function galerias(){
+    $('gals').innerHTML=ORDEM.map(function(n){
+      return '<div class="card"><h2>'+NOME[n]+'</h2><div class="gal">'+I[n].map(function(_,k){
+        return '<button type="button" class="op" data-n="'+n+'" data-k="'+k+'" aria-pressed="'+(esc[n]===k)+'" aria-label="'+NOME[n]+', opção '+(k+1)+'">'+svg(n,k)+'<span>'+(k+1)+'</span></button>';
+      }).join('')+'</div></div>';
+    }).join('');
+    document.querySelectorAll('.op').forEach(function(b){b.onclick=function(){esc[b.dataset.n]=+b.dataset.k;todo()}});
+  }
+  function todo(){tabela();resumo();galerias()}
+  [36,40,44].forEach(function(t){$('t'+t).onclick=function(){bt=t;['t36','t40','t44'].forEach(function(i){$(i).setAttribute('aria-pressed',String(i==='t'+t))});tabela()}});
+  todo();
+})();
+</script>

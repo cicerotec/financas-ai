@@ -56,7 +56,7 @@ e para ajustes em telas que já existem.
   - **Forma de pagamento** (demo `demo-forma-pagamento.html`): um cartão só para status e cores; interruptor "Cores nas linhas" (igual a "Mostrar ocultos") e, por status, a bolinha de cor com a linha de exemplo do Histórico e de Futuros; sem fichas de estilo em Aparência.
   - **Botão voltar** (demo `demo-voltar-navegador.html`): troca de aba e cada janela ou tela cheia é uma entrada do histórico do navegador (`web/js/voltar.js`); o voltar fecha a camada de cima, o aviso de Desfazer fica fora da pilha, o formulário de edição com texto digitado pergunta antes de descartar. **Janela ou tela cheia nova entra em `camadasAbertas()` e `fecharCamadaTopo()` de `web/js/app.js`.**
   - **Computador:** a mesma tela vira uma tabela de largura total (colunas alinhadas, mínimo de 1120 px a partir de
-    1160 px de janela, container de até 1200 px) com as ações na própria linha, apagadas até o mouse passar ou o foco
+    1160 px de janela, container de até 1200 px) com as ações na própria linha, **só ícones** em seis lugares fixos (demo `demo-icones-acoes.html`), apagadas até o mouse passar ou o foco
     entrar. Mesmos dados e mesmas regras; só o desenho muda com a largura da janela.
   - **Sempre:** cores só pelos tokens do app (claro e escuro), datas com ano (`dd/mm/aaaa`), limites à vista, e a demo
     diz o que a proposta faz perder.
