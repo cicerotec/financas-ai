@@ -308,8 +308,7 @@ Regras:
   status selecionável em qualquer data. O que protege é a **trava de data pelo efeito no saldo** (trocar `PAGO` por `PIX`, que contam igual, não é
   travado; trocar para um que não conta, ou mexer em valor, tipo, meio, data, oculto ou previsto, é) e o **histórico de versões** (toda troca é auditável e
   reversível).
-- **Troca em massa** (o pedido de um dono novo que não gosta de `PAGO` e `CREDITO`, o desmembramento futuro do `PAGO`, a migração do `faturaAjuste`
-  explícito) é uma ferramenta **só do admin** (item 44), com simulação, versão por registro e as mesmas travas.
+- **Troca em massa:** não há ferramenta de admin (item 44 removido em 2026-10-27); o passado se reclassifica um registro por vez pelo app.
 - **Ao ler**, o Histórico sai do servidor pronto: cada linha com rótulo e cor, a **lista de filtros de status que aparecem no período consultado** (um 2019
   mostra `CREDITO IN`; um 2018 reclassificado mostra `PIX`) O **total da lista e a soma por mês saem da tela até o item 42** (decisão do dono, 2026-10-24).
 

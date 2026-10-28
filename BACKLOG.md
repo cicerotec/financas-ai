@@ -1,6 +1,6 @@
 # Backlog e roadmap
 
-Atualizado em 2026-10-26. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
+Atualizado em 2026-10-27. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
 ordem de prioridade e levam a etiqueta **[Agora]**, **[Próximo]** ou **[Depois]**. A numeração é fixa (não renumerar:
 outros trechos referenciam os números). Os detalhes de cada assunto ficam em `.ai/`. Marque `[x]` ao concluir e
 retire o item do índice "Seções".
@@ -22,14 +22,13 @@ Só o que ainda não foi feito, na ordem de prioridade (**[Agora]**, depois **[P
 com o salto para o registro real. **Ao concluir um item, marque `[x]` no registro e tire a linha daqui.** Bugs
 pendentes: nenhum.
 
-- [\[Infra\] - 37 - **\[Próximo\] MFA no login do app (Cognito):**](#item-37)
+- [\[Infra\] - 49 - **\[Próximo\] App multiusuário (MFA, cadastro com convite, espaço próprio, isolamento):**](#item-49)
 - [\[Backend\] - 34 - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - 42 - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
 - [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
-- [\[Infra\] - 11 - **\[Depois\] AWS Budget de US$ 1 e backup periódico:**](#item-11)
+- [\[Infra\] - 11 - **\[Depois\] Backup periódico:**](#item-11)
 - [\[Backend\] - 39 - **\[Depois\] Open Finance (visão):**](#item-39)
 - [\[Backend\] - 43 - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
-- [\[Backend\] - 44 - **\[Depois\] Reclassificação em massa (admin):**](#item-44)
 - [\[Backend\] - 12 - **\[Depois\] Colaboração, Fase 1:**](#item-12)
 - [\[Backend\] - 13 - **\[Depois\] Colaboração, Fase 2:**](#item-13)
 - [\[Backend\] - 15 - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
@@ -38,13 +37,21 @@ pendentes: nenhum.
 - [\[Front\] - 20 - **\[Depois\] Ideias:**](#item-20)
 
 ### Infra (AWS, SAM, ambientes, custo, backup)
-- 37. [ ] <a id="item-37"></a>**[Próximo] MFA no login do app (Cognito):** hoje o login é só e-mail e senha; num app de finanças, uma senha
-  vazada basta para ver tudo (e quem é member lê todos os lançamentos). Ligar o segundo fator no pool, com TOTP por
-  aplicativo autenticador (sem o custo do SMS), no `template.yaml`, para os dois ambientes. O backend continua
-  validando o ID token como hoje. **A decidir:** obrigatório para todos ou só para o dono; como a pessoa cadastra o
-  aplicativo no primeiro acesso (confirmar no `dev` antes da produção); **recuperação** se o celular for perdido (reset
-  pelo dono, por script, para ninguém ficar trancada de fora); ajuste no convite de `scripts/seed.sh`. Ao concluir,
-  atualizar a seção de autenticação de `.ai/security.md`. Detalhes de contexto em `.ai/security.md`.
+- 49. [ ] <a id="item-49"></a>**[Próximo] App multiusuário (2026-10-27; absorve o antigo item 37, MFA):** abrir o app a qualquer pessoa, cada uma no seu espaço, em fases
+  (plano em [`.ai/specs/app-multiusuario/`](.ai/specs/app-multiusuario/intent.md)). Decidido com o dono: **ninguém lê dado de outro, nem o dono** (isolamento lógico; a garantia
+  criptográfica seria a cifragem por campo de `.ai/privacidade-e-cifragem.md`); **o status é do app, global e nunca do usuário** (cada status novo, como `PIX`, `DEBITO` e `CRIPTO`, é
+  uma entrada do `Catalogo` por spec).
+  - [ ] **Fase 1, proteger antes de abrir:** **MFA** no login (Cognito, TOTP por aplicativo autenticador, sem o custo do SMS, `template.yaml`, os dois ambientes; hoje o login é só e-mail e
+    senha e uma senha vazada basta para ver tudo; **recuperação** se o celular se perder, por reset do dono via script; ajuste no convite de `scripts/seed.sh`); **AWS Budget de US$ 1**
+    com alerta por e-mail (conferir se existe; controla o custo da conta AWS, os 2 primeiros são grátis: Billing > Budgets); **limite de taxa** na Function URL (teto de concorrência,
+    WAF só se o dono aceitar o custo); **capacidade da tabela** (5/5, autoscaling dentro das 25 unidades gratuitas ou sob demanda). Ao concluir, atualizar a autenticação de `.ai/security.md`.
+  - [ ] **Fase 2, cadastro só com código de convite** (gatilho `PreSignUp` do Cognito, código no SSM, tela de cadastro própria; demo antes).
+  - [ ] **Fase 3, espaço próprio no primeiro acesso** (`POST /me/espaco`, mesmos itens do `seed.sh`, sem chave nova).
+  - [ ] **Fase 4, app vazio e boas-vindas** (espaço sem configuração funciona, só com status do catálogo; demo antes).
+  - [ ] **Fase 5, isolamento provado, exportar e excluir a conta** (teste por rota; exclusão cobre `HIST#` e o Cognito; política de privacidade).
+  - [ ] **Fase 6, abrir** no `dev` e depois na produção, para poucas pessoas.
+  **A decidir (no `intent.md`):** como limitar a taxa, capacidade da tabela, um código ou vários, MFA obrigatório para todos ou só para o dono, como a pessoa cadastra o aplicativo no
+  primeiro acesso (confirmar no `dev`), política de privacidade. **Fora:** a tela de permissões (item 27), login social e planos pagos.
 - 2. [x] **Decidir o `/api/*`: chamada direta à Function URL (opção B)**, front estático no CloudFront. Reavaliar
   rotear a API pelo CloudFront (OAC) quando entrar domínio próprio, WAF ou mais usuários. Detalhe em [`.ai/hospedagem.md`](.ai/hospedagem.md).
 - 3. [x] **Hospedar o front em S3 + CloudFront** (HTTPS, `*.cloudfront.net`). No ar (PR #5). Detalhes em [`.ai/hospedagem.md`](.ai/hospedagem.md).
@@ -55,12 +62,8 @@ pendentes: nenhum.
   PR só valida; roles IAM por OIDC separadas por ambiente, sem chave nos secrets; o deploy falha se o changeset remover
   ou substituir a tabela ou o login. No ar (PRs #38, #39 e #40, release v0.6.0). Guia em
   `.ai/deploy-github-actions.md`.
-- 11. [ ] <a id="item-11"></a>**[Depois] AWS Budget de US$ 1** com alerta por e-mail (conferir se existe) e **backup periódico**
-  (exportar JSON e/ou point-in-time recovery do DynamoDB). Adiado por decisão: não será feito agora.
-  - O **AWS Budget** controla o **custo da própria conta AWS**, não é um orçamento do app de finanças. Define-se um
-    limite mensal em dólar (aqui, US$ 1, já que o projeto fica no free tier) e a AWS manda e-mail ao chegar em 80%
-    do gasto real e quando a previsão passar de 100%. Protege contra cobrança inesperada (enxurrada de requisições na
-    Function URL, recurso esquecido). Console: Billing > Budgets > Create budget > Cost budget; os 2 primeiros são grátis.
+- 11. [ ] <a id="item-11"></a>**[Depois] Backup periódico** (exportar JSON e/ou point-in-time recovery do DynamoDB). Adiado por decisão: não será feito agora. O **AWS Budget** que
+  este item trazia passou para a fase 1 do item 49.
   - **Backup:** o PITR do DynamoDB está ligado **só em prod** pelo `template.yaml` (`!If [EhDev, false, true]`; ligar
     no console sem mudar o template seria desfeito no próximo deploy). Falta o backup periódico; enquanto isso, o
     botão Exportar (`.json`) é a cópia manual. Plano em fases (dump cifrado fora da AWS, restauração testada, espelho do
@@ -198,11 +201,6 @@ DynamoDB sem discutir com o dono.**
   usuário. `CRIPTO` e `DREX` são **formas** (status), não meios. Pede **um atributo novo no Dynamo** (a data em que o meio deixa de valer, `ativoAte` (AAAA-MM-DD) em
   `CFG#SALDOS.porBanco[meio]`, ausente = ativo; **aprovado pelo dono em 2026-10-24**) e a lista `meios: [{nome, cartao, ativo}]` que o item 33a já entrega com `ativo` sempre verdadeiro.
   Intent, plan e spec depois da conversa sobre o 40, o 33a e o 41. Demo antes de qualquer tela.
-- 44. [ ] <a id="item-44"></a>**[Depois] Reclassificação em massa (admin) (rascunho, 2026-10-24):** ferramenta **só do admin** (o dono do serviço; poderes reduzidos na tela, acesso
-  total por dentro), sem tela no app: troca o status (forma de pagamento) ou o meio de muitos registros de uma vez, filtrando por período, meio, tag ou status. **Simula antes** (quantos
-  registros mudam, quais travas pegam), grava **uma versão do histórico por registro** com o autor e respeita as travas de data pelo efeito no saldo (mês conferido recusa,
-  mês fechado pede confirmação). Serve a quatro usos: o pedido de um dono novo que não gosta de `PAGO` e `CREDITO`, o desmembramento futuro do `PAGO`, a migração do `faturaAjuste`
-  explícito nos lançamentos antigos (fatia b do item 33) e trocar o passado de uma vez (um `PAGO` de 2018 para `PIX`). Depende dos itens 31 (histórico) e 41.
 - 46. [x] <a id="item-46"></a>**Aviso no Telegram para a fatura do cartão** (concluído em 2026-10-26: fase A do backend no #244 e fase B da tela no #246; conferido em dev pelo dono): hoje só um lançamento tem aviso; a fatura, que é calculada pelo servidor, só tem o botão Já paguei. O aviso passa a ser ligado **na própria fatura** em Futuros (botão Avisar, mesma tela do Prever), só para aquela fatura (o cartão não tem aviso padrão) e só se ela tiver vencimento. Dado novo: `faturas[ym].aviso` (mesmo formato do lançamento) mais o item auxiliar já existente em `AVISOS#ATIVOS`; **desempenho: dias sem aviso não leem nada além da Query dos avisos**. A fatura paga some do resumo sozinha. Intent, plan e spec (rascunho) em [`.ai/specs/aviso-fatura/`](.ai/specs/aviso-fatura/intent.md); demo `.ai/demos/demo-aviso-fatura.html`.
 - 45. [x] <a id="item-45"></a>**Futuros: os atrasados antigos são buscados por ano, sob demanda** (concluído em 2026-10-26, em produção; demo `.ai/demos/demo-atrasados-por-ano.html`; `GET /futuros` agrupa em `atrasados[{ano,n,valor,meses}]` e devolve `anosAnteriores`; `?ano=AAAA` busca um ano; anotado em 2026-10-25): hoje Futuros olha só **do mês passado em diante**
   (decisão do dono: ler todos os atrasados de todos os anos de uma vez sobrecarrega a tabela e não faz sentido). Quem tem um previsto mais antigo (por exemplo, um `PREVISTO` esquecido de 2019)
@@ -229,8 +227,7 @@ DynamoDB sem discutir com o dono.**
   (exige trabalho no front também).
 - 13. [ ] <a id="item-13"></a>**[Depois] Colaboração, Fase 2:** presença em tempo real ("fulano está mexendo neste registro agora").
 - 15. [ ] <a id="item-15"></a>**[Depois] IA** ("Preencher com IA") via Lambda, com a chave da Anthropic no SSM Parameter Store.
-- 18. [ ] <a id="item-18"></a>**[Depois] Segurança e escala:** revisar o `localStorage` do token (front), limite de taxa na Function URL
-  (infra), mesclar conflito de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
+- 18. [ ] <a id="item-18"></a>**[Depois] Segurança e escala:** revisar o `localStorage` do token (front), mesclar conflito de configuração (hoje o front repete por cima), avaliar índice (GSI) por banco.
 - 28. [x] **Avisos de lançamentos futuros no Telegram**: campo `aviso` no lançamento (dias antes do vencimento e
   "insistir todo dia depois"), desligado por padrão e independente do status (o PREVISTO continua sendo só a previsão
   que soma em Futuros); rotina diária às 8h pela mesma Lambda (EventBridge), um resumo por pessoa (quem criou e o
@@ -395,4 +392,4 @@ arquitetura, segurança e permissões, fluxo de versões, hospedagem, ambiente d
   `PREVISTO`) e para o rótulo de `PAGO` (Pago/Recebido). A decidir: qual data compara (`dataEvento` ou `criadoEm`), corte
   em início de mês (alinhado ao fechamento), um corte global ou um por regra, e onde guardar o campo.
   **Superado em 2026-10-24:** não haverá corte global. O catálogo de status tem uma entrada por nome e a marca `selecionavel`; `desde` e `ate` só sugerem a lista de uma
-  data; o passado é do usuário (pode reclassificar); a troca em massa é do admin (item 44) e a vigência dos meios é do item 43. Ver itens 41, 43 e 44.
+  data; o passado é do usuário (pode reclassificar); a vigência dos meios é do item 43. Ver itens 41 e 43. (O item 44, troca em massa do admin, foi removido em 2026-10-27.)
