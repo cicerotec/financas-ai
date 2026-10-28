@@ -20,13 +20,13 @@ vem antes de qualquer abertura de cadastro.** Telas novas pedem demo aprovada an
 
 ## Fases (cada uma é um PR)
 
-### Fase 1: proteger antes de abrir (itens 37 e 11)
-- **MFA TOTP** no pool, nos dois ambientes (item 37): sem SMS; confirmar no `dev` como a pessoa cadastra o aplicativo no primeiro acesso; **recuperação**
+### Fase 1: proteger antes de abrir (MFA, Budget e limite de taxa)
+- **MFA TOTP** no pool, nos dois ambientes (antigo item 37, hoje parte do item 49): sem SMS; confirmar no `dev` como a pessoa cadastra o aplicativo no primeiro acesso; **recuperação**
   se o celular se perder (reset por script do dono, para ninguém ficar trancada); decidir obrigatório x opcional.
-- **AWS Budget de US$ 1** com alerta por e-mail (a parte de custo do item 11); o backup periódico segue no plano próprio.
+- **AWS Budget de US$ 1** com alerta por e-mail (era metade do item 11; o backup periódico fica sozinho no item 11).
 - **Limite de taxa:** definir o `ReservedConcurrency` de prod (e, se o dono aceitar o custo, WAF na frente). Medir antes: quantos acessos a tela faz por abertura.
 - **Capacidade da tabela:** decidir 5/5, autoscaling dentro de 25 unidades ou sob demanda; mudar de modo no `template.yaml` não pode substituir a tabela (o deploy já barra isso).
-- Atualizar `.ai/security.md` (autenticação) e o item 37 do BACKLOG.
+- Atualizar `.ai/security.md` (autenticação) e o item 49 do BACKLOG.
 
 ### Fase 2: cadastro com código de convite
 O Hosted UI não pede código, e ligar o auto cadastro do pool deixa **qualquer um chamar `SignUp` direto no Cognito**. Por isso o código é conferido **no próprio
@@ -56,6 +56,10 @@ Cognito**, não numa rota pública nova:
 ### Fase 4: o app vazio e a primeira tela
 - Conferir no backend, **com teste**, que um espaço sem nenhum `CFG#...` funciona: listas, status, saldos, Futuros, Histórico e Tendências respondem vazio, sem
   `500`, e nenhum nome do dono (bancos, tags, status) vaza como padrão. O catálogo de status vem do servidor e é regra do produto, não dado do dono.
+- **Status do app, não do usuário** (decisões de 2026-10-27, no intent): teste de que o espaço novo recebe a lista de `GET /cfg/listas` e `GET /status` **só do catálogo**,
+  que `PUT /cfg/listas` com `status` no corpo não muda nada e que a importação de um status fora do catálogo é rejeitada. Os antigos ficam não selecionáveis e fora
+  da lista do espaço novo. Incluir `PIX`, `DEBITO` ou `CRIPTO` **não** faz parte desta entrega: cada um é uma entrada do `Catalogo` com spec própria (o desmembramento do
+  `PAGO` já está descrito em `.ai/specs/futuros-previsto/`).
 - Tela de **boas-vindas** (demo antes): dizer o que fazer primeiro (criar o primeiro meio de pagamento e o início do controle), com o padrão de janelas do app e
   seletores nativos do celular. O front só exibe; qualquer regra vem da API.
 - O Telegram continua opcional por pessoa (`telegramChatId` já é por usuário); revisar o texto da tela de aviso para quem nunca configurou um bot.
@@ -102,3 +106,5 @@ de decisão nova de produto e pode começar já.
 3. O espaço novo reaproveita os itens do `seed.sh`: **nenhuma chave nova** no DynamoDB nesta entrega (códigos com limite de usos ficam como decisão).
 4. A exclusão de conta usa **caminho administrativo próprio**, sem enfraquecer o `Deny` de `HIST#*` da Lambda comum.
 5. "Nem o admin" vale como **isolamento lógico** agora; a garantia criptográfica fica com a cifragem por campo.
+6. O **catálogo de status é do app e global**: todos os espaços veem os mesmos status selecionáveis, e cada status novo é uma entrada do `Catalogo` por spec.
+7. **Não há reclassificação em massa** (item 44 removido do BACKLOG em 2026-10-27).

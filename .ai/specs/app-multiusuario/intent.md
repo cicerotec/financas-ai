@@ -16,7 +16,7 @@ provisionada em 5 RCU/WCU.
 1. **Cadastro aberto, mas só com código de convite.** A pessoa cria a conta sozinha, informando um código que o dono distribui e pode revogar.
 2. **Espaço próprio no primeiro acesso.** Quem entra e não tem espaço ganha um, vazio, onde é `owner`. Nenhum dado de outra pessoa aparece.
 3. **App vazio utilizável.** A primeira tela leva a pessoa a criar o primeiro meio de pagamento; nada de nome de banco, tag ou status do dono.
-4. **Proteção antes de abrir:** MFA por aplicativo autenticador (item 37), teto de custo e de uso (AWS Budget do item 11, limite de taxa).
+4. **Proteção antes de abrir:** MFA por aplicativo autenticador, teto de custo (AWS Budget) e de uso (limite de taxa), tudo dentro do item 49 do BACKLOG.
 5. **Isolamento entre espaços provado por teste**, e a pessoa pode **exportar e excluir a própria conta**.
 
 ## Decisões já tomadas (dono, 2026-10-27)
@@ -24,6 +24,19 @@ provisionada em 5 RCU/WCU.
 - Cadastro **aberto só com código de convite** (não livre, não só por convite individual).
 - **MFA, limite de taxa e teto de custo vêm antes** de abrir o cadastro.
 - **Ninguém lê dados de outra pessoa, nem o dono como admin.** Suporte só pelo JSON que a própria pessoa exporta.
+
+## Decisões sobre status (dono, 2026-10-27)
+
+O status (na tela, "forma de pagamento") **é do app, nunca do usuário**: ninguém cadastra status, e o app inclui os novos (`PIX`, `DEBITO`, `CRIPTO` e o que vier).
+Já é assim no código (`domain.Catalogo`; `PUT /cfg/listas` ignora `status`; a importação rejeita nome fora do catálogo). Fica decidido:
+
+- **Todos os espaços veem todos os status selecionáveis do catálogo**; não há escolha por pessoa (nenhum campo novo no DynamoDB).
+- **Cada status novo é uma entrada do `Catalogo`**, com seus comportamentos declarados (conta no saldo, crédito, fora do total, ajuste de fatura) e teste,
+  aprovada por um intent/plan/spec pequeno. Não é dado do usuário nem arquivo de configuração.
+- **Não há reclassificação em massa.** O item 44 do BACKLOG foi removido em 2026-10-27 (perdeu o sentido): o passado se reclassifica um registro por vez pelo app, e o
+  admin não executa nada no espaço de outra pessoa.
+- Os status antigos (`PREVISTO`, `TRANSFERINDO`, `CREDITANDO`, `CREDITO IN`, `CREDITO EX`) seguem no catálogo como não selecionáveis, só para ler o que já está gravado e
+  para importar backup; o usuário novo nunca os vê na escolha.
 
 ## Limites (o que fica de fora)
 
@@ -45,7 +58,7 @@ Depende de quantas pessoas entrarem. Cognito, Lambda e CloudFront têm faixa gra
 - Uma pessoa sem convite individual, só com o código, cria a conta no `dev`, confirma o e-mail, ativa o MFA e cai num app vazio com espaço próprio.
 - Um teste cria dois espaços e prova que nenhuma rota de um lê, grava ou lista o outro; um código errado ou revogado não cria conta.
 - Exportar e excluir conta funcionam e a exclusão cobre também o `HIST#` (que a Lambda não pode apagar hoje) e o usuário do Cognito.
-- `security.md`, `BACKLOG.md` e o `README.md` ficam em dia; o MFA fecha o item 37.
+- `security.md`, `BACKLOG.md` e o `README.md` ficam em dia; o item 49 do BACKLOG é fechado.
 
 ## Para o dono decidir
 

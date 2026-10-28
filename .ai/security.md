@@ -18,7 +18,7 @@ Dados financeiros de uma família (lançamentos, saldos, cartões, notas) e o ac
   `401`.
 - A Function URL é `AuthType: NONE` **de propósito**: a barreira é o JWT validado dentro da Lambda. Por isso a
   validação do token é código crítico (veja "Regras ao mexer").
-- **Não há MFA no login do app** (o template não configura `MfaConfiguration`); é o item 37 do backlog, de prioridade
+- **Não há MFA no login do app** (o template não configura `MfaConfiguration`); é a fase 1 do item 49 do backlog (multiusuário), de prioridade
   alta. O MFA que existe hoje é o da **sessão AWS do dono** para operar a conta (`scripts/aws-mfa.ps1`).
 
 ## O que cada pessoa pode: autorização
@@ -116,7 +116,7 @@ manual.
 | Sem CSP própria | Reduz a defesa em profundidade contra XSS | item 18 |
 | Sem WAF nem limite de taxa na Function URL | Enxurrada de requisições (custo e disponibilidade) | item 18 |
 | Member lê tudo | Dados de bancos e cartões que não são dela | item 27 |
-| Sem MFA no login do app | Senha vazada basta para entrar | item 37 (prioridade alta) |
+| Sem MFA no login do app | Senha vazada basta para entrar | item 49, fase 1 (prioridade alta) |
 | Histórico de versões só dos lançamentos, e sem tela de recuperação ainda (PITR só em prod, janela de 35 dias) | Configurações e fechamentos continuam sem versão; recuperar um lançamento ainda é pelo banco | item 31 (fases 2 e 3) |
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
 | `excluirDoTotal` montado pelo front a partir do nome do status | **Fechada na fase A do item 41 (2026-10-24):** o servidor calcula `excluirDoTotal` pelo catálogo e o valor do corpo é descartado; o front ainda o envia, ignorado | item 41 (fase C tira o envio) |

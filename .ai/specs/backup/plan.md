@@ -50,7 +50,7 @@ Mexe no `template.yaml`: **atualizar as roles OIDC antes do merge** e passar pel
 
 ### Fase 4: vigília (1 dia)
 - Alarme se não houver dump novo em 36 horas (SNS ou o Telegram que já existe).
-- AWS Budget de US$ 1 (a outra metade do item 11).
+- AWS Budget de US$ 1: já feito na fase 1 do item 49 (multiusuário); aqui só conferir que continua ativo.
 - Lembrete trimestral para o simulado de restauração.
 
 ## Riscos
