@@ -416,7 +416,7 @@ body[data-aba="futuros"] main{max-width:1600px;}
 @media (min-width:1160px){
   .fut-tabela-in{min-width:1160px;}
   .fut-m{display:none;}
-  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 400px;align-items:center;gap:12px;padding:10px 14px;}
+  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 260px;align-items:center;gap:12px;padding:10px 14px;}
   .fut-cab{font-size:12px;color:var(--faint);padding-block:4px;}
   .fut-dk>span,.fut-cab>span{min-width:0;}
   .fut-dk .bk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -428,9 +428,11 @@ body[data-aba="futuros"] main{max-width:1600px;}
   .fut-dk .dl{display:flex;align-items:flex-start;gap:6px;}
   .fut-dk .dl .chip{flex:none;}
   .fut-dk .sub{display:block;font-size:12.5px;color:var(--muted);}
-  .fut-acoes{display:flex;gap:4px;justify-content:flex-end;opacity:.25;transition:opacity .12s;}
+  .fut-acoes{display:grid;grid-template-columns:repeat(6,40px);gap:4px;justify-content:end;opacity:.25;transition:opacity .12s;}
   .fut-dk:hover .fut-acoes,.fut-dk:focus-within .fut-acoes{opacity:1;}
-  .fut-acoes button{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:5px 8px;font-size:12.5px;white-space:nowrap;cursor:pointer;}
+  .fut-acoes button{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:9px;padding:0;cursor:pointer;}
+  .fut-acoes button svg{width:20px;height:20px;display:block;}
+  .fut-acoes button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   .fut-acoes button.perigo{color:var(--danger);}
   .fut-acoes button.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
   .fut-metricas{grid-template-columns:repeat(3,minmax(0,1fr));max-width:600px;}
