@@ -9,15 +9,6 @@ let corAberta = null;
 const COR_PALETA = ['#639922','#BA7517','#378ADD','#7F77DD','#888780','#D85A30','#1D9E75','#D4537E','#E24B4A'];
 let coresPadrao = {}; // cor padrao de cada status, vinda do servidor (GET /cfg/listas); a cor que a pessoa escolheu (statusCor) vale por cima
 function corStatus(s){ const c = statusCor[s] || coresPadrao[s] || '#888780'; return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '#888780'; }
-function estiloItemCor(status){
-  const c = corStatus(status);
-  const tint = `background:color-mix(in srgb,${c} 16%,transparent);`;
-  const base = 'border:1px solid var(--border);padding:10px;margin-bottom:6px;';
-  if(estiloCor==='linha') return `${tint}${base}border-radius:8px;`;
-  if(estiloCor==='faixa') return `${base}border-left:4px solid ${c};border-radius:0;`;
-  if(estiloCor==='ambos') return `${tint}${base}border-left:4px solid ${c};border-radius:0;`;
-  return '';
-}
 function seloStatus(status){
   if(estiloCor==='nenhum') return esc(status);
   const c = corStatus(status);
@@ -42,20 +33,10 @@ let faturaPadrao = {}; // status de credito -> ajuste padrao da fatura (-1, 0 ou
 function ehMeioCartao(nome){ return meiosLista.some(m=>m.nome===nome && m.cartao); }
 function ajustePadrao(status){ return faturaPadrao[status] || 0; }
 function ajusteEfetivo(l){ if(typeof l.faturaAjuste==='number') return l.faturaAjuste; return ajustePadrao(l.status); }
-function chipFatura(l){
-  if(!ehMeioCartao(l.banco)) return '';
-  const a = ajusteEfetivo(l);
-  if(!a) return '';
-  return ` <span style="font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;">foi para a ${a>0?'próxima':'anterior'} fatura</span>`;
-}
 function chipPagaFatura(l){
   const m = l.pagaFatura;
   if(!m || !m.meio || !m.ym) return '';
   return ` <span style="font-size:11px;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:0 6px;">Fatura ${esc(rotuloMesCurto(m.ym))} · ${esc(m.meio)}</span>`;
-}
-function chipEstimado(l){
-  if(l.valorEstimado!==true) return '';
-  return ' <span style="font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;">valor estimado</span>';
 }
 // A data escolhida no formulario e depois de hoje? So serve para mostrar o aviso e a repeticao; quem decide se o lancamento e previsto e o servidor.
 function dataFuturaForm(){ const v = document.getElementById('fData').value; return !!v && v.slice(0,10) > chaveDia(new Date()); }
@@ -1021,11 +1002,22 @@ function renderListas(){
   renderFiltrosHistCampos();
   filBancoSelecionados = new Set([...filBancoSelecionados].filter(b=>listas.banco.includes(b)));
 
-  document.getElementById('pillStatus').innerHTML = listas.status.map(s=>
-    `<span class="pill">
-      <span style="display:flex;align-items:center;gap:6px;"><button data-cor-status="${esc(s)}" aria-label="Escolher cor de ${esc(s)}" style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${corStatus(s)};border:2px solid var(--border);padding:0;cursor:pointer;"></button><b>${esc(s)}</b></span>
-      ${corAberta===s?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${COR_PALETA.map(p=>`<button data-cor-pick="${p}" data-cor-st="${esc(s)}" aria-label="Cor ${p}" style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${p};border:${p===corStatus(s)?'2px solid var(--text)':'1px solid var(--border)'};padding:0;cursor:pointer;"></button>`).join('')}</div>`:''}
-    </span>`).join('');
+  // Forma de pagamento: um bloco por status (bolinha de cor + a linha de exemplo como fica no Historico e em Futuros). Demo: .ai/demos/demo-forma-pagamento.html
+  document.getElementById('pillStatus').innerHTML = listas.status.map(s=>{
+    const c = corStatus(s), aberta = corAberta===s;
+    return `<div class="fp" style="--cor:${estiloCor==='nenhum' ? 'var(--faint)' : c}">
+      <div class="fp-top"><button type="button" class="bol" data-cor-status="${esc(s)}" aria-label="Escolher cor de ${esc(s)}" style="background:${c}"></button><b>${esc(s)}</b><small>${aberta?'escolha uma cor':'toque na bolinha'}</small></div>
+      ${aberta?`<div class="pal" role="group" aria-label="Cores de ${esc(s)}">${COR_PALETA.map(p=>`<button type="button" data-cor-pick="${p}" data-cor-st="${esc(s)}" aria-label="Cor ${p}" aria-pressed="${p===c}" style="background:${p}"></button>`).join('')}</div>`:''}
+      <div class="ex"><div class="l"><div class="d">Exemplo de lançamento</div><div class="mt"><span>14:30</span>${seloStatus(s)}<span>Banco</span></div></div><span class="valor saida">-R$ 10,00</span></div>
+    </div>`;
+  }).join('');
+  const swCores = document.getElementById('swCoresLinhas');
+  swCores.checked = estiloCor !== 'nenhum';
+  swCores.onchange = ()=>{
+    estiloCor = swCores.checked ? 'ambos' : 'nenhum'; // o campo de sempre: 'nenhum' e o antigo "Sem cor"; qualquer outro valor e "com cor"
+    corAberta = null;
+    salvarListas(); renderListas(); renderHistorico(); renderFuturos();
+  };
   document.getElementById('pillBanco').innerHTML = listas.banco.map(s=>
     `<span class="pill">${esc(s)} ${ehOwner()?`<button data-del-banco="${esc(s)}" aria-label="Remover ${esc(s)}">✕</button>`:''}</span>`).join('');
 
@@ -1051,11 +1043,6 @@ function renderAparencia(){
     tema = b.dataset.tema; Tema.escolher(tema);
     salvarListas(); renderAparencia(); toast('Tema: '+NOMES_TEMA[tema]+'.');
   });
-  const op = [['linha','Linha inteira'],['faixa','Faixa + selo'],['ambos','Os dois juntos'],['nenhum','Sem cor']];
-  document.getElementById('estiloCorBtns').innerHTML = op.map(([k,t])=>
-    `<span class="tag ${estiloCor===k?'on':''}" data-estilo-cor="${k}">${t}</span>`).join('');
-  document.getElementById('prevCor').innerHTML = listas.status.slice(0,3).map(st=>
-    `<div class="item" style="${estiloItemCor(st)}"><div class="item-top"><span class="item-desc">Exemplo de lançamento</span><span class="valor saida">-R$ 10,00</span></div><div class="item-meta">${seloStatus(st)} · Banco</div></div>`).join('');
   document.getElementById('layoutSaldosBtns').innerHTML = [['linhas','Uma linha por banco'],['tiles','Quadradinhos']].map(([k,t])=>
     `<span class="tag ${layoutSaldos===k?'on':''}" data-layout-saldos="${k}">${t}</span>`).join('');
   document.getElementById('ordemSaldosBtns').innerHTML = [['lista','Ordem da lista'],['valor','Maior saldo'],['manual','Manual']].map(([k,t])=>
@@ -1088,10 +1075,6 @@ function renderAparencia(){
     layoutSaldos = b.dataset.layoutSaldos;
     saldoAberto = -1;
     salvarListas(); renderAparencia(); renderSaldos();
-  });
-  document.querySelectorAll('[data-estilo-cor]').forEach(b=>b.onclick=()=>{
-    estiloCor = b.dataset.estiloCor;
-    salvarListas(); renderAparencia(); renderHistorico();
   });
 }
 
@@ -1705,35 +1688,6 @@ function chipAviso(l){
   const dias = (Array.isArray(a.dias) ? a.dias : []).map(d=>d===0?'no dia':d+'d antes');
   if(a.insistir) dias.push('todo dia depois');
   return ` <span class="chip" title="Aviso no Telegram: ${esc(dias.join(', '))}">🔔</span>`;
-}
-
-function htmlItemLancamento(l, o){
-  o = o || {};
-  const fut = l.previsto === true;
-  const dias = diasAte(diaLocal(l));
-  const atrasado = !!o.prazo && fut && !l.oculto && dias < 0;
-  let prazo = '';
-  if(o.prazo && fut && !l.oculto){
-    if(dias < 0) prazo = ` · <span class="chip atrasado">atrasado ${-dias} dia${-dias===1?'':'s'}</span>`;
-    else if(dias === 0) prazo = ' · <span class="chip">hoje</span>';
-    else if(dias <= 30) prazo = ` · <span class="muted">em ${dias} dia${dias===1?'':'s'}</span>`;
-  }
-  const seu = (o.prazo && !ehOwner() && l.criadoPor && l.criadoPor === meuSub) ? ' · <span class="muted">criado por você</span>' : '';
-  const marca = (o.marcarFuturo && fut) ? '<div class="item-meta marca-futuro">📅 Evento futuro · aparece também em Futuros</div>' : '';
-  return `
-    <div class="item ${l.oculto?'oculto':''} ${fut?'futuro':''} ${atrasado?'atrasado':''} ${excluindo.has(l.id)?'excluindo':''}" style="${estiloItemCor(l.status)}">
-      <div class="item-top"><span class="item-desc">${esc(l.descricao)}</span>${htmlValorLinha(l)}</div>
-      <div class="item-meta">${new Date(l.dataEvento).toLocaleString('pt-BR')} · ${seloStatus(l.status)}${chipFatura(l)}${chipPagaFatura(l)}${chipEstimado(l)}${chipAviso(l)} · ${esc(l.banco||'-')} ${l.tags&&l.tags.length? '· '+l.tags.map(t=>'#'+esc(t)).join(' '):''}${prazo}${seu}</div>
-      ${marca}
-      ${l.nota?`<div class="item-meta">${escHtml(l.nota)}</div>`:''}
-      <div class="item-acoes">
-        ${podeMexer(l)?`<button data-acao="editar" data-id="${esc(l.id)}">✏️ Editar</button>`:''}
-        <button data-acao="copiar" data-id="${esc(l.id)}">📋 Copiar</button>
-        ${l.transferParId?'':`<button data-acao="prever" data-id="${esc(l.id)}">${l.serie?'➕ Estender série':'🔮 Prever'}</button>`}
-        ${podeMexer(l)?`<button data-acao="ocultar" data-id="${esc(l.id)}">${l.oculto?'👁️ Mostrar':'🙈 Ocultar'}</button>`:''}
-        ${ehOwner()?`<button data-acao="excluir" data-id="${esc(l.id)}">🗑️ Excluir</button>`:''}
-      </div>
-    </div>`;
 }
 
 function renderFuturos(){

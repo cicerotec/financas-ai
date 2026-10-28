@@ -53,6 +53,7 @@ e para ajustes em telas que já existem.
   - **Lançar** (demo `demo-lancar-layout.html`): valor grande primeiro, Data/Banco/Status com seletor nativo, Tags em janela de baixo e Salvar fixo no celular; IA e Tags à direita no computador; Transferência é um modo no topo.
   - **Histórico** (demos `demo-historico-layout.html` e `demo-historico-periodo.html`): período 30d · 90d · 180d · 📅 (um mês) no topo, abrindo em 30d; busca só no que está marcado, com "Buscar em tudo" e aviso; Filtros numa janela com fichas; linha como a de Futuros agrupada por dia (por mês, com soma, na busca e na tabela de períodos longos); nota só em ícone e tags em uma linha.
   - **Configurações** (demo `demo-configuracoes.html`, antes aba Importar, só do dono): três seções recolhidas, Cartão (fechamentos da planilha), Importar (planilha, colar dados, backup) e Exportar; a aba Cartão não guarda aviso do que saiu.
+  - **Forma de pagamento** (demo `demo-forma-pagamento.html`): um cartão só para status e cores; interruptor "Cores nas linhas" (igual a "Mostrar ocultos") e, por status, a bolinha de cor com a linha de exemplo do Histórico e de Futuros; sem fichas de estilo em Aparência.
   - **Botão voltar** (demo `demo-voltar-navegador.html`): troca de aba e cada janela ou tela cheia é uma entrada do histórico do navegador (`web/js/voltar.js`); o voltar fecha a camada de cima, o aviso de Desfazer fica fora da pilha, o formulário de edição com texto digitado pergunta antes de descartar. **Janela ou tela cheia nova entra em `camadasAbertas()` e `fecharCamadaTopo()` de `web/js/app.js`.**
   - **Computador:** a mesma tela vira uma tabela de largura total (colunas alinhadas, mínimo de 1120 px a partir de
     1160 px de janela, container de até 1200 px) com as ações na própria linha, apagadas até o mouse passar ou o foco
@@ -76,6 +77,9 @@ e para ajustes em telas que já existem.
 ## Git
 - Rode `git branch --show-current` antes de commitar e use `git push origin <branch>` com o nome da branch. Não commite
   direto em `develop` ou `main`: o push numa branch de trabalho abre o PR sozinho, já pronto para mergear.
+- **Aprovado, entregue (2026-10-28):** depois que o dono aprova (a demo, a tela ou a correção), **sempre commite e abra o PR** na
+  mesma tarefa, sem esperar que ele peça: teste, commite na branch certa e faça `git push origin <branch>`, que abre o PR.
+  Antes da aprovação não se commita nem se envia nada. Um assunto por branch e por PR.
 - Depois que o PR de uma branch for mergeado, **não envie mais nada para ela**: o robô abre um PR novo só com esse
   commit (foi o #63, que colidiu com o #64) e o commit pode ficar de fora do merge que você esperava. Abra uma branch
   nova a partir da `develop`.
