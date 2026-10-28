@@ -1,0 +1,174 @@
+<title>Demo Forma de pagamento</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a aba Listas inteira num quadro de celular (ou computador). "Hoje" mostra o que existe; "Proposta" junta Status e Forma de pagamento num cartao so. Tokens iguais aos do app. */
+:root{--bg:#f1f0ec;--bg2:#e9e8e3;--card:#ffffff;--fg:#1d2220;--muted:#5c645e;--line:#e4e2dc;--accent:#0f6b4f;--onaccent:#ffffff;--faint:#8c938d;--ck:#d3d6d2;--accent-bg:#dcefe5;--danger:#c0503f;--saida:#c0503f;--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--line:#2e3430;--accent:#5fc9a0;--onaccent:#08231a;--faint:#7b827c;--ck:#3b413d;--accent-bg:#1c3a2e;--danger:#e0705f;--saida:#e8806f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121513;--bg2:#0c0f0d;--card:#1f2421;--fg:#e8ebe7;--muted:#a3aaa4;--line:#2e3430;--accent:#5fc9a0;--onaccent:#08231a;--faint:#7b827c;--ck:#3b413d;--accent-bg:#1c3a2e;--danger:#e0705f;--saida:#e8806f;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg2);color:var(--fg);font:15px/1.4 var(--font);margin:0;padding-block:16px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+.topo{max-width:720px;margin:0 auto 14px}
+.topo h1{font-size:18px;margin:0 0 4px}
+.topo p{margin:0;color:var(--muted);font-size:13px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px}
+.seg{display:inline-flex;background:var(--bg);border-radius:12px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:8px 12px;border-radius:10px;font-size:13px;min-height:40px}
+.seg button[aria-pressed="true"]{background:var(--card);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.quadro{margin:0 auto;width:100%;max-width:400px;background:var(--bg);border-radius:22px;overflow:hidden;border:1px solid var(--line)}
+.quadro.pc{max-width:640px}
+.cab{display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.cab h2{font-size:18px;margin:0}
+.corpo{padding:10px;display:flex;flex-direction:column;gap:10px}
+.card{background:var(--card);border-radius:16px;padding:14px 16px}
+.card>b{font-size:15px}
+.mut{color:var(--muted);font-size:13px;margin:4px 0 8px}
+.ph{opacity:.6}
+.ph .linha{height:36px;border-radius:10px;background:var(--bg);margin-top:8px}
+.subs{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.sub{border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.sub .st{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin:0 0 4px;font-weight:600}
+.sub .mut{margin:2px 0 8px}
+.op{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.op span{border:2px solid var(--line);background:var(--bg);border-radius:12px;padding:8px 4px;text-align:center;font-size:12.5px}
+.op span.on{border-color:var(--accent);background:var(--accent-bg);font-weight:600}
+.fichas{display:flex;flex-wrap:wrap;gap:6px}
+.fichas span{border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:13px}
+.fichas span.on{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.rot{color:var(--muted);font-size:13px;margin:10px 0 6px}
+/* linha de exemplo: a mesma do Historico e de Futuros (.fut-m) */
+.lista{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:8px}
+.ex{display:flex;align-items:center;gap:10px;padding:11px 14px;min-height:62px;background:var(--card);border-top:1px solid var(--line);transition:background .12s}
+.ex:first-child{border-top:0}
+.ex:hover,.ex:active{background:color-mix(in srgb,var(--cor) 16%,var(--card))}
+.ex .l{flex:1;min-width:0}
+.ex .d{font-weight:600}
+.ex .mt{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;margin-top:1px}
+.selo{padding:1px 7px;border-radius:8px;font-weight:600;color:var(--fg);background:color-mix(in srgb,var(--cor) 32%,transparent)}
+.ex .v{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--saida)}
+/* Forma de pagamento: um bloco por status */
+.fp{border:1px solid var(--line);border-radius:14px;margin-top:10px;overflow:hidden;background:var(--bg)}
+.fp-top{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.fp-top b{flex:1}
+.bol{width:32px;height:32px;min-width:32px;border-radius:50%;border:2px solid var(--line);padding:0;background:var(--cor)}
+.fp-top small{color:var(--muted);font-size:12px}
+.pal{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 10px}
+.pal button{width:32px;height:32px;border-radius:50%;padding:0;border:1px solid var(--line)}
+.pal button[aria-pressed="true"]{border:2px solid var(--fg)}
+.fp .ex{border-radius:0;border-left:0;border-right:0;border-bottom:0}
+/* hoje: cartao Forma de pagamento */
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pill{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;display:flex;align-items:center;gap:6px;min-width:150px}
+.pill .bol{width:22px;height:22px;min-width:22px}
+/* o mesmo interruptor de "Mostrar ocultos" (.fut-sw do app) */
+.sw{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;font-size:13px;color:var(--muted);cursor:pointer}
+.sw input{appearance:none;-webkit-appearance:none;width:44px;height:26px;border-radius:13px;background:var(--ck);position:relative;flex:none;margin:0;cursor:pointer;transition:background .15s}
+.sw input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+.sw input:checked{background:var(--accent)}
+.sw input:checked::after{left:21px}
+.sw input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.sw input,.sw input::after{transition:none}}
+.dica{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.acoes button{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 12px;font-size:13px;min-height:40px}
+.nota{max-width:720px;margin:16px auto 0;background:var(--card);border-radius:16px;padding:14px 16px;font-size:13px}
+.nota h3{margin:0 0 6px;font-size:14px}
+.nota ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+</style>
+<div class="topo">
+  <h1>Status e Forma de pagamento num cartão só</h1>
+  <p>Em Configurações, na aba Listas. A bolinha escolhe a cor e a linha de exemplo mostra como o lançamento fica no Histórico e em Futuros. Toque na bolinha para trocar a cor e passe o dedo ou o mouse na linha para ver o destaque.</p>
+  <div class="ctl">
+    <div class="seg" role="group" aria-label="Versão"><button id="vHoje" aria-pressed="false">Hoje</button><button id="vProp" aria-pressed="true">Proposta</button></div>
+    <div class="seg" role="group" aria-label="Largura"><button id="wCel" aria-pressed="true">Celular</button><button id="wPc" aria-pressed="false">Computador</button></div>
+  </div>
+</div>
+<div class="quadro" id="quadro">
+  <div class="cab"><h2>Listas</h2></div>
+  <div class="corpo" id="corpo"></div>
+</div>
+<div class="acoes" style="max-width:720px;margin:12px auto 0" id="acoesDemo"></div>
+<div class="nota">
+  <h3>O que a proposta faz perder</h3>
+  <ul>
+    <li>As fichas Linha inteira, Faixa + selo e Os dois juntos saem: nenhuma das três altera o Histórico nem Futuros hoje. "Sem cor" vira o interruptor "Cores nas linhas", dentro do cartão Forma de pagamento; ligado é o que existe hoje por padrão, desligado é o "Sem cor".</li>
+    <li>Quem tinha escolhido Linha inteira ou Faixa + selo passa a ver o mesmo que já vê hoje (as telas não usam essas escolhas).</li>
+    <li>O app não tem como criar um status: a lista vem do servidor. O botão "Simular novo status" abaixo da tela só mostra o que a pessoa veria quando o servidor mandar um novo (cada status ganha sua bolinha e sua linha).</li>
+  </ul>
+</div>
+<script>
+(function(){
+  var PALETA=['#639922','#BA7517','#378ADD','#7F77DD','#888780','#D85A30','#1D9E75','#D4537E','#E24B4A'];
+  var status=[{n:'PAGO',c:'#1D9E75'},{n:'CREDITO',c:'#E24B4A'}];
+  var aberto=null, prop=true, pc=false;
+  var $=function(i){return document.getElementById(i)};
+  function esc(t){return String(t).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]})}
+  var comCor=true; // o interruptor "Cores nas linhas" (hoje e a ficha "Sem cor")
+  function linha(s){
+    var cor=comCor?s.c:'var(--faint)';
+    return '<div class="ex" style="--cor:'+cor+'"><div class="l"><div class="d">Exemplo de lançamento</div>'+
+      '<div class="mt"><span>14:30</span>'+(comCor?'<span class="selo">'+esc(s.n)+'</span>':'<span>'+esc(s.n)+'</span>')+'<span>Banco</span></div></div><span class="v">-R$ 10,00</span></div>';
+  }
+  function cardsFixos(){
+    return '<div class="card ph"><b>Seu nome</b><div class="linha"></div></div>'+
+           '<div class="card ph"><b>Avisos no Telegram</b><div class="linha"></div></div>';
+  }
+  function aparencia(comStatus){
+    var h='<div class="card"><b>Aparência</b><div class="subs">'+
+      '<div class="sub"><div class="st">Tema</div><div class="op"><span>Automático</span><span class="on">Claro</span><span>Escuro</span></div></div>';
+    if(comStatus){
+      h+='<div class="sub"><div class="st">Status</div><p class="mut">Como as cores dos status aparecem no Histórico. A cor de cada status você escolhe na bolinha, no cartão Forma de pagamento.</p>'+
+        '<div class="fichas"><span class="on">Linha inteira</span><span>Faixa + selo</span><span>Os dois juntos</span><span>Sem cor</span></div>'+
+        '<div class="lista">'+status.map(linha).join('')+'</div></div>';
+    }
+    h+='<div class="sub"><div class="st">Saldos</div><p class="mut">Layout dos saldos</p><div class="fichas"><span class="on">Uma linha por banco</span><span>Quadradinhos</span></div>'+
+       '<p class="mut" style="margin-top:12px">Ordem dos saldos</p><div class="fichas"><span>Ordem da lista</span><span class="on">Maior saldo</span><span>Manual</span></div></div>'+
+      '</div></div>';
+    return h;
+  }
+  function formaHoje(){
+    return '<div class="card"><b>Forma de pagamento</b><p class="mut">A lista vem do servidor. Toque na bolinha para escolher a cor.</p><div class="pills">'+
+      status.map(function(s){return '<span class="pill" style="--cor:'+s.c+'"><button class="bol" data-n="'+esc(s.n)+'" aria-label="Escolher cor de '+esc(s.n)+'"></button><b>'+esc(s.n)+'</b></span>'}).join('')+'</div>'+
+      (aberto?paleta(aberto):'')+'</div>';
+  }
+  function paleta(n){
+    var s=status.filter(function(x){return x.n===n})[0]; if(!s) return '';
+    return '<div class="pal" role="group" aria-label="Cores de '+esc(n)+'">'+PALETA.map(function(p){
+      return '<button data-p="'+p+'" data-n="'+esc(n)+'" style="background:'+p+'" aria-label="Cor '+p+'" aria-pressed="'+(p.toLowerCase()===s.c.toLowerCase())+'"></button>'}).join('')+'</div>';
+  }
+  function formaProposta(){
+    return '<div class="card"><b>Forma de pagamento</b><p class="mut">A lista vem do servidor. Toque na bolinha para escolher a cor; a linha mostra como o lançamento fica no Histórico e em Futuros.</p>'+
+      '<label class="sw"><input type="checkbox" role="switch" id="swCor"'+(comCor?' checked':'')+'><span>Cores nas linhas (Histórico e Futuros)</span></label>'+
+      status.map(function(s){
+        return '<div class="fp" style="--cor:'+s.c+'"><div class="fp-top"><button class="bol" data-n="'+esc(s.n)+'" aria-label="Escolher cor de '+esc(s.n)+'"></button><b>'+esc(s.n)+'</b><small>'+(aberto===s.n?'escolha uma cor':'toque na bolinha')+'</small></div>'+
+          (aberto===s.n?paleta(s.n):'')+linha(s)+'</div>';
+      }).join('')+'</div>';
+  }
+  function outros(){
+    return '<div class="card ph"><b>Bancos / contas</b><div class="linha"></div></div><div class="card ph"><b>Tags</b><div class="linha"></div></div>';
+  }
+  function render(){
+    $('corpo').innerHTML=cardsFixos()+aparencia(!prop)+(prop?formaProposta():formaHoje())+outros();
+    $('quadro').className='quadro'+(pc?' pc':'');
+    $('vHoje').setAttribute('aria-pressed',String(!prop)); $('vProp').setAttribute('aria-pressed',String(prop));
+    $('wCel').setAttribute('aria-pressed',String(!pc)); $('wPc').setAttribute('aria-pressed',String(pc));
+    var tem=status.some(function(s){return s.n==='DEBITO'});
+    $('acoesDemo').innerHTML='<button id="bNovo">'+(tem?'Remover o status simulado (DEBITO)':'Simular novo status (DEBITO)')+'</button>';
+    $('bNovo').onclick=function(){
+      if(tem) status=status.filter(function(s){return s.n!=='DEBITO'});
+      else status.push({n:'DEBITO',c:'#378ADD'});
+      aberto=null; render();
+    };
+    var sw=$('swCor'); if(sw) sw.onchange=function(){comCor=sw.checked; aberto=null; render();};
+    document.querySelectorAll('#corpo .bol').forEach(function(b){b.onclick=function(){aberto=(aberto===b.dataset.n)?null:b.dataset.n; render();}});
+    document.querySelectorAll('#corpo .pal button').forEach(function(b){b.onclick=function(){
+      status.forEach(function(s){if(s.n===b.dataset.n) s.c=b.dataset.p}); aberto=null; render();}});
+  }
+  $('vHoje').onclick=function(){prop=false;aberto=null;render()};
+  $('vProp').onclick=function(){prop=true;aberto=null;render()};
+  $('wCel').onclick=function(){pc=false;render()};
+  $('wPc').onclick=function(){pc=true;render()};
+  render();
+})();
+</script>
