@@ -1937,11 +1937,10 @@ function renderBarraLote(){
   const emHist = abaAtual()==='historico', sel = !!selecaoHist && emHist;
   const bt = document.getElementById('loteBtn'), topo = document.getElementById('loteTopo'), barra = document.getElementById('loteBarra');
   document.body.classList.toggle('lote-ativo', sel);
-  bt.textContent = sel ? 'Cancelar' : 'Selecionar';
   bt.hidden = !emHist || (!sel && !listaHistAtual.some(podeNoLote));
   if(!sel){ topo.innerHTML = ''; barra.classList.add('hidden'); barra.innerHTML = ''; return; }
   const n = selecaoHist.size, podem = listaHistAtual.filter(podeNoLote).length;
-  topo.innerHTML = `<span>${n} selecionado${n===1?'':'s'}</span><span><button type="button" data-lote="todos">Marcar os ${podem} da lista</button><button type="button" data-lote="limpar">Limpar</button></span>`;
+  topo.innerHTML = `<span>${n} selecionado${n===1?'':'s'}</span><span><button type="button" data-lote="todos">Marcar os ${podem} da lista</button><button type="button" data-lote="limpar">Limpar</button><button type="button" data-lote="cancelar">Cancelar</button></span>`;
   barra.innerHTML = `<button type="button" class="lote-ir" data-lote="tornar">${n ? `Tornar ${n} lançamento${n===1?'':'s'} em previstos` : 'Selecione ao menos um lançamento'}</button>`;
   barra.classList.remove('hidden');
 }
@@ -2530,6 +2529,7 @@ function cliqueLote(e){
   if(!b || !selecaoHist) return;
   if(b.dataset.lote==='todos') listaHistAtual.filter(podeNoLote).forEach(l=>selecaoHist.add(l.id));
   else if(b.dataset.lote==='limpar') selecaoHist.clear();
+  else if(b.dataset.lote==='cancelar'){ sairDaSelecaoHist(); return; }
   else if(b.dataset.lote==='tornar'){ if(selecaoHist.size) abrirLote(); return; }
   renderHistorico();
 }
