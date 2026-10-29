@@ -27,46 +27,61 @@ func TestRotular(t *testing.T) { // L-T1, L-T3
 	casos := []struct {
 		m    string
 		p    []string
-		quer string
+		quer rotulo
 	}{
-		{"GET", []string{"spaces", "s1", "tx"}, string(auth.AcaoLerTx)},
-		{"POST", []string{"spaces", "s1", "tx"}, string(auth.AcaoCriarTx)},
-		{"GET", []string{"me"}, acaoMe},
-		{"POST", []string{"me"}, acaoDesconhecida},
-		{"GET", []string{"nada"}, acaoDesconhecida},
-		{"GET", []string{""}, acaoDesconhecida},
-		{"GET", []string{"spaces", "s1"}, acaoDesconhecida},
-		{"PATCH", []string{"spaces", "s1", "tx"}, acaoDesconhecida},
+		{"GET", []string{"spaces", "s1", "tx"}, rotulo{string(auth.AcaoLerTx), "tx"}},
+		{"POST", []string{"spaces", "s1", "tx"}, rotulo{string(auth.AcaoCriarTx), "tx"}},
+		{"GET", []string{"spaces", "s1", "cfg", "listas"}, rotulo{string(auth.AcaoLerCfg), "cfg/listas"}},
+		{"GET", []string{"spaces", "s1", "cfg", "combos"}, rotulo{string(auth.AcaoLerCfg), "cfg/combos"}},
+		{"GET", []string{"spaces", "s1", "cfg", "tags"}, rotulo{string(auth.AcaoLerCfg), "cfg/tags"}},
+		{"GET", []string{"spaces", "s1", "aparencia"}, rotulo{string(auth.AcaoLerAparencia), "aparencia"}},
+		{"GET", []string{"me"}, rotulo{acaoMe, "me"}},
+		{"POST", []string{"me"}, rotulo{acaoDesconhecida, "-"}},
+		{"GET", []string{"nada"}, rotulo{acaoDesconhecida, "-"}},
+		{"GET", []string{""}, rotulo{acaoDesconhecida, "-"}},
+		{"GET", []string{"spaces", "s1"}, rotulo{acaoDesconhecida, "-"}},
+		{"GET", []string{"spaces", "s1", "cfg", "inventada"}, rotulo{acaoDesconhecida, "-"}},
+		{"PATCH", []string{"spaces", "s1", "tx"}, rotulo{acaoDesconhecida, "-"}},
 	}
 	for _, c := range casos {
 		if got := rotular(c.m, c.p); got != c.quer {
-			t.Errorf("rotular(%s, %v) = %q, esperado %q", c.m, c.p, got, c.quer)
+			t.Errorf("rotular(%s, %v) = %+v, esperado %+v", c.m, c.p, got, c.quer)
 		}
 	}
 }
 
 func TestRotularNaoLevaId(t *testing.T) { // L-T5
-	got := rotular("PUT", []string{"spaces", "ESPACO-SECRETO", "tx", "ID-SECRETO"})
-	if strings.Contains(got, "SECRETO") {
-		t.Errorf("a acao vazou um id: %q", got)
+	for _, p := range [][]string{
+		{"spaces", "ESPACO-SECRETO", "tx", "ID-SECRETO"},
+		{"spaces", "ESPACO-SECRETO", "tx", "ID-SECRETO", "versoes", "3", "restaurar"},
+		{"spaces", "ESPACO-SECRETO", "cfg", "ID-SECRETO"},
+		{"spaces", "ESPACO-SECRETO", "cartoes", "ID-SECRETO", "faturas", "2026-10"},
+	} {
+		for _, m := range []string{"GET", "POST", "PUT", "DELETE"} {
+			rt := rotular(m, p)
+			if strings.Contains(rt.Acao+rt.Rota, "SECRETO") {
+				t.Errorf("rotular(%s, %v) vazou um id: %+v", m, p, rt)
+			}
+		}
 	}
 }
 
 func TestLinhaDeLog(t *testing.T) { // L-T8
 	d := 12*time.Millisecond + 900*time.Microsecond
-	got := linhaDeLog("abc-123", "GET", "tx.ler", 200, d)
-	quer := "req rid=abc-123 m=GET acao=tx.ler status=200 ms=12"
+	rt := rotulo{"cfg.ler", "cfg/listas"}
+	got := linhaDeLog("abc-123", "GET", rt, 200, d)
+	quer := "req rid=abc-123 m=GET acao=cfg.ler rota=cfg/listas status=200 ms=12"
 	if got != quer {
 		t.Errorf("linha = %q, esperado %q", got, quer)
 	}
-	if linhaDeLog("abc-123", "GET", "tx.ler", 200, d) != got {
+	if linhaDeLog("abc-123", "GET", rt, 200, d) != got {
 		t.Error("a mesma entrada deu linhas diferentes")
 	}
 }
 
 func TestLinhaDeLogValoresSemEspaco(t *testing.T) { // R2
-	got := linhaDeLog("", "GET", "a b", 200, 0)
-	quer := "req rid=- m=GET acao=- status=200 ms=0"
+	got := linhaDeLog("", "GET", rotulo{"a b", "x y"}, 200, 0)
+	quer := "req rid=- m=GET acao=- rota=- status=200 ms=0"
 	if got != quer {
 		t.Errorf("linha = %q, esperado %q", got, quer)
 	}
@@ -75,19 +90,19 @@ func TestLinhaDeLogValoresSemEspaco(t *testing.T) { // R2
 func TestRegistrarUmaLinhaPorRequisicao(t *testing.T) { // L-T2, L-T4, L-T6
 	casos := []struct {
 		nome string
-		acao string
+		rt   rotulo
 		res  resp
 		err  error
 		quer string
 	}{
-		{"sem token", acaoSemToken, resp{StatusCode: 401}, nil, "acao=sem-token status=401"},
-		{"sem permissao", string(auth.AcaoExcluirTx), resp{StatusCode: 403}, nil, "acao=tx.excluir status=403"},
-		{"erro go", string(auth.AcaoLerTx), resp{}, errors.New("falhou"), "acao=tx.ler status=500"},
+		{"sem token", rotulo{acaoSemToken, "-"}, resp{StatusCode: 401}, nil, "acao=sem-token rota=- status=401"},
+		{"sem permissao", rotulo{string(auth.AcaoExcluirTx), "tx"}, resp{StatusCode: 403}, nil, "acao=tx.excluir rota=tx status=403"},
+		{"erro go", rotulo{string(auth.AcaoLerTx), "tx"}, resp{}, errors.New("falhou"), "acao=tx.ler rota=tx status=500"},
 	}
 	for _, c := range casos {
 		b := capturarLog(t)
-		registrar("rid1", "DELETE", c.acao, c.res, c.err, 5*time.Millisecond)
-		linhas := strings.Split(strings.TrimSpace(b.String()), "\n")
+		registrar("rid1", "DELETE", c.rt, c.res, c.err, 5*time.Millisecond)
+		linhas := strings.Split(strings.TrimSpace(b.String()), string(rune(10)))
 		if len(linhas) != 1 {
 			t.Fatalf("%s: %d linhas, esperada 1: %q", c.nome, len(linhas), b.String())
 		}
