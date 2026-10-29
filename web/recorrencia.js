@@ -102,6 +102,49 @@
     });
   }
 
+  // ---- tornar previstos em lote (Historico: marca varios lancamentos e cria os previstos do proximo mes) ----
+  const MAX_LOTE = 100;            // previstos por vez: cada um e uma gravacao, uma de cada vez (5 WCU)
+
+  // A data do lancamento `d` movida para o mes (ano, mes0) mantendo o dia e a hora; dia que nao existe no mes vira o ultimo.
+  function noMes(d, ano, mes0) {
+    const alvo = new Date(ano, mes0, 1, d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds());
+    const ultimo = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
+    alvo.setDate(Math.min(d.getDate(), ultimo));
+    return alvo;
+  }
+
+  // Previstos do lote, na ordem das origens: [{ origem, doc }]. op:
+  //   { ano, mes0 (mes de destino), intervaloMeses, quantidade (copias ALEM do primeiro mes; 0 = so o mes de destino),
+  //     aviso (obj|null), statusDe(origem), serieIdDe(origem) }
+  // A copia k e a k-esima data a partir do mes de destino, sempre calculada do dia ORIGINAL (31 -> 30/11, 31/12, 31/01).
+  // Descricao com parcela (2/10) segue a numeracao e para na ultima (origem que ja esta em 10/10 nao gera nada).
+  function montarLote(origens, op) {
+    const itens = [];
+    for (const origem of origens) {
+      let n = (op.quantidade || 0) + 1;
+      const resta = copiasRestantesNaParcela(origem.descricao);
+      if (resta !== null) n = Math.min(n, resta);
+      const dia = new Date(origem.dataEvento);
+      for (let k = 0; k < n; k++) {
+        const data = noMes(dia, op.ano, op.mes0 + op.intervaloMeses * k);
+        const doc = {
+          status: op.statusDe(origem),
+          tipo: origem.tipo,
+          valor: origem.valor,
+          descricao: resta !== null ? descricaoNumerada(origem.descricao, k + 1) : origem.descricao,
+          nota: origem.nota || '',
+          dataEvento: data.toISOString(),
+          banco: origem.banco,
+          tags: [...(origem.tags || [])],
+          serie: { id: op.serieIdDe(origem), indice: k + 1, intervalo: op.intervaloMeses }
+        };
+        if (op.aviso) doc.aviso = { dias: [...op.aviso.dias], insistir: !!op.aviso.insistir };
+        itens.push({ origem, doc });
+      }
+    }
+    return itens;
+  }
+
   // Ultima ocorrencia de uma serie entre os lancamentos carregados (a base do "estender").
   function ultimaDaSerie(lancamentos, serieId) {
     let ultima = null;
@@ -162,7 +205,8 @@
 
   const api = { MAX_PRAZOS, MAX_DIAS_AVISO, PRAZOS_PADRAO, rotuloPrazo, fraseAviso, validarPrazoNovo, validarIntervaloNovo,
     fraseRepeticao, avisoDoEstado, listaDePrazos, MAX_OCORRENCIAS, MAX_INTERVALO_MESES, INTERVALOS, somarMeses, gerarDatas, rotuloIntervalo, validar,
-    lerParcela, copiasRestantesNaParcela, descricaoNumerada, chaveDuplicado, montarCopias, ultimaDaSerie, diaLocal };
+    lerParcela, copiasRestantesNaParcela, descricaoNumerada, chaveDuplicado, montarCopias, ultimaDaSerie, diaLocal,
+    MAX_LOTE, montarLote };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.Recorrencia = api;
 })(typeof window !== 'undefined' ? window : globalThis);

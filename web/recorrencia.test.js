@@ -119,6 +119,48 @@ test('montarCopias recusa parametros invalidos', () => {
   assert.throws(() => R.montarCopias(base(), { ...op, intervaloMeses: 0 }));
 });
 
+const opLote = (extra) => ({ ano: 2026, mes0: 10, intervaloMeses: 1, quantidade: 0, aviso: null,
+  statusDe: (o) => o.status, serieIdDe: (o) => 's-' + o.descricao, ...extra });
+
+test('montarLote: cada origem vira um previsto no mes de destino, no seu dia (31 vira 30/11)', () => {
+  const a = { ...base(), descricao: 'Internet' };                                   // 31/10 08:00
+  const b = { ...base(), descricao: 'Escola', dataEvento: d(2026, 10, 10, 9, 15).toISOString() };
+  const l = R.montarLote([a, b], opLote());
+  assert.deepEqual(l.map((x) => x.origem.descricao), ['Internet', 'Escola']);
+  assert.deepEqual(l.map((x) => txt(new Date(x.doc.dataEvento))), ['2026-11-30 08:00', '2026-11-10 09:15']);
+  assert.ok(l.every((x) => x.doc.status === 'PAGO' && x.doc.tipo === 'saida' && x.doc.valor === 99.9 && x.doc.banco === 'ITAU' && x.doc.nota === 'apolice 7'));
+  assert.deepEqual(l[0].doc.serie, { id: 's-Internet', indice: 1, intervalo: 1 });
+  assert.ok(!('aviso' in l[0].doc));
+});
+
+test('montarLote: repetir soma meses a partir do dia ORIGINAL, por origem, e o aviso e de cada copia', () => {
+  const aviso = { dias: [1, 0], insistir: true };
+  const l = R.montarLote([base()], opLote({ quantidade: 3, aviso }));
+  assert.deepEqual(l.map((x) => R.diaLocal(new Date(x.doc.dataEvento))), ['2026-11-30', '2026-12-31', '2027-01-31', '2027-02-28']);
+  assert.deepEqual(l.map((x) => x.doc.serie.indice), [1, 2, 3, 4]);
+  l[0].doc.aviso.dias.push(9); l[0].doc.tags.push('x');
+  assert.deepEqual(l[1].doc.aviso.dias, [1, 0]);
+  assert.deepEqual(l[1].doc.tags, ['Casa']);
+  assert.deepEqual(aviso.dias, [1, 0]);
+});
+
+test('montarLote: intervalo maior e mes de destino em outro ano', () => {
+  const l = R.montarLote([base()], opLote({ ano: 2026, mes0: 11, intervaloMeses: 3, quantidade: 2 }));
+  assert.deepEqual(l.map((x) => R.diaLocal(new Date(x.doc.dataEvento))), ['2026-12-31', '2027-03-31', '2027-06-30']);
+});
+
+test('montarLote: parcela segue a numeracao e a que ja esta na ultima nao gera nada', () => {
+  const p = { ...base(), descricao: 'Notebook 8/10' }, fim = { ...base(), descricao: 'Sofa 10/10' };
+  const l = R.montarLote([p, fim], opLote({ quantidade: 5 }));
+  assert.deepEqual(l.map((x) => x.doc.descricao), ['Notebook 9/10', 'Notebook 10/10']);
+  assert.deepEqual(l.map((x) => x.origem.descricao), ['Notebook 8/10', 'Notebook 8/10']);
+});
+
+test('montarLote: sem origens nao cria nada; o limite do lote existe', () => {
+  assert.deepEqual(R.montarLote([], opLote()), []);
+  assert.equal(R.MAX_LOTE, 100);
+});
+
 test('ultimaDaSerie acha a de maior indice, so da serie pedida', () => {
   const l = [
     { id: 'a', serie: { id: 'x', indice: 2 } }, { id: 'b', serie: { id: 'x', indice: 5 } },
