@@ -37,6 +37,7 @@ pendentes: nenhum.
 - [\[Front\] - 20 - **\[Depois\] Ideias:**](#item-20)
 
 ### Infra (AWS, SAM, ambientes, custo, backup)
+- 50. [x] <a id="item-50"></a>**Log de cada requisição** (concluído em 2026-10-29; roteiro em [`.ai/specs/log-de-requisicoes/`](.ai/specs/log-de-requisicoes/intent.md)): o `handler` escreve uma linha `req rid= m= acao= status= ms=` ao terminar, sem corpo, query string nem ids; serve para achar as leituras repetidas e decidir o índice do Histórico.
 - 49. [ ] <a id="item-49"></a>**[Próximo] App multiusuário (2026-10-27; absorve o antigo item 37, MFA):** abrir o app a qualquer pessoa, cada uma no seu espaço, em fases
   (plano em [`.ai/specs/app-multiusuario/`](.ai/specs/app-multiusuario/intent.md)). Decidido com o dono: **ninguém lê dado de outro, nem o dono** (isolamento lógico; a garantia
   criptográfica seria a cifragem por campo de `.ai/privacidade-e-cifragem.md`); **o status é do app, global e nunca do usuário** (cada status novo, como `PIX`, `DEBITO` e `CRIPTO`, é

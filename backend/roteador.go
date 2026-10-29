@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 
@@ -23,15 +25,68 @@ type req = events.LambdaFunctionURLRequest
 func out(status int, v any) (resp, error)        { return controller.Out(status, v) }
 func erro(status int, msg string) (resp, error) { return controller.Erro(status, msg) }
 
+// handler atende uma chamada HTTP e deixa uma linha de log ao terminar (so o que foi chamado, nunca o conteudo).
 func (s *Servidor) handler(ctx context.Context, r req) (resp, error) {
+	t0 := time.Now()
+	acao := acaoSemToken
+	res, err := s.atender(ctx, r, &acao)
+	registrar(r.RequestContext.RequestID, r.RequestContext.HTTP.Method, acao, res, err, time.Since(t0))
+	return res, err
+}
+
+// atender autentica e roda a requisicao; grava em acao o nome da rota assim que ela e classificada.
+func (s *Servidor) atender(ctx context.Context, r req, acao *string) (resp, error) {
 	u, err := auth.VerificarToken(strings.TrimPrefix(r.Headers["authorization"], "Bearer "))
 	if err != nil {
 		return erro(http.StatusUnauthorized, "nao autenticado")
 	}
 	m := r.RequestContext.HTTP.Method
 	p := strings.Split(strings.Trim(r.RawPath, "/"), "/")
+	*acao = rotular(m, p)
 
 	return s.processar(ctx, u, m, p, r.QueryStringParameters, r.Body)
+}
+
+// Nomes de acao das saidas que nao chegam a classificacao da rota (o log nunca leva o caminho, que tem ids).
+const (
+	acaoSemToken     = "sem-token"
+	acaoMe           = "me"
+	acaoDesconhecida = "desconhecida"
+)
+
+// rotular da o nome da acao de uma rota (o mesmo de auth.RotaParaAcao), sem ids.
+func rotular(m string, p []string) string {
+	if len(p) == 1 && p[0] == "me" && m == "GET" {
+		return acaoMe
+	}
+	if len(p) < 3 || p[0] != "spaces" {
+		return acaoDesconhecida
+	}
+	a, ok := auth.RotaParaAcao(m, p[2:])
+	if !ok {
+		return acaoDesconhecida
+	}
+	return string(a)
+}
+
+// linhaDeLog monta a linha de uma requisicao: campos fixos, sem espaco nos valores e sem nenhum dado da chamada.
+func linhaDeLog(rid, m, acao string, status int, d time.Duration) string {
+	semVazio := func(v string) string {
+		if v == "" || strings.ContainsAny(v, " \t\r\n") {
+			return "-"
+		}
+		return v
+	}
+	return fmt.Sprintf("req rid=%s m=%s acao=%s status=%d ms=%d", semVazio(rid), semVazio(m), semVazio(acao), status, d.Milliseconds())
+}
+
+// registrar escreve a linha da requisicao; erro Go da execucao conta como 500.
+func registrar(rid, m, acao string, res resp, err error, d time.Duration) {
+	status := res.StatusCode
+	if err != nil {
+		status = http.StatusInternalServerError
+	}
+	log.Print(linhaDeLog(rid, m, acao, status, d))
 }
 
 // processar roda uma requisicao ja autenticada: classifica a rota, confere o papel e executa.

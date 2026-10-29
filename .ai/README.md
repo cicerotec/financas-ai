@@ -53,6 +53,7 @@ feito e ideias).
 | [`specs/futuros-previsto/`](specs/futuros-previsto/intent.md) | Intent, plan e spec do item 41: o marcador `previsto` no lugar dos status `PREVISTO`, `TRANSFERINDO` e `CREDITANDO`, o catálogo de status do backend sem data de corte global, o passado do usuário, Futuros e Histórico prontos pelo servidor e Confirmar (rascunho) |
 | [`demos/demo-atrasados-por-ano.html`](demos/demo-atrasados-por-ano.html) | Demo aprovada e implementada em 2026-10-26 (item 45): Atrasados em blocos Ano › Mês recolhíveis e seletor de anos anteriores na linha do título |
 | [`demos/demo-tema.html`](demos/demo-tema.html) | Demo do tema Automático, Claro ou Escuro, como primeiro item do cartão Aparência de Listas, guardado na conta (aprovada e implementada em 2026-10-26) |
+| [`specs/log-de-requisicoes/`](specs/log-de-requisicoes/intent.md) | Intent, plan e spec do item 50: uma linha de log por requisição (ação, status e duração, sem conteúdo nem ids), para achar as leituras repetidas e decidir o índice do Histórico (rascunho) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
