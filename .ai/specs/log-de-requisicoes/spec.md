@@ -11,10 +11,11 @@ Desvio do texto abaixo: o `handler` ficou dividido em `handler` (mede e registra
 
 - **R1.** Toda requisição HTTP que chega ao `handler` deixa **exatamente uma** linha de log ao terminar, qualquer que seja o resultado
   (sucesso, 4xx, 5xx ou erro Go).
-- **R2.** A linha tem o formato `req rid=<requestId> m=<método> acao=<ação> status=<código> ms=<duração>`, com campos fixos nessa
+- **R2.** A linha tem o formato `req rid=<requestId> m=<método> acao=<ação> rota=<rota> status=<código> ms=<duração>`, com campos fixos nessa
   ordem e valores sem espaço.
 - **R3.** `acao` é o nome da ação de `auth.RotaParaAcao` já classificada. Nas saídas que não chegam à classificação vale: `sem-token`
   (401 por token ausente ou inválido), `me` (`GET /me`) e `desconhecida` (404 por rota inexistente). Nunca é o caminho.
+- **R3a.** `rota` diz **qual** recurso foi chamado, sem ids: o primeiro trecho depois do espaço (`tx`, `futuros`, `aparencia`...) e, em `/cfg`, o nome da configuração (`cfg/listas`, `cfg/combos`, `cfg/tags`), que `auth.RotaParaAcao` só aceita de uma lista fixa. Vale `-` quando a rota não foi classificada (`sem-token`, `desconhecida`) e `me` para `GET /me`.
 - **R4.** A linha **não contém** corpo, cabeçalho, query string, id de espaço, id de lançamento, e-mail nem `sub`.
 - **R5.** `status` é o `StatusCode` da resposta; se `processar` devolver erro Go, é `500`.
 - **R6.** `ms` é a duração inteira em milissegundos entre o início do `handler` e a resposta pronta.
