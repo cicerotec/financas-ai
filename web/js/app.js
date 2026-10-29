@@ -211,6 +211,8 @@ async function criarEventos(docs, aoProgredir){
 // criar. Cada linha abre uma tela cheia propria; "Outro..." abre rodas numa janela de baixo. As datas, os prazos e as
 // frases vem de recorrencia.js (testado em node). Demo: .ai/demos/demo-repeticao-e-aviso.html.
 let pv = null;
+let selecaoHist = null;    // Historico: null = fora da selecao em lote; senao o conjunto de ids marcados
+let listaHistAtual = [];   // o que o Historico exibe agora ("Marcar os N da lista")
 
 function tcCk(on){ return `<span class="tc-ck${on?' on':''}" aria-hidden="true">${on?'✓':''}</span>`; }
 function tcCabeca(titulo, acao){ return `<div class="tc-hd"><button type="button" data-a="${acao}" aria-label="Voltar">←</button><h2>${esc(titulo)}</h2></div>`; }
@@ -228,6 +230,7 @@ function pvData(iso){ return new Date(iso).toLocaleDateString('pt-BR'); }
 // Copias a criar, com o que ja existe marcado, a partir do estado das telas.
 function pvCalcular(){
   if(pv.fatura) return {docs:[pv.base], iguais:new Set(), erro:''}; // o aviso da fatura nao cria copias
+  if(pv.lote) return pvCalcularLote();
   const aviso = Recorrencia.avisoDoEstado(pv.aviso);
   let erro = Recorrencia.validar(pv.meses, pv.qtd);
   if(!erro && aviso === 'incompleto') erro = 'Escolha pelo menos um prazo de aviso ou ligue "Insistir depois do vencimento".';
@@ -240,7 +243,78 @@ function pvCalcular(){
   return {docs, iguais, erro};
 }
 
+// ---- Tornar previstos em lote (Historico): o mesmo fluxo do Prever, com varios lancamentos de partida e um mes de destino ----
+// Demo: .ai/demos/demo-previstos-em-lote.html. Os previstos saem com o status da propria origem (a data futura e que os faz
+// previstos, como no Prever); a tela nao pergunta status.
+function pvStatusDaCopia(o){ return listas.status.includes(o.status) ? o.status : listas.status[0]; }
+function pvDestinosLote(){
+  const hoje = new Date(), r = [];
+  for(let k=1; k<=3; k++){ const d = new Date(hoje.getFullYear(), hoje.getMonth()+k, 1); r.push({ano:d.getFullYear(), mes0:d.getMonth(), ym:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}); }
+  return r;
+}
+function pvCalcularLote(){
+  const aviso = Recorrencia.avisoDoEstado(pv.aviso), L = pv.lote;
+  let erro = pv.rep ? (Recorrencia.validar(pv.meses, pv.qtd) || '') : '';
+  if(!erro && aviso === 'incompleto') erro = 'Escolha pelo menos um prazo de aviso ou ligue "Insistir depois do vencimento".';
+  let docs = [];
+  if(!erro){
+    const d = L.destinos[L.dest];
+    const itens = Recorrencia.montarLote(L.origens, {ano:d.ano, mes0:d.mes0, intervaloMeses:pv.meses, quantidade:pv.rep ? pv.qtd : 0,
+      aviso: aviso || null, statusDe:pvStatusDaCopia, serieIdDe:o=>L.series[o.id] || (L.series[o.id] = novoSerieId())});
+    docs = itens.map(i=>i.doc);
+    if(docs.length > Recorrencia.MAX_LOTE) erro = `Este lote criaria ${docs.length} previstos e o máximo é ${Recorrencia.MAX_LOTE} por vez. Marque menos lançamentos ou repita menos meses.`;
+  }
+  const existentes = chavesExistentes(), iguais = new Set();
+  docs.forEach((d,i)=>{ if(existentes.has(Recorrencia.chaveDuplicado(d))) iguais.add(i); });
+  return {docs, iguais, erro};
+}
+function pvTelaLote(){
+  const c = pv.calc = pvCalcular(), L = pv.lote, n = L.origens.length;
+  const ex = c.docs[0];
+  const novos = c.docs.length - (pv.dup==='pular' ? c.iguais.size : 0);
+  const meses = pv.rep ? pv.qtd + 1 : 1;
+  let h = tcCabeca('Tornar previstos', 'fechar');
+  h += `<p class="tc-ctx">${n} lançamento${n===1?'':'s'} do Histórico</p>`;
+  h += `<div class="tc-card">${tcLinha('dest','Mês de destino',esc(rotuloMes(L.destinos[L.dest].ym)))}${tcLinha('rep','Repetir',pv.rep ? Recorrencia.fraseRepeticao(pv.qtd,pv.meses).replace('além deste','além do primeiro mês') : 'Só em ' + esc(rotuloMes(L.destinos[L.dest].ym).split(' ')[0].toLowerCase()))}${tcLinha('avi','Avisar no Telegram',Recorrencia.fraseAviso(pv.aviso))}</div>`;
+  if(!c.erro){
+    const datas = ex ? c.docs.filter(d=>d.descricao===ex.descricao).slice(0,3).map(d=>pvData(d.dataEvento)).join(', ') : '';
+    const soma = c.docs.reduce((s,d,i)=>s + ((pv.dup==='pular' && c.iguais.has(i)) ? 0 : (d.tipo==='entrada'?1:-1)*Number(d.valor)), 0);
+    const parc = L.origens.filter(o=>Recorrencia.copiasRestantesNaParcela(o.descricao) === 0).length;
+    h += `<p class="tc-nota">Cria <b>${novos}</b> previsto${novos===1?'':'s'}: ${n} lançamento${n===1?'':'s'} × ${meses} ${meses===1?'mês':'meses'}${pv.dup==='pular' && c.iguais.size ? ` − ${c.iguais.size} que já existem` : ''}`+
+      `${ex ? `<br>Exemplo, ${esc(ex.descricao)}: <b>${datas}</b>` : ''}<br>Soma <b>${soma<0?'-':soma>0?'+':''}${fmtMoeda(Math.abs(soma))}</b>`+
+      `${L.origens.some(o=>Recorrencia.lerParcela(o.descricao)) ? '<br>Parcelas (2/10) seguem a numeração e param na última.' : ''}${parc ? `<br>${parc} já na última parcela, de fora.` : ''}</p>`;
+  }
+  if(c.iguais.size){
+    const lista = [...c.iguais].slice(0,4).map(i=>`${esc(c.docs[i].descricao)} em ${pvData(c.docs[i].dataEvento)}`).join('; ') + (c.iguais.size>4 ? ` e mais ${c.iguais.size-4}` : '');
+    h += `<div class="tc-card" style="margin-top:10px"><div class="tc-dup"><b>${c.iguais.size}</b> já exist${c.iguais.size===1?'e':'em'} em Futuros: ${lista}.</div>`+
+      `${tcOpcao('radio','dup','Pular os que já existem',pv.dup==='pular','data-v="pular"')}${tcOpcao('radio','dup','Criar mesmo assim',pv.dup==='criar','data-v="criar"')}</div>`;
+  }
+  const msg = pv.erro || c.erro;
+  if(msg) h += `<div class="tc-erro" role="alert">${esc(msg)}</div>`;
+  return h;
+}
+function pvTelaDestino(){
+  const L = pv.lote;
+  const linhas = L.destinos.map((d,i)=>tcOpcao('radio','dest',esc(rotuloMes(d.ym)),i===L.dest,`data-v="${i}"`)).join('');
+  return tcCabeca('Mês de destino','voltar')+`<div class="tc-card">${linhas}</div>`+
+    '<p class="tc-nota">Cada previsto fica no dia do lançamento de origem. Dia que não existe no mês vira o último (31 vira 30/11).</p>';
+}
+function pvTelaRepetirLote(){
+  let h = tcCabeca('Repetir','voltar')+`<div class="tc-card">${tcInterruptor('swRep','Repetir','',pv.rep)}</div>`;
+  if(!pv.rep) return h + `<p class="tc-nota">Sem repetir, cada lançamento vira um previsto só, no mês de destino.</p>`;
+  const ehPre = Recorrencia.INTERVALOS.some(i=>i.meses===pv.meses);
+  let linhas = Recorrencia.INTERVALOS.map(i=>tcOpcao('radio','int',i.rotulo,i.meses===pv.meses,`data-m="${i.meses}"`)).join('');
+  if(!ehPre){ const t = Recorrencia.rotuloIntervalo(pv.meses); linhas += tcOpcao('radio','int',t.charAt(0).toUpperCase()+t.slice(1),true,`data-m="${pv.meses}"`); }
+  const c = pvCalcular(), ex = c.docs[0];
+  const datas = ex ? c.docs.filter(d=>d.descricao===ex.descricao).map(d=>pvData(d.dataEvento)).join(', ') : '';
+  return h+`<div class="tc-card">${linhas}</div>`+
+    '<div class="tc-card"><button type="button" class="tc-li" data-a="janela" data-tipo="int"><span class="t">Outro intervalo</span><span class="go" aria-hidden="true">›</span></button></div>'+
+    `<div class="tc-card"><button type="button" class="tc-li" data-a="janela" data-tipo="qtd"><span class="t"><b>Repetir quantas vezes</b><span class="s">Além do primeiro mês · ${pv.qtd} de ${Recorrencia.MAX_OCORRENCIAS}</span></span><span style="color:var(--muted)">${pv.qtd}</span><span class="go" aria-hidden="true">›</span></button></div>`+
+    (c.erro ? '' : `<p class="tc-nota">Datas${ex ? ' de ' + esc(ex.descricao) : ''}: <b>${datas}</b></p>`);
+}
+
 function pvTelaPrincipal(){
+  if(pv.lote) return pvTelaLote();
   const c = pv.calc = pvCalcular(), b = pv.base, qtd = c.docs.length;
   const valor = Math.abs(valorAssinado(b));
   const datas = c.docs.slice(0,4).map(d=>pvData(d.dataEvento)).join(', ') + (qtd>4 ? ` e mais ${qtd-4}` : '');
@@ -259,11 +333,14 @@ function pvTelaPrincipal(){
   return h;
 }
 function pvBarra(){
-  const n = pv.calc ? pv.calc.docs.length : 0;
-  const rotulo = pv.ocupado ? pv.progresso : (n ? `Criar ${n} evento${n===1?'':'s'}` : 'Criar');
+  const c = pv.calc;
+  const n = c ? c.docs.length - (pv.lote && pv.dup==='pular' ? c.iguais.size : 0) : 0;
+  const palavra = pv.lote ? 'previsto' : 'evento';
+  const rotulo = pv.ocupado ? pv.progresso : (n ? `Criar ${n} ${palavra}${n===1?'':'s'}` : 'Criar');
   return `<div class="tc-barra"><button type="button" class="tc-criar" id="tcCriar" data-a="criar" aria-busy="${pv.ocupado}">${rotulo}</button></div>`;
 }
 function pvTelaRepetir(){
+  if(pv.lote) return pvTelaRepetirLote();
   const ehPre = Recorrencia.INTERVALOS.some(i=>i.meses===pv.meses);
   let linhas = Recorrencia.INTERVALOS.map(i=>tcOpcao('radio','int',i.rotulo,i.meses===pv.meses,`data-m="${i.meses}"`)).join('');
   if(!ehPre){ const t = Recorrencia.rotuloIntervalo(pv.meses); linhas += tcOpcao('radio','int',t.charAt(0).toUpperCase()+t.slice(1),true,`data-m="${pv.meses}"`); }
@@ -319,7 +396,7 @@ function pvHtmlJanela(){
 function pvValidarJanela(j){
   if(j.tipo === 'prazo') return Recorrencia.validarPrazoNovo(pv.aviso.dias, j.n, j.un===1);
   if(j.tipo === 'int') return Recorrencia.validarIntervaloNovo(j.n, j.un===1);
-  return {valor:j.n, texto:`Repetir ${j.n} ${j.n===1?'vez':'vezes'}, além deste lançamento`};
+  return {valor:j.n, texto:`Repetir ${j.n} ${j.n===1?'vez':'vezes'}, além ${pv.lote ? 'do primeiro mês' : 'deste lançamento'}`};
 }
 function pvPintarJanela(){
   const r = pvValidarJanela(pv.sheet), el = document.getElementById('tcLive');
@@ -366,7 +443,7 @@ function pvRender(topo){
   if(!el || !pv) return;
   const antes = el.querySelector('.tc-scr');
   const y = (!topo && antes) ? antes.scrollTop : 0;
-  const tela = pv.tela==='rep' ? pvTelaRepetir() : pv.tela==='avi' ? pvTelaAvisar() : pvTelaPrincipal();
+  const tela = pv.tela==='rep' ? pvTelaRepetir() : pv.tela==='avi' ? pvTelaAvisar() : pv.tela==='dest' ? pvTelaDestino() : pvTelaPrincipal();
   el.innerHTML = `<div class="tc-scr"><div class="tc-col">${tela}</div></div>${pv.fatura ? pvBarraFatura() : pv.tela==='main' ? pvBarra() : ''}${pvHtmlJanela()}`;
   el.querySelector('.tc-scr').scrollTop = y;
   pvMontarRodas();
@@ -400,8 +477,10 @@ async function pvCriar(){
       pv.progresso = `Criando ${feitos}/${total}…`;
       const b = document.getElementById('tcCriar'); if(b) b.textContent = pv.progresso;
     });
+    const emLote = !!pv.lote;
     fecharPrever();
-    toast(`✓ ${n} evento${n===1?'':'s'} criado${n===1?'':'s'}`);
+    if(emLote){ sairDaSelecaoHist(); toast(`✓ ${n} previsto${n===1?'':'s'} criado${n===1?'':'s'}. Veja em Futuros.`); }
+    else toast(`✓ ${n} evento${n===1?'':'s'} criado${n===1?'':'s'}`);
   }catch(err){
     console.error(err);
     await new Promise(r=>setTimeout(r, 400));   // o que ja foi criado entra no cache; a previa volta a apontar o "ja existe"
@@ -423,6 +502,8 @@ function pvClique(e){
   if(a==='ir'){ pv.tela = b.dataset.to; pv.erro = ''; return pvRender(true); }
   if(a==='criar') return pvCriar();
   if(a==='num'){ pv.numerar = !pv.numerar; return pvRender(false); }
+  if(a==='swRep'){ pv.rep = !pv.rep; return pvRender(false); }
+  if(a==='dest'){ pv.lote.dest = parseInt(b.dataset.v,10); pv.tela = 'main'; return pvRender(true); }
   if(a==='dup'){ pv.dup = b.dataset.v; return pvRender(false); }
   if(a==='int'){ pv.meses = parseInt(b.dataset.m,10); return pvRender(false); }
   if(a==='sw'){ av.on = !av.on; return pvRender(false); }
@@ -464,6 +545,31 @@ function abrirPrever(base, ctx){
   el.className = 'tc'; el.id = 'tc';
   el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
   el.setAttribute('aria-label', ctx.estender ? 'Estender a série' : 'Prever próximas datas');
+  el.addEventListener('click', pvClique);
+  document.body.appendChild(el);
+  document.documentElement.style.overflow = 'hidden';
+  pvRender(true);
+  const voltar = el.querySelector('.tc-hd button');
+  if(voltar) voltar.focus();
+}
+
+// Abre o fluxo de lote com os lancamentos marcados no Historico (selecaoHist).
+async function abrirLote(){
+  if(!selecaoHist || !selecaoHist.size || !db) return;
+  if(!listas.status.length){ avisar('Não há forma de pagamento disponível para prever.'); return; }
+  await lerDadosParaDuplicados();
+  const origens = lotePelaSelecao();
+  if(!origens.length) return;
+  fecharPrever();
+  pv = {
+    lote:{origens, destinos:pvDestinosLote(), dest:0, series:{}},
+    base:origens[0], ctx:{}, dup:'pular', tela:'main', sheet:null, erro:'', ocupado:false, progresso:'',
+    rep:false, qtd:2, meses:1, aviso:{on:true, dias:[1,0], insistir:true}
+  };
+  const el = document.createElement('div');
+  el.className = 'tc'; el.id = 'tc';
+  el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
+  el.setAttribute('aria-label','Tornar previstos');
   el.addEventListener('click', pvClique);
   document.body.appendChild(el);
   document.documentElement.style.overflow = 'hidden';
@@ -883,6 +989,7 @@ function ligarVoltar(){
 let abaOrigemEdicao = null;
 function abaAtual(){ const b = document.querySelector('nav button.active'); return b ? b.dataset.tab : 'lancar'; }
 function irParaAba(t){
+  if(t !== 'historico' && selecaoHist){ selecaoHist = null; renderBarraLote(); } // a selecao em lote e so do Historico
   document.body.dataset.aba = t;
   const nomeAba = document.querySelector(`nav button[data-tab="${t}"]`);
   if(nomeAba) document.getElementById('mnTela').textContent = nomeAba.textContent;
@@ -1815,21 +1922,48 @@ function tituloDiaHist(l){
   const w = new Date(l.dataEvento).toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','');
   return w.charAt(0).toUpperCase() + w.slice(1) + ' ' + dataBR(l);
 }
+// Selecao em lote (tornar previstos). Demo: .ai/demos/demo-previstos-em-lote.html. O estado (selecaoHist, listaHistAtual) fica junto do pv.
+const podeNoLote = l=>!l.transferParId; // transferencia nao tem Prever, nem aqui
+function lotePelaSelecao(){
+  return [...(selecaoHist||[])].map(acharLancamento).filter(l=>l && podeNoLote(l)).sort((a,b)=>a.dataEvento<b.dataEvento ? -1 : 1);
+}
+function sairDaSelecaoHist(){ selecaoHist = null; renderHistorico(); }
+function alternarSelecaoHist(id){
+  if(!selecaoHist) return;
+  if(selecaoHist.has(id)) selecaoHist.delete(id); else selecaoHist.add(id);
+  renderHistorico();
+}
+function renderBarraLote(){
+  const emHist = abaAtual()==='historico', sel = !!selecaoHist && emHist;
+  const bt = document.getElementById('loteBtn'), topo = document.getElementById('loteTopo'), barra = document.getElementById('loteBarra');
+  document.body.classList.toggle('lote-ativo', sel);
+  bt.textContent = sel ? 'Cancelar' : 'Selecionar';
+  bt.hidden = !emHist || (!sel && !listaHistAtual.some(podeNoLote));
+  if(!sel){ topo.innerHTML = ''; barra.classList.add('hidden'); barra.innerHTML = ''; return; }
+  const n = selecaoHist.size, podem = listaHistAtual.filter(podeNoLote).length;
+  topo.innerHTML = `<span>${n} selecionado${n===1?'':'s'}</span><span><button type="button" data-lote="todos">Marcar os ${podem} da lista</button><button type="button" data-lote="limpar">Limpar</button></span>`;
+  barra.innerHTML = `<button type="button" class="lote-ir" data-lote="tornar">${n ? `Tornar ${n} lançamento${n===1?'':'s'} em previstos` : 'Selecione ao menos um lançamento'}</button>`;
+  barra.classList.remove('hidden');
+}
 function htmlLinhaHist(l, busca){
   const id = esc(l.id);
   const cor = estiloCor==='nenhum' ? 'var(--faint)' : corStatus(l.status);
   const tags = (l.tags||[]).map(t=>'#'+esc(t)).join(' ');
   const fut = '';
-  const botoes = botoesDoEvento(l, id);
-  return `<div class="fut-row hist-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}" style="--cor:${cor}">
-    <div class="fut-m" role="button" tabindex="0" data-fut-abrir="${id}" aria-haspopup="dialog">
+  const sel = !!selecaoHist, pode = sel && podeNoLote(l), marc = pode && selecaoHist.has(l.id);
+  const botoes = sel ? '' : botoesDoEvento(l, id);
+  const ck = sel ? `<span class="lote-ck${marc?' on':''}${pode?'':' off'}" aria-hidden="true">${pode?'✓':''}</span>` : '';
+  const abrir = sel ? `role="checkbox" aria-checked="${marc}"${pode?'':' aria-disabled="true"'} tabindex="0"` : `role="button" tabindex="0" data-fut-abrir="${id}" aria-haspopup="dialog"`;
+  return `<div class="fut-row hist-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}${marc?' marcada':''}${sel&&!pode?' fora-lote':''}" style="--cor:${cor}"${pode?` data-lote-id="${id}"`:''}>
+    <div class="fut-m" ${abrir}>
       <span class="l"><span class="d">${esc(l.descricao)}</span>
         <span class="mt"><span>${busca?dataBR(l):horaBR(l)}</span>${seloStatus(l.status)}${chipPagaFatura(l)}<span class="bk">${esc(l.banco||'-')}${l.oculto?' · oculto':''}${fut}</span>${htmlNotaIcone(l)}</span>
         ${tags?`<span class="hist-tags">${tags}</span>`:''}</span>
       <span class="r">${htmlValorLinha(l)}</span>
-      <span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>
+      ${sel ? ck : `<span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>`}
     </div>
     <div class="fut-dk" tabindex="0">
+      ${sel ? `<span class="lote-c">${ck}</span>` : ''}
       <span class="dt">${dataBR(l)}<small>${horaBR(l)}</small></span>
       <span class="dd"><span class="dl"><span class="d" title="${esc(l.descricao)}">${esc(l.descricao)}</span></span>${(tags||l.nota)?`<span class="sub hist-sub"><span class="hist-tags-t">${tags}</span>${htmlNotaIcone(l)}</span>`:''}</span>
       <span class="bk" title="${esc(l.banco||'-')}">${esc(l.banco||'-')}${l.oculto?' · oculto':''}</span>
@@ -1855,8 +1989,8 @@ function htmlListaHist(lista, busca, asc){
     else if(!tabela) tit = `<div class="fut-titulo"><span>${esc(tituloDiaHist(g.l))}</span></div>`;
     return tit + `<div class="fut-grupo">${g.itens.map(l=>htmlLinhaHist(l,busca)).join('')}</div>`;
   }).join('');
-  const cab = `<div class="fut-cab"><span><button type="button" class="hist-th" data-hist-ordem>Data ${asc?'↑':'↓'}</button></span><span>Lançamento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>`;
-  return `<div class="fut-tabela"><div class="fut-tabela-in">${cab}${corpo}</div></div>`;
+  const cab = `<div class="fut-cab">${selecaoHist?'<span></span>':''}<span><button type="button" class="hist-th" data-hist-ordem>Data ${asc?'↑':'↓'}</button></span><span>Lançamento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span>${selecaoHist?'':'<span></span>'}</div>`;
+  return `<div class="fut-tabela${selecaoHist?' sel-lote':''}"><div class="fut-tabela-in">${cab}${corpo}</div></div>`;
 }
 function nFiltrosHist(){
   return filStatusSelecionados.size + filBancoSelecionados.size + (seletorHist ? seletorHist.n() : 0)
@@ -1933,6 +2067,8 @@ function renderHistorico(){
   const asc = ordem==='asc';
   document.getElementById('btnOrdem').textContent = asc ? 'Data ↑' : 'Data ↓';
   const fim = document.getElementById('histFim');
+  listaHistAtual = lista;
+  renderBarraLote();
   if(!lista.length){
     el.innerHTML = `<div class="hist-vazio"><b>Nenhum lançamento encontrado.</b>${(n||modoBuscaTexto)?'<button type="button" data-hist-limpar>Limpar busca e filtros</button>':''}</div>`;
     fim.innerHTML = '';
@@ -2378,14 +2514,27 @@ document.getElementById('listaFuturos').addEventListener('click', cliqueAcaoRegi
 document.getElementById('listaLancamentos').addEventListener('click', e=>{
   const n = e.target.closest('[data-hist-nota]');
   if(n){ abrirNotaLancamento(n.dataset.histNota); return; }
+  const lr = selecaoHist && e.target.closest('[data-lote-id]');
+  if(lr){ alternarSelecaoHist(lr.dataset.loteId); return; }
   const b = e.target.closest('[data-fut-abrir]');
   if(b){ abrirAcoesFuturo(b.dataset.futAbrir); return; }
   if(e.target.closest('[data-hist-ordem]')){ document.getElementById('btnOrdem').click(); return; }
   if(e.target.closest('[data-hist-limpar]')) limparTudoHist();
 });
 document.getElementById('listaLancamentos').addEventListener('keydown', e=>{
-  if((e.key==='Enter' || e.key===' ') && e.target.matches('.fut-m,.hist-nota')){ e.preventDefault(); e.target.click(); }
+  if((e.key==='Enter' || e.key===' ') && (e.target.matches('.fut-m,.hist-nota') || (selecaoHist && e.target.matches('.fut-dk')))){ e.preventDefault(); e.target.click(); }
 });
+document.getElementById('loteBtn').addEventListener('click', ()=>{ selecaoHist = selecaoHist ? null : new Set(); renderHistorico(); });
+function cliqueLote(e){
+  const b = e.target.closest('[data-lote]');
+  if(!b || !selecaoHist) return;
+  if(b.dataset.lote==='todos') listaHistAtual.filter(podeNoLote).forEach(l=>selecaoHist.add(l.id));
+  else if(b.dataset.lote==='limpar') selecaoHist.clear();
+  else if(b.dataset.lote==='tornar'){ if(selecaoHist.size) abrirLote(); return; }
+  renderHistorico();
+}
+document.getElementById('loteTopo').addEventListener('click', cliqueLote);
+document.getElementById('loteBarra').addEventListener('click', cliqueLote);
 document.getElementById('histFim').addEventListener('click', e=>{
   const m = e.target.closest('[data-hist-mes]');
   if(m){ deslocarMes(+m.dataset.histMes); return; }
