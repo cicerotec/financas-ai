@@ -28,21 +28,21 @@ func erro(status int, msg string) (resp, error) { return controller.Erro(status,
 // handler atende uma chamada HTTP e deixa uma linha de log ao terminar (so o que foi chamado, nunca o conteudo).
 func (s *Servidor) handler(ctx context.Context, r req) (resp, error) {
 	t0 := time.Now()
-	acao := acaoSemToken
-	res, err := s.atender(ctx, r, &acao)
-	registrar(r.RequestContext.RequestID, r.RequestContext.HTTP.Method, acao, res, err, time.Since(t0))
+	rt := rotulo{Acao: acaoSemToken, Rota: "-"}
+	res, err := s.atender(ctx, r, &rt)
+	registrar(r.RequestContext.RequestID, r.RequestContext.HTTP.Method, rt, res, err, time.Since(t0))
 	return res, err
 }
 
-// atender autentica e roda a requisicao; grava em acao o nome da rota assim que ela e classificada.
-func (s *Servidor) atender(ctx context.Context, r req, acao *string) (resp, error) {
+// atender autentica e roda a requisicao; grava em rt o nome da rota assim que ela e classificada.
+func (s *Servidor) atender(ctx context.Context, r req, rt *rotulo) (resp, error) {
 	u, err := auth.VerificarToken(strings.TrimPrefix(r.Headers["authorization"], "Bearer "))
 	if err != nil {
 		return erro(http.StatusUnauthorized, "nao autenticado")
 	}
 	m := r.RequestContext.HTTP.Method
 	p := strings.Split(strings.Trim(r.RawPath, "/"), "/")
-	*acao = rotular(m, p)
+	*rt = rotular(m, p)
 
 	return s.processar(ctx, u, m, p, r.QueryStringParameters, r.Body)
 }
@@ -54,39 +54,48 @@ const (
 	acaoDesconhecida = "desconhecida"
 )
 
-// rotular da o nome da acao de uma rota (o mesmo de auth.RotaParaAcao), sem ids.
-func rotular(m string, p []string) string {
+// rotulo e o que o log diz de uma rota: a acao (a mesma de auth.RotaParaAcao) e a rota sem ids, como "cfg/listas".
+type rotulo struct{ Acao, Rota string }
+
+// rotular classifica uma rota para o log, sem ids. A rota e o primeiro trecho depois do espaco (um nome fixo da API) e,
+// em /cfg, o nome da configuracao, que auth.RotaParaAcao so aceita de uma lista fixa.
+func rotular(m string, p []string) rotulo {
 	if len(p) == 1 && p[0] == "me" && m == "GET" {
-		return acaoMe
+		return rotulo{acaoMe, "me"}
 	}
 	if len(p) < 3 || p[0] != "spaces" {
-		return acaoDesconhecida
+		return rotulo{acaoDesconhecida, "-"}
 	}
 	a, ok := auth.RotaParaAcao(m, p[2:])
 	if !ok {
-		return acaoDesconhecida
+		return rotulo{acaoDesconhecida, "-"}
 	}
-	return string(a)
+	rota := p[2]
+	if rota == "cfg" && len(p) > 3 {
+		rota += "/" + p[3]
+	}
+	return rotulo{string(a), rota}
 }
 
 // linhaDeLog monta a linha de uma requisicao: campos fixos, sem espaco nos valores e sem nenhum dado da chamada.
-func linhaDeLog(rid, m, acao string, status int, d time.Duration) string {
+func linhaDeLog(rid, m string, rt rotulo, status int, d time.Duration) string {
 	semVazio := func(v string) string {
 		if v == "" || strings.ContainsAny(v, " \t\r\n") {
 			return "-"
 		}
 		return v
 	}
-	return fmt.Sprintf("req rid=%s m=%s acao=%s status=%d ms=%d", semVazio(rid), semVazio(m), semVazio(acao), status, d.Milliseconds())
+	return fmt.Sprintf("req rid=%s m=%s acao=%s rota=%s status=%d ms=%d",
+		semVazio(rid), semVazio(m), semVazio(rt.Acao), semVazio(rt.Rota), status, d.Milliseconds())
 }
 
 // registrar escreve a linha da requisicao; erro Go da execucao conta como 500.
-func registrar(rid, m, acao string, res resp, err error, d time.Duration) {
+func registrar(rid, m string, rt rotulo, res resp, err error, d time.Duration) {
 	status := res.StatusCode
 	if err != nil {
 		status = http.StatusInternalServerError
 	}
-	log.Print(linhaDeLog(rid, m, acao, status, d))
+	log.Print(linhaDeLog(rid, m, rt, status, d))
 }
 
 // processar roda uma requisicao ja autenticada: classifica a rota, confere o papel e executa.
