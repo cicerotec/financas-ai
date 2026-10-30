@@ -1973,7 +1973,7 @@ function acoesDoEvento(l){
   if(!l.transferParId) a.push({k:'prever', i:l.serie?'estender':'prever', t:l.serie?'Estender série':'Prever próximas datas'});
   // Recorrencia (item 51): tornar recorrente quem ainda nao e; parar so na ponta (a copia que o servidor diz ser a mais recente).
   if(!l.transferParId && podeMexer(l)){
-    if(recorrenciaDe(l)) a.push({k:'pararRec', i:'recorrente', t:'Parar recorrência'});
+    if(recorrenciaDe(l)) a.push({k:'pararRec', i:'pararRec', t:'Parar recorrência'});
     else if(!l.recorrente) a.push({k:'tornarRec', i:'recorrente', t:'Tornar recorrente'});
   }
   if(podeMexer(l)) a.push({k:'ocultar', i:l.oculto?'mostrar':'ocultar', t:l.oculto?'Mostrar':'Ocultar'});
@@ -1992,9 +1992,11 @@ const ICONES_ACAO = {
   mostrar: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   excluir: '<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
   avisar: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/>',
-  recorrente: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>'
+  recorrente: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+  // as mesmas setas cortadas por um risco na diagonal (como o olho riscado do Ocultar), com um vao em volta do risco
+  pararRec: '<mask id="mkRec" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"/><path d="M3 3l18 18" stroke="#000" stroke-width="5" stroke-linecap="butt"/></mask><g mask="url(#mkRec)"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></g><path d="M3 3l18 18"/>'
 };
-const LUGAR_ACAO = {confirmar:1, editar:2, copiar:3, prever:4, avisar:4, recorrente:5, ocultar:6, excluir:7};
+const LUGAR_ACAO = {confirmar:1, editar:2, copiar:3, prever:4, avisar:4, recorrente:5, pararRec:5, ocultar:6, excluir:7};
 function botaoAcao(k, icone, nome, id, cls){
   return `<button type="button" class="${cls||''}" data-acao="${k}" data-id="${id}" style="grid-column:${LUGAR_ACAO[icone==='estender'?'prever':icone==='mostrar'?'ocultar':icone]||LUGAR_ACAO[k]}" title="${esc(nome)}" aria-label="${esc(nome)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES_ACAO[icone]}</svg></button>`;
 }
