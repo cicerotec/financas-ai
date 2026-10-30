@@ -54,7 +54,7 @@ func (s *Recorrencias) hoje() string { return s.rel.Agora().In(domain.FusoApp).F
 func idItemRecorrencia(primeiro string) string { return prefixoItemRecorrencia + primeiro }
 
 // abrir cria a primeira copia (na primeira data depois de hoje) e o item. Idempotente: a copia tem id derivado e o item e regravado.
-func (s *Recorrencias) abrir(ctx context.Context, sid string, origem domain.Lancamento, intervalo int) error {
+func (s *Recorrencias) abrir(ctx context.Context, sid string, origem domain.Lancamento, intervalo int, aviso domain.Doc) error {
 	primeiro, _ := origem["id"].(string)
 	data, _ := origem["dataEvento"].(string)
 	dia, err := domain.DiaDoMes(data)
@@ -68,6 +68,13 @@ func (s *Recorrencias) abrir(ctx context.Context, sid string, origem domain.Lanc
 	criadoPor, _ := origem["criadoPor"].(string)
 	copia := domain.CopiaDeRecorrencia(origem, proxima)
 	copia["recorrente"] = domain.Doc{"intervalo": float64(intervalo)}
+	if aviso != nil { // o aviso escolhido ao marcar vale para a primeira copia (e dela passa para as seguintes); vazio = sem aviso; o original nao muda
+		if len(aviso) == 0 {
+			delete(copia, "aviso")
+		} else {
+			copia["aviso"] = aviso
+		}
+	}
 	copia["id"] = domain.IDCopiaRecorrencia(primeiro, proxima)
 	if _, err := s.lanc.CriarCopia(ctx, sid, criadoPor, copia); err != nil {
 		return err
@@ -78,12 +85,12 @@ func (s *Recorrencias) abrir(ctx context.Context, sid string, origem domain.Lanc
 
 // Iniciar abre a recorrencia de um lancamento recem-criado ja marcado (a marca ja foi gravada com ele, sem versao).
 func (s *Recorrencias) Iniciar(ctx context.Context, sid string, origem domain.Lancamento, intervalo int) error {
-	return s.abrir(ctx, sid, origem, intervalo)
+	return s.abrir(ctx, sid, origem, intervalo, nil)
 }
 
 // Marcar liga a recorrencia de um lancamento que ja existe (sob a data de). Cria a primeira copia e o item, e por fim poe a marca
 // (uma alteracao: grava versao). Cada passo e repetivel: se cair no meio, marcar de novo termina o trabalho.
-func (s *Recorrencias) Marcar(ctx context.Context, sid, sub, id, de string, intervalo int, restrito bool) (domain.Doc, error) {
+func (s *Recorrencias) Marcar(ctx context.Context, sid, sub, id, de string, intervalo int, aviso domain.Doc, restrito bool) (domain.Doc, error) {
 	if _, _, err := domain.IntervaloRecorrente(map[string]any{"intervalo": float64(intervalo)}); err != nil {
 		return nil, &ErroValidacao{err.Error()}
 	}
@@ -109,7 +116,7 @@ func (s *Recorrencias) Marcar(ctx context.Context, sid, sub, id, de string, inte
 		return nil, &ErroValidacao{"o lancamento ja e recorrente"}
 	}
 	origem["recorrente"] = domain.Doc{"intervalo": float64(intervalo)}
-	if err := s.abrir(ctx, sid, origem, intervalo); err != nil {
+	if err := s.abrir(ctx, sid, origem, intervalo, aviso); err != nil {
 		log.Println("recorrencia: abrir:", err)
 		return nil, ErrSalvar
 	}

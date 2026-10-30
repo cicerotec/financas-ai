@@ -22,11 +22,12 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 - **R14.** O passado não é tocado: nenhum lançamento existente é alterado pela entrega; só ganha `recorrente` o que o dono marca.
 - **R15.** Isolamento: cada item leva o `sid` e a rotina só cria no espaço dele; um espaço nunca lê nem cria no de outro.
 - **R16.** Desempenho: criar uma cópia (ao marcar ou pela rotina) = 1 leitura do registro de origem, 1 gravação do lançamento, 1 do aviso da cópia (se tiver) e 1 do item. Nenhuma varredura de tabela em lugar nenhum.
+- **R17.** Ao marcar, `aviso` é opcional e vale só para a **primeira cópia** (validado como o de qualquer lançamento; `null` = sem aviso, mesmo que o original tenha; ausente = herda o do original, como em R5). O lançamento original não muda. As cópias seguintes herdam o aviso da ponta (R5). Recusa (`400`) com aviso inválido.
 
 ## API
 
 ```
-POST   /spaces/{sid}/recorrencias?de=<dataEvento atual>  { "id": "<lançamento>", "intervalo": 1 }  -> 201 { id, intervalo, dataUltimo }   | 400 | 403   (cria também a primeira cópia)
+POST   /spaces/{sid}/recorrencias?de=<dataEvento atual>  { "id": "<lançamento>", "intervalo": 1, "aviso"?: {...} | null }  -> 201 { id, intervalo, dataUltimo }   | 400 | 403   (cria também a primeira cópia)
 DELETE /spaces/{sid}/recorrencias/{id}                                             -> 200
 GET    /spaces/{sid}/recorrencias                                                  -> 200 [{ id, ultimoId, intervalo, dataUltimo }]
 POST   /spaces/{sid}/tx                  { ..., "recorrente": { "intervalo": 2 } }   -> cria o lançamento, o item e a primeira cópia juntos

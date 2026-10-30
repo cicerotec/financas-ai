@@ -2268,10 +2268,11 @@ function iniciarEdicao(id){
   document.getElementById('fValor').value = l.valor;
   document.getElementById('fDesc').value = l.descricao;
   document.getElementById('fNota').value = l.nota || '';
-  lancarModo('lanc'); lancarMais(!!l.nota);
+  lancarModo('lanc'); lancarMais(!!l.nota || !!(l.aviso && typeof l.aviso === 'object')); // o aviso mora em Mais
   const d = new Date(l.dataEvento); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
   document.getElementById('fData').value = d.toISOString().slice(0,16);
   document.getElementById('fBanco').value = l.banco || '';
+  atualizarCampoFatura(); // de novo, agora com a data e o banco do lançamento: o campo de aviso só aparece com data futura
   tagsSelecionadas = new Set(l.tags||[]);
   renderTagPicker();
   document.getElementById('btnSalvar').textContent = 'Salvar edição';
