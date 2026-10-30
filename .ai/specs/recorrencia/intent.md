@@ -13,7 +13,7 @@ sistema copiá-lo sozinho, com todas as características (valor, banco, tags, no
 
 ## O que queremos
 
-1. **Marcar uma vez.** O lançamento ganha o atributo `recorrente: { intervalo }` (no `TX#`, o próprio lançamento), com o intervalo em meses (1, 2, 3, 6, 12 ou outro). Não existe "tipo novo" de lançamento: a recorrência é um
+1. **Marcar uma vez.** O lançamento ganha o atributo `recorrente: { intervalo }` (no `TX#`, o próprio lançamento), com o intervalo em meses (1, 2, 3, 6, 12 ou outro). O intervalo é escolhido na tela **Repetir** que já existe, sem a linha "Repetir quantas vezes". Não existe "tipo novo" de lançamento: a recorrência é um
    lançamento previsto qualquer com essa marca.
 2. **O servidor cria as cópias.** A rotina diária que já manda os avisos do Telegram passa a criar também a próxima cópia de cada recorrência, **30 dias antes** do vencimento, para ela aparecer em Futuros com
    tempo. A cópia leva os mesmos dados do último registro (valor, banco, tags, nota, status da origem, aviso) e **herda a marca**, para a recorrência seguir sozinha.
@@ -44,5 +44,5 @@ recorrência (só pula o mês); parar é uma ação à parte.
 ## Pronto quando
 
 - A rotina diária cria a próxima cópia de cada recorrência na janela, sem duplicar e sem varrer a tabela, e os testes cobrem intervalo 1, 2, 6 e 12, dia 31, apagar e pular, desligar e religar, e rodar duas vezes.
-- A tela marca, mostra e desliga a recorrência, com a demo aprovada antes (no padrão do Prever e do Repetir).
+- A tela marca, mostra e desliga a recorrência, com a demo aprovada antes (reaproveitando a tela Repetir, sem "Repetir quantas vezes").
 - `modelo-de-dados`, `eventos-futuros.md` (a "regra recorrente sem fim" deixa de ficar de fora), `padrao-de-telas.md`, o guardrails e o BACKLOG ficam em dia na mesma entrega.

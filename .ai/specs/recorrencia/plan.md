@@ -58,7 +58,7 @@ Ao criar um lançamento (`POST /tx`) com `recorrente: { intervalo }`, o item nas
 
 - **A (backend):** `ValidarRecorrencia` (intervalo e transferência), item auxiliar no `AVISOS#ATIVOS`, rotina de recorrência no evento `avisos`, rotas, constante da janela, testes. Só acrescenta; o app antigo
   não envia `recorrente` e nada muda para ele.
-- **B (tela):** demo primeiro, no padrão do Prever e do Repetir (as rodas do intervalo, a lista e o interruptor), com o 🔁 na linha, a lista de recorrências ativas e o botão de parar. A tela não decide
+- **B (tela):** demo primeiro, reaproveitando a tela **Repetir** que já existe (Mensal, Trimestral, Semestral, Anual e Outro intervalo), **sem** a linha "Repetir quantas vezes", porque a recorrência não tem fim, com o 🔁 na linha, a lista de recorrências ativas e o botão de parar. A tela não decide
   nada: o servidor calcula a próxima data e diz quais lançamentos são recorrentes.
 
 O release para a `main` só depois da A **e** da B, porque o backend sozinho não dá como marcar.

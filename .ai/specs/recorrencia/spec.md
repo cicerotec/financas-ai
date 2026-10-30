@@ -67,7 +67,7 @@ POST   /spaces/{sid}/tx                  { ..., "recorrente": { "intervalo": 2 }
 
 ## Telas (fase B, depois da demo aprovada)
 
-- **No padrão do Prever e do Repetir** (`.ai/padrao-de-telas.md`): o dono escolhe o intervalo pelas mesmas rodas e liga o interruptor da recorrência; **não há campo de status**. A demo vai em
+- **Reaproveita a tela **Repetir** que já existe (Mensal, Trimestral, Semestral, Anual e Outro intervalo), **sem** a linha "Repetir quantas vezes", porque a recorrência não tem fim** (`.ai/padrao-de-telas.md`): o dono escolhe o intervalo ali e confirma; **não há campo de status**. A demo vai em
   `.ai/demos/` e mostra a tela inteira (celular e computador).
 - A linha do lançamento mostra o 🔁 quando `recorrente`; as cópias de recorrência **não** mostram "série N". Há uma lista das recorrências ativas, com o botão de parar.
 - O front só mostra: quem calcula a próxima data e diz quais são ativas é o servidor.
