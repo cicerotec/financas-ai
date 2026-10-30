@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Tendências, consultas salvas</title>
+<style>
+/* Tokens do app (web/index.html). Demo da janela "Consultas salvas" da Tendências: compartilhada no espaço, cada pessoa altera só as suas, o dono modera. */
+:root{
+  --bg:#f7f7f5; --card:#fff; --text:#1a1a1a; --muted:#6b6b6b; --border:#e3e2de;
+  --accent:#2f6f4f; --onaccent:#fff; --accent-bg:#dcefe5; --danger:#b3413a; --danger-bg:#f8e6e2;
+  --faint:#8c938d; --ck:#d3d6d2; --frame:#e9e8e3;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
+  --accent:#5fb98a; --onaccent:#08231a; --accent-bg:#1c3a2e; --danger:#e08a83; --danger-bg:#3a1f1a;
+  --faint:#7b827c; --ck:#3b413d; --frame:#0f0f0e; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
+  --accent:#5fb98a; --onaccent:#08231a; --accent-bg:#1c3a2e; --danger:#e08a83; --danger-bg:#3a1f1a;
+  --faint:#7b827c; --ck:#3b413d; --frame:#0f0f0e; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 60px;}
+.wrap{max-width:560px;margin:0 auto;}
+h1{font-size:17px;margin:0 0 4px;}
+.nota{color:var(--muted);font-size:13px;line-height:1.45;margin:0 0 14px;max-width:60ch;}
+button{font:inherit;color:inherit;cursor:pointer;}
+button:disabled{cursor:default;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* quem está vendo (só da demo) */
+.papel{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px;font-size:13px;color:var(--muted);}
+.papel .seg{display:inline-flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.papel .seg button{border:0;background:var(--card);padding:0 14px;min-height:44px;font-size:13px;}
+.papel .seg button[aria-checked="true"]{background:var(--accent);color:var(--onaccent);font-weight:600;}
+
+.tela{background:var(--frame);border-radius:20px;padding:12px;min-width:0;}
+.card{background:var(--card);border-radius:16px;padding:12px;margin:0 0 10px;}
+.pill{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:999px;background:var(--ck);color:var(--text);margin:0 0 8px;}
+.cons{display:flex;gap:6px;align-items:baseline;margin:0 0 10px;}
+.cons .rot{font-size:13px;color:var(--muted);flex:none;}
+.frase{font-size:15px;line-height:1.6;overflow-wrap:anywhere;min-width:0;}
+.frase .op{font-size:11px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:6px;margin:0 2px;vertical-align:1px;}
+.frase .op.e{background:var(--accent-bg);color:var(--accent);}
+.frase .op.nao{background:var(--danger-bg);color:var(--danger);}
+.frase .op.ou{background:var(--ck);color:var(--text);}
+.orig{font-size:12.5px;color:var(--muted);margin:-4px 0 10px;}
+.orig b{color:var(--text);}
+.acoes{display:flex;gap:6px;flex-wrap:wrap;}
+.bt{min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg);font-size:14px;}
+.bt.pri{background:var(--accent);border-color:var(--accent);color:var(--onaccent);font-weight:600;}
+.bt.sim{border-style:dashed;color:var(--muted);}
+.bt:disabled{opacity:.45;}
+.graf{display:flex;align-items:flex-end;gap:6px;height:110px;padding-top:4px;}
+.graf i{flex:1;background:var(--accent);border-radius:4px 4px 0 0;opacity:.85;}
+.so-demo{font-size:12px;color:var(--faint);margin:8px 2px 0;line-height:1.45;}
+
+/* janelas de baixo */
+.veu{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80;display:flex;align-items:flex-end;justify-content:center;}
+.veu[hidden]{display:none;}
+.veu.alto{z-index:90;}
+.jan{background:var(--card);width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:14px 16px max(16px,env(safe-area-inset-bottom,0px));max-height:86vh;display:flex;flex-direction:column;}
+.jcab{display:flex;align-items:center;gap:6px;margin:0 0 2px;}
+.jcab h2{font-size:16px;margin:0;flex:1;}
+.jcab button{border:0;background:transparent;width:44px;height:44px;margin:-8px -8px -8px 0;font-size:18px;border-radius:50%;color:var(--muted);}
+.jan .sub{font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.4;}
+.jan input[type=search],.jan input[type=text]{width:100%;border:1px solid var(--border);border-radius:10px;padding:11px 10px;font:inherit;background:var(--bg);color:var(--text);margin:0 0 8px;}
+.fichas{display:flex;gap:6px;overflow-x:auto;margin:0 0 8px;padding-bottom:2px;}
+.fichas button{flex:none;border:1px solid var(--border);background:var(--bg);border-radius:999px;min-height:40px;padding:0 12px;font-size:13px;white-space:nowrap;}
+.fichas button.on{border-color:var(--accent);background:var(--accent-bg);font-weight:600;}
+.fichas .n{font-size:11px;color:var(--muted);margin-left:4px;}
+.lista{overflow:auto;flex:1;min-height:0;}
+.item{border-top:1px solid var(--border);padding:10px 2px;}
+.item:first-child{border-top:0;}
+.item .nm{display:flex;align-items:center;gap:8px;}
+.item .nm b{font-size:15px;min-width:0;overflow-wrap:anywhere;flex:1;}
+.item .tagu{flex:none;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--accent-bg);color:var(--accent);}
+.item .fr{font-size:13px;color:var(--muted);margin:3px 0 0;overflow-wrap:anywhere;line-height:1.45;}
+.item .por{font-size:12px;color:var(--faint);margin:3px 0 0;}
+.item .ac{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0;align-items:center;}
+.item .ac .bt{min-height:40px;padding:0 12px;font-size:13.5px;}
+.item .ac .bt.perigo{color:var(--danger);border-color:var(--danger);background:transparent;}
+.item .ac .so{font-size:12px;color:var(--faint);flex:1;min-width:0;}
+.item.em-uso{background:var(--accent-bg);border-radius:12px;padding-inline:10px;border-top-color:transparent;}
+.vazio-g{padding:26px 8px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5;}
+.jrod{font-size:12.5px;color:var(--muted);margin:8px 2px 0;display:flex;justify-content:space-between;gap:10px;}
+.jrod .lim{color:var(--danger);}
+.jan .ok{margin-top:10px;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--onaccent);font-weight:600;font-size:15px;}
+.jan .ok:disabled{opacity:.45;}
+.jan .sec{margin-top:6px;min-height:48px;border:1px solid var(--border);border-radius:14px;background:transparent;font-size:15px;}
+.err{font-size:12.5px;color:var(--danger);min-height:18px;margin:0 0 4px;}
+.cnt{font-size:12px;color:var(--muted);text-align:right;margin:-4px 0 6px;}
+
+/* aviso com Desfazer (6 s, como na exclusão imediata) */
+.toast{position:fixed;left:0;right:0;bottom:max(14px,env(safe-area-inset-bottom,0px));z-index:100;display:flex;justify-content:center;padding:0 16px;pointer-events:none;}
+.toast[hidden]{display:none;}
+.toast > div{pointer-events:auto;background:var(--text);color:var(--bg);border-radius:14px;padding:6px 8px 6px 16px;display:flex;align-items:center;gap:10px;font-size:14px;max-width:560px;width:100%;}
+.toast span{flex:1;min-width:0;}
+.toast button{border:0;background:transparent;color:inherit;font-weight:700;min-height:44px;padding:0 12px;text-decoration:underline;}
+
+.perde{margin:20px 0 0;font-size:13px;color:var(--muted);line-height:1.5;max-width:70ch;}
+.perde b{color:var(--text);}
+.perde ul{margin:6px 0 0;padding-left:18px;}
+</style>
+</head>
+<body>
+<!-- menu-app:inicio (padrao do menu do app; igual em todas as demos. Celular e janela < 1160 px: menu ⋮. Janela larga ou "Computador": abas em botoes, como hoje) -->
+<style>
+.mn{position:sticky;top:0;z-index:60;margin-inline:-16px;padding:0 16px 8px;background:var(--bg);border-bottom:1px solid var(--line,var(--border));margin-bottom:12px}
+.mn *{box-sizing:border-box}
+.mn .mn-pills{display:none}
+.mn .mn-t{font-size:18px;font-weight:700;margin:10px 0 8px}
+.mn .mn-pills{gap:6px;overflow-x:auto;padding-bottom:2px}
+.mn .mn-pills button{border:1px solid var(--line,var(--border));background:var(--card);color:var(--fg,var(--text));padding:7px 12px;border-radius:20px;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
+.mn .mn-pills button.on{background:var(--accent);color:var(--onaccent,#fff);border-color:var(--accent)}
+.mn .mn-bar{display:flex;align-items:center;gap:8px;min-height:52px}
+.mn .mn-nome{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.mn .mn-app{font-size:11px;color:var(--muted)}
+.mn .mn-tela{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mn .mn-ib{width:48px;height:48px;border:0;background:transparent;color:var(--fg,var(--text));border-radius:50%;cursor:pointer;display:grid;place-items:center;flex:none;padding:0}
+.mn .mn-ib[aria-expanded="true"]{background:var(--accent-bg,rgba(95,185,138,.2))}
+.mn .mn-ib svg{width:24px;height:24px}
+.mn .mn-shade{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:61}
+.mn .mn-drop{position:absolute;top:52px;right:10px;width:240px;max-width:calc(100vw - 20px);background:var(--card);color:var(--fg,var(--text));border:1px solid var(--line,var(--border));border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:6px;z-index:62}
+.mn .mn-grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px}
+.mn .mn-grp:first-child{padding-top:6px}
+.mn .mn-it{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;border:0;background:transparent;color:inherit;font:inherit;font-size:15px;text-align:left;padding:0 10px;border-radius:10px;cursor:pointer}
+.mn .mn-it:hover,.mn .mn-it.on{background:var(--accent-bg,rgba(95,185,138,.2))}
+.mn .mn-it.on{font-weight:600}
+.mn .mn-ic{width:22px;text-align:center;font-size:17px;flex:none}
+.mn .mn-ck{margin-left:auto;color:var(--accent);font-weight:700}
+.mn hr{border:0;border-top:1px solid var(--line,var(--border));margin:4px 6px}
+.mn .mn-nota{font-size:11px;color:var(--muted);padding:6px 10px 4px;line-height:1.35}
+.mn[hidden],.mn [hidden]{display:none!important}
+/* largura da janela de computador: abas em botoes, sem o menu */
+@media (min-width:1160px){.mn.mn-auto .mn-bar{display:none}.mn.mn-auto .mn-pills{display:flex}}
+.mn.mn-largo .mn-bar{display:none}.mn.mn-largo .mn-pills{display:flex}
+</style>
+<header class="mn mn-auto" id="mn" data-tela="tendencias"></header>
+<script>
+(function(){
+  var el=document.getElementById('mn'); if(!el) return;
+  var T=[['lancar','Lançar','✏️','Dia a dia'],['historico','Histórico','🕘','Dia a dia'],['futuros','Futuros','📅','Dia a dia'],
+         ['cartao','Cartão','💳','Acompanhar'],['saldos','Saldos','🏦','Acompanhar'],['tendencias','Tendências','📈','Acompanhar'],
+         ['listas','Listas','🏷️','Configurar'],['configuracoes','Configurações','⚙️','Configurar']];
+  var atual=el.getAttribute('data-tela')||'lancar';
+  var MAIS='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+  function nome(){for(var i=0;i<T.length;i++)if(T[i][0]===atual)return T[i][1];return '';}
+  function fechar(){var d=el.querySelector('.mn-drop'),s=el.querySelector('.mn-shade'),b=el.querySelector('.mn-ib');
+    if(d)d.hidden=true;if(s)s.hidden=true;if(b)b.setAttribute('aria-expanded','false');}
+  function montar(){
+    var g='',m='';
+    T.forEach(function(t){
+      if(t[3]!==g){if(g)m+='<hr>';m+='<div class="mn-grp">'+t[3]+'</div>';g=t[3];}
+      var on=t[0]===atual;
+      m+='<button type="button" class="mn-it'+(on?' on':'')+'" role="menuitem" data-id="'+t[0]+'"><span class="mn-ic">'+t[2]+'</span>'+t[1]+(on?'<span class="mn-ck">✓</span>':'')+'</button>';
+    });
+    el.innerHTML=
+      '<div class="mn-t">💰 Finanças da Família</div>'+
+      '<div class="mn-pills">'+T.map(function(t){return '<button type="button" data-id="'+t[0]+'" class="'+(t[0]===atual?'on':'')+'">'+t[1]+'</button>';}).join('')+'</div>'+
+      '<div class="mn-bar"><div class="mn-nome"><span class="mn-app">💰 Finanças da Família</span><span class="mn-tela">'+nome()+'</span></div>'+
+      '<button type="button" class="mn-ib" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">'+MAIS+'</button></div>'+
+      '<div class="mn-shade" hidden></div>'+
+      '<div class="mn-drop" role="menu" aria-label="Telas do app" hidden>'+m+'<div class="mn-nota">Na demo, trocar de tela só muda o destaque do menu.</div></div>';
+    el.querySelector('.mn-t').style.display='';
+    var ib=el.querySelector('.mn-ib'),d=el.querySelector('.mn-drop'),s=el.querySelector('.mn-shade');
+    ib.onclick=function(){var abrir=d.hidden;fechar();if(abrir){d.hidden=false;s.hidden=false;ib.setAttribute('aria-expanded','true');}};
+    s.onclick=fechar;
+    el.querySelectorAll('[data-id]').forEach(function(b){b.onclick=function(){atual=b.getAttribute('data-id');montar();};});
+  }
+  // o "Computador" das demos liga body.wide: nessa visao valem as abas em botoes mesmo numa janela estreita
+  function largo(){el.classList.toggle('mn-largo',document.body.classList.contains('wide'));}
+  new MutationObserver(largo).observe(document.body,{attributes:true,attributeFilter:['class']});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')fechar();});
+  montar();largo();
+})();
+</script>
+<style>.mn .mn-t{display:none}@media (min-width:1160px){.mn.mn-auto .mn-t{display:block}}.mn.mn-largo .mn-t{display:block}</style>
+<!-- menu-app:fim -->
+<div class="wrap">
+  <h1>Tendências: consultas salvas</h1>
+  <p class="nota">Janela nova, aberta pelo botão <b>Consultas salvas</b> da Tendências. As consultas são <b>do espaço</b>: todos veem e podem usar. Cada pessoa altera e exclui só as <b>suas</b>; o <b>dono</b> também modera as dos outros. Só a consulta é guardada (tags, operadores e a visão), nunca números: o resultado é sempre recalculado e continua sendo simulação.</p>
+
+  <div class="papel" id="papel">Ver como:
+    <div class="seg" role="radiogroup" aria-label="Quem está vendo">
+      <button type="button" role="radio" aria-checked="true" data-u="dono">Cícero (dono)</button>
+      <button type="button" role="radio" aria-checked="false" data-u="ana">Ana (membro)</button>
+    </div>
+  </div>
+
+  <div class="tela">
+    <div class="card">
+      <span class="pill">Simulação</span>
+      <div class="cons"><span class="rot">Consulta:</span><div class="frase" id="frase"></div></div>
+      <div class="orig" id="orig" hidden></div>
+      <div class="acoes">
+        <button type="button" class="bt" id="bSalvas">Consultas salvas</button>
+        <button type="button" class="bt pri" id="bSalvar">Salvar consulta</button>
+        <button type="button" class="bt sim" id="bAltera" title="Só da demo: no app, a pessoa edita a consulta pelo modo avançado">+ NÃO extra (simula editar)</button>
+      </div>
+      <p class="so-demo">O botão tracejado só existe na demo, para simular a edição da consulta carregada. No app a edição é a de hoje (grupos ou modo avançado).</p>
+    </div>
+    <div class="card"><div class="graf" aria-hidden="true"><i style="height:48%"></i><i style="height:62%"></i><i style="height:35%"></i><i style="height:80%"></i><i style="height:55%"></i><i style="height:70%"></i></div></div>
+  </div>
+
+  <div class="perde">
+    <b>O que a demo mostra</b>
+    <ul>
+      <li><b>Consultas salvas:</b> lista do espaço com nome, frase, autor e data; busca; fichas Todas | Minhas; contador de limite (50 por espaço).</li>
+      <li><b>Usar:</b> todos podem. A consulta entra na tela; a janela fecha.</li>
+      <li><b>Renomear e Excluir:</b> só na própria; o dono vê também nas dos outros (marcado "como dono"). Quem não pode vê o motivo, não um botão sumido.</li>
+      <li><b>Salvar consulta:</b> pede o nome. Se a carregada é sua e foi alterada, oferece <b>Atualizar "nome"</b> ou <b>Salvar como nova</b>. Se é de outra pessoa, só <b>Salvar como nova</b>: o original nunca é sobrescrito por quem não é o autor.</li>
+      <li><b>Excluir:</b> some na hora, com aviso de 6 s e Desfazer.</li>
+      <li>Estados: vazio, nome repetido, limite de 50, consulta inválida (o botão Salvar fica desabilitado).</li>
+    </ul>
+  </div>
+</div>
+
+<!-- janela: consultas salvas -->
+<div class="veu" id="veuLista" hidden><div class="jan" role="dialog" aria-modal="true" aria-labelledby="jlt">
+  <div class="jcab"><h2 id="jlt">Consultas salvas</h2><button type="button" id="jlFechar" aria-label="Fechar">✕</button></div>
+  <p class="sub">Do espaço: todos usam. Cada pessoa altera só as suas; o dono altera todas.</p>
+  <input type="search" id="jlBusca" placeholder="Buscar consulta..." aria-label="Buscar consulta">
+  <div class="fichas" id="jlFichas" role="group" aria-label="Filtrar"></div>
+  <div class="lista" id="jlLista"></div>
+  <div class="jrod"><span id="jlCnt"></span><span id="jlLim"></span></div>
+</div></div>
+
+<!-- janela: salvar -->
+<div class="veu alto" id="veuSalvar" hidden><div class="jan" role="dialog" aria-modal="true" aria-labelledby="jst">
+  <div class="jcab"><h2 id="jst">Salvar consulta</h2><button type="button" id="jsFechar" aria-label="Fechar">✕</button></div>
+  <p class="sub" id="jsSub"></p>
+  <input type="text" id="jsNome" maxlength="40" placeholder="Nome da consulta" aria-label="Nome da consulta" autocomplete="off">
+  <div class="cnt" id="jsCnt"></div>
+  <div class="err" id="jsErr" role="alert"></div>
+  <button type="button" class="ok" id="jsOk">Salvar</button>
+  <button type="button" class="sec" id="jsAtual" hidden></button>
+</div></div>
+
+<!-- janela: renomear -->
+<div class="veu alto" id="veuRen" hidden><div class="jan" role="dialog" aria-modal="true" aria-labelledby="jrt">
+  <div class="jcab"><h2 id="jrt">Renomear</h2><button type="button" id="jrFechar" aria-label="Fechar">✕</button></div>
+  <p class="sub" id="jrSub"></p>
+  <input type="text" id="jrNome" maxlength="40" aria-label="Novo nome" autocomplete="off">
+  <div class="cnt" id="jrCnt"></div>
+  <div class="err" id="jrErr" role="alert"></div>
+  <button type="button" class="ok" id="jrOk">Renomear</button>
+</div></div>
+
+<div class="toast" id="toast" hidden><div role="status"><span id="toastTx"></span><button type="button" id="toastDesf">Desfazer</button></div></div>
+
+<script>
+(function(){
+  var MAX=50, MAXNOME=40;
+  var USERS={dono:{id:'u1',nome:'Cícero',dono:true}, ana:{id:'u2',nome:'Ana',dono:false}};
+  var eu=USERS.dono;
+  // k: 't' tag, 'e' E, 'ou' OU, 'n' NÃO, '(' ')'
+  var T=function(v){return {k:'t',v:v};}, E={k:'e'}, OU={k:'ou'}, N={k:'n'}, AB={k:'('}, FE={k:')'};
+  var lista=[
+    {id:'c1',nome:'Mercado sem presente',por:'u2',autor:'Ana',data:'12/10',visao:'gastos',f:[T('mercado'),E,N,T('presente')]},
+    {id:'c2',nome:'Casa fixa ou mensal',por:'u1',autor:'Cícero',data:'03/10',visao:'gastos',f:[T('casa'),E,AB,T('casa-fixo'),OU,T('casa-mensal'),FE]},
+    {id:'c3',nome:'Transporte do mês',por:'u2',autor:'Ana',data:'28/09',visao:'gastos',f:[T('transporte'),E,T('transporte-mensal')]},
+    {id:'c4',nome:'Salário e extras',por:'u1',autor:'Cícero',data:'15/09',visao:'receitas',f:[T('salario'),OU,T('extra')]}
+  ];
+  var seq=10;
+  var atual={f:[T('mercado'),E,T('mercado-mensal')],origem:null,alterada:false};
+  var filtro='todas', busca='', desf=null, tmr=null, renId=null;
+  var $=function(id){return document.getElementById(id);};
+  var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+  var NOMEV={gastos:'Gastos',receitas:'Receitas',saldo:'Resultado'};
+
+  function html(f){
+    return f.map(function(x){
+      return x.k==='t'?esc(x.v):x.k==='e'?'<span class="op e">E</span>':x.k==='ou'?'<span class="op ou">OU</span>':x.k==='n'?'<span class="op nao">NÃO</span>':x.k;
+    }).join(' ').replace('( ','(').replace(' )',')');
+  }
+  function texto(f){
+    return f.map(function(x){return x.k==='t'?x.v:x.k==='e'?'E':x.k==='ou'?'OU':x.k==='n'?'NÃO':x.k;}).join(' ').replace('( ','(').replace(' )',')');
+  }
+  var meu=function(c){return c.por===eu.id;};
+  var podeAlterar=function(c){return meu(c)||eu.dono;};
+  var porId=function(id){return lista.filter(function(c){return c.id===id;})[0];};
+  var nomeLivre=function(n,exceto){return !lista.some(function(c){return c.id!==exceto&&c.nome.toLowerCase()===n.toLowerCase();});};
+
+  function tela(){
+    $('frase').innerHTML=atual.f.length?html(atual.f):'<span style="color:var(--muted)">Nenhuma tag escolhida: mostra tudo.</span>';
+    var o=atual.origem&&porId(atual.origem), b=$('orig');
+    b.hidden=!o;
+    if(o) b.innerHTML='Carregada de <b>'+esc(o.nome)+'</b> ('+(meu(o)?'sua':'de '+esc(o.autor))+')'+(atual.alterada?' · <b>alterada, ainda não salva</b>':'')+'.';
+    $('bSalvar').disabled=!atual.f.length;
+    $('bAltera').disabled=atual.alterada;
+  }
+
+  // ---- lista ----
+  function abrirLista(){ $('veuLista').hidden=false; renderLista(); $('jlBusca').focus(); }
+  function fecharLista(){ $('veuLista').hidden=true; $('bSalvas').focus(); }
+  function renderLista(){
+    var minhas=lista.filter(meu).length;
+    $('jlFichas').innerHTML=
+      '<button type="button" data-f="todas" class="'+(filtro==='todas'?'on':'')+'">Todas<span class="n">'+lista.length+'</span></button>'+
+      '<button type="button" data-f="minhas" class="'+(filtro==='minhas'?'on':'')+'">Minhas<span class="n">'+minhas+'</span></button>';
+    var q=busca.trim().toLowerCase();
+    var vis=lista.filter(function(c){
+      return (filtro==='todas'||meu(c)) && (!q||c.nome.toLowerCase().indexOf(q)>=0||texto(c.f).toLowerCase().indexOf(q)>=0);
+    });
+    var h='';
+    if(!lista.length) h='<div class="vazio-g">Nenhuma consulta salva ainda.<br>Monte uma consulta e toque em <b>Salvar consulta</b>.</div>';
+    else if(!vis.length) h='<div class="vazio-g">'+(filtro==='minhas'&&!q?'Você ainda não salvou nenhuma consulta.':'Nenhuma consulta encontrada.')+'</div>';
+    vis.forEach(function(c){
+      var uso=atual.origem===c.id;
+      var pode=podeAlterar(c), comoDono=pode&&!meu(c);
+      h+='<div class="item'+(uso?' em-uso':'')+'" data-id="'+c.id+'">'+
+        '<div class="nm"><b>'+esc(c.nome)+'</b>'+(meu(c)?'<span class="tagu">Sua</span>':'')+'</div>'+
+        '<div class="fr">'+esc(texto(c.f))+'</div>'+
+        '<div class="por">'+esc(NOMEV[c.visao])+' · por '+(meu(c)?'você':esc(c.autor))+' em '+c.data+'</div>'+
+        '<div class="ac"><button type="button" class="bt pri" data-usar="'+c.id+'">'+(uso?'Em uso':'Usar')+'</button>'+
+        (pode?'<button type="button" class="bt" data-ren="'+c.id+'">Renomear</button><button type="button" class="bt perigo" data-del="'+c.id+'">Excluir</button>'+(comoDono?'<span class="so">como dono</span>':'')
+             :'<span class="so">Só '+esc(c.autor)+' ou o dono podem alterar.</span>')+
+        '</div></div>';
+    });
+    $('jlLista').innerHTML=h;
+    $('jlCnt').textContent=lista.length+' de '+MAX+' consultas';
+    $('jlLim').textContent=lista.length>=MAX?'Limite atingido: exclua uma para salvar outra.':'';
+    $('jlLim').className=lista.length>=MAX?'lim':'';
+  }
+  function usar(id){
+    var c=porId(id); if(!c) return;
+    atual={f:c.f.slice(),origem:id,alterada:false};
+    $('veuLista').hidden=true; tela(); $('bSalvas').focus();
+  }
+
+  // ---- salvar ----
+  function abrirSalvar(){
+    if(!atual.f.length) return;
+    var o=atual.origem&&porId(atual.origem), naoMinha=o&&!podeAlterar(o);
+    $('jsNome').value=''; $('jsErr').textContent='';
+    var cheio=lista.length>=MAX;
+    $('jsSub').innerHTML='<b>'+esc(texto(atual.f))+'</b><br>Visão: Gastos. Todos do espaço poderão usar; só você altera'+(eu.dono?' (e o dono modera)':' (e o dono pode moderar)')+'.';
+    var at=$('jsAtual');
+    if(o&&atual.alterada&&podeAlterar(o)){
+      $('jst').textContent='Salvar consulta';
+      at.hidden=false; at.textContent='Atualizar "'+o.nome+'"'+(meu(o)?'':' (como dono)');
+      $('jsOk').textContent='Salvar como nova';
+    }else if(o&&atual.alterada&&naoMinha){
+      at.hidden=true; $('jsOk').textContent='Salvar como nova';
+      $('jsSub').innerHTML+='<br>A consulta de <b>'+esc(o.autor)+'</b> não muda: isto cria uma cópia sua.';
+    }else{ at.hidden=true; $('jsOk').textContent='Salvar'; }
+    $('jsOk').disabled=cheio;
+    if(cheio) $('jsErr').textContent='Limite de '+MAX+' consultas. Exclua uma antes de salvar outra.';
+    $('jsCnt').textContent='0 de '+MAXNOME;
+    $('veuSalvar').hidden=false; $('jsNome').focus();
+  }
+  function salvarNova(){
+    var n=$('jsNome').value.trim();
+    if(!n){ $('jsErr').textContent='Dê um nome para a consulta.'; return; }
+    if(!nomeLivre(n)){ $('jsErr').textContent='Já existe uma consulta com esse nome.'; return; }
+    var c={id:'c'+(++seq),nome:n,por:eu.id,autor:eu.nome,data:'30/10',visao:'gastos',f:atual.f.slice()};
+    lista.unshift(c); atual={f:c.f.slice(),origem:c.id,alterada:false};
+    $('veuSalvar').hidden=true; tela(); aviso('Consulta "'+n+'" salva.');
+  }
+  function atualizar(){
+    var o=porId(atual.origem); if(!o||!podeAlterar(o)) return;
+    o.f=atual.f.slice(); atual.alterada=false;
+    $('veuSalvar').hidden=true; tela(); aviso('Consulta "'+o.nome+'" atualizada.');
+  }
+
+  // ---- renomear ----
+  function abrirRen(id){
+    var c=porId(id); if(!c||!podeAlterar(c)) return;
+    renId=id; $('jrNome').value=c.nome; $('jrErr').textContent='';
+    $('jrSub').textContent=meu(c)?'Só o nome muda.':'Consulta de '+c.autor+'. Como dono, você pode renomear.';
+    $('jrCnt').textContent=c.nome.length+' de '+MAXNOME;
+    $('veuRen').hidden=false; $('jrNome').focus(); $('jrNome').select();
+  }
+  function renomear(){
+    var c=porId(renId), n=$('jrNome').value.trim();
+    if(!n){ $('jrErr').textContent='Dê um nome para a consulta.'; return; }
+    if(!nomeLivre(n,renId)){ $('jrErr').textContent='Já existe uma consulta com esse nome.'; return; }
+    c.nome=n; $('veuRen').hidden=true; renderLista(); tela();
+  }
+
+  // ---- excluir (na hora, com Desfazer) ----
+  function excluir(id){
+    var i=lista.findIndex(function(c){return c.id===id;}); if(i<0||!podeAlterar(lista[i])) return;
+    var c=lista.splice(i,1)[0], eraOrigem=atual.origem===id;
+    if(eraOrigem) atual.origem=null; // a consulta na tela fica, só deixa de ser "carregada de"
+    desf=function(){ lista.splice(i,0,c); if(eraOrigem) atual.origem=id; renderLista(); tela(); };
+    renderLista(); tela(); aviso('Consulta "'+c.nome+'" excluída.',true);
+  }
+  function aviso(t,comDesf){
+    clearTimeout(tmr);
+    $('toastTx').textContent=t; $('toastDesf').hidden=!comDesf; $('toast').hidden=false;
+    tmr=setTimeout(function(){ $('toast').hidden=true; desf=null; },6000);
+  }
+
+  // ---- eventos ----
+  $('bSalvas').onclick=abrirLista;
+  $('bSalvar').onclick=abrirSalvar;
+  $('bAltera').onclick=function(){ atual.f=atual.f.concat([E,N,T('extra')]); atual.alterada=true; tela(); };
+  $('jlFechar').onclick=fecharLista;
+  $('jlBusca').oninput=function(){ busca=this.value; renderLista(); };
+  $('jlFichas').onclick=function(e){ var b=e.target.closest('[data-f]'); if(b){ filtro=b.dataset.f; renderLista(); } };
+  $('jlLista').onclick=function(e){
+    var b=e.target.closest('[data-usar],[data-ren],[data-del]'); if(!b) return;
+    if(b.dataset.usar) usar(b.dataset.usar); else if(b.dataset.ren) abrirRen(b.dataset.ren); else excluir(b.dataset.del);
+  };
+  $('jsFechar').onclick=function(){ $('veuSalvar').hidden=true; };
+  $('jsOk').onclick=salvarNova; $('jsAtual').onclick=atualizar;
+  $('jsNome').oninput=function(){ $('jsCnt').textContent=this.value.length+' de '+MAXNOME; $('jsErr').textContent=lista.length>=MAX?'Limite de '+MAX+' consultas. Exclua uma antes de salvar outra.':''; };
+  $('jsNome').onkeydown=function(e){ if(e.key==='Enter') salvarNova(); };
+  $('jrFechar').onclick=function(){ $('veuRen').hidden=true; };
+  $('jrOk').onclick=renomear;
+  $('jrNome').oninput=function(){ $('jrCnt').textContent=this.value.length+' de '+MAXNOME; $('jrErr').textContent=''; };
+  $('jrNome').onkeydown=function(e){ if(e.key==='Enter') renomear(); };
+  $('toastDesf').onclick=function(){ if(desf) desf(); desf=null; $('toast').hidden=true; clearTimeout(tmr); };
+  document.addEventListener('keydown',function(e){
+    if(e.key!=='Escape') return;
+    if(!$('veuRen').hidden) $('veuRen').hidden=true;
+    else if(!$('veuSalvar').hidden) $('veuSalvar').hidden=true;
+    else if(!$('veuLista').hidden) fecharLista();
+  });
+  [$('veuLista'),$('veuSalvar'),$('veuRen')].forEach(function(v){ v.addEventListener('click',function(e){ if(e.target===v){ v.hidden=true; } }); });
+  $('papel').onclick=function(e){
+    var b=e.target.closest('[data-u]'); if(!b) return;
+    eu=USERS[b.dataset.u];
+    $('papel').querySelectorAll('[data-u]').forEach(function(x){ x.setAttribute('aria-checked',x===b); });
+    renderLista(); tela();
+  };
+  tela();
+})();
+</script>
+</body>
+</html>
