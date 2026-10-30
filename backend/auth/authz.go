@@ -97,6 +97,15 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		case "DELETE":
 			return AcaoExcluirTx, true
 		}
+	case len(rest) == 1 && rest[0] == "recorrencias": // item 51: ler as ativas, e marcar um lancamento
+		switch metodo {
+		case "GET":
+			return AcaoLerTx, true
+		case "POST":
+			return AcaoEditarTx, true
+		}
+	case len(rest) == 2 && rest[0] == "recorrencias" && metodo == "DELETE": // desligar
+		return AcaoEditarTx, true
 	case len(rest) == 1 && rest[0] == "historico" && metodo == "GET":
 		return AcaoLerHistorico, true
 	case len(rest) == 3 && rest[0] == "tx" && rest[2] == "versoes" && metodo == "GET":

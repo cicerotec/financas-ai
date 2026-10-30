@@ -54,7 +54,16 @@ type Avisos struct {
 	rel         Relogio
 	ambiente    string
 	faturas     LeitorFaturaAviso
+	recorrencias RodadorRecorrencias
 }
+
+// RodadorRecorrencias cria a copia seguinte das recorrencias (item 51); quem implementa e o service de recorrencias.
+type RodadorRecorrencias interface {
+	Rodar(ctx context.Context, hoje string, itens []domain.Doc) int
+}
+
+// UsarRecorrencias liga a rotina das recorrencias (montada depois, porque ela usa o service de lancamentos).
+func (s *Avisos) UsarRecorrencias(r RodadorRecorrencias) { s.recorrencias = r }
 
 // LeitorFaturaAviso le uma fatura no dia de avisar (item 46); quem implementa e o service de cartoes.
 type LeitorFaturaAviso interface {
@@ -153,9 +162,14 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 		return c
 	}
 
+	var recorrencias []domain.Doc
 	for _, aux := range itens {
 		sid, _ := aux["sid"].(string)
 		id, _ := aux["id"].(string)
+		if tipo, _ := aux["tipo"].(string); tipo == "recorrencia" { // a recorrencia nao e aviso: a rotina dela vem depois da leitura
+			recorrencias = append(recorrencias, aux)
+			continue
+		}
 		data, _ := aux["dataEvento"].(string)
 		venc, _ := aux["venc"].(string)
 		dias, insistir, _ := domain.LerAviso(domain.Doc{"aviso": domain.Doc{"dias": aux["dias"], "insistir": aux["insistir"]}})
@@ -228,6 +242,12 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 			}
 			vistos[chat] = true
 			porChat[chat] = append(porChat[chat], linha)
+		}
+	}
+
+	if s.recorrencias != nil && len(recorrencias) > 0 {
+		if n := s.recorrencias.Rodar(ctx, hoje, recorrencias); n > 0 {
+			log.Printf("recorrencia: %d copia(s) criada(s)", n)
 		}
 	}
 

@@ -139,6 +139,8 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 			return s.lanc.GetFuturos(ctx, sid, qs)
 		case "status":
 			return s.lanc.GetStatus(qs)
+		case "recorrencias":
+			return s.rec.Get(ctx, sid)
 		}
 		return s.lanc.GetTxs(ctx, sid, qs)
 	case auth.AcaoCriarTx:
@@ -151,6 +153,12 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 	case auth.AcaoImportarTx:
 		return s.lanc.PostTxBatch(ctx, sid, u.Sub, body, confirma)
 	case auth.AcaoEditarTx:
+		if p[2] == "recorrencias" {
+			if m == "DELETE" {
+				return s.rec.Delete(ctx, sid, u.Sub, p[3], dec == auth.SoDono)
+			}
+			return s.rec.Post(ctx, sid, u.Sub, qs["de"], body, dec == auth.SoDono)
+		}
 		return s.lanc.PutTx(ctx, sid, p[3], qs["de"], body, u.Sub, dec == auth.SoDono, confirma)
 	case auth.AcaoExcluirTx:
 		return s.lanc.DelTx(ctx, sid, p[3], qs["de"], u.Sub, confirma)
