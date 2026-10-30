@@ -540,8 +540,9 @@
   // Recorrencia automatica (item 51): quem calcula as datas e cria as copias e o servidor. Marcar cria a primeira copia na hora e muda o
   // lancamento marcado; parar desliga e tira a marca da ponta. As telas leem os lancamentos de novo depois de cada comando.
   const recorrencias = async () => (await api('GET', (await base()) + '/recorrencias')).body;
-  const marcarRecorrencia = async (id, dataEvento, intervalo) => {
-    const r = escrita(await api('POST', (await base()) + '/recorrencias?de=' + encodeURIComponent(dataEvento), { id, intervalo }));
+  const marcarRecorrencia = async (id, dataEvento, intervalo, aviso) => { // aviso: da primeira copia (null = sem aviso; omitido = herda o do lancamento)
+    const corpo = aviso === undefined ? { id, intervalo } : { id, intervalo, aviso };
+    const r = escrita(await api('POST', (await base()) + '/recorrencias?de=' + encodeURIComponent(dataEvento), corpo));
     atualizarOuvintes('col');
     return r.body;
   };

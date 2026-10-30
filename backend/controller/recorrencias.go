@@ -12,12 +12,22 @@ type Recorrencias struct{ svc *service.Recorrencias }
 
 func NewRecorrencias(svc *service.Recorrencias) *Recorrencias { return &Recorrencias{svc: svc} }
 
-// Post: POST /spaces/{sid}/recorrencias?de=<dataEvento atual> { id, intervalo }. Marca o lancamento, cria a primeira copia e o item.
+// Post: POST /spaces/{sid}/recorrencias?de=<dataEvento atual> { id, intervalo, aviso? }. Marca o lancamento, cria a primeira copia e o item.
 // restrito: so quem criou o lancamento pode marcar (member).
 func (c *Recorrencias) Post(ctx context.Context, sid, sub, de string, body domain.Doc, restrito bool) (Resp, error) {
 	id, _ := body["id"].(string)
 	f, _ := body["intervalo"].(float64)
-	d, err := c.svc.Marcar(ctx, sid, sub, id, de, int(f), restrito)
+	var aviso domain.Doc
+	if bruto, tem := body["aviso"]; tem && bruto == nil {
+		aviso = domain.Doc{} // aviso: null = a primeira copia sai sem aviso, mesmo que o original tenha
+	} else if tem { // aviso opcional da primeira copia, validado como o de qualquer lancamento
+		tmp := domain.Doc{"aviso": bruto}
+		if err := domain.ValidarAviso(tmp); err != nil {
+			return Erro(400, err.Error())
+		}
+		aviso, _ = tmp["aviso"].(domain.Doc)
+	}
+	d, err := c.svc.Marcar(ctx, sid, sub, id, de, int(f), aviso, restrito)
 	if err != nil {
 		return respostaErro(err)
 	}
