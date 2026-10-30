@@ -218,3 +218,16 @@ test('avisoDoEstado e listaDePrazos', () => {
   R.listaDePrazos(original);
   assert.deepEqual(original, [5], 'nao altera a lista de entrada');
 });
+
+test('proximaCopiaRecorrente: a primeira data depois de hoje, no dia do lancamento', () => {
+  const dia = (x) => R.diaLocal(x);
+  assert.equal(dia(R.proximaCopiaRecorrente(d(2026, 10, 18), 12, d(2026, 10, 19))), '2027-10-18'); // anual
+  assert.equal(dia(R.proximaCopiaRecorrente(d(2026, 10, 5), 1, d(2026, 10, 19))), '2026-11-05'); // mensal
+  assert.equal(dia(R.proximaCopiaRecorrente(d(2026, 1, 15), 6, d(2026, 10, 19))), '2027-01-15'); // semestral antigo: pula o que ja passou
+});
+
+test('proximaCopiaRecorrente: dia que nao existe vira o ultimo do mes e hoje nao conta', () => {
+  assert.equal(R.diaLocal(R.proximaCopiaRecorrente(d(2026, 1, 31), 1, d(2026, 1, 31))), '2026-02-28');
+  assert.equal(R.diaLocal(R.proximaCopiaRecorrente(d(2026, 9, 19), 1, d(2026, 10, 19))), '2026-11-19'); // 19/10 e hoje: nao e depois de hoje
+  assert.equal(R.diaLocal(R.proximaCopiaRecorrente(d(2028, 2, 29), 12, d(2028, 3, 1))), '2029-02-28');
+});
