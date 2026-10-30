@@ -537,8 +537,24 @@
     return r;
   };
 
+  // Recorrencia automatica (item 51): quem calcula as datas e cria as copias e o servidor. Marcar cria a primeira copia na hora e muda o
+  // lancamento marcado; parar desliga e tira a marca da ponta. As telas leem os lancamentos de novo depois de cada comando.
+  const recorrencias = async () => (await api('GET', (await base()) + '/recorrencias')).body;
+  const marcarRecorrencia = async (id, dataEvento, intervalo) => {
+    const r = escrita(await api('POST', (await base()) + '/recorrencias?de=' + encodeURIComponent(dataEvento), { id, intervalo }));
+    atualizarOuvintes('col');
+    return r.body;
+  };
+  const pararRecorrencia = async (id) => {
+    await api('DELETE', (await base()) + '/recorrencias/' + encodeURIComponent(id));
+    atualizarOuvintes('col');
+  };
+
   const dbShim = {
     importarLancamentos,
+    recorrencias,
+    marcarRecorrencia,
+    pararRecorrencia,
     adicionarTags,
     aoMudarLancamentos: (f) => { aoMudar.add(f); return () => aoMudar.delete(f); },
     saldos,

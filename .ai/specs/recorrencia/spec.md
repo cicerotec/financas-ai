@@ -2,11 +2,11 @@
 
 Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
-**Estado:** rascunho para aprovação (2026-10-29). Nada implementado.
+**Estado:** aprovado em 2026-10-30. **Fase A (backend) implementada** (`service/recorrencias.go`, `domain/recorrencia.go`, testes em `recorrencia_test.go`); **Fase B (telas) implementada** sobre as demos `demo-historico-v2-recorrencia`, `demo-lancar-v2-recorrencia` e `demo-futuros-v2-recorrencia` (`web/js/app.js`, `web/api.js`, `web/recorrencia.js`): sem lista de recorrentes; "Parar" só aparece na cópia mais recente (a que o `GET /recorrencias` traz como `ultimoId`).
 
 ## Regras
 
-- **R1.** `recorrente` no lançamento (`TX#`) é um objeto `{ intervalo }`, como `serie` e `aviso`. A recorrência em si é o item auxiliar `AVISOS#ATIVOS` / `<sid>#recorrencia#<id do primeiro registro>` com `tipo: "recorrencia"`, `id`, `ultimoId` (a ponta: a cópia futura mais recente), `dataUltimo` (a data dela, dia ISO), `intervalo` (inteiro de 1 a 120, em meses) e `dia` (1 a 31, o dia do mês original). Não há campo `proxima` nem janela de dias: a próxima cópia é `dataUltimo` mais `intervalo` meses.
+- **R1.** `recorrente` no lançamento (`TX#`) é um objeto `{ intervalo }`, como `serie` e `aviso`. A recorrência em si é o item auxiliar `AVISOS#ATIVOS` / `<sid>#recorrencia#<id do primeiro registro>` com `tipo: "recorrencia"`, `id` (`recorrencia#<id do primeiro registro>`, como a fatura usa `fatura#...`), `ultimoId` (a ponta: a cópia futura mais recente), `dataUltimo` (a data dela, dia ISO), `intervalo` (inteiro de 1 a 120, em meses) e `dia` (1 a 31, o dia do mês original). Não há campo `proxima` nem janela de dias: a próxima cópia é `dataUltimo` mais `intervalo` meses.
 - **R2.** Marcar (`POST /spaces/{sid}/recorrencias`) exige `tx.editar` (ou `tx.criar` na criação) e um `intervalo` válido. Recusa (`400`) intervalo inválido, lançamento inexistente ou excluído, e **transferência**. Cria o item, põe `recorrente: { intervalo }` no lançamento e **cria na hora a primeira cópia** (R3), tudo na mesma operação. Marcar um lançamento que já existe é uma alteração (grava versão); marcar na criação não grava. A cópia criada nunca grava versão.
 - **R3.** **A cópia nasce na hora de marcar:** a primeira cópia fica na data do lançamento marcado mais `intervalo` meses (no dia `dia`, ou no último do mês) e aparece em Futuros na hora. Se essa data não é futura (lançamento marcado antigo), avança de `intervalo` em `intervalo` até ser **depois de hoje**: nunca nasce cópia de data passada. Semestral marcado em janeiro cria a de julho agora.
 - **R4.** A rotina diária (evento `{"acao":"avisos"}`, 08:00 em São Paulo) cria a **seguinte** quando a ponta venceu: `dataUltimo ≤ hoje`. A nova fica em `dataUltimo` mais `intervalo` meses (R9 se a rotina esteve parada). Não existe janela de antecedência: há sempre uma cópia futura à vista, a um intervalo de distância. Dia em que nenhuma ponta venceu faz **zero leituras além da Query de `AVISOS#ATIVOS`** (R16).
@@ -26,7 +26,7 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 ## API
 
 ```
-POST   /spaces/{sid}/recorrencias        { "id": "<lançamento>", "intervalo": 1 }  -> 201 { id, intervalo, dataUltimo }   | 400 | 403   (cria também a primeira cópia)
+POST   /spaces/{sid}/recorrencias?de=<dataEvento atual>  { "id": "<lançamento>", "intervalo": 1 }  -> 201 { id, intervalo, dataUltimo }   | 400 | 403   (cria também a primeira cópia)
 DELETE /spaces/{sid}/recorrencias/{id}                                             -> 200
 GET    /spaces/{sid}/recorrencias                                                  -> 200 [{ id, ultimoId, intervalo, dataUltimo }]
 POST   /spaces/{sid}/tx                  { ..., "recorrente": { "intervalo": 2 } }   -> cria o lançamento, o item e a primeira cópia juntos

@@ -81,7 +81,16 @@ type Lancamentos struct {
 	ef      Efeitos
 	pessoas Pessoas
 	rel     Relogio // o instante "agora" da busca por dias no historico
+	rec     IniciadorRecorrencia // abre a recorrencia de um lancamento criado ja marcado (UsarRecorrencias)
 }
+
+// IniciadorRecorrencia abre a recorrencia (item e primeira copia) de um lancamento recem-criado com recorrente.
+type IniciadorRecorrencia interface {
+	Iniciar(ctx context.Context, sid string, origem domain.Lancamento, intervalo int) error
+}
+
+// UsarRecorrencias liga a recorrencia (montada depois, porque ela tambem usa o service de lancamentos).
+func (s *Lancamentos) UsarRecorrencias(r IniciadorRecorrencia) { s.rec = r }
 
 func NewLancamentos(repo Repositorio, ef Efeitos, pessoas Pessoas, rel Relogio) *Lancamentos {
 	return &Lancamentos{repo: repo, ef: ef, pessoas: pessoas, rel: rel, futuros: map[string]*cacheFuturos{}}
@@ -110,7 +119,31 @@ func marcarConfirmacao(vs []domain.Versao, exigiu bool) {
 
 // Criar grava um lancamento novo. confirma: a pessoa confirmou mexer em mes fechado por data.
 func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.Lancamento, confirma bool) (domain.Lancamento, error) {
+	marca := body["recorrente"] // o recorrente so entra pela criacao, que abre a recorrencia (item 51); Protegidos o tira do corpo
 	domain.Protegidos(body)
+	intervalo, temMarca, err := domain.IntervaloRecorrente(marca)
+	if err != nil {
+		return nil, &ErroValidacao{err.Error()}
+	}
+	if temMarca {
+		body["recorrente"] = domain.Doc{"intervalo": float64(intervalo)}
+	}
+	criado, err := s.criar(ctx, sid, sub, body, confirma, "")
+	if err != nil {
+		return nil, err
+	}
+	if temMarca && s.rec != nil {
+		if err := s.rec.Iniciar(ctx, sid, criado, intervalo); err != nil {
+			log.Println("post tx: abrir recorrencia:", err)
+			return nil, ErrSalvar
+		}
+	}
+	return s.ef.ComSeq(ctx, sid, comPrevisto(domain.Publico(criado))), nil
+}
+
+// criar e o nucleo da criacao: id vazio gera um id novo (a copia da recorrencia traz o seu, derivado). Devolve o lancamento
+// gravado, sem a resposta publica.
+func (s *Lancamentos) criar(ctx context.Context, sid, sub string, body domain.Lancamento, confirma bool, id string) (domain.Lancamento, error) {
 	if err := domain.ValidarTx(body); err != nil {
 		return nil, &ErroValidacao{err.Error()}
 	}
@@ -125,7 +158,10 @@ func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.La
 	}
 	s.derivar(body)
 	agora := time.Now().UTC().Format(formatoTempo)
-	body["id"] = domain.NovoID()
+	if id == "" {
+		id = domain.NovoID()
+	}
+	body["id"] = id
 	body["criadoEm"] = agora
 	body["criadoPor"] = sub
 	al, temAlvo := alvoDoEfeito(body)
@@ -152,11 +188,17 @@ func (s *Lancamentos) Criar(ctx context.Context, sid, sub string, body domain.La
 	}
 	s.ef.GarantirTags(ctx, sid, domain.TagsDe(body))
 	s.ef.SincronizarAviso(ctx, sid, body)
-	return s.ef.ComSeq(ctx, sid, comPrevisto(domain.Publico(body))), nil
+	return body, nil
 }
 
 // Editar aplica o patch ao lancamento que esta sob a data "de". restrito: so quem criou pode editar (member).
 func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch domain.Lancamento, sub string, restrito, confirma bool) (domain.Lancamento, error) {
+	domain.Protegidos(patch)
+	return s.editar(ctx, sid, id, de, patch, sub, restrito, confirma)
+}
+
+// editar e o nucleo da edicao. O patch ja vem sem os campos protegidos: a marca recorrente so a recorrencia (item 51) escreve.
+func (s *Lancamentos) editar(ctx context.Context, sid, id, de string, patch domain.Lancamento, sub string, restrito, confirma bool) (domain.Lancamento, error) {
 	de, err := domain.NormData(de)
 	if err != nil {
 		return nil, &ErroValidacao{"parametro de (dataEvento atual) obrigatorio"}
@@ -172,7 +214,6 @@ func (s *Lancamentos) Editar(ctx context.Context, sid, id, de string, patch doma
 		log.Printf("negado: sub=%s tentou editar lancamento de outra pessoa (%s)", sub, id)
 		return nil, ErrSoDono
 	}
-	domain.Protegidos(patch)
 	antes := domain.CopiaRasa(antigo)
 	novo := antigo
 	for k, v := range patch {
