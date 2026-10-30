@@ -18,6 +18,7 @@ type Servidor struct {
 	perfil  *controller.Perfil
 	fech    *controller.Fechamento
 	avisos  *controller.Avisos
+	rec     *controller.Recorrencias
 	cartoes *rotasCartao
 }
 
@@ -40,6 +41,9 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 	lancSvc.UsarCartoes(cfgRepo, cartoes)
 	cartoes.UsarAvisos(avisos)
 	avisos.UsarFaturas(cartoes)
+	recorrencias := service.NewRecorrencias(repository.NewAvisos(db, table), lancSvc, rel)
+	lancSvc.UsarRecorrencias(recorrencias)
+	avisos.UsarRecorrencias(recorrencias)
 	return &Servidor{
 		lanc:    controller.NewLancamentos(lancSvc),
 		esp:     controller.NewEspacos(service.NewEspacos(espacos)),
@@ -47,6 +51,7 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 		perfil:  controller.NewPerfil(service.NewPerfil(pessoas)),
 		fech:    controller.NewFechamento(fech, saldos, service.NewConferencia(saldos, fech, lancSvc)),
 		avisos:  controller.NewAvisos(avisos),
+		rec:     controller.NewRecorrencias(recorrencias),
 		cartoes: &rotasCartao{c: controller.NewCartoes(cartoes)},
 	}
 }

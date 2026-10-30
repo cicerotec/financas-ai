@@ -91,7 +91,7 @@ func Identidade(l Lancamento) string {
 
 // Protegidos tira do corpo os campos que so o servidor define.
 func Protegidos(d Doc) {
-	for _, k := range []string{"PK", "SK", "id", "criadoEm", "criadoPor", "excluidoEm", "confirmaMesFechado", "confirmouMesFechado", "previsto"} {
+	for _, k := range []string{"PK", "SK", "id", "criadoEm", "criadoPor", "excluidoEm", "confirmaMesFechado", "confirmouMesFechado", "previsto", "recorrente"} {
 		delete(d, k)
 	}
 }
@@ -167,6 +167,9 @@ func ValidarTx(d Doc) error {
 		return err
 	}
 	if err := ValidarAviso(d); err != nil {
+		return err
+	}
+	if err := ValidarRecorrente(d); err != nil {
 		return err
 	}
 	return ValidarSerie(d)
