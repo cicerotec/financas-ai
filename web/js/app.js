@@ -248,7 +248,8 @@ function montarTc(rotulo){
   if(voltar) voltar.focus();
 }
 function novoPvRec(base, rec, meses){
-  return {rec, base, ctx:{}, tela:'main', sheet:null, erro:'', ocupado:false, progresso:'', qtd:1, meses, dup:'pular', aviso:{on:false, dias:[], insistir:false}};
+  return {rec, base, ctx:{}, tela:'main', sheet:null, erro:'', ocupado:false, progresso:'', qtd:1, meses, dup:'pular',
+    aviso: rec.form ? {on:false, dias:[], insistir:false} : {on:true, dias:[1,0], insistir:true}}; // como no Prever; so a primeira copia leva este aviso
 }
 function abrirRecorrencia(id){
   const l = acharLancamento(id);
@@ -275,8 +276,8 @@ function pvTelaRecorrente(){
   const l = pv.base, valor = Math.abs(valorAssinado(l));
   return tcCabeca('Tornar recorrente','fechar')+
     `<p class="tc-ctx">${esc(l.descricao)} · ${fmtMoeda(valor)} · ${dataBR(l)}</p>`+
-    `<div class="tc-card">${tcLinha('rep','Repetir',esc(capitalizar(Recorrencia.rotuloIntervalo(pv.meses))))}</div>`+
-    `<p class="tc-nota">Ao ativar, a próxima cópia nasce agora, em <b>${pvPreviaRec()}</b>, e já aparece em Futuros. Depois, uma nova a cada vez que a última chega. Sem data final.<br>Cada cópia leva valor, banco, tags, nota e aviso deste lançamento.</p>`+
+    `<div class="tc-card">${tcLinha('rep','Repetir',esc(capitalizar(Recorrencia.rotuloIntervalo(pv.meses))))}${tcLinha('avi','Avisar no Telegram',Recorrencia.fraseAviso(pv.aviso))}</div>`+
+    `<p class="tc-nota">Ao ativar, a próxima cópia nasce agora, em <b>${pvPreviaRec()}</b>, e já aparece em Futuros. Depois, uma nova a cada vez que a última chega. Sem data final.<br>Cada cópia leva valor, banco, tags e nota deste lançamento. O aviso escolhido aqui vai na primeira cópia e as seguintes o herdam; se você mudar o aviso da cópia mais recente em Futuros, as próximas seguem o novo.</p>`+
     (pv.erro ? `<div class="tc-erro" role="alert">${esc(pv.erro)}</div>` : '');
 }
 function pvTelaRepetirRec(){
@@ -294,12 +295,13 @@ function pvTelaRepetirRec(){
 }
 async function ativarRecorrencia(){
   if(!pv || !pv.rec || pv.rec.form || pv.ocupado || !db) return;
-  const l = pv.base, meses = pv.meses;
+  const l = pv.base, meses = pv.meses, aviso = Recorrencia.avisoDoEstado(pv.aviso);
+  if(aviso === 'incompleto'){ pv.erro = 'Escolha pelo menos um prazo de aviso ou ligue "Insistir depois do vencimento".'; return pvRender(false); }
   pv.ocupado = true; pv.erro = ''; pvRender(false);
   try{
-    const r = await db.marcarRecorrencia(l.id, l.dataEvento, meses);
+    const r = await db.marcarRecorrencia(l.id, l.dataEvento, meses, aviso);
     fecharPrever();
-    toast(`✓ Recorrência ativada. Primeira cópia criada em Futuros: ${r && r.dataUltimo ? pvData(r.dataUltimo) : 'veja lá'}.`);
+    toast(`✓ Recorrência ativada. Primeira cópia criada em Futuros: ${r && r.dataUltimo ? pvData(r.dataUltimo) : 'veja lá'}${aviso ? ', com aviso no Telegram' : ''}.`);
     carregarRecorrencias();
   }catch(err){
     console.error(err);
@@ -346,6 +348,10 @@ function pvData(iso){ return new Date(iso).toLocaleDateString('pt-BR'); }
 
 // Copias a criar, com o que ja existe marcado, a partir do estado das telas.
 function pvCalcular(){
+  if(pv.rec){ // recorrencia: a unica copia que a tela mostra e a primeira, na data da previa
+    const d = Recorrencia.proximaCopiaRecorrente(new Date(pvBaseRec().dataEvento), pv.meses, new Date());
+    return {docs:[{...pv.base, dataEvento:(d || new Date()).toISOString()}], iguais:new Set(), erro:''};
+  }
   if(pv.fatura) return {docs:[pv.base], iguais:new Set(), erro:''}; // o aviso da fatura nao cria copias
   if(pv.lote) return pvCalcularLote();
   const aviso = Recorrencia.avisoDoEstado(pv.aviso);
@@ -498,10 +504,10 @@ function pvTelaAvisar(){
     (av.on
       ? `<div class="tc-card">${lista}</div><div class="tc-card">${outro}</div>`+
         `<div class="tc-card">${tcInterruptor('ins','Insistir depois do vencimento','Avisa todo dia, até pagar',av.insistir)}</div>`+
-        (pv.fatura && pv.fatura.padrao
+        (pv.rec ? `<p class="tc-nota">Vale para a primeira cópia; as seguintes herdam o aviso, cada uma pelo seu vencimento.</p>${pvBalao(c)}` : pv.fatura && pv.fatura.padrao
           ? `<p class="tc-nota">Para cada fatura, avisa ${datas||'nenhum prazo'}${av.insistir?' e todo dia depois':''} do vencimento. Vale quando a fatura ganha o vencimento.</p>${pvBalao(c)}`
           : `<p class="tc-nota">Para um vencimento em ${pvData(venc)}, avisa em ${datas||'nenhum dia'}${av.insistir?' e todo dia depois':''}.</p>${pvBalao(c)}`)
-      : `<p class="tc-nota">${pv.fatura && pv.fatura.padrao ? 'Sem aviso padrão, as faturas novas ficam sem aviso até você ligar em Futuros.' : 'Sem aviso, o lançamento só aparece em Futuros.'}</p>`)+
+      : `<p class="tc-nota">${pv.rec ? 'Sem aviso, as cópias só aparecem em Futuros.' : pv.fatura && pv.fatura.padrao ? 'Sem aviso padrão, as faturas novas ficam sem aviso até você ligar em Futuros.' : 'Sem aviso, o lançamento só aparece em Futuros.'}</p>`)+
     (pv.erro ? `<div class="tc-erro" role="alert">${esc(pv.erro)}</div>` : '');
 }
 
@@ -2268,10 +2274,11 @@ function iniciarEdicao(id){
   document.getElementById('fValor').value = l.valor;
   document.getElementById('fDesc').value = l.descricao;
   document.getElementById('fNota').value = l.nota || '';
-  lancarModo('lanc'); lancarMais(!!l.nota);
+  lancarModo('lanc'); lancarMais(!!l.nota || !!(l.aviso && typeof l.aviso === 'object')); // o aviso mora em Mais
   const d = new Date(l.dataEvento); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
   document.getElementById('fData').value = d.toISOString().slice(0,16);
   document.getElementById('fBanco').value = l.banco || '';
+  atualizarCampoFatura(); // de novo, agora com a data e o banco do lançamento: o campo de aviso só aparece com data futura
   tagsSelecionadas = new Set(l.tags||[]);
   renderTagPicker();
   document.getElementById('btnSalvar').textContent = 'Salvar edição';

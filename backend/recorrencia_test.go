@@ -399,3 +399,43 @@ func TestRecorrenciaNaoTocaOPassado(t *testing.T) {
 	}
 }
 
+
+// Marcar um lancamento ja existente com aviso: o aviso vai na primeira copia (com o item no AVISOS#ATIVOS) e o original nao muda;
+// um aviso invalido e recusado e nada e criado.
+func TestRecorrenciaMarcarComAviso(t *testing.T) {
+	f := cenario(t)
+	de := map[string]string{"de": dataDono}
+	c, _ := chamar(t, "own", "POST", "spaces/s1/recorrencias", de, `{"id":"iddono","intervalo":1,"aviso":{"dias":[0,1],"insistir":true}}`)
+	esperar(t, "marcar com aviso", c, 201)
+	copia := f.ler(t, pkEspaco, dePrefixoTx+"2026-03-01T10:00:00.000Z#"+domain.IDCopiaRecorrencia("iddono", "2026-03-01T10:00:00.000Z"))
+	av, _ := copia["aviso"].(map[string]any)
+	if av == nil || av["insistir"] != true || len(av["dias"].([]any)) != 2 {
+		t.Fatalf("a copia deveria levar o aviso escolhido: %v", copia["aviso"])
+	}
+	if f.ler(t, pkAvisosAtivos, "s1#"+copia["id"].(string)) == nil {
+		t.Error("o aviso da copia deveria estar no AVISOS#ATIVOS")
+	}
+	if f.ler(t, pkEspaco, dePrefixoTx+dataDono+"#iddono")["aviso"] != nil {
+		t.Error("o lancamento original nao pode ganhar aviso")
+	}
+
+	// aviso invalido: 400 e nenhuma recorrencia
+	c, _ = chamar(t, "own", "POST", "spaces/s1/recorrencias", map[string]string{"de": dataMembro}, `{"id":"idmembro","intervalo":1,"aviso":{"dias":[99],"insistir":false}}`)
+	esperar(t, "aviso invalido", c, 400)
+	if f.ler(t, pkAvisosAtivos, "s1#recorrencia#idmembro") != nil {
+		t.Error("com aviso invalido nada deveria ser criado")
+	}
+}
+
+// aviso: null ao marcar = a primeira copia sai sem aviso, mesmo que o lancamento marcado tenha um.
+func TestRecorrenciaMarcarSemAvisoLimpaDaCopia(t *testing.T) {
+	f := cenario(t)
+	f.colocar(t, doc{"PK": pkEspaco, "SK": dePrefixoTx + dataDono + "#idcomaviso", "id": "idcomaviso", "dataEvento": dataDono,
+		"status": "PAGO", "tipo": "saida", "valor": 5.0, "banco": "ITAU", "criadoPor": "own", "aviso": doc{"dias": []any{1.0}, "insistir": false}})
+	c, _ := chamar(t, "own", "POST", "spaces/s1/recorrencias", map[string]string{"de": dataDono}, `{"id":"idcomaviso","intervalo":1,"aviso":null}`)
+	esperar(t, "marcar sem aviso", c, 201)
+	copia := f.ler(t, pkEspaco, dePrefixoTx+"2026-03-01T10:00:00.000Z#"+domain.IDCopiaRecorrencia("idcomaviso", "2026-03-01T10:00:00.000Z"))
+	if copia == nil || copia["aviso"] != nil {
+		t.Errorf("a copia deveria sair sem aviso: %v", copia)
+	}
+}
