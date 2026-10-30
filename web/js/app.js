@@ -206,6 +206,123 @@ async function criarEventos(docs, aoProgredir){
   return criados;
 }
 
+// ---------- recorrencia automatica de lancamentos (item 51) ----------
+// Tornar recorrente (Historico e Futuros), a linha Recorrente do Lancar e Parar recorrencia. A tela e a do Prever (tela cheia, linha
+// Repetir, intervalos e a roda do Outro intervalo), sem "Repetir quantas vezes": a recorrencia nao tem fim. Quem cria as copias e calcula as datas
+// e o servidor; aqui so ha a previa da primeira. Demos: .ai/demos/demo-historico-v2-recorrencia.html, demo-lancar-v2-recorrencia.html e
+// demo-futuros-v2-recorrencia.html. Spec: .ai/specs/recorrencia/spec.md.
+let recAtivas = [];     // as recorrencias ativas (GET /recorrencias): a ponta de cada uma e o lancamento onde "Parar" aparece
+let formRec = null;     // Lancar: null = sem recorrencia; senao { meses }
+let recTimer;
+const capitalizar = s=>s.charAt(0).toUpperCase() + s.slice(1);
+async function carregarRecorrencias(){
+  if(!db || !db.recorrencias) return;
+  let lista;
+  try{ lista = await db.recorrencias(); }catch(err){ console.warn('Não consegui ler as recorrências', err); return; }
+  if(JSON.stringify(lista) === JSON.stringify(recAtivas)) return;
+  recAtivas = lista;
+  try{ renderHistorico(); }catch(e){}
+  try{ renderFuturos(); }catch(e){}
+}
+function agendarRecorrencias(){ clearTimeout(recTimer); recTimer = setTimeout(carregarRecorrencias, 600); }
+function recorrenciaDe(l){ return recAtivas.find(r=>r.ultimoId === l.id) || null; }
+function chipRecorrente(l){
+  const m = l.recorrente && l.recorrente.intervalo;
+  return m ? ` <span class="rec-chip" title="Recorrente, ${esc(Recorrencia.rotuloIntervalo(m))}">🔁 ${esc(Recorrencia.rotuloIntervalo(m))}</span>` : '';
+}
+function atualizarLinhaRec(){
+  const v = document.getElementById('fRecValor');
+  if(v) v.textContent = formRec ? capitalizar(Recorrencia.rotuloIntervalo(formRec.meses)) : 'Não';
+}
+function atualizarCampoRec(){ document.getElementById('fRecWrap').classList.toggle('hidden', !!editandoId); } // marcar um lancamento que ja existe e a acao "Tornar recorrente"
+function montarTc(rotulo){
+  const el = document.createElement('div');
+  el.className = 'tc'; el.id = 'tc';
+  el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
+  el.setAttribute('aria-label', rotulo);
+  el.addEventListener('click', pvClique);
+  document.body.appendChild(el);
+  document.documentElement.style.overflow = 'hidden';
+  pvRender(true);
+  const voltar = el.querySelector('.tc-hd button');
+  if(voltar) voltar.focus();
+}
+function novoPvRec(base, rec, meses){
+  return {rec, base, ctx:{}, tela:'main', sheet:null, erro:'', ocupado:false, progresso:'', qtd:1, meses, dup:'pular', aviso:{on:false, dias:[], insistir:false}};
+}
+function abrirRecorrencia(id){
+  const l = acharLancamento(id);
+  if(!l || !db) return;
+  fecharPrever();
+  pv = novoPvRec(l, {id}, 1);
+  montarTc('Tornar recorrente');
+}
+function abrirRecorrenciaForm(){
+  fecharPrever();
+  pv = novoPvRec({}, {form:true}, formRec ? formRec.meses : 1);
+  montarTc('Repetir');
+}
+function pvBaseRec(){
+  if(!pv.rec.form) return pv.base;
+  const v = document.getElementById('fData').value;
+  return {dataEvento: (v ? new Date(v) : new Date()).toISOString(), descricao: document.getElementById('fDesc').value || '(sem descrição)', valor: document.getElementById('fValor').value, tipo: document.getElementById('fTipo').value};
+}
+function pvPreviaRec(){
+  const b = pvBaseRec(), d = Recorrencia.proximaCopiaRecorrente(new Date(b.dataEvento), pv.meses, new Date());
+  return d ? pvData(d) : '';
+}
+function pvTelaRecorrente(){
+  const l = pv.base, valor = Math.abs(valorAssinado(l));
+  return tcCabeca('Tornar recorrente','fechar')+
+    `<p class="tc-ctx">${esc(l.descricao)} · ${fmtMoeda(valor)} · ${dataBR(l)}</p>`+
+    `<div class="tc-card">${tcLinha('rep','Repetir',esc(capitalizar(Recorrencia.rotuloIntervalo(pv.meses))))}</div>`+
+    `<p class="tc-nota">Ao ativar, a próxima cópia nasce agora, em <b>${pvPreviaRec()}</b>, e já aparece em Futuros. Depois, uma nova a cada vez que a última chega. Sem data final.<br>Cada cópia leva valor, banco, tags, nota e aviso deste lançamento.</p>`+
+    (pv.erro ? `<div class="tc-erro" role="alert">${esc(pv.erro)}</div>` : '');
+}
+function pvTelaRepetirRec(){
+  const form = !!pv.rec.form, b = pvBaseRec();
+  const ehPre = Recorrencia.INTERVALOS.some(i=>i.meses === pv.meses);
+  let linhas = Recorrencia.INTERVALOS.map(i=>tcOpcao('radio','int',i.rotulo,i.meses===pv.meses,`data-m="${i.meses}"`)).join('');
+  if(!ehPre) linhas += tcOpcao('radio','int',esc(capitalizar(Recorrencia.rotuloIntervalo(pv.meses))),true,`data-m="${pv.meses}"`);
+  const ctx = form ? `<p class="tc-ctx">${esc(b.descricao)} · R$ ${esc(String(b.valor||'0,00'))} · ${new Date(b.dataEvento).toLocaleDateString('pt-BR')}</p>` : '';
+  return tcCabeca('Repetir', form ? 'fechar' : 'voltar')+ctx+
+    `<div class="tc-card">${linhas}</div>`+
+    '<div class="tc-card"><button type="button" class="tc-li" data-a="janela" data-tipo="int"><span class="t">Outro intervalo</span><span class="go" aria-hidden="true">›</span></button></div>'+
+    (form
+      ? `<p class="tc-nota">Ao salvar, a primeira cópia nasce em <b>${pvPreviaRec()}</b> e já aparece em Futuros. Depois, uma nova a cada vez que a última chega. Sem data final.<br>Cada cópia leva valor, banco, tags, nota e aviso deste lançamento.</p>`
+      : `<p class="tc-nota">Próxima cópia: <b>${pvPreviaRec()}</b></p>`);
+}
+async function ativarRecorrencia(){
+  if(!pv || !pv.rec || pv.rec.form || pv.ocupado || !db) return;
+  const l = pv.base, meses = pv.meses;
+  pv.ocupado = true; pv.erro = ''; pvRender(false);
+  try{
+    const r = await db.marcarRecorrencia(l.id, l.dataEvento, meses);
+    fecharPrever();
+    toast(`✓ Recorrência ativada. Primeira cópia criada em Futuros: ${r && r.dataUltimo ? pvData(r.dataUltimo) : 'veja lá'}.`);
+    carregarRecorrencias();
+  }catch(err){
+    console.error(err);
+    if(!pv) return;
+    pv.ocupado = false; pv.erro = msgErro(err, 'Não foi possível ativar a recorrência. Tente de novo.');
+    pvRender(false);
+  }
+}
+async function pararRecorrencia(id){
+  const l = acharLancamento(id), r = l && recorrenciaDe(l);
+  if(!r || !db) return;
+  if(!(await confirmarModal(`Parar a recorrência de "${l.descricao}" (${Recorrencia.rotuloIntervalo(r.intervalo)})? Nenhuma cópia nova será criada. As cópias que já estão em Futuros continuam lá; exclua uma a uma se não as quiser.`, 'Parar recorrência'))) return;
+  try{
+    await db.pararRecorrencia(r.id);
+    toast('✓ Recorrência parada. As cópias já criadas continuam em Futuros.');
+    carregarRecorrencias();
+  }catch(err){
+    console.error(err);
+    toast(msgErro(err, 'Não foi possível parar a recorrência. Tente de novo.'), true);
+  }
+}
+document.getElementById('fRecAbrir').addEventListener('click', abrirRecorrenciaForm);
+
 // ---------- Prever e Estender no padrao de telas (.ai/padrao-de-telas.md) ----------
 // Tela cheia com tres linhas-resumo (Status das copias, Repetir, Avisar no Telegram), a previa das datas e o botao de
 // criar. Cada linha abre uma tela cheia propria; "Outro..." abre rodas numa janela de baixo. As datas, os prazos e as
@@ -314,6 +431,7 @@ function pvTelaRepetirLote(){
 }
 
 function pvTelaPrincipal(){
+  if(pv.rec) return pv.rec.form ? pvTelaRepetirRec() : pvTelaRecorrente();
   if(pv.lote) return pvTelaLote();
   const c = pv.calc = pvCalcular(), b = pv.base, qtd = c.docs.length;
   const valor = Math.abs(valorAssinado(b));
@@ -333,6 +451,8 @@ function pvTelaPrincipal(){
   return h;
 }
 function pvBarra(){
+  if(pv.rec && pv.rec.form) return `<div class="tc-barra tc-barra-dupla">${formRec ? '<button type="button" class="tc-sec" data-a="tirarRec">Não repetir</button>' : ''}<button type="button" class="tc-criar" data-a="concluirRec">Concluir</button></div>`;
+  if(pv.rec) return `<div class="tc-barra"><button type="button" class="tc-criar" id="tcCriar" data-a="ativarRec" aria-busy="${pv.ocupado}">${pv.ocupado ? 'Ativando…' : 'Ativar recorrência'}</button></div>`;
   const c = pv.calc;
   const n = c ? c.docs.length - (pv.lote && pv.dup==='pular' ? c.iguais.size : 0) : 0;
   const palavra = pv.lote ? 'previsto' : 'evento';
@@ -340,6 +460,7 @@ function pvBarra(){
   return `<div class="tc-barra"><button type="button" class="tc-criar" id="tcCriar" data-a="criar" aria-busy="${pv.ocupado}">${rotulo}</button></div>`;
 }
 function pvTelaRepetir(){
+  if(pv.rec) return pvTelaRepetirRec();
   if(pv.lote) return pvTelaRepetirLote();
   const ehPre = Recorrencia.INTERVALOS.some(i=>i.meses===pv.meses);
   let linhas = Recorrencia.INTERVALOS.map(i=>tcOpcao('radio','int',i.rotulo,i.meses===pv.meses,`data-m="${i.meses}"`)).join('');
@@ -501,6 +622,9 @@ function pvClique(e){
   if(a==='voltar'){ pv.tela = 'main'; pv.sheet = null; return pvRender(true); }
   if(a==='ir'){ pv.tela = b.dataset.to; pv.erro = ''; return pvRender(true); }
   if(a==='criar') return pvCriar();
+  if(a==='ativarRec') return ativarRecorrencia();
+  if(a==='concluirRec'){ formRec = {meses:pv.meses}; atualizarLinhaRec(); return fecharPrever(); }
+  if(a==='tirarRec'){ formRec = null; atualizarLinhaRec(); return fecharPrever(); }
   if(a==='num'){ pv.numerar = !pv.numerar; return pvRender(false); }
   if(a==='swRep'){ pv.rep = !pv.rep; return pvRender(false); }
   if(a==='dest'){ pv.lote.dest = parseInt(b.dataset.v,10); pv.tela = 'main'; return pvRender(true); }
@@ -912,7 +1036,8 @@ async function init(){
       if(aba==='tendencias'){ try{ desenharGrafico(); }catch(e){} }
     }, ()=>{ document.getElementById('listaLancamentos').innerHTML = '<p class="muted">Sem acesso ao histórico nesta visualização.</p>'; });
     // Futuros muda quando um lancamento muda (confirmar, excluir, editar): se a tela esta aberta le de novo; se nao, so marca.
-    if(db.aoMudarLancamentos) db.aoMudarLancamentos(()=>{ if(abaAtual()==='futuros') agendarFuturos(); else futurosSujo = true; });
+    if(db.aoMudarLancamentos) db.aoMudarLancamentos(()=>{ if(abaAtual()==='futuros') agendarFuturos(); else futurosSujo = true; agendarRecorrencias(); });
+    carregarRecorrencias();
   } else {
     document.getElementById('iaStatus').textContent = "Banco de dados indisponível nesta visualização.";
   }
@@ -1552,6 +1677,7 @@ async function salvarLancamentoInterno(){
   if(aviso === 'incompleto'){ await avisar("Marque pelo menos um dia de aviso ou \"Insistir todo dia\"."); return; }
   if(aviso) doc.aviso = aviso;
   else if(editandoId && dataFuturaForm()) doc.aviso = null; // desligou o aviso na edicao
+  if(!editandoId && formRec) doc.recorrente = {intervalo: formRec.meses}; // o servidor cria a primeira copia junto com o lancamento
   // repeticao (so evento futuro novo): este + as copias, ligados por uma serie
   let copias = [];
   if(!editandoId && dataFuturaForm()){
@@ -1585,9 +1711,9 @@ async function salvarLancamentoInterno(){
     });
   }else{
     await db.collection("lancamentos").add({...doc, criadoEm: new Date().toISOString()});
-    let extra = '';
+    let extra = doc.recorrente ? ' · 1ª cópia em Futuros' : '';
     if(copias.length){
-      try{ const n = await criarEventos(copias); extra = ` + ${n} repetição${n===1?'':'ões'}`; }
+      try{ const n = await criarEventos(copias); extra += ` + ${n} repetição${n===1?'':'ões'}`; }
       catch(err){
         console.error(err);
         await avisar(`O lançamento foi salvo, mas as repetições pararam depois de ${err.criados||0} de ${copias.length}: ${msgErro(err, 'erro ao salvar')} Use Prever no lançamento para completar a série.`);
@@ -1632,6 +1758,7 @@ function definirStatusDoFormulario(status, soDaLista){
   sel.value = status;
 }
 function limparFormulario(){
+  formRec = null; atualizarLinhaRec(); atualizarCampoRec();
   definirMarcaDoFormulario(null);
   [...document.querySelectorAll('#fStatus option[data-extra]')].forEach(o=>o.remove());
   document.getElementById('notaLivre').value='';
@@ -1838,6 +1965,11 @@ function acoesDoEvento(l){
   if(podeMexer(l)) a.push({k:'editar', i:'editar', t:'Editar'});
   a.push({k:'copiar', i:'copiar', t:'Copiar'});
   if(!l.transferParId) a.push({k:'prever', i:l.serie?'estender':'prever', t:l.serie?'Estender série':'Prever próximas datas'});
+  // Recorrencia (item 51): tornar recorrente quem ainda nao e; parar so na ponta (a copia que o servidor diz ser a mais recente).
+  if(!l.transferParId && podeMexer(l)){
+    if(recorrenciaDe(l)) a.push({k:'pararRec', i:'recorrente', t:'Parar recorrência'});
+    else if(!l.recorrente) a.push({k:'tornarRec', i:'recorrente', t:'Tornar recorrente'});
+  }
   if(podeMexer(l)) a.push({k:'ocultar', i:l.oculto?'mostrar':'ocultar', t:l.oculto?'Mostrar':'Ocultar'});
   if(ehOwner()) a.push({k:'excluir', i:'excluir', t:'Excluir', perigo:true});
   return a;
@@ -1853,9 +1985,10 @@ const ICONES_ACAO = {
   ocultar: '<path d="M3 3l18 18"/><path d="M10.6 6.2A9.5 9.5 0 0 1 12 6c5 0 9 4 10 6-.5 1-1.5 2.4-3 3.6M6.5 7.5C4.4 8.9 3 10.8 2 12c1 2 5 6 10 6 1.4 0 2.7-.3 3.9-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
   mostrar: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   excluir: '<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
-  avisar: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/>'
+  avisar: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/>',
+  recorrente: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>'
 };
-const LUGAR_ACAO = {confirmar:1, editar:2, copiar:3, prever:4, avisar:4, ocultar:5, excluir:6};
+const LUGAR_ACAO = {confirmar:1, editar:2, copiar:3, prever:4, avisar:4, recorrente:5, ocultar:6, excluir:7};
 function botaoAcao(k, icone, nome, id, cls){
   return `<button type="button" class="${cls||''}" data-acao="${k}" data-id="${id}" style="grid-column:${LUGAR_ACAO[icone==='estender'?'prever':icone==='mostrar'?'ocultar':icone]||LUGAR_ACAO[k]}" title="${esc(nome)}" aria-label="${esc(nome)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES_ACAO[icone]}</svg></button>`;
 }
@@ -1870,13 +2003,13 @@ function htmlEventoFuturo(l){
   const sub = [serie, l.oculto?'oculto':''].filter(Boolean).join(' · ');
   return `<div class="fut-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}" style="--cor:${cor}">
     <button type="button" class="fut-m" data-fut-abrir="${id}" aria-haspopup="dialog">
-      <span class="l"><span class="d">${esc(l.descricao)}</span><span class="mt">${chipAviso(l).trim()} ${dataBR(l)} · ${esc(l.status)} · ${esc(l.banco||'-')}${serie?' · '+serie:''}${l.oculto?' · oculto':''}</span></span>
+      <span class="l"><span class="d">${esc(l.descricao)}</span><span class="mt">${chipAviso(l).trim()} ${dataBR(l)} · ${esc(l.status)} · ${esc(l.banco||'-')}${serie?' · '+serie:''}${l.oculto?' · oculto':''}${chipRecorrente(l)}</span></span>
       <span class="r">${htmlValorLinha(l)}${prazo}</span>
       <span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>
     </button>
     <div class="fut-dk" tabindex="0">
       <span>${dataBR(l)}</span>
-      <span class="dd"><span class="dl"><span class="d" title="${esc(l.descricao)}">${esc(l.descricao)}</span>${chipAviso(l)}</span>${sub?`<span class="sub">${esc(sub)}</span>`:''}</span>
+      <span class="dd"><span class="dl"><span class="d" title="${esc(l.descricao)}">${esc(l.descricao)}</span>${chipAviso(l)}${chipRecorrente(l)}</span>${sub?`<span class="sub">${esc(sub)}</span>`:''}</span>
       <span class="bk" title="${esc(l.banco||'-')}">${esc(l.banco||'-')}</span>
       <span class="st">${seloStatus(l.status)}</span>
       <span class="v">${htmlValorLinha(l)}${prazo}</span>
@@ -1956,7 +2089,7 @@ function htmlLinhaHist(l, busca){
   return `<div class="fut-row hist-row ${l.oculto?'oculto':''} ${excluindo.has(l.id)?'excluindo':''}${marc?' marcada':''}${sel&&!pode?' fora-lote':''}" style="--cor:${cor}"${pode?` data-lote-id="${id}"`:''}>
     <div class="fut-m" ${abrir}>
       <span class="l"><span class="d">${esc(l.descricao)}</span>
-        <span class="mt"><span>${busca?dataBR(l):horaBR(l)}</span>${seloStatus(l.status)}${chipPagaFatura(l)}<span class="bk">${esc(l.banco||'-')}${l.oculto?' · oculto':''}${fut}</span>${htmlNotaIcone(l)}</span>
+        <span class="mt"><span>${busca?dataBR(l):horaBR(l)}</span>${seloStatus(l.status)}${chipRecorrente(l)}${chipPagaFatura(l)}<span class="bk">${esc(l.banco||'-')}${l.oculto?' · oculto':''}${fut}</span>${htmlNotaIcone(l)}</span>
         ${tags?`<span class="hist-tags">${tags}</span>`:''}</span>
       <span class="r">${htmlValorLinha(l)}</span>
       ${sel ? ck : `<span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>`}
@@ -1964,7 +2097,7 @@ function htmlLinhaHist(l, busca){
     <div class="fut-dk" tabindex="0">
       ${sel ? `<span class="lote-c">${ck}</span>` : ''}
       <span class="dt">${dataBR(l)}<small>${horaBR(l)}</small></span>
-      <span class="dd"><span class="dl"><span class="d" title="${esc(l.descricao)}">${esc(l.descricao)}</span></span>${(tags||l.nota)?`<span class="sub hist-sub"><span class="hist-tags-t">${tags}</span>${htmlNotaIcone(l)}</span>`:''}</span>
+      <span class="dd"><span class="dl"><span class="d" title="${esc(l.descricao)}">${esc(l.descricao)}</span>${chipRecorrente(l)}</span>${(tags||l.nota)?`<span class="sub hist-sub"><span class="hist-tags-t">${tags}</span>${htmlNotaIcone(l)}</span>`:''}</span>
       <span class="bk" title="${esc(l.banco||'-')}">${esc(l.banco||'-')}${l.oculto?' · oculto':''}</span>
       <span class="st">${seloStatus(l.status)}</span>
       <span class="v">${htmlValorLinha(l)}</span>
@@ -2124,6 +2257,7 @@ function iniciarEdicao(id){
   const origem = abaAtual();
   abaOrigemEdicao = origem === 'lancar' ? null : origem;
   editandoId = id;
+  formRec = null; atualizarLinhaRec(); atualizarCampoRec();
   definirMarcaDoFormulario(l.pagaFatura || null);
   definirStatusDoFormulario(l.status, false);
   document.getElementById('fFatura').value = String(ajusteEfetivo(l));
@@ -2150,6 +2284,7 @@ function iniciarCopia(id){
   const l = acharLancamento(id);
   if(!l) return;
   editandoId = null; assinaturaEdicao = null;
+  formRec = null; atualizarLinhaRec(); atualizarCampoRec();
   document.getElementById('btnSalvar').textContent = 'Salvar lançamento';
   document.getElementById('btnCancelarEdicao').classList.add('hidden');
   document.getElementById('notaLivre').value = '';
@@ -2500,6 +2635,8 @@ function executarAcaoRegistro(acao, id){
   if(acao==='editar') iniciarEdicao(id);
   if(acao==='copiar') iniciarCopia(id);
   if(acao==='prever') preverLancamento(id);
+  if(acao==='tornarRec') abrirRecorrencia(id);
+  if(acao==='pararRec') pararRecorrencia(id);
   if(acao==='ocultar') ocultarLancamento(id);
   if(acao==='excluir') excluirLancamento(id);
 }

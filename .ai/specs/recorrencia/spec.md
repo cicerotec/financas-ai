@@ -2,7 +2,7 @@
 
 Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
-**Estado:** aprovado em 2026-10-30. **Fase A (backend) implementada** (`service/recorrencias.go`, `domain/recorrencia.go`, testes em `recorrencia_test.go`); a fase B (tela, com demo antes) segue pendente.
+**Estado:** aprovado em 2026-10-30. **Fase A (backend) implementada** (`service/recorrencias.go`, `domain/recorrencia.go`, testes em `recorrencia_test.go`); **Fase B (telas) implementada** sobre as demos `demo-historico-v2-recorrencia`, `demo-lancar-v2-recorrencia` e `demo-futuros-v2-recorrencia` (`web/js/app.js`, `web/api.js`, `web/recorrencia.js`): sem lista de recorrentes; "Parar" só aparece na cópia mais recente (a que o `GET /recorrencias` traz como `ultimoId`).
 
 ## Regras
 

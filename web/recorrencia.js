@@ -30,6 +30,17 @@
     return datas;
   }
 
+  // Previa da primeira copia de uma recorrencia: a data do lancamento mais o intervalo, e de novo mais o intervalo ate passar de hoje
+  // (so o dia conta). E so o que a tela mostra; quem cria a copia e calcula a data de verdade e o servidor (domain.ProximaCopiaRecorrencia).
+  function proximaCopiaRecorrente(base, intervaloMeses, hoje) {
+    const dia = diaLocal(hoje);
+    for (let k = 1; k <= 1000; k++) {
+      const d = somarMeses(base, intervaloMeses * k);
+      if (diaLocal(d) > dia) return d;
+    }
+    return null;
+  }
+
   function rotuloIntervalo(meses) {
     const p = INTERVALOS.find((i) => i.meses === meses);
     if (p) return p.rotulo.toLowerCase();
@@ -206,7 +217,7 @@
   const api = { MAX_PRAZOS, MAX_DIAS_AVISO, PRAZOS_PADRAO, rotuloPrazo, fraseAviso, validarPrazoNovo, validarIntervaloNovo,
     fraseRepeticao, avisoDoEstado, listaDePrazos, MAX_OCORRENCIAS, MAX_INTERVALO_MESES, INTERVALOS, somarMeses, gerarDatas, rotuloIntervalo, validar,
     lerParcela, copiasRestantesNaParcela, descricaoNumerada, chaveDuplicado, montarCopias, ultimaDaSerie, diaLocal,
-    MAX_LOTE, montarLote };
+    MAX_LOTE, montarLote, proximaCopiaRecorrente };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.Recorrencia = api;
 })(typeof window !== 'undefined' ? window : globalThis);

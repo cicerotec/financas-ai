@@ -328,6 +328,14 @@ div.tc-li{cursor:default;}
 .tc-barra{padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--border);}
 .tc-criar{display:block;width:100%;max-width:560px;margin:0 auto;padding:14px;border-radius:14px;border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;cursor:pointer;}
 .tc-criar[aria-busy="true"]{opacity:.7;cursor:wait;}
+.tc-barra-dupla{display:flex;gap:8px;}
+.tc-barra-dupla .tc-criar{flex:1;max-width:none;margin:0;}
+.tc-sec{padding:0 16px;border:0;border-radius:14px;background:var(--ck);color:var(--text);font:inherit;cursor:pointer;min-height:52px;}
+/* recorrencia automatica (item 51): marca da linha e a linha do Lancar */
+.rec-chip{display:inline-block;padding:0 7px;border-radius:999px;background:var(--accent-bg);color:var(--text);font-size:11.5px;font-weight:600;white-space:nowrap;}
+.rec-linha{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;border:0;border-top:1px solid var(--border);background:transparent;color:var(--text);text-align:left;margin-top:8px;padding:0;font:inherit;cursor:pointer;}
+.rec-linha .rv{margin-left:auto;color:var(--muted);}
+.rec-linha .seta{color:var(--faint);}
 .tc-ov{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;}
 .tc-sheet{background:var(--card);width:100%;max-width:560px;margin:0 auto;border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px));}
 .tc-sheet h3{text-align:center;margin:0;font-size:17px;font-weight:600;}
@@ -416,7 +424,7 @@ body[data-aba="futuros"] main{max-width:1600px;}
 @media (min-width:1160px){
   .fut-tabela-in{min-width:1160px;}
   .fut-m{display:none;}
-  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 260px;align-items:center;gap:12px;padding:10px 14px;}
+  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 304px;align-items:center;gap:12px;padding:10px 14px;}
   .fut-cab{font-size:12px;color:var(--faint);padding-block:4px;}
   .fut-dk>span,.fut-cab>span{min-width:0;}
   .fut-dk .bk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -428,7 +436,7 @@ body[data-aba="futuros"] main{max-width:1600px;}
   .fut-dk .dl{display:flex;align-items:flex-start;gap:6px;}
   .fut-dk .dl .chip{flex:none;}
   .fut-dk .sub{display:block;font-size:12.5px;color:var(--muted);}
-  .fut-acoes{display:grid;grid-template-columns:repeat(6,40px);gap:4px;justify-content:end;opacity:.25;transition:opacity .12s;}
+  .fut-acoes{display:grid;grid-template-columns:repeat(7,40px);gap:4px;justify-content:end;opacity:.25;transition:opacity .12s;}
   .fut-dk:hover .fut-acoes,.fut-dk:focus-within .fut-acoes{opacity:1;}
   .fut-acoes button{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:9px;padding:0;cursor:pointer;}
   .fut-acoes button svg{width:20px;height:20px;display:block;}
