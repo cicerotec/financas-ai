@@ -2,7 +2,7 @@
 
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje. O roteiro verificável é o [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação (2026-10-31). Decisões A a D do intent já fechadas; o ponto E abaixo é novo.
+**Estado:** aprovado em 2026-10-31 (fase A implementada). Decisões A a D do intent já fechadas; o ponto E abaixo é novo.
 
 ## Onde o código está hoje
 

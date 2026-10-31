@@ -1,0 +1,42 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "CONSULTA#t7r2n5w8z1y4u6i3o9p0",
+ "atualizadoEm": "2026-10-31T11:05:00.000Z",
+ "atualizadoPor": "sub-demo-dono",
+ "criadoEm": "2026-10-28T09:00:00.000Z",
+ "criadoPor": "sub-demo-dono",
+ "excluidoEm": "2026-10-31T11:05:00.000Z",
+ "expressao": [
+  {
+   "k": "tag",
+   "v": "casa"
+  },
+  {
+   "k": "op",
+   "v": "E"
+  },
+  {
+   "k": "("
+  },
+  {
+   "k": "tag",
+   "v": "casa-fixo"
+  },
+  {
+   "k": "op",
+   "v": "OU"
+  },
+  {
+   "k": "tag",
+   "v": "casa-mensal"
+  },
+  {
+   "k": ")"
+  }
+ ],
+ "id": "t7r2n5w8z1y4u6i3o9p0",
+ "modo": "avancado",
+ "nome": "Casa fixa ou mensal",
+ "version": 3,
+ "visao": "gastos"
+}

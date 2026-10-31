@@ -102,6 +102,29 @@
     },
     {
       "PK": "SPACE#ws-familia-demo",
+      "SK": "CONSULTA#k4m9q2x7b1c8d3f6g0h5",
+      "id": "k4m9q2x7b1c8d3f6g0h5",
+      "nome": "Mercado sem presente",
+      "modo": "grupos",
+      "visao": "gastos",
+      "grupos": [
+        {
+          "tem": [
+            "mercado"
+          ],
+          "nao": [
+            "presente"
+          ]
+        }
+      ],
+      "criadoPor": "sub-demo-membro",
+      "criadoEm": "2026-10-30T14:20:00.000Z",
+      "atualizadoEm": "2026-10-30T14:20:00.000Z",
+      "atualizadoPor": "sub-demo-membro",
+      "version": 1
+    },
+    {
+      "PK": "SPACE#ws-familia-demo",
       "SK": "CFG#SALDOS",
       "version": 4,
       "porBanco": {
