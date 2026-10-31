@@ -3,7 +3,7 @@
 Item 53 do BACKLOG. Este documento diz **o quê e por quê**; o como (`plan.md`) e o roteiro verificável (`spec.md`) vêm junto,
 para o dono aprovar antes de qualquer código.
 
-**Estado:** aprovado em 2026-10-31 (fase A implementada). A demo da janela foi aprovada em 2026-10-30
+**Estado:** implementado e conferido em dev em 2026-10-31 (fases A e B). A demo da janela foi aprovada em 2026-10-30
 ([`demo-tendencias-consultas.html`](../../demos/demo-tendencias-consultas.html)); as decisões de dados A a D, também em 2026-10-31.
 
 ## Por quê
