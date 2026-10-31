@@ -265,6 +265,67 @@
             "S": "SPACE#ws-familia-demo"
           },
           "SK": {
+            "S": "CONSULTA#k4m9q2x7b1c8d3f6g0h5"
+          },
+          "id": {
+            "S": "k4m9q2x7b1c8d3f6g0h5"
+          },
+          "nome": {
+            "S": "Mercado sem presente"
+          },
+          "modo": {
+            "S": "grupos"
+          },
+          "visao": {
+            "S": "gastos"
+          },
+          "grupos": {
+            "L": [
+              {
+                "M": {
+                  "tem": {
+                    "L": [
+                      {
+                        "S": "mercado"
+                      }
+                    ]
+                  },
+                  "nao": {
+                    "L": [
+                      {
+                        "S": "presente"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "criadoPor": {
+            "S": "sub-demo-membro"
+          },
+          "criadoEm": {
+            "S": "2026-10-30T14:20:00.000Z"
+          },
+          "atualizadoEm": {
+            "S": "2026-10-30T14:20:00.000Z"
+          },
+          "atualizadoPor": {
+            "S": "sub-demo-membro"
+          },
+          "version": {
+            "N": "1"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {
+            "S": "SPACE#ws-familia-demo"
+          },
+          "SK": {
             "S": "CFG#SALDOS"
           },
           "version": {

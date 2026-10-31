@@ -12,14 +12,15 @@ type dynamoAPI = repository.DynamoAPI
 // Servidor e o conjunto montado uma vez, em main: um controller por assunto, ligado ao seu service e ao repository.
 // E a unica ligacao das camadas; o roteador (roteador.go) so escolhe o controller de cada rota.
 type Servidor struct {
-	lanc    *controller.Lancamentos
-	esp     *controller.Espacos
-	cfg     *controller.Config
-	perfil  *controller.Perfil
-	fech    *controller.Fechamento
-	avisos  *controller.Avisos
-	rec     *controller.Recorrencias
-	cartoes *rotasCartao
+	lanc      *controller.Lancamentos
+	esp       *controller.Espacos
+	cfg       *controller.Config
+	perfil    *controller.Perfil
+	fech      *controller.Fechamento
+	avisos    *controller.Avisos
+	rec       *controller.Recorrencias
+	consultas *controller.Consultas
+	cartoes   *rotasCartao
 }
 
 // novoServidor liga repository, service e controller. Recebe o que vem de fora (banco, tabela, relogio, canal de envio e o
@@ -45,13 +46,14 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 	lancSvc.UsarRecorrencias(recorrencias)
 	avisos.UsarRecorrencias(recorrencias)
 	return &Servidor{
-		lanc:    controller.NewLancamentos(lancSvc),
-		esp:     controller.NewEspacos(service.NewEspacos(espacos)),
-		cfg:     controller.NewConfig(service.NewConfig(cfgRepo, rel), tags, contador),
-		perfil:  controller.NewPerfil(service.NewPerfil(pessoas)),
-		fech:    controller.NewFechamento(fech, saldos, service.NewConferencia(saldos, fech, lancSvc)),
-		avisos:  controller.NewAvisos(avisos),
-		rec:     controller.NewRecorrencias(recorrencias),
-		cartoes: &rotasCartao{c: controller.NewCartoes(cartoes)},
+		lanc:      controller.NewLancamentos(lancSvc),
+		esp:       controller.NewEspacos(service.NewEspacos(espacos)),
+		cfg:       controller.NewConfig(service.NewConfig(cfgRepo, rel), tags, contador),
+		perfil:    controller.NewPerfil(service.NewPerfil(pessoas)),
+		fech:      controller.NewFechamento(fech, saldos, service.NewConferencia(saldos, fech, lancSvc)),
+		avisos:    controller.NewAvisos(avisos),
+		rec:       controller.NewRecorrencias(recorrencias),
+		consultas: controller.NewConsultas(service.NewConsultas(repository.NewConsultas(db, table), pessoas, rel)),
+		cartoes:   &rotasCartao{c: controller.NewCartoes(cartoes)},
 	}
 }

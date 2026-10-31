@@ -52,6 +52,13 @@ func TestMatrizDePermissoes(t *testing.T) {
 		{PapelOwner, AcaoEscreverCartao, Liberado},
 		{PapelMember, AcaoLerCartao, Liberado},
 		{PapelMember, AcaoEscreverCartao, Negado},
+		// consultas salvas da Tendencias (item 53): todos leem e criam; editar, excluir e restaurar so as proprias (o owner, todas)
+		{PapelOwner, AcaoLerConsulta, Liberado},
+		{PapelOwner, AcaoCriarConsulta, Liberado},
+		{PapelOwner, AcaoEditarConsulta, Liberado},
+		{PapelMember, AcaoLerConsulta, Liberado},
+		{PapelMember, AcaoCriarConsulta, Liberado},
+		{PapelMember, AcaoEditarConsulta, SoDono},
 	}
 	for _, c := range casos {
 		if got := Permitido(c.papel, c.a); got != c.quer {
@@ -63,7 +70,8 @@ func TestMatrizDePermissoes(t *testing.T) {
 func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 	todas := []Acao{AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 		AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-		AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao}
+		AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao,
+		AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta}
 	for _, a := range todas {
 		if Permitido(PapelOwner, a) != Liberado {
 			t.Errorf("owner deveria poder %q", a)
@@ -86,6 +94,8 @@ func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 		{"GET", []string{"seq"}}, {"GET", []string{"historico"}},
 		{"GET", []string{"tx", "abc", "versoes"}}, {"POST", []string{"tx", "abc", "versoes", "2", "restaurar"}},
 		{"GET", []string{"saldos"}},
+		{"GET", []string{"consultas"}}, {"POST", []string{"consultas"}}, {"PUT", []string{"consultas", "abc"}},
+		{"DELETE", []string{"consultas", "abc"}}, {"POST", []string{"consultas", "abc", "restaurar"}},
 		{"POST", []string{"fechamentos", "conferir"}}, {"POST", []string{"fechamentos", "reabrir"}},
 	}
 	for _, r := range rotas {
@@ -104,7 +114,8 @@ func TestPapelDesconhecidoOuVazioNaoPodeNada(t *testing.T) {
 	for _, papel := range []string{"", "viewer", "OWNER", "Member", "admin"} {
 		for _, a := range []Acao{AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao, "inexistente"} {
+			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao,
+			AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta, "inexistente"} {
 			if got := Permitido(papel, a); got != Negado {
 				t.Errorf("papel %q, Acao %q: esperado Negado, veio %v", papel, a, got)
 			}
@@ -138,7 +149,7 @@ func TestRotaParaAcao(t *testing.T) {
 		{"GET", []string{"seq"}, AcaoLerSeq, true},
 		{"POST", []string{"seq"}, "", false},
 		{"GET", []string{"saldos"}, AcaoLerFech, true},
-		{"GET", []string{"fechamentos"}, "", false}, // saiu na fase C do item 40
+		{"GET", []string{"fechamentos"}, "", false},    // saiu na fase C do item 40
 		{"GET", []string{"saldos"}, AcaoLerFech, true}, // o saldo de cada meio, calculado pelo servidor (item 40)
 		{"POST", []string{"saldos"}, "", false},
 		{"PUT", []string{"saldos"}, "", false},
@@ -212,6 +223,21 @@ func TestRotaParaAcao(t *testing.T) {
 		{"POST", []string{"aparencia"}, "", false},
 		{"GET", []string{}, "", false},
 		{"GET", []string{"qualquer"}, "", false},
+		// consultas salvas (item 53)
+		{"GET", []string{"consultas"}, AcaoLerConsulta, true},
+		{"POST", []string{"consultas"}, AcaoCriarConsulta, true},
+		{"PUT", []string{"consultas", "abc"}, AcaoEditarConsulta, true},
+		{"DELETE", []string{"consultas", "abc"}, AcaoEditarConsulta, true},
+		{"POST", []string{"consultas", "abc", "restaurar"}, AcaoEditarConsulta, true},
+		{"PUT", []string{"consultas"}, "", false},
+		{"DELETE", []string{"consultas"}, "", false},
+		{"GET", []string{"consultas", "abc"}, "", false},
+		{"POST", []string{"consultas", "abc"}, "", false},
+		{"PUT", []string{"consultas", "abc", "restaurar"}, "", false},
+		{"GET", []string{"consultas", "abc", "restaurar"}, "", false},
+		{"POST", []string{"consultas", "abc", "outra"}, "", false},
+		{"POST", []string{"consultas", "abc", "restaurar", "x"}, "", false},
+		{"PATCH", []string{"consultas", "abc"}, "", false},
 	}
 	for _, c := range casos {
 		a, ok := RotaParaAcao(c.m, c.rest)
