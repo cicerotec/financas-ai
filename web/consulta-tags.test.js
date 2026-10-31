@@ -339,3 +339,104 @@ test('corte: sem nada no grafico nao ha mes para avisar', () => {
   const r = C.resumir(C.base([lc('a', '05')]), qG('Z'));
   assert.equal(C.corte(1000, 1000, r), '');
 });
+
+// ---- consultas salvas (item 53; .ai/specs/tendencias-consultas/spec.md, C-T21, C-T22 e C-T24) ----
+const salvo = (extra) => Object.assign({ id: 'c1', nome: 'X', modo: 'grupos', visao: 'gastos', grupos: [{ tem: ['A'], nao: [] }], autor: 'Ana', minha: false, podeAlterar: false }, extra);
+
+test('C-T21: paraSalvar e deSalvo fazem ida e volta nos dois modos e nas tres visoes', () => {
+  for (const visao of ['gastos', 'receitas', 'saldo']) {
+    const g = grupos(G(['A', 'B'], ['C']), G(['D']));
+    const corpoG = C.paraSalvar(g, visao);
+    const volta = C.deSalvo(corpoG);
+    assert.equal(volta.modo, 'grupos'); assert.equal(volta.visao, visao);
+    assert.deepEqual(volta.grupos, g.grupos);
+    assert.deepEqual(C.paraSalvar(volta, volta.visao), corpoG);
+
+    const e = expr('A', 'E', '(', 'B', 'OU', 'NAO', 'C', ')');
+    const corpoE = C.paraSalvar(e, visao);
+    const voltaE = C.deSalvo(corpoE);
+    assert.equal(voltaE.modo, 'avancado'); assert.equal(voltaE.visao, visao);
+    assert.deepEqual(voltaE.fichas, e.fichas); assert.equal(voltaE.pos, e.fichas.length);
+    assert.deepEqual(C.paraSalvar(voltaE, voltaE.visao), corpoE);
+  }
+});
+
+test('C-T21: o modo grupos salva "grupos" e o avancado salva "expressao" (nunca os dois), sem grupos vazios', () => {
+  const g = C.paraSalvar(grupos(G(['A']), C.grupoVazio()), 'gastos');
+  assert.deepEqual(Object.keys(g).sort(), ['grupos', 'modo', 'visao']);
+  assert.equal(g.grupos.length, 1);
+  const e = C.paraSalvar(expr('A'), 'saldo');
+  assert.deepEqual(Object.keys(e).sort(), ['expressao', 'modo', 'visao']);
+});
+
+test('C-T22: o corpo salvo nao leva o cursor, nem campo derivado, nem numero; copia sem ligar ao estado', () => {
+  const e = { modo: 'avancado', grupos: [], fichas: F('A', 'E', 'B'), pos: 1, total: 99, n: 3 };
+  const corpo = C.paraSalvar(e, 'gastos');
+  assert.deepEqual(Object.keys(corpo).sort(), ['expressao', 'modo', 'visao']);
+  corpo.expressao.push({ k: 'tag', v: 'Z' });
+  assert.equal(e.fichas.length, 3, 'alterar o corpo nao mexe no estado da tela');
+  const volta = C.deSalvo(salvo({ grupos: [{ tem: ['A'], nao: [] }] }));
+  assert.deepEqual(Object.keys(volta).sort(), ['fichas', 'grupos', 'modo', 'pos', 'visao']);
+});
+
+test('deSalvo: visao desconhecida volta a Gastos e os limites da tela valem', () => {
+  assert.equal(C.deSalvo(salvo({ visao: 'qualquer' })).visao, 'gastos');
+  const muitas = Array.from({ length: 12 }, (_, i) => 't' + i);
+  const v = C.deSalvo(salvo({ grupos: [{ tem: muitas, nao: [] }, G(['a']), G(['b']), G(['c']), G(['d'])] }));
+  assert.equal(v.grupos.length, C.MAX_GRUPOS); assert.equal(v.grupos[0].tem.length, C.MAX_TAGS);
+  assert.deepEqual(C.deSalvo(salvo({ grupos: [] })).grupos, [C.grupoVazio()]);
+});
+
+test('deSalvo: a consulta carregada bate com a consulta que o front monta (mesma selecao de lancamentos)', () => {
+  const itens = C.base([{ dataEvento: '2026-07-05T12:00:00', valor: 10, tipo: 'saida', tags: ['A', 'B'] }, { dataEvento: '2026-07-06T12:00:00', valor: 5, tipo: 'saida', tags: ['A', 'X'] }]);
+  const direto = C.resumir(itens, C.consulta(grupos(G(['A'], ['X']))), 'gastos');
+  const salvoVoltado = C.deSalvo(C.paraSalvar(grupos(G(['A'], ['X'])), 'gastos'));
+  const viaSalvo = C.resumir(itens, C.consulta(salvoVoltado), salvoVoltado.visao);
+  assert.equal(viaSalvo.n, direto.n); assert.equal(viaSalvo.total, direto.total);
+});
+
+test('podeSalvar: so com alguma tag e, no avancado, expressao valida', () => {
+  assert.equal(C.podeSalvar(grupos(C.grupoVazio())), false);
+  assert.equal(C.podeSalvar(grupos(G(['A']))), true);
+  assert.equal(C.podeSalvar(grupos(G([], ['A']))), true);
+  assert.equal(C.podeSalvar(expr()), false);
+  assert.equal(C.podeSalvar(expr('A', 'E')), false);
+  assert.equal(C.podeSalvar(expr('(', 'A')), false);
+  assert.equal(C.podeSalvar(expr('A', 'OU', 'B')), true);
+});
+
+test('fraseSalva: grupos e expressao viram frase; expressao com erro de gramatica mostra as fichas cruas', () => {
+  assert.equal(C.fraseSalva(salvo({ grupos: [{ tem: ['A', 'B'], nao: ['C'] }] })), 'A E B NÃO C');
+  assert.equal(C.fraseSalva(salvo({ grupos: [{ tem: ['A'], nao: [] }, { tem: ['B'], nao: [] }] })), '(A) OU (B)');
+  assert.equal(C.fraseSalva({ modo: 'avancado', expressao: F('A', 'E', 'B', 'OU', 'C') }), '(A E B) OU C');
+  assert.equal(C.fraseSalva({ modo: 'avancado', expressao: F('(', 'E', 'A', ')', ')') }), '( E A ) )');
+});
+
+test('mesmaConsulta: detecta a consulta carregada que foi mexida', () => {
+  const a = C.paraSalvar(grupos(G(['A'])), 'gastos');
+  assert.equal(C.mesmaConsulta(a, C.paraSalvar(grupos(G(['A'])), 'gastos')), true);
+  assert.equal(C.mesmaConsulta(a, C.paraSalvar(grupos(G(['A'], ['B'])), 'gastos')), false);
+  assert.equal(C.mesmaConsulta(a, C.paraSalvar(grupos(G(['A'])), 'saldo')), false);
+});
+
+test('C-T24: Renomear e Excluir so existem quando o servidor manda podeAlterar; o dono ve "como dono"', () => {
+  const dela = C.acoesDaConsulta(salvo({ minha: true, podeAlterar: true }));
+  assert.deepEqual([dela.usar, dela.renomear, dela.excluir, dela.comoDono, dela.motivo], [true, true, true, false, '']);
+  const doOutroParaODono = C.acoesDaConsulta(salvo({ minha: false, podeAlterar: true }));
+  assert.deepEqual([doOutroParaODono.renomear, doOutroParaODono.excluir, doOutroParaODono.comoDono], [true, true, true]);
+  const doOutro = C.acoesDaConsulta(salvo({ minha: false, podeAlterar: false, autor: 'Cícero' }));
+  assert.deepEqual([doOutro.usar, doOutro.renomear, doOutro.excluir, doOutro.comoDono], [true, false, false, false]);
+  assert.equal(doOutro.motivo, 'Só Cícero ou o dono podem alterar.');
+  assert.equal(C.acoesDaConsulta({ minha: true }).renomear, false, 'minha sem podeAlterar do servidor nao libera nada');
+});
+
+test('filtrarConsultas: Todas | Minhas, busca sem acento e caixa no nome e na frase, com as contagens', () => {
+  const l = [salvo({ id: '1', nome: 'Café da manhã', minha: true, podeAlterar: true, grupos: [{ tem: ['padaria'], nao: [] }] }),
+    salvo({ id: '2', nome: 'Casa', grupos: [{ tem: ['luz', 'agua'], nao: [] }] })];
+  assert.equal(C.filtrarConsultas(l, 'todas', '').itens.length, 2);
+  const m = C.filtrarConsultas(l, 'minhas', '');
+  assert.deepEqual(m.itens.map((x) => x.id), ['1']); assert.equal(m.todas, 2); assert.equal(m.minhas, 1);
+  assert.deepEqual(C.filtrarConsultas(l, 'todas', 'CAFE').itens.map((x) => x.id), ['1']);
+  assert.deepEqual(C.filtrarConsultas(l, 'todas', 'agua').itens.map((x) => x.id), ['2']);
+  assert.deepEqual(C.filtrarConsultas(l, 'minhas', 'agua').itens, []);
+});

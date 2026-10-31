@@ -3,7 +3,7 @@
 Roteiro **verificável** do [`intent.md`](intent.md) e do [`plan.md`](plan.md). Regras com número (`R`), testes com id (`C-T<n>`), para o PR
 dizer exatamente o que cobriu. Quando este texto e o do intent divergirem, vale o plan.
 
-**Estado:** aprovado em 2026-10-31. **Fase A (backend) implementada** (`feature/consultas-backend`: `domain/consulta.go`, `repository/consultas.go`, `service/consultas.go`, `controller/consultas.go`, `consulta.*` em `auth/authz.go`; testes em `consultas_test.go`, `domain/consulta_test.go` e `auth/authz_test.go`, C-T1 a C-T20). **Fase B (tela) pendente.** A tela segue a demo aprovada em 2026-10-30.
+**Estado:** aprovado em 2026-10-31. **Fase A (backend) implementada** (`feature/consultas-backend`: `domain/consulta.go`, `repository/consultas.go`, `service/consultas.go`, `controller/consultas.go`, `consulta.*` em `auth/authz.go`; testes em `consultas_test.go`, `domain/consulta_test.go` e `auth/authz_test.go`, C-T1 a C-T20). **Fase B (tela) implementada** (`feature/consultas-tela`: `web/consulta-tags.js`, `web/api.js`, `web/js/tendencias.js`, `web/css/app.css`, `camadasAbertas()` e `fecharCamadaTopo()` em `web/js/app.js`; testes em `consulta-tags.test.js`, `carga.test.js` e `consultas-camadas.test.js`, C-T21 a C-T25; o C-T26 foi medido por script, ver o PR). A tela segue a demo aprovada em 2026-10-30; desvios: a frase é cortada em 3 linhas (texto inteiro no `title`), o aviso de Desfazer sobe para z 95 enquanto vale e o `409` relê a lista na própria janela.
 
 ## Regras
 

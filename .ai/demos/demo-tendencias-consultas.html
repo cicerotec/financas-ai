@@ -78,7 +78,7 @@ button:disabled{cursor:default;}
 .item .nm{display:flex;align-items:center;gap:8px;}
 .item .nm b{font-size:15px;min-width:0;overflow-wrap:anywhere;flex:1;}
 .item .tagu{flex:none;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--accent-bg);color:var(--accent);}
-.item .fr{font-size:13px;color:var(--muted);margin:3px 0 0;overflow-wrap:anywhere;line-height:1.45;}
+.item .fr{font-size:13px;color:var(--muted);margin:3px 0 0;overflow-wrap:anywhere;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;} /* a frase de 60 fichas não toma a lista (o texto inteiro vai no title) */
 .item .por{font-size:12px;color:var(--faint);margin:3px 0 0;}
 .item .ac{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0;align-items:center;}
 .item .ac .bt{min-height:40px;padding:0 12px;font-size:13.5px;}

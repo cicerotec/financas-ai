@@ -8,7 +8,7 @@ const path = require('path');
 const vm = require('vm');
 const assert = require('assert');
 
-const chamadas = [];
+const chamadas = [], todas = []; // todas: tudo o que o fetch viu, para provar o que nunca foi chamado
 const resposta = (url) => {
   if (url.endsWith('/me')) return { sub: 's1', email: 'a@b.c', espacos: [{ id: 'e1', nome: 'Casa', role: 'owner' }] };
   if (url.includes('/seq')) return { seq: 5 };
@@ -28,6 +28,7 @@ const ctx = {
   fetch: async (url, opt) => {
     const u = String(url).replace('http://api.test', '');
     chamadas.push((opt && opt.method) + ' ' + u);
+    todas.push((opt && opt.method) + ' ' + u);
     return { status: 200, ok: true, json: async () => resposta(u) };
   }
 };
@@ -106,6 +107,23 @@ const teste = async (nome, fn) => {
     await db.importarLancamentos([]);
     await esperar(260);
     assert.strictEqual(avisos, 1);
+  });
+
+  await teste('as consultas salvas so sao lidas quando a janela chama: a subida e a Tendencias nao tocam em /consultas (item 53)', async () => {
+    assert.deepStrictEqual(todas.filter((c) => c.includes('/consultas')), [], 'nenhuma chamada a /consultas antes de a janela abrir');
+    chamadas.length = 0;
+    await db.consultas();
+    assert.deepStrictEqual(quais(), ['GET /spaces/e1/consultas']);
+  });
+
+  await teste('cada comando das consultas e uma chamada so, sem reler nada alem (quem relê e a janela, so as consultas)', async () => {
+    chamadas.length = 0;
+    await db.criarConsulta({ nome: 'x', modo: 'grupos', visao: 'gastos', grupos: [{ tem: ['a'], nao: [] }] });
+    await db.atualizarConsulta('c1', { version: 1, nome: 'y' });
+    await db.excluirConsulta('c1');
+    await db.restaurarConsulta('c1');
+    await esperar(260);
+    assert.deepStrictEqual(quais(), ['POST /spaces/e1/consultas', 'PUT /spaces/e1/consultas/c1', 'DELETE /spaces/e1/consultas/c1', 'POST /spaces/e1/consultas/c1/restaurar']);
   });
 
   if (falhas) process.exit(1);

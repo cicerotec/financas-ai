@@ -5,6 +5,8 @@
 // Nada de lista de tags ou de combos solta na página: tudo abre numa janela (grupos, combos e "+ Tag" do modo avançado).
 // O seletor Gastos | Receitas | Resultado (padrão: Gastos) escolhe o que somar; Resultado é entradas menos saídas das tags escolhidas.
 // Isto é uma SIMULAÇÃO (a faixa no topo diz): nunca vale como saldo (o saldo real é o do Histórico) e nunca grava nada. Ocultos ficam de fora.
+// Consultas salvas (item 53, demo .ai/demos/demo-tendencias-consultas.html): "Consultas salvas" e "Salvar consulta" abrem janelas; as consultas são do espaço (todos usam; cada
+// pessoa altera só as suas, o dono modera: quem decide é o servidor, que manda minha e podeAlterar). Só a consulta é guardada, nunca um número; a lista só é lida quando a janela abre.
 // Lógica pura e testada em web/consulta-tags.js. O front só desenha e soma o que já está na tela: nenhum número daqui vai para a API.
 // Carregado depois do app.js e usa os globais dele (lancamentosCache, tagsUsadas, combosAtuaisLista, esc, fmtMoeda).
 (function () {
@@ -37,6 +39,9 @@
             '<button type="button" role="radio" aria-checked="false" data-v="receitas">Receitas</button>' +
             '<button type="button" role="radio" aria-checked="false" data-v="saldo">Resultado</button></div>' +
           '<div class="td-consulta"><span class="td-cons-rot">Consulta:</span><div class="td-frase" id="tdFrase"></div></div>' +
+          '<div class="td-orig" id="tdOrig" hidden></div>' +
+          '<div class="td-cacoes"><button type="button" class="td-bt" id="tdBtnSalvas" aria-haspopup="dialog">Consultas salvas</button>' +
+            '<button type="button" class="td-bt pri" id="tdBtnSalvar" aria-haspopup="dialog">Salvar consulta</button></div>' +
           '<button class="td-editar td-so-cel" id="tdEditar" type="button">Editar consulta</button></div>' +
         '<div class="td-card">' +
           '<div class="td-rtop"><button type="button" class="td-ver-lista" id="tdBtnLista" aria-haspopup="dialog"><span id="tdRtx"></span><span aria-hidden="true"> ›</span></button><span class="td-rtot" id="tdRtot"></span></div>' +
@@ -89,11 +94,40 @@
       '<div class="td-veu td-lista" id="tdListaVeu" hidden><div class="td-jan td-ljan" role="dialog" aria-modal="true" aria-labelledby="tdLt">' +
         '<div class="td-lcab"><h2 id="tdLt">Lançamentos da consulta</h2><button type="button" id="tdLFechar" aria-label="Fechar">✕</button></div>' +
         '<p class="td-lsub" id="tdLsub"></p><div class="td-lchips" id="tdLMeses" role="group" aria-label="Mês"></div>' +
-        '<div class="td-lcorpo" id="tdLCorpo"></div><div class="td-lrodape" id="tdLRodape"></div></div></div>';
+        '<div class="td-lcorpo" id="tdLCorpo"></div><div class="td-lrodape" id="tdLRodape"></div></div></div>' +
+      // ---- janela das consultas salvas (do espaço), a de salvar e a de renomear ----
+      '<div class="td-veu" id="tdCsVeu" hidden><div class="td-jan" role="dialog" aria-modal="true" aria-labelledby="tdCsT">' +
+        '<div class="td-lcab"><h2 id="tdCsT">Consultas salvas</h2><button type="button" id="tdCsFechar" aria-label="Fechar">✕</button></div>' +
+        '<p class="td-jsub">Do espaço: todos usam. Cada pessoa altera só as suas; o dono altera todas.</p>' +
+        '<input type="search" class="td-jbusca" id="tdCsBusca" placeholder="Buscar consulta..." aria-label="Buscar consulta" autocomplete="off">' +
+        '<div class="td-lchips" id="tdCsFichas" role="group" aria-label="Filtrar"></div>' +
+        '<div class="td-msg bad" id="tdCsErro" role="alert" hidden></div>' +
+        '<div class="td-cs-lista" id="tdCsLista"></div>' +
+        '<div class="td-cs-rod"><span id="tdCsCnt"></span><span class="td-cs-lim" id="tdCsLim"></span></div></div></div>' +
+      '<div class="td-veu td-alto" id="tdSvVeu" hidden><div class="td-jan" role="dialog" aria-modal="true" aria-labelledby="tdSvT">' +
+        '<div class="td-lcab"><h2 id="tdSvT">Salvar consulta</h2><button type="button" id="tdSvFechar" aria-label="Fechar">✕</button></div>' +
+        '<p class="td-jsub" id="tdSvSub"></p>' +
+        '<input type="text" class="td-cs-nome" id="tdSvNome" maxlength="' + CT.MAX_NOME_CONSULTA + '" placeholder="Nome da consulta" aria-label="Nome da consulta" autocomplete="off">' +
+        '<div class="td-cs-cnt" id="tdSvCnt"></div><div class="td-msg bad" id="tdSvErro" role="alert"></div>' +
+        '<button class="td-jok" id="tdSvOk" type="button">Salvar</button><button class="td-cs-sec" id="tdSvAtual" type="button" hidden></button></div></div>' +
+      '<div class="td-veu td-alto" id="tdRnVeu" hidden><div class="td-jan" role="dialog" aria-modal="true" aria-labelledby="tdRnT">' +
+        '<div class="td-lcab"><h2 id="tdRnT">Renomear</h2><button type="button" id="tdRnFechar" aria-label="Fechar">✕</button></div>' +
+        '<p class="td-jsub" id="tdRnSub"></p>' +
+        '<input type="text" class="td-cs-nome" id="tdRnNome" maxlength="' + CT.MAX_NOME_CONSULTA + '" aria-label="Novo nome" autocomplete="off">' +
+        '<div class="td-cs-cnt" id="tdRnCnt"></div><div class="td-msg bad" id="tdRnErro" role="alert"></div>' +
+        '<button class="td-jok" id="tdRnOk" type="button">Renomear</button></div></div>';
     $('tendRaiz').addEventListener('click', aoClicar);
     $('tdJb').addEventListener('input', () => { if (jan) renderJanela(); });
+    $('tdCsBusca').addEventListener('input', () => { cs.busca = $('tdCsBusca').value; renderConsultas(); });
+    $('tdSvNome').addEventListener('input', () => { $('tdSvCnt').textContent = $('tdSvNome').value.length + ' de ' + CT.MAX_NOME_CONSULTA; $('tdSvErro').textContent = ''; });
+    $('tdSvNome').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); salvarNova(); } });
+    $('tdRnNome').addEventListener('input', () => { $('tdRnCnt').textContent = $('tdRnNome').value.length + ' de ' + CT.MAX_NOME_CONSULTA; $('tdRnErro').textContent = ''; });
+    $('tdRnNome').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); renomear(); } });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
+      if (cs.rn) { fecharRenomear(); return; }
+      if (cs.sv) { fecharSalvar(); return; }
+      if (cs.aberta) { fecharConsultas(); return; }
       if (listaAberta) { fecharLista(); return; }
       if (jan) fecharJanela(); else if (edAberto && !largo()) { edAberto = false; render(); }
     });
@@ -317,7 +351,7 @@
   function travar() {
     const celular = !largo() && edAberto;
     document.body.classList.toggle('td-edit', celular);
-    document.body.classList.toggle('td-trava', celular || !$('tdVeu').hidden || listaAberta);
+    document.body.classList.toggle('td-trava', celular || !$('tdVeu').hidden || listaAberta || cs.aberta || cs.sv || !!cs.rn);
     $('tdEsc').classList.toggle('aberto', edAberto);
   }
 
@@ -330,7 +364,7 @@
     else if (!ultimo || ultimo.visao !== visao) ultimo = CT.resumir(itens(), CT.consulta({ modo: 'grupos', grupos: [], fichas: [] }), visao);
     $('tdGrupos').hidden = ten.modo !== 'grupos';
     $('tdExpr').hidden = ten.modo !== 'avancado';
-    renderCombos(); renderFrase(q);
+    renderCombos(); renderFrase(q); renderBarraConsulta(q);
     if (ten.modo === 'grupos') renderGrupos(); else { renderFichas(); renderMsgExpr(q); }
     renderResultado(q.valida); renderOutras();
     if (listaAberta) { if (ultimo.n) renderLista(); else fecharLista(); }
@@ -372,6 +406,178 @@
   }
   function fecharLista() { listaAberta = false; $('tdListaVeu').hidden = true; travar(); const b = $('tdBtnLista'); if (b) b.focus(); }
 
+  // ---------- consultas salvas (item 53) ----------
+  // A lista vem do servidor só quando a janela abre. Quem decide o autor, minha, podeAlterar, os limites e o conflito (409) é o servidor.
+  const cs = { aberta: false, lista: null, carregando: false, erro: '', filtro: 'todas', busca: '', origem: null, base: null, sv: false, rn: null, ocupado: false };
+  const dataCurta = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('pt-BR'); };
+  const consultaDaTela = () => CT.paraSalvar(ten, visao);
+  const achar = (id) => (cs.lista || []).find((c) => c.id === id) || null;
+  const origemItem = () => (cs.origem ? achar(cs.origem) : null);
+  const alterada = () => !!origemItem() && !CT.mesmaConsulta(consultaDaTela(), cs.base);
+  const ordenar = () => { cs.lista.sort((a, b) => (a.criadoEm < b.criadoEm ? 1 : a.criadoEm > b.criadoEm ? -1 : 0)); };
+  const substituir = (c) => { cs.lista = (cs.lista || []).map((x) => (x.id === c.id ? c : x)); };
+  function mensagemDe(e) { // o texto do servidor (400, 403, 404), ou um genérico quando nem chegou lá (rede)
+    const m = e && e.code && e.message ? e.message : 'Não consegui agora. Confira a conexão e tente de novo.';
+    return m.charAt(0).toUpperCase() + m.slice(1) + (/[.!?]$/.test(m) ? '' : '.');
+  }
+  function erroDoNome(nome, exceto) {
+    if (!nome) return 'Dê um nome para a consulta.';
+    if ((cs.lista || []).some((c) => c.id !== exceto && c.nome.trim().toLowerCase() === nome.toLowerCase())) return 'Já existe uma consulta com esse nome.';
+    return '';
+  }
+  function erroJanela(id, e) {
+    if (e && e.codigo === 'conflito_versao') { // alguém gravou antes: a lista é relida e a pessoa confere
+      $(id).textContent = 'Alguém alterou esta consulta antes de você. A lista foi atualizada: confira e tente de novo.';
+      carregarConsultas();
+    } else $(id).textContent = mensagemDe(e);
+  }
+
+  function renderBarraConsulta(q) {
+    const o = origemItem(), el = $('tdOrig');
+    el.hidden = !o;
+    if (o) el.innerHTML = 'Carregada de <b>' + esc(o.nome) + '</b> (' + (o.minha ? 'sua' : 'de ' + esc(o.autor)) + ')' + (alterada() ? ' · <b>alterada, ainda não salva</b>' : '') + '.';
+    $('tdBtnSalvar').disabled = !(q.valida && !q.vazia);
+  }
+
+  function linhaConsulta(c) {
+    const a = CT.acoesDaConsulta(c), uso = cs.origem === c.id, id = esc(c.id);
+    return '<div class="td-cs-item' + (uso ? ' em-uso' : '') + '"><div class="nm"><b>' + esc(c.nome) + '</b>' + (c.minha ? '<span class="tagu">Sua</span>' : '') + '</div>' +
+      '<div class="fr" title="' + esc(CT.fraseSalva(c)) + '">' + esc(CT.fraseSalva(c)) + '</div>' +
+      '<div class="por">' + esc(NOME_VISAO[c.visao] || '') + ' · por ' + (c.minha ? 'você' : esc(c.autor)) + ' em ' + dataCurta(c.criadoEm) + '</div>' +
+      '<div class="ac"><button type="button" class="td-bt pri" data-cs-usar="' + id + '">' + (uso ? 'Em uso' : 'Usar') + '</button>' +
+      (a.renomear ? '<button type="button" class="td-bt" data-cs-ren="' + id + '">Renomear</button>' : '') +
+      (a.excluir ? '<button type="button" class="td-bt perigo" data-cs-del="' + id + '">Excluir</button>' : '') +
+      (a.comoDono ? '<span class="so">como dono</span>' : '') + (a.motivo ? '<span class="so">' + esc(a.motivo) + '</span>' : '') + '</div></div>';
+  }
+  function renderConsultas() {
+    const lista = cs.lista || [], r = CT.filtrarConsultas(lista, cs.filtro, cs.busca);
+    $('tdCsFichas').innerHTML = ['todas', 'minhas'].map((f) => '<button type="button" class="' + (cs.filtro === f ? 'on' : '') + '" data-cs-f="' + f + '">' + (f === 'todas' ? 'Todas' : 'Minhas') + ' <span class="td-n">' + r[f] + '</span></button>').join('');
+    const er = $('tdCsErro');
+    er.hidden = !cs.erro;
+    er.innerHTML = cs.erro ? esc(cs.erro) + ' <button type="button" class="td-cs-link" id="tdCsRetry">Tentar de novo</button>' : '';
+    let h = '';
+    if (!cs.lista) h = cs.erro ? '' : '<p class="td-vazio-g">Carregando...</p>';
+    else if (!lista.length) h = '<div class="td-vazio-g">Nenhuma consulta salva ainda.<br>Monte uma consulta e toque em <b>Salvar consulta</b>.</div>';
+    else if (!r.itens.length) h = '<p class="td-vazio-g">' + (cs.filtro === 'minhas' && !cs.busca.trim() ? 'Você ainda não salvou nenhuma consulta.' : 'Nenhuma consulta encontrada.') + '</p>';
+    $('tdCsLista').innerHTML = h + r.itens.map(linhaConsulta).join('');
+    $('tdCsCnt').textContent = cs.lista ? lista.length + ' de ' + CT.MAX_CONSULTAS + ' consultas' : '';
+    $('tdCsLim').textContent = lista.length >= CT.MAX_CONSULTAS ? 'Limite atingido: exclua uma para salvar outra.' : '';
+  }
+  async function carregarConsultas() {
+    cs.carregando = true; cs.erro = ''; renderConsultas();
+    try { cs.lista = await db.consultas(); } catch (e) { cs.erro = 'Não consegui carregar as consultas agora.'; }
+    cs.carregando = false; renderConsultas(); render();
+  }
+  function abrirConsultas() {
+    cs.aberta = true; cs.erro = ''; $('tdCsBusca').value = cs.busca;
+    $('tdCsVeu').hidden = false; travar(); renderConsultas(); carregarConsultas(); $('tdCsBusca').focus();
+  }
+  function fecharConsultas() { cs.aberta = false; $('tdCsVeu').hidden = true; travar(); const b = $('tdBtnSalvas'); if (b) b.focus(); }
+
+  function usarConsulta(id) {
+    const c = achar(id);
+    if (!c) return;
+    const e = CT.deSalvo(c);
+    Object.assign(ten, { modo: e.modo, grupos: e.grupos, fichas: e.fichas, pos: e.pos }); visao = e.visao;
+    limparAviso(); limparTagsInexistentes();
+    cs.origem = id; cs.base = consultaDaTela();
+    fecharConsultas(); render();
+  }
+
+  // salvar
+  function abrirSalvar() {
+    const q = CT.consulta(ten);
+    if (!q.valida || q.vazia) return;
+    const o = origemItem(), mexida = alterada(), podeAtualizar = !!o && mexida && o.podeAlterar;
+    cs.sv = true; $('tdSvNome').value = ''; $('tdSvErro').textContent = ''; $('tdSvCnt').textContent = '0 de ' + CT.MAX_NOME_CONSULTA;
+    $('tdSvSub').innerHTML = '<b>' + esc(CT.fraseSalva(consultaDaTela())) + '</b><br>Visão: ' + esc(NOME_VISAO[visao]) + '. Todos do espaço poderão usar; só você altera (e o dono modera).' +
+      (o && mexida && !o.podeAlterar ? '<br>A consulta de <b>' + esc(o.autor) + '</b> não muda: isto cria uma cópia sua.' : '');
+    const at = $('tdSvAtual');
+    at.hidden = !podeAtualizar;
+    if (podeAtualizar) at.textContent = 'Atualizar "' + o.nome + '"' + (o.minha ? '' : ' (como dono)');
+    $('tdSvOk').textContent = o && mexida ? 'Salvar como nova' : 'Salvar';
+    const cheio = !!cs.lista && cs.lista.length >= CT.MAX_CONSULTAS;
+    $('tdSvOk').disabled = cheio;
+    if (cheio) $('tdSvErro').textContent = 'Limite de ' + CT.MAX_CONSULTAS + ' consultas. Exclua uma antes de salvar outra.';
+    $('tdSvVeu').hidden = false; travar(); $('tdSvNome').focus();
+  }
+  function fecharSalvar() { cs.sv = false; $('tdSvVeu').hidden = true; travar(); const b = $('tdBtnSalvar'); if (b) b.focus(); }
+  async function salvarNova() {
+    if (cs.ocupado || !cs.sv) return;
+    const nome = $('tdSvNome').value.trim(), er = erroDoNome(nome, null);
+    if (er) { $('tdSvErro').textContent = er; return; }
+    cs.ocupado = true; $('tdSvOk').disabled = true;
+    try {
+      const c = await db.criarConsulta(Object.assign({ nome }, consultaDaTela()));
+      cs.lista = [c].concat((cs.lista || []).filter((x) => x.id !== c.id));
+      cs.origem = c.id; cs.base = consultaDaTela();
+      fecharSalvar(); render(); toast('✓ Consulta "' + c.nome + '" salva');
+      if (cs.aberta) carregarConsultas();
+    } catch (e) { erroJanela('tdSvErro', e); }
+    cs.ocupado = false; $('tdSvOk').disabled = false;
+  }
+  async function atualizarAtual() {
+    const o = origemItem();
+    if (!o || cs.ocupado || !cs.sv) return;
+    cs.ocupado = true; $('tdSvAtual').disabled = true;
+    try {
+      const c = await db.atualizarConsulta(o.id, Object.assign({ version: o.version }, consultaDaTela()));
+      substituir(c); cs.base = consultaDaTela();
+      fecharSalvar(); render(); toast('✓ Consulta "' + c.nome + '" atualizada');
+      if (cs.aberta) carregarConsultas();
+    } catch (e) { erroJanela('tdSvErro', e); }
+    cs.ocupado = false; $('tdSvAtual').disabled = false;
+  }
+
+  // renomear
+  function abrirRenomear(id) {
+    const c = achar(id);
+    if (!c || !CT.acoesDaConsulta(c).renomear) return;
+    cs.rn = id; $('tdRnNome').value = c.nome; $('tdRnErro').textContent = ''; $('tdRnCnt').textContent = c.nome.length + ' de ' + CT.MAX_NOME_CONSULTA;
+    $('tdRnSub').textContent = c.minha ? 'Só o nome muda.' : 'Consulta de ' + c.autor + '. Como dono, você pode renomear.';
+    $('tdRnVeu').hidden = false; travar(); $('tdRnNome').focus(); $('tdRnNome').select();
+  }
+  function fecharRenomear() { cs.rn = null; $('tdRnVeu').hidden = true; travar(); }
+  async function renomear() {
+    const c = achar(cs.rn);
+    if (!c || cs.ocupado) return;
+    const nome = $('tdRnNome').value.trim(), er = erroDoNome(nome, c.id);
+    if (er) { $('tdRnErro').textContent = er; return; }
+    cs.ocupado = true; $('tdRnOk').disabled = true;
+    try {
+      substituir(await db.atualizarConsulta(c.id, { version: c.version, nome }));
+      fecharRenomear(); renderConsultas(); render();
+    } catch (e) { erroJanela('tdRnErro', e); }
+    cs.ocupado = false; $('tdRnOk').disabled = false;
+  }
+
+  // excluir na hora, com Desfazer por 6 s (o Desfazer é restaurar a mesma consulta, com o mesmo autor)
+  async function excluirConsulta(id) {
+    const c = achar(id);
+    if (!c || cs.ocupado || !CT.acoesDaConsulta(c).excluir) return;
+    cs.ocupado = true;
+    try { await db.excluirConsulta(id); } catch (e) { cs.ocupado = false; cs.erro = mensagemDe(e); renderConsultas(); return; }
+    cs.ocupado = false;
+    const eraOrigem = cs.origem === id;
+    cs.lista = cs.lista.filter((x) => x.id !== id);
+    if (eraOrigem) cs.origem = null; // a consulta na tela fica; só deixa de ser "carregada de"
+    renderConsultas(); render();
+    const aviso = $('avisoAcao');
+    const abaixar = () => aviso.classList.remove('acima');
+    $('toast').classList.remove('on'); // o aviso de Desfazer ocupa o mesmo lugar
+    mostrarAvisoAcao({ txt: 'Excluída: ' + c.nome, sub: 'Dá para desfazer por 6 segundos.', rotulo: 'Desfazer', onFim: abaixar,
+      onAcao: async () => {
+        abaixar();
+        try {
+          const r = await db.restaurarConsulta(id);
+          cs.lista = [r].concat((cs.lista || []).filter((x) => x.id !== id)); ordenar();
+          if (eraOrigem) cs.origem = id;
+          renderConsultas(); render(); toast('✓ Consulta "' + r.nome + '" de volta');
+        } catch (e) { toast(mensagemDe(e), true); }
+      } });
+    aviso.classList.add('acima'); // a janela das consultas (z 80) cobriria o aviso
+  }
+
   // ---------- toques ----------
   function limparAviso() { avisoTxt = ''; desf = null; }
   function tirar(tag) {
@@ -386,8 +592,25 @@
     ten.fichas = r.fichas; ten.pos = r.pos; render();
   }
   function aoClicar(e) {
-    const t = e.target.closest('#tdBtnLista,[data-mes],[data-lm],#tdLFechar,[data-v],[data-combo],#tdCombos,#tdBtnTag,[data-add],[data-rm],[data-del],#tdNovo,[data-t],#tdJok,[data-i],[data-k],[data-tag],#tdAvanc,#tdVoltar,#tdVoltarCel,[data-cot],#tdDesf,#tdEditar,#tdFechar,#tdPronto');
-    if (!t) { if (e.target === $('tdVeu')) fecharJanela(); else if (e.target === $('tdListaVeu')) fecharLista(); return; }
+    const t = e.target.closest('#tdBtnSalvas,#tdCsFechar,#tdCsRetry,[data-cs-f],[data-cs-usar],[data-cs-ren],[data-cs-del],#tdBtnSalvar,#tdSvFechar,#tdSvOk,#tdSvAtual,#tdRnFechar,#tdRnOk,#tdBtnLista,[data-mes],[data-lm],#tdLFechar,[data-v],[data-combo],#tdCombos,#tdBtnTag,[data-add],[data-rm],[data-del],#tdNovo,[data-t],#tdJok,[data-i],[data-k],[data-tag],#tdAvanc,#tdVoltar,#tdVoltarCel,[data-cot],#tdDesf,#tdEditar,#tdFechar,#tdPronto');
+    if (!t) {
+      if (e.target === $('tdVeu')) fecharJanela(); else if (e.target === $('tdListaVeu')) fecharLista();
+      else if (e.target === $('tdCsVeu')) fecharConsultas(); else if (e.target === $('tdSvVeu')) fecharSalvar(); else if (e.target === $('tdRnVeu')) fecharRenomear();
+      return;
+    }
+    if (t.id === 'tdBtnSalvas') return abrirConsultas();
+    if (t.id === 'tdCsFechar') return fecharConsultas();
+    if (t.id === 'tdCsRetry') return carregarConsultas();
+    if (t.dataset.csF) { cs.filtro = t.dataset.csF; return renderConsultas(); }
+    if (t.dataset.csUsar) return usarConsulta(t.dataset.csUsar);
+    if (t.dataset.csRen) return abrirRenomear(t.dataset.csRen);
+    if (t.dataset.csDel) return excluirConsulta(t.dataset.csDel);
+    if (t.id === 'tdBtnSalvar') return abrirSalvar();
+    if (t.id === 'tdSvFechar') return fecharSalvar();
+    if (t.id === 'tdSvOk') return salvarNova();
+    if (t.id === 'tdSvAtual') return atualizarAtual();
+    if (t.id === 'tdRnFechar') return fecharRenomear();
+    if (t.id === 'tdRnOk') return renomear();
     if (t.id === 'tdBtnLista') return abrirLista('');
     if (t.dataset.mes) return abrirLista(t.dataset.mes);
     if (t.dataset.lm !== undefined) { listaMes = t.dataset.lm; renderLista(); $('tdLCorpo').scrollTop = 0; return; }

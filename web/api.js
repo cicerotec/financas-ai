@@ -551,7 +551,21 @@
     atualizarOuvintes('col');
   };
 
+  // Consultas salvas da Tendencias (item 53, .ai/specs/tendencias-consultas). So a consulta (tags, operadores e visao) vai e volta; quem decide
+  // o autor, o podeAlterar, os limites e o conflito (409 de version) e o servidor. Nada daqui avisa as outras telas: ninguem mais le consultas.
+  const consultasUrl = async (id, resto) => (await base()) + '/consultas' + (id ? '/' + encodeURIComponent(id) : '') + (resto || '');
+  const consultas = async () => (await api('GET', await consultasUrl())).body;
+  const criarConsulta = async (corpo) => escrita(await api('POST', await consultasUrl(), corpo)).body;
+  const atualizarConsulta = async (id, corpo) => escrita(await api('PUT', await consultasUrl(id), corpo)).body;
+  const excluirConsulta = async (id) => (await api('DELETE', await consultasUrl(id))).body;
+  const restaurarConsulta = async (id) => (await api('POST', await consultasUrl(id, '/restaurar'))).body;
+
   const dbShim = {
+    consultas,
+    criarConsulta,
+    atualizarConsulta,
+    excluirConsulta,
+    restaurarConsulta,
     importarLancamentos,
     recorrencias,
     marcarRecorrencia,

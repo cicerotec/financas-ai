@@ -675,7 +675,7 @@ body.td-trava{overflow:hidden;}
 @media (min-width:1160px){
   body[data-aba="tendencias"] main{max-width:1200px;}
   .td-layout{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:16px;align-items:start;}
-  .td-topo{flex-wrap:nowrap;}
+  .td-topo{flex-wrap:wrap;} /* a linha de cima (pílula, seletor e frase) cabe sempre (a frase tem base 0); a origem e os botões das consultas salvas descem */
   .td-seg{order:2;flex:none;width:auto;grid-template-columns:repeat(3,auto);}
   .td-seg button{min-height:38px;padding:0 14px;}
   .td-consulta{order:3;flex:1 1 0;}
@@ -856,3 +856,34 @@ body.lote-ativo #tab-historico{padding-bottom:84px;}
 .cfg-lin:first-child{border-top:0;}
 .cfg-lin .v{color:var(--muted);text-align:right;overflow-wrap:anywhere;}
 .cfg-tit{display:flex;justify-content:space-between;width:100%;padding:8px 2px;margin:4px 0 0;background:transparent;border:0;border-radius:0;color:var(--text);font:inherit;font-weight:600;text-align:left;cursor:pointer;}
+
+/* ---- consultas salvas da Tendências (item 53; demo .ai/demos/demo-tendencias-consultas.html) ---- */
+.td-orig{order:3;flex:1 1 100%;font-size:12.5px;color:var(--muted);margin:-2px 0 0;line-height:1.4;overflow-wrap:anywhere;}
+.td-orig b{color:var(--text);}
+.td-cacoes{order:3;flex:1 1 100%;display:flex;gap:6px;flex-wrap:wrap;}
+.td-bt{min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg);font-size:14px;}
+.td-bt.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;}
+.td-bt.perigo{color:var(--danger);border-color:var(--danger);background:transparent;}
+.td-bt:disabled{opacity:.45;cursor:default;}
+.td-veu.td-alto{z-index:90;}
+.td-jan .td-lcab,.td-jan .td-jsub,.td-jan .td-jbusca,.td-jan .td-lchips,.td-jan .td-cs-rod{flex:none;} /* só a lista rola; o resto da janela não encolhe */
+.td-cs-lista{overflow:auto;flex:1;min-height:0;}
+.td-cs-item{border-top:1px solid var(--border);padding:10px 2px;}
+.td-cs-item:first-child{border-top:0;}
+.td-cs-item.em-uso{background:var(--accent-bg);border-radius:12px;padding-inline:10px;border-top-color:transparent;}
+.td-cs-item .nm{display:flex;align-items:center;gap:8px;}
+.td-cs-item .nm b{flex:1;min-width:0;overflow-wrap:anywhere;font-size:15px;}
+.td-cs-item .tagu{flex:none;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--accent-bg);color:var(--accent);}
+.td-cs-item.em-uso .tagu{background:var(--card);}
+.td-cs-item .fr{font-size:13px;color:var(--muted);margin:3px 0 0;overflow-wrap:anywhere;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;} /* a frase de 60 fichas não toma a lista: o texto inteiro fica no title */
+.td-cs-item .por{font-size:12px;color:var(--faint);margin:3px 0 0;}
+.td-cs-item .ac{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0;align-items:center;}
+.td-cs-item .ac .td-bt{min-height:40px;padding:0 12px;font-size:13.5px;}
+.td-cs-item .so{font-size:12px;color:var(--faint);flex:1;min-width:0;}
+.td-cs-rod{font-size:12.5px;color:var(--muted);margin:8px 2px 0;display:flex;justify-content:space-between;gap:10px;}
+.td-cs-lim{color:var(--danger);text-align:right;}
+.td-cs-nome{width:100%;margin:0 0 8px;}
+.td-cs-cnt{font-size:12px;color:var(--muted);text-align:right;margin:-4px 0 6px;}
+.td-cs-sec{margin-top:6px;min-height:48px;border:1px solid var(--border);border-radius:14px;background:transparent;font-size:15px;}
+.td-cs-link{border:0;background:transparent;color:var(--accent);font-weight:600;text-decoration:underline;min-height:44px;padding:0 6px;}
+#avisoAcao.acima{z-index:95;} /* o aviso de Desfazer da exclusão de uma consulta aparece por cima da janela (z 80) */
