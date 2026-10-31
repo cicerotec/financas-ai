@@ -1,0 +1,23 @@
+{
+ "PK": "SPACE#8c95812f-...",
+ "SK": "CONSULTA#k4m9q2x7b1c8d3f6g0h5",
+ "atualizadoEm": "2026-10-30T14:20:00.000Z",
+ "atualizadoPor": "sub-demo-membro",
+ "criadoEm": "2026-10-30T14:20:00.000Z",
+ "criadoPor": "sub-demo-membro",
+ "grupos": [
+  {
+   "nao": [
+    "presente"
+   ],
+   "tem": [
+    "mercado"
+   ]
+  }
+ ],
+ "id": "k4m9q2x7b1c8d3f6g0h5",
+ "modo": "grupos",
+ "nome": "Mercado sem presente",
+ "version": 1,
+ "visao": "gastos"
+}

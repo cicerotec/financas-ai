@@ -27,9 +27,12 @@ const (
 	AcaoTestarAviso     Acao = "avisos.testar" // manda uma mensagem de teste para o proprio Telegram
 	AcaoLerHistorico    Acao = "historico.ler" // busca por mes e versoes de um lancamento
 	AcaoRestaurar       Acao = "historico.restaurar"
-	AcaoConfirmarTx     Acao = "tx.confirmar" // tira o marcador previsto (item 41)
+	AcaoConfirmarTx     Acao = "tx.confirmar"    // tira o marcador previsto (item 41)
 	AcaoLerCartao       Acao = "cartao.ler"      // as faturas do cartao, calculadas pelo servidor (item 33a)
 	AcaoEscreverCartao  Acao = "cartao.escrever" // os comandos de configuracao e conferencia das faturas (so o dono)
+	AcaoLerConsulta     Acao = "consulta.ler"    // as consultas salvas da Tendencias (item 53), compartilhadas no espaco
+	AcaoCriarConsulta   Acao = "consulta.criar"
+	AcaoEditarConsulta  Acao = "consulta.editar" // renomear, atualizar, excluir e restaurar: o member so as que criou
 )
 
 // Decisao e o que um papel pode fazer com uma acao.
@@ -54,15 +57,16 @@ func Permitido(papel string, a Acao) Decisao {
 		case AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso,
-			AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao:
+			AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao,
+			AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta:
 			return Liberado
 		}
 	case PapelMember:
 		switch a {
 		case AcaoLerTx, AcaoCriarTx, AcaoLerCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-			AcaoLerFech, AcaoLerSeq, AcaoTestarAviso, AcaoLerCartao:
+			AcaoLerFech, AcaoLerSeq, AcaoTestarAviso, AcaoLerCartao, AcaoLerConsulta, AcaoCriarConsulta:
 			return Liberado
-		case AcaoEditarTx, AcaoConfirmarTx, AcaoLerHistorico, AcaoRestaurar: // so o que ela criou (restaurar excluido e so do owner: service)
+		case AcaoEditarTx, AcaoConfirmarTx, AcaoLerHistorico, AcaoRestaurar, AcaoEditarConsulta: // so o que ela criou (restaurar excluido e so do owner: service)
 			return SoDono
 		}
 	}
@@ -122,6 +126,8 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 			}
 			return AcaoEscreverCfg, true
 		}
+	case len(rest) >= 1 && rest[0] == "consultas":
+		return rotaConsulta(metodo, rest)
 	case len(rest) == 1 && rest[0] == "seq" && metodo == "GET":
 		return AcaoLerSeq, true
 	case len(rest) == 1 && rest[0] == "saldos" && metodo == "GET": // o saldo de cada meio, calculado pelo servidor (item 40)
@@ -145,6 +151,26 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		case "PUT":
 			return AcaoEscreverAparenc, true
 		}
+	}
+	return "", false
+}
+
+// rotaConsulta classifica as rotas de /consultas (item 53): ler e criar na colecao; editar, excluir e restaurar num id.
+func rotaConsulta(metodo string, rest []string) (Acao, bool) {
+	switch {
+	case len(rest) == 1: // /consultas
+		switch metodo {
+		case "GET":
+			return AcaoLerConsulta, true
+		case "POST":
+			return AcaoCriarConsulta, true
+		}
+	case len(rest) == 2 && rest[1] != "": // /consultas/{id}
+		if metodo == "PUT" || metodo == "DELETE" {
+			return AcaoEditarConsulta, true
+		}
+	case len(rest) == 3 && rest[1] != "" && rest[2] == "restaurar" && metodo == "POST": // /consultas/{id}/restaurar
+		return AcaoEditarConsulta, true
 	}
 	return "", false
 }

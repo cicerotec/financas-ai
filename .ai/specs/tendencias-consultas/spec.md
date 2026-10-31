@@ -3,7 +3,7 @@
 Roteiro **verificável** do [`intent.md`](intent.md) e do [`plan.md`](plan.md). Regras com número (`R`), testes com id (`C-T<n>`), para o PR
 dizer exatamente o que cobriu. Quando este texto e o do intent divergirem, vale o plan.
 
-**Estado:** rascunho para aprovação (2026-10-31). Duas fases: A (backend) e B (tela). A tela segue a demo aprovada em 2026-10-30.
+**Estado:** implementado e conferido em dev pelo dono em 2026-10-31. **Fase A (backend) implementada** (`feature/consultas-backend`: `domain/consulta.go`, `repository/consultas.go`, `service/consultas.go`, `controller/consultas.go`, `consulta.*` em `auth/authz.go`; testes em `consultas_test.go`, `domain/consulta_test.go` e `auth/authz_test.go`, C-T1 a C-T20). **Fase B (tela) implementada** (`feature/consultas-tela`: `web/consulta-tags.js`, `web/api.js`, `web/js/tendencias.js`, `web/css/app.css`, `camadasAbertas()` e `fecharCamadaTopo()` em `web/js/app.js`; testes em `consulta-tags.test.js`, `carga.test.js` e `consultas-camadas.test.js`, C-T21 a C-T25; o C-T26 foi medido por script, ver o PR). A tela segue a demo aprovada em 2026-10-30; desvios: a frase é cortada em 3 linhas (texto inteiro no `title`), o aviso de Desfazer sobe para z 95 enquanto vale e o `409` relê a lista na própria janela.
 
 ## Regras
 
@@ -73,8 +73,7 @@ POST   /spaces/{sid}/consultas/{id}/restaurar                                   
 - **R15.** **Só lê quando a janela "Consultas salvas" abre** (decisão C). A subida do app e a abertura da Tendências **não** chamam
   `/consultas`. Depois de cada gravação o front relê só `consultas`, nunca "tudo".
 - **R16.** Isolamento: o `PK` é sempre `SPACE#<sid do token>`; nenhuma rota lê, altera ou lista consulta de outro espaço.
-- **R17.** Custo por chamada: `GET` = 1 `Query`; `POST` = 1 `Query` (contagem e nomes) + 1 `PutItem`; `PUT` = 1 `GetItem` + (se renomear) 1 `Query` +
-  1 `UpdateItem` condicional; `DELETE` e `restaurar` = 1 `GetItem` + 1 `UpdateItem` condicional (+ 1 `Query` na restauração). Nenhuma varredura de tabela.
+- **R17.** Custo por chamada, contado em `Query`, `PutItem` e `UpdateItem` (a leitura do papel e a do apelido do autor, 1 `GetItem` por pessoa na resposta, não são da consulta): `GET` = 1 `Query`; `POST` = 1 `Query` (contagem e nomes) + 1 `PutItem`; `PUT` que renomeia = 1 `Query` + 1 `PutItem`, e só da consulta = 1 `PutItem`; `DELETE` = 1 `PutItem`; `restaurar` = 1 `Query` + 1 `PutItem`. Cada gravação é um `PutItem` condicional por `version` (a mesma de `CFG#*`), com 1 `GetItem` antes quando altera um item existente. Nenhuma varredura de tabela.
 - **R18.** A criação **não** mexe no `SEQ` do espaço (ele só conta alterações de lançamento) nem grava em `HIST#`.
 - **R19.** Corrida (decisão D): dois `POST` simultâneos podem passar do limite em 1 ou repetir um nome; **aceito**, sem efeito em saldo ou permissão.
 - **R20.** Cada rota deixa uma linha do log de requisição (item 50) com a ação e o status, sem nome, id nem conteúdo da consulta.
@@ -118,7 +117,7 @@ Cada um falha antes da mudança. `C-T1` a `C-T20` são de Go (fase A); `C-T21` a
 | C-T16 | Consulta de outro espaço ou inexistente é `404` em `PUT`, `DELETE` e `restaurar` (R14, R16) |
 | C-T17 | Duas pessoas em espaços diferentes não veem nem alteram as consultas uma da outra (R16) |
 | C-T18 | `POST` não altera o `SEQ` nem cria item em `HIST#` (R18) |
-| C-T19 | O número de leituras e gravações de cada rota é o de R17 (contado no repositório falso) (R17) |
+| C-T19 | O número de `Query`, `PutItem` e `UpdateItem` de cada rota é o de R17 (contado por um banco falso que soma as chamadas) (R17) |
 | C-T20 | A linha de log de cada rota traz a ação e o status e **não** traz nome, id nem conteúdo da consulta (R20) |
 | C-T21 | `consulta-tags.test.js`: `paraSalvar` e `deSalvo` fazem ida e volta sem perda, nos dois modos e nas três visões (R22) |
 | C-T22 | `consulta-tags.test.js`: `paraSalvar` não leva `pos` nem campo derivado (R4) |

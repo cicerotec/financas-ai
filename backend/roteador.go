@@ -126,7 +126,7 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 	var body domain.Doc
 	if rawBody == "" && acaoReq == auth.AcaoEscreverCartao { // os comandos do cartao sem opcao aceitam corpo vazio
 		body = domain.Doc{}
-	} else if (m == "POST" || m == "PUT") && acaoReq != auth.AcaoRestaurar { // restaurar nao tem corpo
+	} else if (m == "POST" || m == "PUT") && acaoReq != auth.AcaoRestaurar && !(acaoReq == auth.AcaoEditarConsulta && m == "POST") { // restaurar (versao e consulta) nao tem corpo
 		if err := json.Unmarshal([]byte(rawBody), &body); err != nil || body == nil {
 			return erro(http.StatusBadRequest, "json invalido")
 		}
@@ -195,6 +195,18 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 		return s.avisos.PostAvisoTeste(ctx, sid, u.Sub)
 	case auth.AcaoEscreverAparenc:
 		return s.cfg.PutAparencia(ctx, sid, u.Sub, body)
+	case auth.AcaoLerConsulta:
+		return s.consultas.Get(ctx, sid, u.Sub, role == auth.PapelOwner)
+	case auth.AcaoCriarConsulta:
+		return s.consultas.Post(ctx, sid, u.Sub, role == auth.PapelOwner, body)
+	case auth.AcaoEditarConsulta:
+		switch m {
+		case "PUT":
+			return s.consultas.Put(ctx, sid, p[3], u.Sub, dec == auth.SoDono, body)
+		case "DELETE":
+			return s.consultas.Delete(ctx, sid, p[3], u.Sub, dec == auth.SoDono)
+		}
+		return s.consultas.Restaurar(ctx, sid, p[3], u.Sub, dec == auth.SoDono)
 	}
 	return erro(http.StatusNotFound, "rota inexistente")
 }

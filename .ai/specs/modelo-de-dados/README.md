@@ -23,6 +23,7 @@ justamente porque o conteúdo é inventado.
 | `SPACE#<sid>` | `CFG#LISTAS` | Listas de status e bancos, cores e as caixas (`statusReal`, `statusFuturo`, `afetaSaldoBanco`) | `auth/authz.go` (`cfgNomes`) |
 | `SPACE#<sid>` | `CFG#TAGS` | Tags já usadas (`usadas`); o member só acrescenta | `tags.go` |
 | `SPACE#<sid>` | `CFG#COMBOS` | Combos de tags | `main.go` |
+| `SPACE#<sid>` | `CONSULTA#<id>` | Uma consulta salva da Tendências (item 53), compartilhada no espaço; ver abaixo | `repository/consultas.go`, `service/consultas.go`, `domain/consulta.go` |
 | `SPACE#<sid>` | `CFG#SALDOS` | Início do controle por banco (`dataInicio`, `saldoInicial`) | `fechamento.go` |
 | `SPACE#<sid>` | `CFG#CARTOES` | **Hoje por banco** (`porBanco[banco]`): `diaPadrao`, `inicio` e `pagador` (o meio com que costuma pagar, só uma sugestão), `diaVencimento` (só sugestão: não vale para nenhuma fatura) e `faturas["AAAA-MM"]` (`fechamento`, `valorBanco`, `pagador`, `vencimento`, `conferida`; **`conferida = {total, em, por}` é gravado só pelo servidor**, no `POST .../conferir`, com o total que ele calculou). **Dívida:** o cartão não é um banco (pode não ter nenhum, e quem paga a fatura é uma escolha); deve virar uma entidade própria, por cartão, no item 33 do BACKLOG | só os comandos do servidor (`/cartoes`, item 33a); o `PUT /cfg/cartoes` saiu |
 | `SPACE#<sid>` | `SALDO#<banco>` | Fechamento mensal do banco: `caches`, `conferidos`, `invalidoDe`, `base` (gravados **só pelo servidor**, ver abaixo) | `service/saldos.go`, `service/fechamento.go` |
@@ -33,6 +34,26 @@ justamente porque o conteúdo é inventado.
 
 Os itens `CFG#*` e `SALDO#*` têm `version`: é o controle otimista (o cliente manda a versão que leu; se mudou, a
 gravação é recusada com conflito).
+
+## Consulta salva da Tendências (`CONSULTA#<id>`)
+Um item por consulta (item 53, [`specs/tendencias-consultas/`](../tendencias-consultas/spec.md)). O `<id>` tem 20 caracteres, gerado no servidor. Listar é uma `Query` por `begins_with(SK, "CONSULTA#")`.
+Exemplos: [`space-consulta.json`](dynamodb-single-table/space-consulta.json) (modo grupos) e [`space-consulta_excluida.json`](dynamodb-single-table/space-consulta_excluida.json) (modo avançado, excluída).
+
+| Atributo | O que é |
+|---|---|
+| `id` | Igual ao sufixo da `SK` |
+| `nome` | De 1 a 40 caracteres; único entre as consultas **vivas** do espaço, sem diferenciar maiúsculas |
+| `modo` | `grupos` ou `avancado` |
+| `grupos` | Só no modo `grupos`: `[{ tem: [tag], nao: [tag] }]`, até 4 grupos e 8 tags em cada lista |
+| `expressao` | Só no modo `avancado`: a lista de fichas `{k:'tag',v}`, `{k:'op',v:'E'\|'OU'\|'NAO'}`, `{k:'('}`, `{k:')'}`, até 60. É o `ten.fichas` do front |
+| `visao` | `gastos`, `receitas` ou `saldo` |
+| `criadoPor` | O `sub` de quem salvou, **gravado só pelo servidor, a partir do token**; imutável. O apelido não é guardado: o servidor o resolve na leitura |
+| `criadoEm`, `atualizadoEm`, `atualizadoPor` | Quando foi criada e quando e por quem foi alterada por último (o dono pode alterar a de outra pessoa) |
+| `excluidoEm` | Só quando excluída (exclusão lógica); removido ao restaurar. Sem o campo, a consulta está viva. A API nunca o devolve |
+| `version` | Controle otimista, como em `CFG#*`: o `PUT` manda a que leu e, se mudou, a gravação é recusada com `409` |
+
+O servidor valida só o **formato** (campos, tipos e limites), não a gramática da expressão nem se a tag existe. **Nenhum número do resultado é guardado.**
+Permissões: ler e criar são de todos; alterar, excluir e restaurar são do autor (member) ou de qualquer um (owner), em `consulta.*` de `auth/authz.go`. Não grava no `SEQ` nem em `HIST#`.
 
 ## Lançamento (`TX#...`)
 
