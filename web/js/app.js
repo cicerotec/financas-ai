@@ -1061,6 +1061,9 @@ function camadasAbertas(){
   let n = 0;
   if(camadaVisivel('modalOverlay')) n++;
   if(camadaVisivel('mnDrop')) n++;
+  if(camadaVisivel('tdRnVeu')) n++;
+  if(camadaVisivel('tdSvVeu')) n++;
+  if(camadaVisivel('tdCsVeu')) n++;
   if(camadaVisivel('tdListaVeu')) n++;
   if(camadaVisivel('tdVeu')) n++;
   if(document.body.classList.contains('td-edit')){ n++; if(camadaVisivel('tdExpr') && window.matchMedia('(max-width:1159px)').matches) n++; }
@@ -1075,6 +1078,9 @@ function fecharCamadaTopo(){ // na ordem de cima para baixo; o que nao existe e 
   const clicar = sel=>{ const e = document.querySelector(sel); if(e) e.click(); return !!e; };
   if(camadaVisivel('modalOverlay')){ clicar('#modalCancelar') || clicar('#modalOk'); return; }
   if(camadaVisivel('mnDrop')){ fecharMenuApp(false); return; }
+  if(camadaVisivel('tdRnVeu')){ clicar('#tdRnFechar'); return; }
+  if(camadaVisivel('tdSvVeu')){ clicar('#tdSvFechar'); return; }
+  if(camadaVisivel('tdCsVeu')){ clicar('#tdCsFechar'); return; }
   if(camadaVisivel('tdListaVeu')){ clicar('#tdLFechar'); return; }
   if(camadaVisivel('tdVeu')){ clicar('#tdJok'); return; }
   if(document.body.classList.contains('td-edit')){

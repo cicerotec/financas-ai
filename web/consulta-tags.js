@@ -6,6 +6,8 @@
   const MAX_TAGS = 8;        // tags em cada lista de um grupo ("precisa ter" e "nao pode ter")
   const MAX_FICHAS = 60;     // fichas da expressao livre
   const MAX_OUTRAS = 6;      // outras tags mostradas na lista
+  const MAX_CONSULTAS = 50;  // consultas salvas vivas por espaco (o servidor tambem recusa)
+  const MAX_NOME_CONSULTA = 40;
 
   // Ficha da expressao: {k:'tag',v} | {k:'op',v:'E'|'OU'|'NAO'} | {k:'('} | {k:')'}
   const nomeFicha = (x) => (x.k === 'tag' ? x.v : x.k === 'op' ? (x.v === 'NAO' ? 'NÃO' : x.v) : x.k);
@@ -216,8 +218,64 @@
     return { ok: true, estado: e };
   }
 
+  // ---- consultas salvas (item 53, .ai/specs/tendencias-consultas) ----
+  // O que vai para o servidor e o que volta dele. So a consulta (tags, operadores e visao): nunca numero, nunca o cursor (pos).
+  // O campo salvo da expressao livre se chama "expressao"; no front ele e o ten.fichas (so estas duas funcoes fazem a troca).
+  const norm = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const visaoValida = (v) => (VISOES.includes(v) ? v : 'gastos');
+
+  // Corpo da consulta para POST e PUT: { modo, visao, grupos } ou { modo, visao, expressao }. Grupos vazios ficam de fora.
+  function paraSalvar(estado, visao) {
+    if (estado.modo === 'avancado') return { modo: 'avancado', visao: visaoValida(visao), expressao: clonar(estado.fichas) };
+    return { modo: 'grupos', visao: visaoValida(visao),
+      grupos: estado.grupos.filter(grupoPreenchido).map((g) => ({ tem: g.tem.slice(), nao: g.nao.slice() })) };
+  }
+
+  // O estado da tela a partir de uma consulta salva ({modo, grupos|expressao, visao}). Respeita os limites da tela, como se vindo de um combo.
+  function deSalvo(item) {
+    const visao = visaoValida(item.visao);
+    if (item.modo === 'avancado') {
+      const fichas = clonar(item.expressao || []).slice(0, MAX_FICHAS);
+      return { modo: 'avancado', grupos: [grupoVazio()], fichas, pos: fichas.length, visao };
+    }
+    const grupos = clonar(item.grupos || []).slice(0, MAX_GRUPOS).map((g) => ({ tem: (g.tem || []).slice(0, MAX_TAGS), nao: (g.nao || []).slice(0, MAX_TAGS) }));
+    const fichas = gruposParaFichas(grupos);
+    return { modo: 'grupos', grupos: grupos.length ? grupos : [grupoVazio()], fichas, pos: fichas.length, visao };
+  }
+
+  // Salvar so faz sentido com alguma tag e, no modo avancado, uma expressao valida (o servidor so confere o formato).
+  function podeSalvar(estado) {
+    const q = consulta(estado);
+    return q.valida && !q.vazia;
+  }
+
+  // A frase de uma consulta salva, para a lista. Expressao com erro de gramatica (o servidor nao a confere) mostra as fichas cruas.
+  function fraseSalva(item) {
+    if (item.modo !== 'avancado') return fraseGrupos(item.grupos || []);
+    const f = item.expressao || [];
+    try { return texto(analisar(f)); } catch (e) { return f.map(nomeFicha).join(' '); }
+  }
+
+  // Duas consultas (corpo de paraSalvar) sao a mesma? Serve para saber se a consulta carregada foi mexida.
+  const mesmaConsulta = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+  // O que a lista mostra para cada consulta: Usar e de todos; Renomear e Excluir so com podeAlterar, que o SERVIDOR decide (o front nao calcula permissao).
+  function acoesDaConsulta(item) {
+    const pode = !!item.podeAlterar;
+    return { usar: true, renomear: pode, excluir: pode, comoDono: pode && !item.minha,
+      motivo: pode ? '' : 'Só ' + (item.autor || 'o autor') + ' ou o dono podem alterar.' };
+  }
+
+  // Filtra a lista da janela: ficha Todas | Minhas e busca (sem acento nem caixa) no nome e na frase. Devolve tambem as contagens das fichas.
+  function filtrarConsultas(lista, filtro, busca) {
+    const q = norm(busca).trim();
+    const itens = lista.filter((c) => (filtro !== 'minhas' || c.minha) && (!q || norm(c.nome).includes(q) || norm(fraseSalva(c)).includes(q)));
+    return { itens, todas: lista.length, minhas: lista.filter((c) => c.minha).length };
+  }
+
   const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
-    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base };
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base,
+    MAX_CONSULTAS, MAX_NOME_CONSULTA, paraSalvar, deSalvo, podeSalvar, fraseSalva, mesmaConsulta, acoesDaConsulta, filtrarConsultas };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.ConsultaTags = api;
 })(typeof window !== 'undefined' ? window : globalThis);
