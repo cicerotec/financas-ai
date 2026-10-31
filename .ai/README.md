@@ -56,6 +56,7 @@ feito e ideias).
 | [`demos/demo-tema.html`](demos/demo-tema.html) | Demo do tema Automático, Claro ou Escuro, como primeiro item do cartão Aparência de Listas, guardado na conta (aprovada e implementada em 2026-10-26) |
 | [`specs/recorrencia/`](specs/recorrencia/intent.md) | Intent, plan e spec do item 51: o lançamento marcado como recorrente é copiado sozinho pela rotina diária dos avisos, até o dono desligar (rascunho) |
 | [`specs/log-de-requisicoes/`](specs/log-de-requisicoes/intent.md) | Intent, plan e spec do item 50: uma linha de log por requisição (ação, status e duração, sem conteúdo nem ids), para achar as leituras repetidas e decidir o índice do Histórico (rascunho) |
+| [`specs/tendencias-consultas/`](specs/tendencias-consultas/intent.md) | Intent, plan e spec do item 53: consultas salvas da Tendências, compartilhadas no espaço (cada pessoa altera só as suas, o dono modera), um item `CONSULTA#<id>` por consulta, exclusão lógica (rascunho) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
