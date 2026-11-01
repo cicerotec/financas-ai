@@ -2502,22 +2502,22 @@ function abrirAcoesFatura(chave){
   });
   document.body.appendChild(ov);
 }
-// A janela de pagar: valor (o que a operadora cobra, mas pode ser qualquer valor), data, status e o meio de saida; tudo ja vem sugerido.
+// A janela de pagar: valor (o que a operadora cobra, mas pode ser qualquer valor, ate zero), data com hora, status e o meio de saida; tudo ja vem sugerido.
 function pedirPagamentoFatura(f){
   return new Promise(async resolve=>{
-    const hoje = chaveDia(new Date());
-    const sugerir = async (dia)=>{
-      try{ return (await db.statusSugeridos(new Date(dia + 'T12:00:00').toISOString())).status || []; }
+    const hoje = chaveDia(new Date()), agora = nowLocalInput();
+    const sugerir = async (quando)=>{
+      try{ return (await db.statusSugeridos(new Date(quando).toISOString())).status || []; }
       catch(e){ return [...listas.status]; }
     };
-    let lista = await sugerir(hoje);
+    let lista = await sugerir(agora);
     const opcoes = (itens, atual)=>itens.map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
     const meios = listas.banco;
     const meioInicial = f.sugestao.pagador && meios.includes(f.sugestao.pagador) ? f.sugestao.pagador : meios[0];
     document.getElementById('modalMsg').textContent = 'Já paguei a fatura ' + f.rotulo + ' · ' + f.meio;
     document.getElementById('modalExtra').innerHTML =
       `<label>Valor</label><input type="number" step="0.01" id="pfValor" value="${Number(f.sugestao.valor) || ''}">
-       <label>Data do pagamento</label><input type="date" id="pfData" value="${hoje}" max="${hoje}">
+       <label>Data e hora do pagamento</label><input type="datetime-local" id="pfData" value="${agora}" max="${hoje}T23:59">
        <label>Status</label><select id="pfStatus">${opcoes(lista, lista[0])}</select>
        <label>Meio de saída</label><select id="pfMeio">${opcoes(meios, meioInicial)}</select>
        <p class="muted" style="margin:6px 0 0;">O lançamento sai marcado com <b>Fatura ${esc(f.rotulo)} · ${esc(f.meio)}</b>. Pode ser o total, o mínimo ou qualquer valor.</p>
@@ -2539,10 +2539,10 @@ function pedirPagamentoFatura(f){
       const status = document.getElementById('pfStatus').value;
       const meio = document.getElementById('pfMeio').value;
       const erro = document.getElementById('pfErro');
-      if(!(valor > 0)){ erro.textContent = 'Informe um valor maior que zero.'; return; }
-      if(!dia){ erro.textContent = 'Informe a data.'; return; }
+      if(!Number.isFinite(valor)){ erro.textContent = 'Informe o valor (pode ser zero).'; return; }
+      if(!dia){ erro.textContent = 'Informe a data e a hora.'; return; }
       if(!status || !meio){ erro.textContent = 'Escolha o status e o meio de saída.'; return; }
-      fechar({valor, status, banco: meio, dataEvento: new Date(dia + 'T12:00:00').toISOString()});
+      fechar({valor, status, banco: meio, dataEvento: new Date(dia).toISOString()});
     };
   });
 }
@@ -2571,22 +2571,22 @@ async function desfazerPagamentoFatura(id){
   catch(err){ console.error(err); toast((err && err.message) || 'Não foi possível desfazer. Exclua o lançamento no Histórico.', true); }
 }
 // ---------- Confirmar um previsto (demo .ai/demos/demo-confirmar-previsto.html): valor, data e status; o servidor decide o resto ----------
-// A janela pergunta o valor (ja vem o previsto; da para trocar: multa e juros), a data (hoje; nunca depois de hoje) e o status, da lista do servidor para aquela data.
+// A janela pergunta o valor (ja vem o previsto; da para trocar: multa e juros; zero e negativo valem, como no Lancar), a data com hora (agora; nunca depois de hoje) e o status, da lista do servidor para aquela data.
 function pedirConfirmacaoPrevisto(l){
   return new Promise(async resolve=>{
     const saida = l.tipo === 'saida';
-    const hoje = chaveDia(new Date());
-    const sugerir = async (dia)=>{
-      try{ return (await db.statusSugeridos(new Date(dia + 'T12:00:00').toISOString())).status || []; }
+    const hoje = chaveDia(new Date()), agora = nowLocalInput();
+    const sugerir = async (quando)=>{
+      try{ return (await db.statusSugeridos(new Date(quando).toISOString())).status || []; }
       catch(e){ return [...listas.status]; }
     };
-    let lista = await sugerir(hoje);
+    let lista = await sugerir(agora);
     const opcoes = (lista, atual)=>lista.map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
     const inicial = lista.includes(l.status) ? l.status : lista[0];
     document.getElementById('modalMsg').textContent = (saida ? 'Confirmar pagamento: ' : 'Confirmar recebimento: ') + cortar(l.descricao, 60);
     document.getElementById('modalExtra').innerHTML =
       `<label>Valor</label><input type="number" step="0.01" id="cpValor" value="${Number(l.valor) || ''}">
-       <label>Data ${saida ? 'do pagamento' : 'do recebimento'}</label><input type="date" id="cpData" value="${hoje}" max="${hoje}">
+       <label>Data e hora ${saida ? 'do pagamento' : 'do recebimento'}</label><input type="datetime-local" id="cpData" value="${agora}" max="${hoje}T23:59">
        <label>Status</label><select id="cpStatus">${opcoes(lista, inicial)}</select>
        <p class="muted" id="cpErro" style="color:var(--danger);margin:6px 0 0;"></p>`;
     document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Confirmar</button>';
@@ -2605,10 +2605,10 @@ function pedirConfirmacaoPrevisto(l){
       const dia = document.getElementById('cpData').value;
       const status = document.getElementById('cpStatus').value;
       const erro = document.getElementById('cpErro');
-      if(!(valor > 0)){ erro.textContent = 'Informe um valor maior que zero.'; return; }
-      if(!dia){ erro.textContent = 'Informe a data.'; return; }
+      if(!Number.isFinite(valor)){ erro.textContent = 'Informe o valor (pode ser zero).'; return; }
+      if(!dia){ erro.textContent = 'Informe a data e a hora.'; return; }
       if(!status){ erro.textContent = 'Escolha o status.'; return; }
-      fechar({valor, status, dataEvento: new Date(dia + 'T12:00:00').toISOString()});
+      fechar({valor, status, dataEvento: new Date(dia).toISOString()});
     };
   });
 }

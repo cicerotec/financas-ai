@@ -250,12 +250,32 @@ DynamoDB sem discutir com o dono.**
     compras em dólar e então precisar informar o valor estimado.
   - **Cartões e saldos** são por **banco e cartão individual** (não por aba inteira).
   - **Banco ou cartão novo nasce invisível** para quem não é dono, até o dono liberar.
-  - **Coerência dos números:** esconder um banco ou cartão para uma pessoa tem que se comportar como o "ocultar"
-    do Histórico: nada dele entra em soma nenhuma na tela dela (saldos, faturas, Histórico, Futuros, Tendências,
-    totais, filtros por tag). Diferença importante: o `oculto` do lançamento vale para todo mundo e tira o valor do
-    saldo; a visibilidade por pessoa **não muda o saldo real**, só o que cada uma enxerga (o dono continua vendo tudo).
-  A decidir: modelo (permissão por usuário ou perfis nomeados) e onde guardar (item do usuário no espaço, perto do
-  `MEMBER#sub`). Aplicar no **backend**, não só esconder no front: a API não devolve lançamentos, saldos (itens
+  - **Três níveis de visibilidade por banco ou cartão** (conversa de 2026-10-31; cada dono escolhe a política dele, e
+    um mesmo espaço pode misturar níveis):
+    | Nível | Saldos e Cartão | Lançamentos (Histórico, Futuros, Tendências) | Totais e somas |
+    |---|---|---|---|
+    | **Visível** | aparece | aparecem | incluem |
+    | **Resumido** | não aparece | aparecem | incluem, com aviso "inclui bancos que você não visualiza" |
+    | **Oculto** | não aparece | não aparecem | **não** incluem (como o "ocultar" do Histórico) |
+    - Mais uma opção independente por meio: **pode lançar neste meio**. No nível Oculto fica sempre desligada.
+    - Caso real que originou o Resumido: a esposa só tem o cartão Santander e os cartões Sodexo (alimentação e
+      refeição); não faz sentido mostrar os outros cartões, mas ela precisa ver os totais para ter consciência dos
+      gastos. No futuro o dono pode dar a ela outro cartão e passar saldo de outros bancos para ele (basta mudar o
+      meio para Visível e pode lançar). Outro dono pode não querer mostrar nada ao membro: usa o Oculto.
+  - **Coerência dos números:** todo número mostrado é a soma das linhas mostradas, com **uma única exceção declarada**,
+    o Resumido, onde o total tem o aviso. O servidor filtra na origem e manda pronta a flag do aviso; o front só
+    exibe (nada decidido por nome de banco). O Oculto se comporta como o "ocultar" do Histórico: nada dele entra em
+    soma nenhuma na tela dela (saldos, faturas, Histórico, Futuros, Tendências, totais, filtros por tag).
+    Diferença importante: o `oculto` do lançamento vale para todo mundo e tira o valor do saldo; a visibilidade por
+    pessoa **não muda o saldo real**, só o que cada uma enxerga (o dono continua vendo tudo).
+  - **Limite do Resumido:** com o total completo, quem tem os outros saldos consegue deduzir o do banco escondido
+    por subtração. Só o Oculto esconde o valor de verdade; isso deve constar na documentação.
+  A decidir (em reflexão do dono): modelo (permissão por usuário ou perfis nomeados); onde guardar (proposta: campo
+  `permissoes` no item `USER#<sub> / SPACE#<sid>`, que já existe com `role`; é campo novo no DynamoDB e só entra com
+  aprovação); padrão de meio novo (proposta: Oculto, com o dono podendo trocar por pessoa); transferência entre um
+  meio visível e um Oculto (proposta: mostrar só a ponta visível); pagamento de fatura de cartão Oculto feito por banco
+  visível (proposta: mostrar a linha normal, sem ligar à fatura); se o member pode lançar em meio que não enxerga
+  (proposta: não); e as capacidades gerais por pessoa (transferência no Lançar, valor estimado). Aplicar no **backend**, não só esconder no front: a API não devolve lançamentos, saldos (itens
   `SALDO#<banco>`) nem faturas do que a pessoa não pode ver. Como o navegador é quem calcula o saldo a partir do que
   recebe, filtrar na origem já mantém as contas dela coerentes; conferir os agregados que misturam bancos (totais,
   Tendências) e as telas de conferência e fechamento, que continuam só do dono.

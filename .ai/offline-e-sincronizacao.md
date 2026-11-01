@@ -16,8 +16,9 @@ Relacionados: [`arquitetura.md`](arquitetura.md) (front não decide, "Saldo e to
   espaço escolhido (`web/api.js`).
 - Existe `manifest.webmanifest` (instalável na tela inicial), mas isso não dá suporte offline: sem cache, a página nem abre.
 - Cada leitura e escrita vai direto à Lambda; o servidor é a fonte de verdade. O login (Cognito, PKCE) também exige rede.
-- Hoje o **navegador calcula** o saldo por banco (`calcularSaldoBanco`), o total, as faturas do cartão e os totais de
-  Futuros e Histórico. A decisão de mover isso ao servidor está em `arquitetura.md`, ainda não implementada.
+- **Atualizado em 2026-10-31:** o saldo, o total, a conferência, as faturas do cartão e Futuros já vêm prontos do servidor
+  (itens 40, 33a e 41 do `BACKLOG.md`, concluídos). Só a Tendências ainda calcula no navegador, de propósito (simulação), e
+  o total do Histórico saiu da tela até o item 42g.
 
 ## 2. Armazenamento local (decidido em 2026-10-20)
 
@@ -209,8 +210,62 @@ trocando a infra: começar definindo o contrato `Comando`/`Resultado`, com a Lam
 e não compromete nada: manter o `service` livre de AWS/HTTP (já garantido por teste), não colocar regra no front e
 fazer a migração "Saldo e totais calculados no servidor", que é pré-requisito do nível 2 e do modelo de comandos.
 
+## 10. Tendência do dono: projeção do saldo no aparelho (conversa de 2026-10-31; nada decidido)
+
+**Pedido.** O dono quer usar o app sem internet, **criando lançamentos e vendo o saldo se mexer** (na padaria, sem sinal:
+tinha 100, gastou 20, a tela mostra 80). Manter 100 obrigaria a pessoa a calcular por fora do app, sendo que a informação
+já está nele. A referência é o Delphi de antes (cada máquina com seu programa), mas **aqui o servidor continua a verdade**.
+
+**Tendência: fazer offline com a soma no aparelho, como projeção.** O aparelho soma o lançamento pendente ao último saldo
+que o servidor mandou e mostra o resultado como **estimado**, com a data e a hora da última sincronização. A projeção:
+- **nunca é enviada ao servidor.** O aparelho manda só o comando (o que a pessoa digitou); o servidor segue rejeitando
+  qualquer campo derivado (item 40) e recalcula. Isso respeita `arquitetura.md` ("calcular no front só vale para
+  **exibir**"), porque o número não volta para a API;
+- **é descartada na sincronização**: o número do servidor substitui o estimado;
+- tem rótulo e aviso ao usuário ("estimado, sem sincronizar desde 14:32");
+- usa o que o servidor mandou antes e ficou em cache (catálogo de status com as marcas de afetar saldo e de crédito, saldo
+  base), sem lista de nomes de status no aparelho (a regra de `web/sem-status.test.js` continua valendo).
+
+**Escopo da projeção (resposta do dono):**
+- cobre o **saldo atual** de cada banco e o total, e a **fatura aberta** do cartão (o crédito soma na fatura, não no saldo);
+- **não** projeta o saldo de meses passados da aba Saldos (depende da cascata): ali vale "última sincronização";
+- **não** reimplementa fechamento, conferência, Futuros nem Histórico completos no aparelho.
+
+**Correção sobre "mês fechado".** Não existe mês fechado que recuse (item 38): o mês anterior fica livre até o dia 7, e a
+partir do dia 8 (fuso de São Paulo) o servidor devolve `409` pedindo **confirmação**; só mês **conferido** e fatura
+**conferida** recusam de verdade. Offline, quase tudo que o servidor não aceita de primeira é "precisa de confirmação",
+não "rejeitado". A regra dos 7 dias é do servidor; a projeção soma o lançamento de qualquer modo.
+
+**Tela de divergências (pedido do dono).** Uma tela lista o que a sincronização não resolveu sozinha, com o motivo e a
+ação de cada linha:
+
+| Situação | Ações |
+|---|---|
+| Precisa de confirmação (mês passado depois do dia 8) | Confirmar e reenviar, editar a data ou descartar |
+| Recusado (mês ou fatura conferidos, banco ou meio apagado, sem permissão) | Editar e reenviar ou descartar |
+| Conflito de versão (outra pessoa mudou o lançamento) | Ver as duas versões e escolher |
+| Possível duplicado | Manter os dois ou descartar |
+| Saldo estimado diferente do real após sincronizar | Informativo ("estimado 80, servidor 75") |
+
+O cabeçalho mostra "N aguardando envio" e a data da última sincronização. **Demo aprovada antes de qualquer código**
+(seletores nativos do celular, janelas para as escolhas).
+
+**Por que isto não é "o aparelho manda".** A soberania do aparelho vale para o que a pessoa **vê** e para a **intenção**
+(o lançamento é dela e fica guardado); a **verdade** do saldo é do servidor, que pode aceitar, pedir confirmação ou
+recusar. Dois aparelhos (ou duas pessoas) offline podem divergir; a tela de divergências existe para isso.
+
+**Pontos de atenção.**
+- Duas regras em dois lugares (o efeito no saldo no aparelho e no Go). Reduzir mandando as marcas do servidor para o
+  aparelho; a alternativa de compilar o `domain/` para WASM só vale se o aparelho for calcular mais que o saldo.
+- iOS: o navegador pode apagar o IndexedDB e não há Background Sync; a sincronização acontece ao abrir o app.
+- O cache e a fila ficam em claro no aparelho (a cifragem de `privacidade-e-cifragem.md` é do servidor): apagar no logout.
+- Confirmar o mês passado **offline** (já enviar o sinal de confirmação junto) é decisão humana, não regra; a data do
+  aparelho pode divergir da do servidor. Em aberto.
+
 ## Em aberto
 - Forma do orquestrador local (item 7.2).
+- Confirmação de mês passado dada offline, junto do comando, ou só depois que o servidor pedir (seção 10).
+- Quais campos exatos o servidor passa a mandar para a projeção (catálogo, saldo base, ciclo da fatura aberta).
 - Critério de "possível duplicado" (campos e tolerância).
 - Se um item rejeitado para a fila ou ela segue.
 - O que a pessoa vê quando um evento precisa de decisão e ela já saiu do app.
