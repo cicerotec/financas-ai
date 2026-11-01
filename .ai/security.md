@@ -67,7 +67,10 @@ só existe no front não protege nada (veja [`arquitetura.md`](arquitetura.md)).
 ## Dados e privacidade
 - O member **lê todos** os lançamentos e notas e vê todos os bancos e cartões. A visibilidade por banco e cartão é o
   item 27 do backlog (decidido: aplicar no backend, não só esconder no front; banco novo nasce invisível para quem não
-  é dono).
+  é dono). **Em desenho (2026-10-31, nada implementado):** três níveis por banco ou cartão — Visível, Resumido (some de
+  Saldos e Cartão, os lançamentos e os totais continuam, com aviso) e Oculto (some de tudo e fora das somas). Só o Oculto
+  esconde o valor de verdade: no Resumido o total completo permite deduzir o saldo do banco escondido por subtração.
+  Detalhes e pontos em aberto no item 27 do backlog.
 - **Dado real nunca no git.** O `.gitignore` ignora `*.json` (exceção só para o Postman e para
   `.ai/specs/**/*.json`, que são fictícios), `web/config.js`, `web/config.dev.js` e `samconfig.toml`. Exportações reais
   ficam em `/local/`, também ignorado.
