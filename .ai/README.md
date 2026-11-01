@@ -57,6 +57,7 @@ feito e ideias).
 | [`specs/recorrencia/`](specs/recorrencia/intent.md) | Intent, plan e spec do item 51: o lançamento marcado como recorrente é copiado sozinho pela rotina diária dos avisos, até o dono desligar (implementado) |
 | [`specs/log-de-requisicoes/`](specs/log-de-requisicoes/intent.md) | Intent, plan e spec do item 50: uma linha de log por requisição (ação, status e duração, sem conteúdo nem ids), para achar as leituras repetidas e decidir o índice do Histórico (implementado) |
 | [`specs/tendencias-consultas/`](specs/tendencias-consultas/intent.md) | Intent, plan e spec do item 53: consultas salvas da Tendências, compartilhadas no espaço (cada pessoa altera só as suas, o dono modera), um item `CONSULTA#<id>` por consulta, exclusão lógica (implementado) |
+| [`specs/app-android/`](specs/app-android/intent.md) | Intent, plan e spec (fases 1 a 3) do app Android com Capacitor: o `web/` empacotado, login pelo navegador do sistema com token no Keystore, biometria opcional, push e Play Store nas fases seguintes (rascunho, nada implementado) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
