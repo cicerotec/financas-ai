@@ -28,6 +28,7 @@ pendentes: nenhum.
 - [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
 - [\[UX/UI\] - 52 - **\[Próximo\] Demos versionadas por tela (padrão de todas as telas):**](#item-52)
 - [\[Backend\] - 51 - **\[Próximo\] Recorrência automática de lançamentos:**](#item-51)
+- [\[Front\] - 54 - **\[Próximo\] App Android com Capacitor:**](#item-54)
 - [\[Infra\] - 11 - **\[Depois\] Backup periódico:**](#item-11)
 - [\[Backend\] - 39 - **\[Depois\] Open Finance (visão):**](#item-39)
 - [\[Backend\] - 43 - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
@@ -314,6 +315,19 @@ DynamoDB sem discutir com o dono.**
   - **Dados novos aprovados pelo dono em 2026-10-25:** `pagador` e `diaVencimento` no cartão e `pagador` e `vencimento` por fatura (tudo dentro da entrada do
     cartão em `CFG#CARTOES`). O atributo `pagaFatura` no lançamento aguarda a aprovação no spec. **O pagamento é um lançamento normal e a marca `pagaFatura` é só uma label** (sem limite de pagamentos, de valor ou de meio; pagamento mínimo e restante são da operadora, nada passa adiante). Depende dos itens 33a e 41,
     concluídos. Intent, plan e spec (aprovados em 2026-10-25; **concluído em 2026-10-25: fases A (backend, #228) e B (telas, #230), painel do cartão refeito em linhas compactas (#231) e o débito do mesmo banco pode pagar a fatura (#233); conferido em dev pelo dono**) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md). Detalhes em `.ai/arquitetura.md`.
+- 54. [ ] <a id="item-54"></a>**[Próximo] App Android com Capacitor (2026-11-01; rascunho para aprovação, roteiro em [`.ai/specs/app-android/`](.ai/specs/app-android/intent.md)):** hoje o app é uma página (`web/`) usada
+  pelo navegador ou como PWA. O dono quer um app Android **fora do navegador**, com **capacidades nativas**, primeiro para duas pessoas e depois pela **Play Store**. Decidido: **Capacitor** com o
+  `web/` empacotado dentro do app (sem reescrever telas, sem mudar regra nem backend); TWA e app nativo (Kotlin ou Flutter) foram descartados; `dev` e `prod` coexistem por `applicationId` distinto;
+  **APK de debug** no desenvolvimento e **AAB assinado** na Play. Fases (cada uma um PR):
+  - [ ] **Fase 1, a casca:** projeto em `app-android/`, `scripts/app-android.ps1`, CORS com a origem `https://localhost` da WebView e botão voltar físico (spec pronta).
+  - [ ] **Fase 2, login nativo e token seguro:** Hosted UI no navegador do sistema (Custom Tabs), PKCE e retorno por esquema próprio, refresh token no Keystore, login extraído de `web/api.js` para `web/js/sessao.js` (spec pronta).
+  - [ ] **Fase 3, biometria, ícone e acabamento:** trava opcional guardada só no aparelho; **demo antes** (spec pronta).
+  - [ ] **Fase 4, push (FCM) como canal do despachante** (spec própria; o token do aparelho é **dado novo no DynamoDB: discutir antes**).
+  - [ ] **Fase 5, release e Play Store** (AAB assinado, teste interno, política de privacidade, Segurança dos Dados; spec própria).
+  - [ ] **Fase 6, produção aberta**, só depois das fases 1 a 5 do item 49.
+  - [ ] **Fase 7, uso sem internet** (futuro; segue `.ai/offline-e-sincronizacao.md`).
+  **A decidir (no `intent.md`):** `applicationId` (permanente depois do primeiro envio), conta da Play (pessoal ou organização), retorno do login (esquema próprio ou App Link), biometria opcional ou obrigatória,
+  distribuição inicial, e o que fazer se os plugins não funcionarem sem bundler. **Fora:** iOS, offline e as mudanças de regra de negócio.
 - 20. [ ] <a id="item-20"></a>**[Depois] Ideias** (seção no fim deste arquivo).
 
 ### UX/UI (usabilidade do que já existe)
