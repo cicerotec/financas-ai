@@ -64,8 +64,8 @@ func (s *Lancamentos) Confirmar(ctx context.Context, sid, id, de string, body do
 		return nil, &ErroValidacao{"parametro de (dataEvento atual) obrigatorio"}
 	}
 	valor, ok := body["valor"].(float64)
-	if !ok || !(valor > 0) {
-		return nil, &ErroValidacao{"o valor da confirmacao deve ser maior que zero"}
+	if !ok { // zero e negativo valem, como no lancamento comum (valor so de nota, estorno)
+		return nil, &ErroValidacao{"o valor da confirmacao deve ser numerico"}
 	}
 	dataTxt, _ := body["dataEvento"].(string)
 	data, err := domain.NormData(dataTxt)

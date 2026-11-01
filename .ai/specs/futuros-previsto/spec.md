@@ -99,7 +99,7 @@ plan.
 
 **Confirmar**
 - **R18.** `POST /spaces/{sid}/tx/{id}/confirmar?de=<dataEvento atual>` com `{ "valor", "dataEvento", "status" }`. Exige: `valor`
-  numérico **maior que zero**; `dataEvento` ISO cujo dia **não seja futuro** (R2); `status` **do catálogo** (R9). Qualquer falha é `400`
+  numérico (**zero e negativo valem**, como no lançamento comum); `dataEvento` ISO cujo dia **não seja futuro** (R2); `status` **do catálogo** (R9). Qualquer falha é `400`
   com a mensagem da regra. Se o lançamento não existe ou está excluído, `404`; se não é previsto, `409` (`nao_previsto`).
 - **R19.** A confirmação tira o marcador (o atributo `previsto` sai do item), grava `valor`, `dataEvento` (a chave do item muda
   se a data mudou, como no `PUT`) e `status`, e grava **uma versão** com `acao: "update"`, na mesma transação. As travas rodam sobre

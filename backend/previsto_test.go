@@ -426,7 +426,7 @@ func TestConfirmarPrevisto(t *testing.T) {
 	f := cenario(t)
 	previsto(t, f, "p1", nov05, doc{"valor": 548.9})
 	for nome, c := range map[string]string{
-		"valor zero":       `{"valor":0,"dataEvento":"` + hoje24 + `","status":"PAGO"}`,
+		"valor texto":      `{"valor":"10","dataEvento":"` + hoje24 + `","status":"PAGO"}`,
 		"data futura":      `{"valor":10,"dataEvento":"` + amanha25 + `","status":"PAGO"}`,
 		"status invalido":  `{"valor":10,"dataEvento":"` + hoje24 + `","status":"FOO"}`,
 		"status antigo":    `{"valor":10,"dataEvento":"` + hoje24 + `","status":"PREVISTO"}`,
@@ -738,5 +738,23 @@ func TestFuturosReaproveitaALeituraAteAlguemGravar(t *testing.T) {
 	_, d = chamar(t, "own", "GET", "spaces/s1/futuros", nil, "")
 	if len(d["meses"].([]any)[0].(map[string]any)["itens"].([]any)) != 2 {
 		t.Errorf("repetir nao muda nada: %v", d)
+	}
+}
+
+// Confirmar com valor zero (so de nota) ou negativo (estorno) vale, como no lancamento comum.
+func TestConfirmarPrevistoAceitaValorZeroENegativo(t *testing.T) {
+	relogioPrev(t)
+	f := cenario(t)
+	previsto(t, f, "z1", nov05, doc{"valor": 100.0})
+	previsto(t, f, "z2", nov05, doc{"valor": 100.0})
+	st, d := confirmar(t, "own", "z1", nov05, `{"valor":0,"dataEvento":"`+hoje24+`","status":"PAGO"}`, nil)
+	esperar(t, "valor zero", st, 200)
+	if d["valor"] != 0.0 || d["previsto"] != nil {
+		t.Errorf("confirmado com valor zero: %v", d)
+	}
+	st, d = confirmar(t, "own", "z2", nov05, `{"valor":-30.5,"dataEvento":"`+hoje24+`","status":"PAGO"}`, nil)
+	esperar(t, "valor negativo", st, 200)
+	if d["valor"] != -30.5 {
+		t.Errorf("confirmado com valor negativo: %v", d)
 	}
 }
