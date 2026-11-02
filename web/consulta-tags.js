@@ -126,10 +126,11 @@
   }
 
   // A base da Tendencias: so o que o Historico tambem conta nos totais. Fica de fora o lancamento oculto (ocultar tira do saldo) e o
-  // previsto (o servidor o marca; ele nem vem na lista do Historico). Entrada e tudo que nao e saida (como o valorAssinado do
+  // previsto (o servidor o marca; ele nem vem na lista do Historico) e o que o servidor manda com excluirDoTotal (pagamento de fatura, transferencia
+  // entre bancos e status fora do total): o front so le o marcador, nao decide por nome de status. Entrada e tudo que nao e saida (como o valorAssinado do
   // Historico). O mes e o da data local do lancamento. A Tendencias e uma simulacao: le o que ja esta na tela e nunca grava nada.
   function base(lancamentos) {
-    return lancamentos.filter((l) => !l.oculto && !l.previsto).map((l) => {
+    return lancamentos.filter((l) => !l.oculto && !l.previsto && !l.excluirDoTotal).map((l) => {
       const d = new Date(l.dataEvento);
       return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), dia: d.getDate(), fixo: !!l.recorrente, valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida', ref: l };
     });
