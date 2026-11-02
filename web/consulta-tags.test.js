@@ -440,3 +440,83 @@ test('filtrarConsultas: Todas | Minhas, busca sem acento e caixa no nome e na fr
   assert.deepEqual(C.filtrarConsultas(l, 'todas', 'agua').itens.map((x) => x.id), ['2']);
   assert.deepEqual(C.filtrarConsultas(l, 'minhas', 'agua').itens, []);
 });
+
+// ---- visoes dos gastos (item 55): calendario de calor e maiores tags ----
+const ld = (data, valor, tipo, ...tags) => ({ dataEvento: new Date(data).toISOString(), valor, tipo: tipo || 'saida', tags });
+const qv = (...t) => C.consulta(grupos(G(t)));
+
+test('base: cada lancamento leva o dia local (VS-T4: 23h50 e 00h10 caem no dia local certo)', () => {
+  const b = C.base([ld('2026-10-05T23:50:00', 10, 'saida', 'a'), ld('2026-10-06T00:10:00', 20, 'saida', 'a')]);
+  assert.deepEqual(b.map((x) => [x.mes, x.dia]), [['2026-10', 5], ['2026-10', 6]]);
+});
+
+test('calendario: dias do mes e dia da semana do dia 1 (28, 30 e 31 dias; VS-T2)', () => {
+  const q = qv('a');
+  const c = (mes) => C.calendario([], q, 'gastos', mes);
+  assert.equal(c('2026-02').dias, 28); assert.equal(c('2026-04').dias, 30); assert.equal(c('2026-10').dias, 31);
+  assert.equal(c('2024-02').dias, 29);
+  assert.equal(c('2026-10').inicio, 3, '1 de outubro de 2026 e quinta (segunda = 0)');
+  assert.equal(c('2026-02').inicio, 6, '1 de fevereiro de 2026 e domingo');
+});
+
+test('calendario: soma por dia, faixas pelo maior dia e cortes (VS-T3)', () => {
+  const q = qv('a');
+  const it = [{ mes: '2026-10', dia: 1, valor: 100, tags: ['a'] }, { mes: '2026-10', dia: 1, valor: 100, tags: ['a'] },
+    { mes: '2026-10', dia: 2, valor: 40, tags: ['a'] }, { mes: '2026-10', dia: 3, valor: 80, tags: ['a'] }, { mes: '2026-10', dia: 4, valor: 0.01, tags: ['a'] },
+    { mes: '2026-10', dia: 5, valor: 999, tags: ['b'] }, { mes: '2026-10', dia: 6, valor: 50, tags: ['a'], entrada: true }, { mes: '2026-09', dia: 7, valor: 999, tags: ['a'] }];
+  const c = C.calendario(it, q, 'gastos', '2026-10');
+  assert.deepEqual(c.valores.slice(0, 6), [200, 40, 80, 0.01, 0, 0]);
+  assert.equal(c.max, 200);
+  assert.deepEqual(c.faixas.slice(0, 6), [5, 1, 2, 1, 0, 0]);
+  assert.deepEqual(c.cortes, [40, 80, 120, 160, 200]);
+  assert.equal(c.total, 320.01);
+  const r = C.calendario(it, q, 'receitas', '2026-10');
+  assert.equal(r.max, 50);
+});
+
+test('calendario: mes sem lancamento da consulta e Resultado', () => {
+  const q = qv('a');
+  const c = C.calendario([], q, 'gastos', '2026-10');
+  assert.equal(c.max, 0); assert.ok(c.faixas.every((f) => f === 0)); assert.equal(c.total, 0);
+  assert.equal(C.calendario([], q, 'saldo', '2026-10'), null);
+});
+
+test('calendario bate com o grafico de meses (VS-T1) e deixa de fora oculto e previsto (VS-T12)', () => {
+  const ls = [ld('2026-10-05T12:00:00', 30, 'saida', 'a'), ld('2026-10-20T12:00:00', 70, 'saida', 'a', 'b'),
+    Object.assign(ld('2026-10-21T12:00:00', 500, 'saida', 'a'), { oculto: true }), Object.assign(ld('2026-10-22T12:00:00', 600, 'saida', 'a'), { previsto: true })];
+  const it = C.base(ls), q = qv('a');
+  const cal = C.calendario(it, q, 'gastos', '2026-10');
+  const res = C.resumir(it, q, 'gastos');
+  assert.equal(cal.total, res.meses.find((m) => m.mes === '2026-10').total);
+  assert.equal(cal.total, 100);
+});
+
+test('maioresTags: soma por tag (varias tags contam em cada), ordem e empate alfabetico (VS-T5)', () => {
+  const q = qv('a');
+  const it = [{ mes: '2026-10', dia: 1, valor: 10, tags: ['a', 'z', 'm'] }, { mes: '2026-10', dia: 2, valor: 5, tags: ['a', 'm'] }];
+  const t = C.maioresTags(it, q, 'gastos', '2026-10', '');
+  assert.deepEqual(t.linhas.map((x) => [x.t, x.v]), [['a', 15], ['m', 15], ['z', 10]]);
+});
+
+test('maioresTags: mais de 8 tags viram 8 linhas e "outras"', () => {
+  const q = qv('a');
+  const tags = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+  const it = tags.map((t, i) => ({ mes: '2026-10', dia: 1, valor: 100 - i, tags: ['a', t] }));
+  const t = C.maioresTags(it, q, 'gastos', '2026-10', '');
+  assert.equal(t.linhas.length, 8); assert.equal(t.nOutras, 2);
+});
+
+test('maioresTags: variacao contra o mes anterior, novo, igual e sem base (VS-T6)', () => {
+  const q = qv('a');
+  const it = [{ mes: '2026-09', dia: 1, valor: 100, tags: ['a', 'x'] }, { mes: '2026-09', dia: 2, valor: 50, tags: ['a', 'y'] },
+    { mes: '2026-10', dia: 1, valor: 150, tags: ['a', 'x'] }, { mes: '2026-10', dia: 2, valor: 50, tags: ['a', 'y'] }, { mes: '2026-10', dia: 3, valor: 20, tags: ['a', 'n'] }];
+  const dif = (corte) => Object.fromEntries(C.maioresTags(it, q, 'gastos', '2026-10', corte).linhas.map((l) => [l.t, l.dif]));
+  assert.deepEqual(dif(''), { a: 47, x: 50, y: 'igual', n: 'novo' });
+  assert.deepEqual(dif('2026-09'), { a: 'sem', x: 'sem', y: 'sem', n: 'sem' }, 'o mes anterior e o cortado');
+  assert.equal(dif('2026-08').a, 47, 'corte mais antigo que o mes anterior nao atrapalha');
+});
+
+test('maioresTags: janeiro olha dezembro e Resultado nao tem', () => {
+  assert.equal(C.mesAnterior('2026-01'), '2025-12'); assert.equal(C.mesAnterior('2026-10'), '2026-09');
+  assert.equal(C.maioresTags([], qv('a'), 'saldo', '2026-10', ''), null);
+});

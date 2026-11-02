@@ -131,7 +131,7 @@
   function base(lancamentos) {
     return lancamentos.filter((l) => !l.oculto && !l.previsto).map((l) => {
       const d = new Date(l.dataEvento);
-      return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida', ref: l };
+      return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), dia: d.getDate(), valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida', ref: l };
     });
   }
 
@@ -169,6 +169,45 @@
     const lista = [...meses.values()].map((m) => ({ mes: m.mes, total: centavos(m.total), ext: centavos(m.ext) }))
       .sort((x, y) => (x.mes < y.mes ? -1 : x.mes > y.mes ? 1 : 0));
     return { meses: lista, n, total: centavos(total), totExt: centavos(totExt), vol: centavos(vol), volExt: centavos(volExt), cot, vazia: !!q.vazia, visao, itens: sel };
+  }
+
+  // ---- Visoes dos gastos (item 55): Calendario de calor e Maiores tags do mes. Mesma consulta, mesma base: so muda o desenho. ----
+  // So Gastos e Receitas (no Resultado, entrada e saida se cancelam e o dia ou a tag perde o sentido): devolve null.
+  const mesAnterior = (mes) => { const a = Number(mes.slice(0, 4)), m = Number(mes.slice(5, 7)); return m === 1 ? (a - 1) + '-12' : a + '-' + String(m - 1).padStart(2, '0'); };
+  function itensDoMes(itens, q, visao, mes) {
+    return itens.filter((l) => l.mes === mes && (visao === 'gastos' ? !l.entrada : l.entrada) && q.pred(l.tags || []));
+  }
+  // Uma celula por dia do mes. As faixas 1 a 5 saem do maior dia do mes (ate 20%, 40%, 60%, 80% e 100% dele); 0 e dia sem lancamento.
+  // inicio: o dia da semana do dia 1, com a segunda-feira = 0. Mes que nao tem lancamento da consulta: max 0 e todos os dias em 0.
+  function calendario(itens, q, visao, mes) {
+    if (visao !== 'gastos' && visao !== 'receitas') return null;
+    const a = Number(mes.slice(0, 4)), m = Number(mes.slice(5, 7));
+    const dias = new Date(a, m, 0).getDate();
+    const valores = new Array(dias).fill(0);
+    itensDoMes(itens, q, visao, mes).forEach((l) => { valores[l.dia - 1] += l.valor; });
+    const v = valores.map(centavos);
+    const max = Math.max(0, ...v);
+    const faixa = (x) => (x <= 0 ? 0 : Math.min(5, Math.max(1, Math.ceil(x / max * 5 - 1e-9))));
+    return { mes, dias, inicio: (new Date(a, m - 1, 1).getDay() + 6) % 7, valores: v, faixas: v.map(faixa), max,
+      cortes: [1, 2, 3, 4, 5].map((k) => centavos(max * k / 5)), total: centavos(v.reduce((t, x) => t + x, 0)) };
+  }
+  // As tags dos lancamentos da consulta no mes, do maior ao menor (empate: ordem alfabetica). Um lancamento com varias tags conta em cada uma.
+  // Variacao contra o mes anterior: pct inteiro, 'novo' (antes era 0), 'sem' (o mes anterior e o cortado pelo limite de carga ou anterior a ele:
+  // pode estar incompleto) e 'igual'. mesCorte: o retorno de corte(), ou ''.
+  function maioresTags(itens, q, visao, mes, mesCorte, max) {
+    if (visao !== 'gastos' && visao !== 'receitas') return null;
+    const soma = (ls) => { const t = new Map(); ls.forEach((l) => (l.tags || []).forEach((x) => t.set(x, (t.get(x) || 0) + l.valor))); return t; };
+    const atual = soma(itensDoMes(itens, q, visao, mes)), ant = soma(itensDoMes(itens, q, visao, mesAnterior(mes)));
+    const semBase = !!mesCorte && mesAnterior(mes) <= mesCorte;
+    const todas = [...atual.entries()].map(([t, v]) => ({ t, v: centavos(v) })).sort((x, y) => y.v - x.v || x.t.localeCompare(y.t, 'pt-BR'));
+    const lim = max || 8;
+    const linhas = todas.slice(0, lim).map((x) => {
+      const b = centavos(ant.get(x.t) || 0);
+      const dif = semBase ? 'sem' : b === 0 ? 'novo' : Math.round((x.v - b) / b * 100);
+      return { t: x.t, v: x.v, dif: dif === 0 ? 'igual' : dif };
+    });
+    const resto = todas.slice(lim).reduce((t, x) => t + x.v, 0);
+    return { mes, linhas, outras: centavos(resto), nOutras: Math.max(0, todas.length - lim) };
   }
 
   // O app carrega so os N lancamentos mais recentes (limite). Se vieram N, o mes mais antigo pode estar incompleto: devolve esse mes
@@ -274,7 +313,7 @@
   }
 
   const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
-    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base,
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base, mesAnterior, calendario, maioresTags,
     MAX_CONSULTAS, MAX_NOME_CONSULTA, paraSalvar, deSalvo, podeSalvar, fraseSalva, mesmaConsulta, acoesDaConsulta, filtrarConsultas };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.ConsultaTags = api;
