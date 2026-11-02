@@ -27,7 +27,7 @@ pendentes: nenhum.
 - [\[UX/UI\] - 42 - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
 - [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
 - [\[Front\] - 54 - **\[Próximo\] App Android com Capacitor:**](#item-54)
-- [\[UX/UI\] - 55 - **\[Próximo\] Novas visões dos gastos na Tendências:**](#item-55)
+- [\[UX/UI\] - 55 - **\[Depois\] Novas visões dos gastos na Tendências:**](#item-55)
 - [\[Infra\] - 11 - **\[Depois\] Backup periódico:**](#item-11)
 - [\[Backend\] - 39 - **\[Depois\] Open Finance (visão):**](#item-39)
 - [\[Backend\] - 43 - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
