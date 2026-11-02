@@ -210,6 +210,28 @@
     return { mes, linhas, outras: centavos(resto), nOutras: Math.max(0, todas.length - lim) };
   }
 
+  // Ritmo do mes: o gasto acumulado dia a dia ate hoje (mes atual) ou ate o ultimo dia (mes passado), contra o mes anterior inteiro.
+  // Projecao (so no mes atual, com 3 dias passados ou mais): o ritmo medio dos dias passados repetido ate o fim do mes. E uma simulacao:
+  // nao soma previstos nem le Futuros. base: null quando o mes anterior nao tem lancamento da consulta ou pode estar incompleto (mesCorte, como em maioresTags).
+  function ritmo(itens, q, visao, mes, hoje, mesCorte) {
+    if (visao !== 'gastos' && visao !== 'receitas') return null;
+    const acumular = (m, n) => {
+      const d = new Array(n).fill(0);
+      itensDoMes(itens, q, visao, m).forEach((l) => { if (l.dia <= n) d[l.dia - 1] += l.valor; });
+      let t = 0;
+      return d.map((v) => (t += v, centavos(t)));
+    };
+    const nDias = (m) => new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0).getDate();
+    const dias = nDias(mes), atual = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') === mes;
+    const ate = atual ? Math.min(hoje.getDate(), dias) : dias;
+    const acum = acumular(mes, ate);
+    const mb = mesAnterior(mes), semBase = !!mesCorte && mb <= mesCorte;
+    const base = semBase ? null : acumular(mb, nDias(mb));
+    const baseTotal = base ? base[base.length - 1] : 0;
+    return { mes, dias, ate, atual, acum, total: acum.length ? acum[acum.length - 1] : 0, mesBase: mb, base: base && baseTotal > 0 ? base : null, semBase,
+      projecao: atual && ate >= 3 ? centavos(acum[ate - 1] / ate * dias) : null };
+  }
+
   // O app carrega so os N lancamentos mais recentes (limite). Se vieram N, o mes mais antigo pode estar incompleto: devolve esse mes
   // ('aaaa-mm', o primeiro do grafico) para o aviso, ou '' quando nao ha corte provavel. Nao resolve o corte: so evita a confusao.
   function corte(carregados, limite, r) {
@@ -313,7 +335,7 @@
   }
 
   const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
-    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base, mesAnterior, calendario, maioresTags,
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base, mesAnterior, calendario, maioresTags, ritmo,
     MAX_CONSULTAS, MAX_NOME_CONSULTA, paraSalvar, deSalvo, podeSalvar, fraseSalva, mesmaConsulta, acoesDaConsulta, filtrarConsultas };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.ConsultaTags = api;

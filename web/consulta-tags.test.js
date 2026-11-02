@@ -520,3 +520,42 @@ test('maioresTags: janeiro olha dezembro e Resultado nao tem', () => {
   assert.equal(C.mesAnterior('2026-01'), '2025-12'); assert.equal(C.mesAnterior('2026-10'), '2026-09');
   assert.equal(C.maioresTags([], qv('a'), 'saldo', '2026-10', ''), null);
 });
+
+test('ritmo: acumulado ate hoje, mes-base inteiro e projecao pelo ritmo dos dias passados (VS-T8, VS-T9)', () => {
+  const q = qv('a');
+  const it = [{ mes: '2026-09', dia: 1, valor: 100, tags: ['a'] }, { mes: '2026-09', dia: 30, valor: 50, tags: ['a'] },
+    { mes: '2026-10', dia: 1, valor: 60, tags: ['a'] }, { mes: '2026-10', dia: 3, valor: 30, tags: ['a'] }, { mes: '2026-10', dia: 9, valor: 999, tags: ['a'] }];
+  const r = C.ritmo(it, q, 'gastos', '2026-10', new Date(2026, 9, 5, 10), '');
+  assert.equal(r.dias, 31); assert.equal(r.ate, 5); assert.equal(r.atual, true);
+  assert.deepEqual(r.acum, [60, 60, 90, 90, 90]);
+  assert.equal(r.projecao, 558, '90 / 5 * 31');
+  assert.equal(r.base.length, 30); assert.equal(r.base[0], 100); assert.equal(r.base[29], 150);
+  const r30 = C.ritmo(it, q, 'gastos', '2026-09', new Date(2026, 8, 6), '');
+  assert.equal(r30.projecao, 500, 'mes de 30 dias: 100 / 6 * 30');
+});
+
+test('ritmo: dias 1 e 2 sem projecao; a partir do 3 com projecao; mes passado so a curva; mes vazio', () => {
+  const q = qv('a'), it = [{ mes: '2026-10', dia: 1, valor: 10, tags: ['a'] }];
+  assert.equal(C.ritmo(it, q, 'gastos', '2026-10', new Date(2026, 9, 1), '').projecao, null);
+  assert.equal(C.ritmo(it, q, 'gastos', '2026-10', new Date(2026, 9, 2), '').projecao, null);
+  assert.equal(C.ritmo(it, q, 'gastos', '2026-10', new Date(2026, 9, 3), '').projecao, 103.33);
+  const p = C.ritmo(it, q, 'gastos', '2026-10', new Date(2026, 10, 15), '');
+  assert.equal(p.projecao, null); assert.equal(p.ate, 31); assert.equal(p.atual, false);
+  const v = C.ritmo([], q, 'gastos', '2026-10', new Date(2026, 9, 10), '');
+  assert.equal(v.total, 0); assert.equal(v.base, null);
+});
+
+test('ritmo: mes-base cortado vira sem base; Resultado nao tem; oculto e previsto ficam de fora', () => {
+  const q = qv('a'), it = [{ mes: '2026-09', dia: 1, valor: 100, tags: ['a'] }, { mes: '2026-10', dia: 1, valor: 10, tags: ['a'] }];
+  const r = C.ritmo(it, q, 'gastos', '2026-10', new Date(2026, 9, 5), '2026-09');
+  assert.equal(r.semBase, true); assert.equal(r.base, null);
+  assert.equal(C.ritmo(it, q, 'saldo', '2026-10', new Date(2026, 9, 5), ''), null);
+  const b = C.base([Object.assign(ld('2026-10-02T12:00:00', 500, 'saida', 'a'), { oculto: true }), Object.assign(ld('2026-10-03T12:00:00', 600, 'saida', 'a'), { previsto: true }), ld('2026-10-04T12:00:00', 7, 'saida', 'a')]);
+  assert.equal(C.ritmo(b, q, 'gastos', '2026-10', new Date(2026, 9, 10), '').total, 7);
+});
+
+test('ritmo: o ultimo acumulado bate com a barra do mes (VS-T1)', () => {
+  const q = qv('a');
+  const it = C.base([ld('2026-10-02T12:00:00', 30, 'saida', 'a'), ld('2026-10-08T12:00:00', 70, 'saida', 'a', 'b')]);
+  assert.equal(C.ritmo(it, q, 'gastos', '2026-10', new Date(2026, 9, 20), '').total, C.resumir(it, q, 'gastos').meses[0].total);
+});

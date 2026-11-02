@@ -333,7 +333,7 @@ DynamoDB sem discutir com o dono.**
   (seções que recolhem pelo título, no desenho da exploração) foi **aprovada em 2026-11-02** e substitui o seletor Ver como: as visões ficam em seções abaixo do resultado, uma por assunto. Fases (cada uma um PR):
   - [x] **A, Calendário de calor e Maiores tags** (concluída em 2026-11-02; só front): seções "Ao longo do mês" e "Para onde foi", recolhíveis (a escolha fica só no aparelho), mês mais recente da consulta, só em Gastos e Receitas.
     Maiores tags compara com o mês anterior. **Sobrou:** "Comparar com" (média de 3 meses e mesmo mês do ano passado) e navegar entre meses, que a demo não mostra: pedir demo antes.
-  - [ ] **B, Ritmo do mês** (acumulado, mês-base e projeção pelo ritmo dos dias passados; sem ler Futuros). Só front.
+  - [x] **B, Ritmo do mês** (concluída em 2026-11-02; só front): acumulado do mês contra o mês anterior inteiro e projeção pelo ritmo dos dias passados (a partir do 3º dia, só no mês atual); não lê Futuros. Fica na seção "Ao longo do mês", antes do calendário.
   - [ ] **C, Fixos e variáveis** (pelo marcador `recorrente` do item 51; nada migra). Só front.
   - [ ] **D, Forma de pagamento**, depois do item 41 (nome e cor do status vêm do servidor).
   - [ ] **E, Metas por consulta**: campo novo `limite` no item da consulta; **o dono aprova o campo antes**; backend, depois tela.
