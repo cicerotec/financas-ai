@@ -363,7 +363,7 @@
   // ---------- visões dos gastos (item 55, demo .ai/demos/demo-tendencias-v2.html) ----------
   // A mesma consulta e a mesma base do gráfico de meses, só com outro desenho; nada vai ao servidor. O mês é o mais recente em que a consulta tem
   // lançamento. Só Gastos e Receitas: no Resultado entrada e saída se cancelam. Cada seção recolhe pelo título; a escolha fica só neste aparelho.
-  const GX_SECOES = [['ao-longo', 'Ao longo do mês'], ['para-onde', 'Para onde foi']];
+  const GX_SECOES = [['comparar', 'Comparar'], ['ao-longo', 'Ao longo do mês'], ['para-onde', 'Para onde foi']];
   let gxFechadas = [];
   try { gxFechadas = JSON.parse(localStorage.getItem('tdVisoesFechadas') || '[]'); } catch (e) { gxFechadas = []; }
   if (!Array.isArray(gxFechadas)) gxFechadas = [];
@@ -426,6 +426,22 @@
     r.acum.forEach((v, i) => { h += '<circle cx="' + x(i + 1) + '" cy="' + y(v) + '" r="6" style="fill:transparent" data-tip="' + esc('dia ' + (i + 1) + ': ' + gxReais(v) + ' acumulado') + '"></circle>'; });
     return h + '</svg>';
   }
+  function gxFixos(f) {
+    const W = 360, H = 230, L = 36, R = 354, T0 = 14, B = H - 26, pitch = (R - L) / 6, bw = 36;
+    const esc2 = gxEscala(Math.max(...f.meses.map((m) => m.total))), y = (v) => B - (B - T0) * v / esc2.topo;
+    let h = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gx-chart" role="img" aria-label="Fixos e variáveis nos seis meses até ' + esc(gxNomeMes(f.mes)) + '">';
+    for (let v = 0; v <= esc2.topo + 1e-9; v += esc2.passo) h += '<line x1="' + L + '" x2="' + R + '" y1="' + y(v) + '" y2="' + y(v) + '" class="' + (v ? 'gx-gl' : 'gx-ax') + '"></line>' + gxTxt(L - 6, y(v) + 3, v ? gxMil(v) : '0', 'mut', 'end');
+    f.meses.forEach((m, i) => {
+      const x = L + pitch * i + (pitch - bw) / 2, op = m.incompleto ? ' opacity:.45;' : '';
+      h += gxTxt(x + bw / 2, H - 8, gxNomeMes(m.mes).slice(0, 3), 'mut', 'middle');
+      if (!m.total) return;
+      if (m.fixo) h += '<path d="M' + x + ',' + y(m.fixo) + 'h' + bw + 'v' + (y(0) - y(m.fixo)) + 'h' + -bw + 'Z" style="fill:var(--nm);stroke:var(--card);stroke-width:2;' + op + '" data-tip="' + esc(gxNomeMes(m.mes) + ' · fixos: ' + gxReais(m.fixo)) + '"></path>';
+      if (m.variavel) h += '<path d="M' + x + ',' + y(m.total) + 'h' + bw + 'v' + (y(m.fixo) - y(m.total)) + 'h' + -bw + 'Z" style="fill:var(--nt);stroke:var(--card);stroke-width:2;' + op + '" data-tip="' + esc(gxNomeMes(m.mes) + ' · variáveis: ' + gxReais(m.variavel)) + '"></path>';
+      if (m.fixo && y(0) - y(m.fixo) >= 16) h += gxTxt(x + bw / 2, y(m.fixo / 2) + 4, m.pct + '%', 'white', 'middle');
+      h += gxTxt(x + bw / 2, y(m.total) - 5, gxMil(Math.round(m.total)), 'val', 'middle');
+    });
+    return h + '</svg>';
+  }
   function renderVisoes() {
     const el = $('gxRaiz'), a = ultimo;
     if (!el || !a) return;
@@ -433,6 +449,7 @@
     const indisp = a.visao === 'saldo';
     const mes = a.meses.length ? a.meses[a.meses.length - 1].mes : '';
     const rit = !indisp && mes ? CT.ritmo(itens(), q, a.visao, mes, new Date(), CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
+    const fix = !indisp && mes ? CT.fixosVariaveis(itens(), q, a.visao, mes, CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
     const cal = !indisp && mes ? CT.calendario(itens(), q, a.visao, mes) : null;
     const tags = !indisp && mes ? CT.maioresTags(itens(), q, a.visao, mes, CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
     const vazio = (t) => '<p class="td-vazio-g">' + esc(t) + '</p>';
@@ -450,6 +467,14 @@
         (rit.semBase ? '<p class="gx-nota">' + esc(gxMaiu(nb)) + ' pode estar incompleto (o app carrega só os ' + LIMITE_CARGA + ' lançamentos mais recentes), então não aparece.</p>'
           : !rit.base ? '<p class="gx-nota">Sem lançamentos da consulta em ' + esc(nb) + ' para comparar.</p>' : '');
     }
+    let cardFix = '<h3>Fixos e variáveis</h3><p class="gx-q">Quanto do mês já nasce comprometido (recorrentes)?</p>';
+    if (!fix || !fix.meses.some((m) => m.total)) cardFix += vazio(motivo);
+    else {
+      const inc = fix.meses.filter((m) => m.incompleto && m.total).map((m) => gxNomeMes(m.mes));
+      cardFix += '<div class="gx-leg"><span><i class="gx-sw" style="background:var(--nm)"></i>Fixos (recorrentes)</span><span><i class="gx-sw" style="background:var(--nt)"></i>Variáveis</span></div><div id="gxFix">' + gxFixos(fix) + '</div>' +
+        '<p class="gx-nota">Conta como fixo o que foi marcado como recorrente; antes da marcação, o gasto aparece como variável.</p>' +
+        (inc.length ? '<p class="gx-nota">O app carrega só os ' + LIMITE_CARGA + ' lançamentos mais recentes: ' + esc(inc.join(', ')) + ' pode estar incompleto (barra apagada).</p>' : '');
+    }
     let cardCal = '<h3>Calendário de calor</h3><p class="gx-q">Em que dias o dinheiro costuma sair' + esc(nm) + '?</p>';
     if (!cal) cardCal += vazio(motivo);
     else {
@@ -464,7 +489,7 @@
         (tags.nOutras ? '<p class="gx-nota">e mais ' + tags.nOutras + ' tag' + (tags.nOutras > 1 ? 's' : '') + ', somando ' + esc(gxReais(tags.outras)) + '.</p>' : '') +
         '<p class="gx-nota">Seta: variação contra ' + esc(gxNomeMes(CT.mesAnterior(mes))) + '. Um lançamento com várias tags conta em cada uma.</p>';
     }
-    const corpo = { 'ao-longo': cardRit + '</section><section class="gx-card">' + cardCal, 'para-onde': cardTags };
+    const corpo = { comparar: cardFix, 'ao-longo': cardRit + '</section><section class="gx-card">' + cardCal, 'para-onde': cardTags };
     el.innerHTML = GX_SECOES.map(([id, nome]) => {
       const aberta = !gxFechadas.includes(id);
       return '<section class="gx-sec"><h2><button type="button" class="gx-tit" data-gx="' + id + '" aria-expanded="' + aberta + '" aria-controls="gx-' + id + '">' +
@@ -499,7 +524,7 @@
     limparTagsInexistentes();
     const q = CT.consulta(ten);
     if (q.valida) ultimo = CT.resumir(itens(), q, visao);
-    else if (!ultimo || ultimo.visao !== visao) ultimo = CT.resumir(itens(), CT.consulta({ modo: 'grupos', grupos: [], fichas: [] }), visao);
+    else if (!ultimo || ultimo.visao !== visao) { qValida = CT.consulta({ modo: 'grupos', grupos: [], fichas: [] }); ultimo = CT.resumir(itens(), qValida, visao); } // as visões dos gastos desenham da mesma consulta do resultado
     $('tdGrupos').hidden = ten.modo !== 'grupos';
     $('tdExpr').hidden = ten.modo !== 'avancado';
     renderCombos(); renderFrase(q); renderBarraConsulta(q);

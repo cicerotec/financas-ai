@@ -131,7 +131,7 @@
   function base(lancamentos) {
     return lancamentos.filter((l) => !l.oculto && !l.previsto).map((l) => {
       const d = new Date(l.dataEvento);
-      return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), dia: d.getDate(), valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida', ref: l };
+      return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), dia: d.getDate(), fixo: !!l.recorrente, valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida', ref: l };
     });
   }
 
@@ -230,6 +230,21 @@
     const baseTotal = base ? base[base.length - 1] : 0;
     return { mes, dias, ate, atual, acum, total: acum.length ? acum[acum.length - 1] : 0, mesBase: mb, base: base && baseTotal > 0 ? base : null, semBase,
       projecao: atual && ate >= 3 ? centavos(acum[ate - 1] / ate * dias) : null };
+  }
+
+  // Fixos e variaveis: nos 6 meses que terminam em `mes`, quanto do gasto da consulta e de lancamento MARCADO como recorrente (o servidor marca; o item 51)
+  // e quanto e o resto. Nada e inferido: o que nao foi marcado conta como variavel. pct: fixos / total, inteiro (null no mes sem gasto).
+  // incompleto: o mes e o cortado pelo limite de carga ou anterior a ele (mesCorte, como em maioresTags): o numero pode estar pela metade.
+  function fixosVariaveis(itens, q, visao, mes, mesCorte) {
+    if (visao !== 'gastos' && visao !== 'receitas') return null;
+    const meses = [mes];
+    for (let i = 1; i < 6; i++) meses.unshift(mesAnterior(meses[0]));
+    return { mes, meses: meses.map((m) => {
+      let total = 0, fixo = 0;
+      itensDoMes(itens, q, visao, m).forEach((l) => { total += l.valor; if (l.fixo) fixo += l.valor; });
+      total = centavos(total); fixo = centavos(fixo);
+      return { mes: m, total, fixo, variavel: centavos(total - fixo), pct: total > 0 ? Math.round(fixo / total * 100) : null, incompleto: !!mesCorte && m <= mesCorte };
+    }) };
   }
 
   // O app carrega so os N lancamentos mais recentes (limite). Se vieram N, o mes mais antigo pode estar incompleto: devolve esse mes
@@ -335,7 +350,7 @@
   }
 
   const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
-    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base, mesAnterior, calendario, maioresTags, ritmo,
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base, mesAnterior, calendario, maioresTags, ritmo, fixosVariaveis,
     MAX_CONSULTAS, MAX_NOME_CONSULTA, paraSalvar, deSalvo, podeSalvar, fraseSalva, mesmaConsulta, acoesDaConsulta, filtrarConsultas };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.ConsultaTags = api;
