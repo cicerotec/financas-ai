@@ -28,6 +28,7 @@ pendentes: nenhum.
 - [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
 - [\[UX/UI\] - 52 - **\[Próximo\] Demos versionadas por tela (padrão de todas as telas):**](#item-52)
 - [\[Front\] - 54 - **\[Próximo\] App Android com Capacitor:**](#item-54)
+- [\[UX/UI\] - 55 - **\[Próximo\] Novas visões dos gastos na Tendências:**](#item-55)
 - [\[Infra\] - 11 - **\[Depois\] Backup periódico:**](#item-11)
 - [\[Backend\] - 39 - **\[Depois\] Open Finance (visão):**](#item-39)
 - [\[Backend\] - 43 - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
@@ -327,6 +328,14 @@ DynamoDB sem discutir com o dono.**
   - [ ] **Fase 7, uso sem internet** (futuro; segue `.ai/offline-e-sincronizacao.md`).
   **A decidir (no `intent.md`):** `applicationId` (permanente depois do primeiro envio), conta da Play (pessoal ou organização), retorno do login (esquema próprio ou App Link), biometria opcional ou obrigatória,
   distribuição inicial, e o que fazer se os plugins não funcionarem sem bundler. **Fora:** iOS, offline e as mudanças de regra de negócio.
+- 55. [ ] <a id="item-55"></a>**[Próximo] Novas visões dos gastos na Tendências (2026-11-01; rascunho para aprovação, roteiro em [`.ai/specs/tendencias-visoes/`](.ai/specs/tendencias-visoes/intent.md)):** a consulta continua
+  sendo o filtro e um seletor **Ver como** troca só o desenho (Meses, Ritmo, Calendário, Fixos, Tags, Pagamento e Metas). Tudo calculado no navegador com os 1000 lançamentos da tela (simulação, nada vai ao servidor),
+  menos o limite das Metas. O dono escolheu as seis visões depois de ver onze gráficos de exemplo. Demo reprovada e removida em 2026-11-01 (os gráficos seguiram a largura da página e fugiram do desenho de exploração); item parado. Fases (cada uma um PR):
+  - [ ] **A, Calendário de calor e Maiores tags** (com "Comparar com": mês anterior, média de 3 meses, mesmo mês do ano passado), o seletor Ver como, a janela dele e o mês de referência. Só front.
+  - [ ] **B, Ritmo do mês** (acumulado, mês-base e projeção pelo ritmo dos dias passados; sem ler Futuros). Só front.
+  - [ ] **C, Fixos e variáveis** (pelo marcador `recorrente` do item 51; nada migra). Só front.
+  - [ ] **D, Forma de pagamento**, depois do item 41 (nome e cor do status vêm do servidor).
+  - [ ] **E, Metas por consulta**: campo novo `limite` no item da consulta; **o dono aprova o campo antes**; backend, depois tela.
 - 20. [ ] <a id="item-20"></a>**[Depois] Ideias** (seção no fim deste arquivo).
 
 ### UX/UI (usabilidade do que já existe)
