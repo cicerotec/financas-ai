@@ -259,7 +259,7 @@ Só a aba **Futuros** entra nesta rodada. Decisões:
   lançar" também criam previstos (decisão de 2026-10-24). Um lançamento com data de hoje ou do passado não é previsto.
 - **Atraso** é o marcador ainda ligado antes de hoje. O servidor entrega o grupo Atrasados pronto (o front não calcula) e
   o mesmo critério alimenta o aviso do Telegram.
-- **Confirmar** (demo aprovada em 2026-10-24, `demos/demo-confirmar-previsto.html`): ação da linha que abre uma janela
+- **Confirmar** (demo aprovada em 2026-10-24, `demos/arquivo/demo-confirmar-previsto.html`): ação da linha que abre uma janela
   com **Valor** (já vem o previsto, dá para trocar: multa e juros), **Data** e **Status** (já vem o do lançamento, dá para
   trocar). Confirmar tira o marcador, a linha sai de Futuros, entra no Histórico e passa a contar no saldo; o aviso de 6 s
   tem **Desfazer**, que no servidor é uma restauração. A data sugerida é a prevista; se ela cai em **mês já fechado**, a

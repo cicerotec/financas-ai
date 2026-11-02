@@ -209,7 +209,7 @@ async function criarEventos(docs, aoProgredir){
 // ---------- recorrencia automatica de lancamentos (item 51) ----------
 // Tornar recorrente (Historico e Futuros), a linha Recorrente do Lancar e Parar recorrencia. A tela e a do Prever (tela cheia, linha
 // Repetir, intervalos e a roda do Outro intervalo), sem "Repetir quantas vezes": a recorrencia nao tem fim. Quem cria as copias e calcula as datas
-// e o servidor; aqui so ha a previa da primeira. Demos: .ai/demos/demo-historico-v2-recorrencia.html, demo-lancar-v2-recorrencia.html e
+// e o servidor; aqui so ha a previa da primeira. Demos: .ai/demos/arquivo/demo-historico-v2-recorrencia.html, demo-lancar-v2-recorrencia.html e
 // demo-futuros-v2-recorrencia.html. Spec: .ai/specs/recorrencia/spec.md.
 let recAtivas = [];     // as recorrencias ativas (GET /recorrencias): a ponta de cada uma e o lancamento onde "Parar" aparece
 let formRec = null;     // Lancar: null = sem recorrencia; senao { meses }
@@ -328,7 +328,7 @@ document.getElementById('fRecAbrir').addEventListener('click', abrirRecorrenciaF
 // ---------- Prever e Estender no padrao de telas (.ai/padrao-de-telas.md) ----------
 // Tela cheia com tres linhas-resumo (Status das copias, Repetir, Avisar no Telegram), a previa das datas e o botao de
 // criar. Cada linha abre uma tela cheia propria; "Outro..." abre rodas numa janela de baixo. As datas, os prazos e as
-// frases vem de recorrencia.js (testado em node). Demo: .ai/demos/demo-repeticao-e-aviso.html.
+// frases vem de recorrencia.js (testado em node). Demo: .ai/demos/arquivo/demo-repeticao-e-aviso.html.
 let pv = null;
 let selecaoHist = null;    // Historico: null = fora da selecao em lote; senao o conjunto de ids marcados
 let listaHistAtual = [];   // o que o Historico exibe agora ("Marcar os N da lista")
@@ -367,7 +367,7 @@ function pvCalcular(){
 }
 
 // ---- Tornar previstos em lote (Historico): o mesmo fluxo do Prever, com varios lancamentos de partida e um mes de destino ----
-// Demo: .ai/demos/demo-previstos-em-lote.html. Os previstos saem com o status da propria origem (a data futura e que os faz
+// Demo: .ai/demos/arquivo/demo-previstos-em-lote.html. Os previstos saem com o status da propria origem (a data futura e que os faz
 // previstos, como no Prever); a tela nao pergunta status.
 function pvStatusDaCopia(o){ return listas.status.includes(o.status) ? o.status : listas.status[0]; }
 function pvDestinosLote(){
@@ -709,7 +709,7 @@ async function abrirLote(){
 }
 
 // Aviso da fatura do cartao (item 46): a MESMA tela "Avisar no Telegram" do Prever, sem a tela principal por tras; o Salvar fica no rodape e a seta so desiste.
-// Demo: .ai/demos/demo-aviso-fatura.html. O servidor valida o aviso e exige o vencimento da fatura (que ja existe: so assim a fatura aparece em Futuros).
+// Demo: .ai/demos/arquivo/demo-aviso-fatura.html. O servidor valida o aviso e exige o vencimento da fatura (que ja existe: so assim a fatura aparece em Futuros).
 function pvBarraFatura(){
   return `<div class="tc-barra"><button type="button" class="tc-criar" id="tcCriar" data-a="salvarFatura" aria-busy="${pv.ocupado}">${pv.ocupado ? 'Salvando…' : 'Salvar'}</button></div>`;
 }
@@ -810,7 +810,7 @@ let tokenMes = 0;
 let lancamentosMes = [];
 let modoBuscaTexto = false;
 let lancamentosBusca = [];
-let periodoHist = '30d';  // '30d' | '90d' | '180d' | 'mes' (demo: .ai/demos/demo-historico-periodo.html)
+let periodoHist = '30d';  // '30d' | '90d' | '180d' | 'mes' (demo: .ai/demos/arquivo/demo-historico-periodo.html)
 let tudoHist = false;     // a busca atual olhou todo o histórico
 let escopoBuscaTxt = '';  // onde a busca atual olhou, para a faixa do resultado
 const DIAS_PERIODO = {'30d':30, '90d':90, '180d':180};
@@ -861,7 +861,7 @@ function toast(msg, erro){
   toastTimer = setTimeout(()=>el.classList.remove('on'), erro ? 6000 : 3500);
 }
 // Aviso com ação ("Desfazer"), com barra de tempo. Um por vez: abrir outro encerra o anterior na hora (onFim).
-// Padrão da demo .ai/demos/demo-desfazer.html; a exclusão imediata é da demo .ai/demos/demo-exclusao-imediata.html.
+// Padrão da demo .ai/demos/arquivo/demo-desfazer.html; a exclusão imediata é da demo .ai/demos/arquivo/demo-exclusao-imediata.html.
 const AVISO_ACAO_MS = 6000;
 let avisoAcaoAtual = null, avisoAcaoTimer;
 function fecharAvisoAcao(porAcao){
@@ -1246,7 +1246,7 @@ function renderListas(){
   renderFiltrosHistCampos();
   filBancoSelecionados = new Set([...filBancoSelecionados].filter(b=>listas.banco.includes(b)));
 
-  // Forma de pagamento: um bloco por status (bolinha de cor + a linha de exemplo como fica no Historico e em Futuros). Demo: .ai/demos/demo-forma-pagamento.html
+  // Forma de pagamento: um bloco por status (bolinha de cor + a linha de exemplo como fica no Historico e em Futuros). Demo: .ai/demos/arquivo/demo-forma-pagamento.html
   document.getElementById('pillStatus').innerHTML = listas.status.map(s=>{
     const c = corStatus(s), aberta = corAberta===s;
     return `<div class="fp" style="--cor:${estiloCor==='nenhum' ? 'var(--faint)' : c}">
@@ -1987,7 +1987,7 @@ function acoesDoEvento(l){
   return a;
 }
 // Botoes da tabela: so o icone (traco de 2 px, herda a cor), com o nome em title e aria-label. Cada acao tem o seu lugar fixo na coluna de acoes
-// (6 lugares), e a que nao existe na linha deixa o lugar vazio: assim cada icone cai sempre na mesma coluna. Demo: .ai/demos/demo-icones-acoes.html (opcao 1 de cada).
+// (6 lugares), e a que nao existe na linha deixa o lugar vazio: assim cada icone cai sempre na mesma coluna. Demo: .ai/demos/arquivo/demo-icones-acoes.html (opcao 1 de cada).
 const ICONES_ACAO = {
   confirmar: '<path d="M5 13l4 4L19 7"/>',
   editar: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
@@ -2056,7 +2056,7 @@ document.addEventListener('keydown', e=>{ if(e.key === 'Escape') fecharAcoesFutu
 
 // No mês buscado os eventos futuros não aparecem na lista; se o mês tiver algum, avisa e leva para a aba Futuros.
 // ---------- Histórico: filtros numa janela, lançamentos por dia ou por mês, tabela no computador ----------
-// Demo: .ai/demos/demo-historico-layout.html. Reaproveita as classes de Futuros (.fut-*): mesma linha, mesma tabela, mesma janela de ações.
+// Demo: .ai/demos/arquivo/demo-historico-layout.html. Reaproveita as classes de Futuros (.fut-*): mesma linha, mesma tabela, mesma janela de ações.
 const MQ_TABELA = window.matchMedia('(min-width:1160px)');
 MQ_TABELA.addEventListener('change', ()=>renderHistorico());
 let termoBuscaHist = '';
@@ -2069,7 +2069,7 @@ function tituloDiaHist(l){
   const w = new Date(l.dataEvento).toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','');
   return w.charAt(0).toUpperCase() + w.slice(1) + ' ' + dataBR(l);
 }
-// Selecao em lote (tornar previstos). Demo: .ai/demos/demo-previstos-em-lote.html. O estado (selecaoHist, listaHistAtual) fica junto do pv.
+// Selecao em lote (tornar previstos). Demo: .ai/demos/arquivo/demo-previstos-em-lote.html. O estado (selecaoHist, listaHistAtual) fica junto do pv.
 const podeNoLote = l=>!l.transferParId; // transferencia nao tem Prever, nem aqui
 function lotePelaSelecao(){
   return [...(selecaoHist||[])].map(acharLancamento).filter(l=>l && podeNoLote(l)).sort((a,b)=>a.dataEvento<b.dataEvento ? -1 : 1);
@@ -2454,7 +2454,7 @@ function resumoEdicao(antes, doc){
   return m.length ? m.join('; ') : 'Nenhum campo principal mudou.';
 }
 
-// ---------- A fatura do cartao em Futuros (itens 33b e 35; demo .ai/demos/demo-pagar-fatura.html) ----------
+// ---------- A fatura do cartao em Futuros (itens 33b e 35; demo .ai/demos/arquivo/demo-pagar-fatura.html) ----------
 // O servidor manda a fatura pronta (vencimento, valor, pagador sugerido, atraso). "Ja paguei" lanca um pagamento normal, ja marcado com a fatura.
 function faturaPorChave(chave){
   const [, meio, ym] = chave.split('|');
@@ -2570,7 +2570,7 @@ async function desfazerPagamentoFatura(id){
   try{ await db.collection("lancamentos").doc(id).delete(); toast('Pagamento desfeito'); }
   catch(err){ console.error(err); toast((err && err.message) || 'Não foi possível desfazer. Exclua o lançamento no Histórico.', true); }
 }
-// ---------- Confirmar um previsto (demo .ai/demos/demo-confirmar-previsto.html): valor, data e status; o servidor decide o resto ----------
+// ---------- Confirmar um previsto (demo .ai/demos/arquivo/demo-confirmar-previsto.html): valor, data e status; o servidor decide o resto ----------
 // A janela pergunta o valor (ja vem o previsto; da para trocar: multa e juros; zero e negativo valem, como no Lancar), a data com hora (agora; nunca depois de hoje) e o status, da lista do servidor para aquela data.
 function pedirConfirmacaoPrevisto(l){
   return new Promise(async resolve=>{
