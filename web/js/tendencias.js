@@ -1,11 +1,11 @@
 // Tela Tendências: gasto por mês filtrado por tags, com grupos (E e NÃO dentro do grupo, OU entre grupos) e, sob demanda,
 // uma expressão livre (parênteses, E, OU, NÃO). A barra do mês mostra quanto do valor tem outras tags além das da consulta.
-// Layout (demo .ai/demos/demo-tendencias-layout.html): no computador (>= 1160 px) o resultado fica à esquerda e as escolhas à direita;
+// Layout (demo .ai/demos/arquivo/demo-tendencias-layout.html): no computador (>= 1160 px) o resultado fica à esquerda e as escolhas à direita;
 // no celular o resultado vem primeiro e as escolhas abrem em tela cheia por "Editar consulta" (o modo avançado abre por cima).
 // Nada de lista de tags ou de combos solta na página: tudo abre numa janela (grupos, combos e "+ Tag" do modo avançado).
 // O seletor Gastos | Receitas | Resultado (padrão: Gastos) escolhe o que somar; Resultado é entradas menos saídas das tags escolhidas.
 // Isto é uma SIMULAÇÃO (a faixa no topo diz): nunca vale como saldo (o saldo real é o do Histórico) e nunca grava nada. Ocultos ficam de fora.
-// Consultas salvas (item 53, demo .ai/demos/demo-tendencias-consultas.html): "Consultas salvas" e "Salvar consulta" abrem janelas; as consultas são do espaço (todos usam; cada
+// Consultas salvas (item 53, demo .ai/demos/arquivo/demo-tendencias-consultas.html): "Consultas salvas" e "Salvar consulta" abrem janelas; as consultas são do espaço (todos usam; cada
 // pessoa altera só as suas, o dono modera: quem decide é o servidor, que manda minha e podeAlterar). Só a consulta é guardada, nunca um número; a lista só é lida quando a janela abre.
 // Lógica pura e testada em web/consulta-tags.js. O front só desenha e soma o que já está na tela: nenhum número daqui vai para a API.
 // Carregado depois do app.js e usa os globais dele (lancamentosCache, tagsUsadas, combosAtuaisLista, esc, fmtMoeda).

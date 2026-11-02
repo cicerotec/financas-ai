@@ -82,7 +82,7 @@ Cada uma está marcada **[dono]** na fase onde bloqueia. Nenhum campo ou chave n
 
 9. **Período na tela Histórico de versões (fechada pelo dono em 2026-10-23).** A tela passa a ter o grupo **30d · 90d · 180d · 📅** pela
    data da alteração (padrão 30d), a busca por descrição, nota e **tag** sem acento, a faixa do escopo com **Buscar em tudo** (sem aviso de
-   custo: a leitura é a mesma em qualquer período) e o aviso `truncado`. Demo: `demos/demo-versoes-periodo.html`. A rota aceita `mes`, `dias` ou
+   custo: a leitura é a mesma em qualquer período) e o aviso `truncado`. Demo: `demos/arquivo/demo-versoes-periodo.html`. A rota aceita `mes`, `dias` ou
    `tudo` (um só). Não cria chave nem campo no DynamoDB; o limite de 5.000 versões lidas continua, e fica leve porque, sem versão na criação
    e na importação (decisão 8), o histórico é pequeno.
 

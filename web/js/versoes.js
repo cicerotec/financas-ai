@@ -1,4 +1,4 @@
-// Tela "Histórico de versões" (Configurar). Demo aprovada: .ai/demos/demo-historico-versoes.html. Spec: .ai/specs/historico/spec.md.
+// Tela "Histórico de versões" (Configurar). Demo aprovada: .ai/demos/arquivo/demo-historico-versoes.html. Spec: .ai/specs/historico/spec.md.
 // O front só desenha: a busca por mês, o diff e se uma versão pode ser restaurada (com o motivo) vêm prontos da API.
 // Carregado depois do app.js e usa os globais dele (db, esc, fmtMoeda, toast, confirmarModal, comBotaoOcupado, mesAtualApp, somaMes, rotuloMes).
 
@@ -38,7 +38,7 @@ function vsPilula(acao){
 function vsQuem(v){ return v.porNome || (v.porSub ? 'alguém' : 'autor desconhecido'); }
 
 // ---------- peças ----------
-// Período (demo: .ai/demos/demo-versoes-periodo.html): 30d, 90d, 180d ou um mês, sempre pela data da ALTERAÇÃO.
+// Período (demo: .ai/demos/arquivo/demo-versoes-periodo.html): 30d, 90d, 180d ou um mês, sempre pela data da ALTERAÇÃO.
 // A busca vale no que está marcado; "Buscar em tudo" amplia sem aviso de custo, porque a leitura do servidor é a mesma em qualquer período.
 const VS_DIAS = {'30d':30, '90d':90, '180d':180};
 const VS_CAL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';

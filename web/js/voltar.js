@@ -1,5 +1,5 @@
 // Botao voltar do navegador e do celular: cada tela ou janela que o "←" fecharia vira uma entrada do historico do navegador.
-// Padrao: .ai/padrao-de-telas.md ("Botão voltar"), demo .ai/demos/demo-voltar-navegador.html (aprovada em 2026-10-19).
+// Padrao: .ai/padrao-de-telas.md ("Botão voltar"), demo .ai/demos/arquivo/demo-voltar-navegador.html (aprovada em 2026-10-19).
 // Modelo: o historico guarda {aba, n, i}: a aba, quantas camadas (janelas e telas cheias) estao abertas e o indice da entrada.
 // A tela e a fonte da verdade: o app diz qual aba e quantas camadas estao abertas (hooks) e este modulo so ajusta o historico.
 // O aviso de Desfazer nao e camada e nunca entra aqui. Sem entrada extra para ele: no primeiro nivel, voltar sai do app.

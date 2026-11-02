@@ -1,7 +1,7 @@
 # Plan: aviso da fatura do cartão (item 46)
 
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje (`backend/service/avisos.go`, `repository/avisos.go`, `domain/aviso.go`, `domain/aviso_envio.go`,
-`service/cartoes.go`, `service/pagafatura.go`, `web/js/app.js`). O roteiro verificável é o [`spec.md`](spec.md). Demo: `.ai/demos/demo-aviso-fatura.html`.
+`service/cartoes.go`, `service/pagafatura.go`, `web/js/app.js`). O roteiro verificável é o [`spec.md`](spec.md). Demo: `.ai/demos/arquivo/demo-aviso-fatura.html`.
 
 **Estado:** aprovado pelo dono em 2026-10-26. **Concluído em 2026-10-26:** fases A (#244) e B (#246) implementadas e conferidas em dev pelo dono.
 

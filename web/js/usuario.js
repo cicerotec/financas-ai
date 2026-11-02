@@ -1,6 +1,6 @@
 // A conta de quem esta logado: nome, espaco e Sair. No celular entram no menu do app (abrirMenuApp, em app.js); na janela larga
 // (1160 px ou mais) ficam num botao no canto direito do cabecalho. Padrao: .ai/padrao-de-telas.md ("Menu do app"), demo
-// .ai/demos/demo-menu-usuario.html. So desenha: nome, espaco, papel e lista de espacos vem do api.js (window.claude.sessao()).
+// .ai/demos/arquivo/demo-menu-usuario.html. So desenha: nome, espaco, papel e lista de espacos vem do api.js (window.claude.sessao()).
 // Carregado depois do app.js e usa os globais dele (esc, fecharMenuApp, irParaAba).
 
 function usSessao(){ return (window.claude && claude.sessao && claude.sessao()) || null; }

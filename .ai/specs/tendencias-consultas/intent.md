@@ -4,7 +4,7 @@ Item 53 do BACKLOG. Este documento diz **o quê e por quê**; o como (`plan.md`)
 para o dono aprovar antes de qualquer código.
 
 **Estado:** implementado e conferido em dev em 2026-10-31 (fases A e B). A demo da janela foi aprovada em 2026-10-30
-([`demo-tendencias-consultas.html`](../../demos/demo-tendencias-consultas.html)); as decisões de dados A a D, também em 2026-10-31.
+([`demo-tendencias-consultas.html`](../../demos/arquivo/demo-tendencias-consultas.html)); as decisões de dados A a D, também em 2026-10-31.
 
 ## Por quê
 
