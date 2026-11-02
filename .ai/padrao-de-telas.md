@@ -26,7 +26,7 @@ Cada tela tem uma **demo-padrão** em `demos/`, a captura fiel da tela como est�
 | Histórico | [`demo-historico-v1`](demos/demo-historico-v1.html), [`ações`](demos/demo-acoes-historico-v1.html), [`Filtros`](demos/demo-filtros-historico-v1.html), [`seleção em lote`](demos/demo-selecao-historico-v1.html) |
 | Futuros | [`demo-futuros-v1`](demos/demo-futuros-v1.html) |
 | Prever, Repetir e Avisar | [`demo-prever-v1`](demos/demo-prever-v1.html), [`demo-repetir-v1`](demos/demo-repetir-v1.html), [`demo-avisar-v1`](demos/demo-avisar-v1.html) |
-| Tendências | [`demo-tendencias-v1`](demos/demo-tendencias-v1.html), [`editar`](demos/demo-tendencias-editar-v1.html), [`escolher tags`](demos/demo-tendencias-escolher-tags-v1.html), [`lista`](demos/demo-tendencias-lista-v1.html), [`salvar`](demos/demo-tendencias-salvar-v1.html), [`consultas salvas`](demos/demo-tendencias-consultas-v1.html) |
+| Tendências | [`demo-tendencias-v1`](demos/demo-tendencias-v1.html), [`v2, com as visões dos gastos`](demos/demo-tendencias-v2.html), [`editar`](demos/demo-tendencias-editar-v1.html), [`escolher tags`](demos/demo-tendencias-escolher-tags-v1.html), [`lista`](demos/demo-tendencias-lista-v1.html), [`salvar`](demos/demo-tendencias-salvar-v1.html), [`consultas salvas`](demos/demo-tendencias-consultas-v1.html) |
 | Saldos, Cartão e Listas | [`demo-saldos-v1`](demos/demo-saldos-v1.html), [`demo-cartao-v1`](demos/demo-cartao-v1.html), [`demo-listas-v1`](demos/demo-listas-v1.html) |
 | Histórico de versões | [`demo-versoes-v1`](demos/demo-versoes-v1.html), [`versões de um lançamento`](demos/demo-versoes-detalhe-v1.html) |
 | Configurações | [`demo-configuracoes-v1`](demos/demo-configuracoes-v1.html) |

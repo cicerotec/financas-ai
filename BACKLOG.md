@@ -329,8 +329,10 @@ DynamoDB sem discutir com o dono.**
   distribuição inicial, e o que fazer se os plugins não funcionarem sem bundler. **Fora:** iOS, offline e as mudanças de regra de negócio.
 - 55. [ ] <a id="item-55"></a>**[Próximo] Novas visões dos gastos na Tendências (2026-11-01; rascunho para aprovação, roteiro em [`.ai/specs/tendencias-visoes/`](.ai/specs/tendencias-visoes/intent.md)):** a consulta continua
   sendo o filtro e um seletor **Ver como** troca só o desenho (Meses, Ritmo, Calendário, Fixos, Tags, Pagamento e Metas). Tudo calculado no navegador com os 1000 lançamentos da tela (simulação, nada vai ao servidor),
-  menos o limite das Metas. O dono escolheu as seis visões depois de ver onze gráficos de exemplo. Demo reprovada e removida em 2026-11-01 (os gráficos seguiram a largura da página e fugiram do desenho de exploração); item parado. Fases (cada uma um PR):
-  - [ ] **A, Calendário de calor e Maiores tags** (com "Comparar com": mês anterior, média de 3 meses, mesmo mês do ano passado), o seletor Ver como, a janela dele e o mês de referência. Só front.
+  menos o limite das Metas. O dono escolheu as seis visões depois de ver onze gráficos de exemplo. A primeira demo foi reprovada em 2026-11-01; a [`demo-tendencias-v2`](.ai/demos/demo-tendencias-v2.html)
+  (seções que recolhem pelo título, no desenho da exploração) foi **aprovada em 2026-11-02** e substitui o seletor Ver como: as visões ficam em seções abaixo do resultado, uma por assunto. Fases (cada uma um PR):
+  - [x] **A, Calendário de calor e Maiores tags** (concluída em 2026-11-02; só front): seções "Ao longo do mês" e "Para onde foi", recolhíveis (a escolha fica só no aparelho), mês mais recente da consulta, só em Gastos e Receitas.
+    Maiores tags compara com o mês anterior. **Sobrou:** "Comparar com" (média de 3 meses e mesmo mês do ano passado) e navegar entre meses, que a demo não mostra: pedir demo antes.
   - [ ] **B, Ritmo do mês** (acumulado, mês-base e projeção pelo ritmo dos dias passados; sem ler Futuros). Só front.
   - [ ] **C, Fixos e variáveis** (pelo marcador `recorrente` do item 51; nada migra). Só front.
   - [ ] **D, Forma de pagamento**, depois do item 41 (nome e cor do status vêm do servidor).

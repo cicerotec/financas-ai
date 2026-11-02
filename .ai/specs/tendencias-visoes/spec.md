@@ -13,7 +13,7 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 - **V3. Mês de referência.** As visões novas olham um mês `aaaa-mm` pela data **local** do lançamento (a regra de `CT.base`). Padrão: o mês atual; `‹ ›` navegam pelos meses que têm lançamento na base; o mês atual
   sempre existe, mesmo vazio. Mês sem lançamento da consulta mostra o estado vazio com o nome do mês.
 - **V4. Calendário.** Para o mês de referência: uma célula por dia (1 até o último dia do mês), semanas de segunda a domingo nas colunas e os dias da semana nas linhas. Valor do dia = soma dos itens da consulta
-  naquele dia. Dia sem gasto: célula vazia, sem número. Faixas: 0 = sem gasto; 1 a 4 = até 25%, 50%, 75% e 100% do **maior dia do mês**. A legenda mostra os valores de corte desse mês. Cada célula mostra o dia e o
+  naquele dia. Dia sem gasto: célula vazia, sem número. Faixas: 0 = sem gasto; 1 a 5 = até 20%, 40%, 60%, 80% e 100% do **maior dia do mês** (como na demo aprovada). A legenda mostra os valores de corte desse mês. Cada célula mostra o dia e o
   valor arredondado; tocar ou passar o mouse mostra a data e o valor completos.
 - **V5. Tags.** Para o mês de referência: as tags dos itens da consulta, valor = soma dos itens que a têm (item com várias tags conta em cada uma), ordem decrescente por valor (empate: ordem alfabética pt-BR),
   no máximo 8 linhas; as demais somam em **outras**. As tags que a própria consulta menciona entram como as outras (sem filtro especial).
@@ -68,7 +68,7 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
 ## Telas (depois da demo aprovada)
 
-Demo (reprovada e removida em 2026-11-01; será refeita seguindo o desenho de exploração), com o resultado da Tendências inteiro em cada visão (celular e computador), a janela "Ver como", o "Comparar com", o seletor de
+Demo aprovada em 2026-11-02: [`demo-tendencias-v2`](../../demos/demo-tendencias-v2.html), com as visões em seções recolhíveis (no lugar do seletor "Ver como" da V1/V12). Texto antigo: com o resultado da Tendências inteiro em cada visão (celular e computador), a janela "Ver como", o "Comparar com", o seletor de
 mês e os estados vazio e sem base. O padrão ganha uma linha em `padrao-de-telas.md` na mesma entrega.
 
 ## Fora desta entrega
