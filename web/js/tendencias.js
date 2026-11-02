@@ -524,7 +524,7 @@
     limparTagsInexistentes();
     const q = CT.consulta(ten);
     if (q.valida) ultimo = CT.resumir(itens(), q, visao);
-    else if (!ultimo || ultimo.visao !== visao) ultimo = CT.resumir(itens(), CT.consulta({ modo: 'grupos', grupos: [], fichas: [] }), visao);
+    else if (!ultimo || ultimo.visao !== visao) { qValida = CT.consulta({ modo: 'grupos', grupos: [], fichas: [] }); ultimo = CT.resumir(itens(), qValida, visao); } // as visões dos gastos desenham da mesma consulta do resultado
     $('tdGrupos').hidden = ten.modo !== 'grupos';
     $('tdExpr').hidden = ten.modo !== 'avancado';
     renderCombos(); renderFrase(q); renderBarraConsulta(q);
