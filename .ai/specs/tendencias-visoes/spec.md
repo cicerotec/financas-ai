@@ -8,7 +8,7 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
 - **V1. Seletor "Ver como".** A Tendências ganha Meses (a de hoje), Ritmo, Calendário, Fixos, Tags, Pagamento e Metas. Abre em **Meses**, sempre; a escolha não é guardada na consulta nem ao recarregar.
   Com **Resultado** escolhido, só Meses fica ativa; as outras mostram o motivo ("Disponível em Gastos e Receitas").
-- **V2. A consulta é a mesma.** Toda visão parte de `CT.base` filtrada por `q.pred` e pela visão de soma (Gastos ou Receitas), como `CT.resumir`. Oculto e `previsto` ficam de fora. **A soma de uma visão, para o mesmo
+- **V2. A consulta é a mesma.** Toda visão parte de `CT.base` filtrada por `q.pred` e pela visão de soma (Gastos ou Receitas), como `CT.resumir`. Oculto, `previsto` e o que o servidor marca com `excluirDoTotal` (pagamento de fatura, transferência, status fora do total) ficam de fora; o front só lê o marcador. **A soma de uma visão, para o mesmo
   período, é igual à da visão Meses** (conferência dos números). Nada é enviado ao servidor, exceto V17.
 - **V3. Mês de referência.** As visões novas olham um mês `aaaa-mm` pela data **local** do lançamento (a regra de `CT.base`). Padrão: o mês atual; `‹ ›` navegam pelos meses que têm lançamento na base; o mês atual
   sempre existe, mesmo vazio. Mês sem lançamento da consulta mostra o estado vazio com o nome do mês.

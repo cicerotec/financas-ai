@@ -581,3 +581,15 @@ test('fixosVariaveis: virada de ano, mes cortado e Resultado; soma bate com a ba
   assert.equal(r.meses[5].total, C.resumir(it, q, 'gastos').meses.find((m) => m.mes === '2026-01').total);
   assert.equal(C.fixosVariaveis(it, q, 'saldo', '2026-01', ''), null);
 });
+
+test('base: o que o servidor marca com excluirDoTotal fica de fora (pagamento de fatura, transferencia, status fora do total)', () => {
+  const normal = ld('2026-10-05T12:00:00', 100, 'saida', 'a');
+  const ls = [normal, Object.assign(ld('2026-10-06T12:00:00', 100, 'saida'), { excluirDoTotal: true, pagaFatura: { meio: 'X', ym: '2026-10' } }),
+    Object.assign(ld('2026-10-07T12:00:00', 50, 'saida'), { excluirDoTotal: true, transferParId: 't1' }), Object.assign(ld('2026-10-08T12:00:00', 50, 'entrada'), { excluirDoTotal: true, transferParId: 't1' }),
+    Object.assign(ld('2026-10-09T12:00:00', 30, 'saida', 'a'), { excluirDoTotal: true }), Object.assign(ld('2026-10-10T12:00:00', 20, 'saida', 'a'), { excluirDoTotal: false })];
+  const b = C.base(ls);
+  assert.deepEqual(b.map((x) => x.valor), [100, 20]);
+  const vazia = C.consulta(grupos(G([])));
+  assert.equal(C.resumir(b, vazia, 'gastos').total, 120, 'consulta sem tags: compras sem o pagamento da fatura e sem as pontas da transferencia');
+  assert.equal(C.calendario(b, vazia, 'gastos', '2026-10').total, 120);
+});
