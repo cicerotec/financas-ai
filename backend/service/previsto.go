@@ -37,9 +37,7 @@ func (s *Lancamentos) derivar(l domain.Lancamento) {
 	if !domain.EhPrevisto(l) && domain.PrevistoPorData(data, s.rel.Agora()) { // o antigo (so pelo nome) ou o ja marcado nao precisam de marcador novo
 		l["previsto"] = true
 	}
-	par, _ := l["transferParId"].(string)
-	// um lancamento com a marca pagaFatura (pagamento de fatura) tambem sai do total: o gasto ja contou nas compras de credito (R10 do pagar-fatura)
-	l["excluirDoTotal"] = domain.ForaDoTotalStatus(domain.StatusDe(l)) || par != "" || domain.TemPagaFatura(l)
+	l["excluirDoTotal"] = domain.ForaDoTotal(l) // inclui o pagamento de fatura (R10 do pagar-fatura)
 }
 
 // comPrevisto acrescenta previsto: true na resposta quando o lancamento e previsto, tambem o antigo (derivado, nao gravado), para o front nao olhar o status.
@@ -384,9 +382,11 @@ func diaDoItem(d domain.Doc) string {
 	return dia
 }
 
-// decorar acrescenta ao lancamento o que a listagem mostra pronto: previsto (derivado), rotulo e corPadrao do catalogo (R12a, R17).
+// decorar acrescenta ao lancamento o que a listagem mostra pronto: previsto (derivado), excluirDoTotal (derivado, como o previsto: o gravado
+// antes de o servidor calcular o campo pode estar ausente), rotulo e corPadrao do catalogo (R12a, R17).
 func decorar(l domain.Doc) domain.Doc {
 	comPrevisto(l)
+	l["excluirDoTotal"] = domain.ForaDoTotal(l)
 	l["rotulo"], l["corPadrao"] = domain.RotuloECor(domain.StatusDe(l))
 	return l
 }
