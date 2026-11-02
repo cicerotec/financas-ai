@@ -19,6 +19,14 @@ func EhPrevisto(l Lancamento) bool {
 	return false
 }
 
+// ForaDoTotal diz se o lancamento fica fora do total (R13): status fora do total no catalogo, ponta de transferencia ou pagamento de fatura
+// (o gasto ja contou nas compras de credito). E a unica conta: derivar grava o resultado e a listagem o recalcula, para o lancamento antigo,
+// gravado quando o navegador ainda mandava o campo, sair certo sem migracao.
+func ForaDoTotal(l Lancamento) bool {
+	par, _ := l["transferParId"].(string)
+	return ForaDoTotalStatus(StatusDe(l)) || par != "" || TemPagaFatura(l)
+}
+
 // PrevistoPorData: o dia da dataEvento (Sao Paulo) e posterior ao dia de agora. Hoje nao e futuro (R2). Data invalida nao e futura.
 func PrevistoPorData(dataEvento string, agora time.Time) bool {
 	dia, err := DiaBR(dataEvento)
