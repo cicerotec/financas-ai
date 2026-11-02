@@ -334,7 +334,7 @@ DynamoDB sem discutir com o dono.**
   - [x] **A, Calendário de calor e Maiores tags** (concluída em 2026-11-02; só front): seções "Ao longo do mês" e "Para onde foi", recolhíveis (a escolha fica só no aparelho), mês mais recente da consulta, só em Gastos e Receitas.
     Maiores tags compara com o mês anterior. **Sobrou:** "Comparar com" (média de 3 meses e mesmo mês do ano passado) e navegar entre meses, que a demo não mostra: pedir demo antes.
   - [x] **B, Ritmo do mês** (concluída em 2026-11-02; só front): acumulado do mês contra o mês anterior inteiro e projeção pelo ritmo dos dias passados (a partir do 3º dia, só no mês atual); não lê Futuros. Fica na seção "Ao longo do mês", antes do calendário.
-  - [ ] **C, Fixos e variáveis** (pelo marcador `recorrente` do item 51; nada migra). Só front.
+  - [x] **C, Fixos e variáveis** (concluída em 2026-11-02; só front): seis meses até o mais recente da consulta, fixo = lançamento marcado como recorrente (item 51), o resto é variável; nada migra nem é inferido. Fica numa seção "Comparar", no topo.
   - [ ] **D, Forma de pagamento**, depois do item 41 (nome e cor do status vêm do servidor).
   - [ ] **E, Metas por consulta**: campo novo `limite` no item da consulta; **o dono aprova o campo antes**; backend, depois tela.
 - 20. [ ] <a id="item-20"></a>**[Depois] Ideias** (seção no fim deste arquivo).

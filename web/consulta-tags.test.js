@@ -559,3 +559,25 @@ test('ritmo: o ultimo acumulado bate com a barra do mes (VS-T1)', () => {
   const it = C.base([ld('2026-10-02T12:00:00', 30, 'saida', 'a'), ld('2026-10-08T12:00:00', 70, 'saida', 'a', 'b')]);
   assert.equal(C.ritmo(it, q, 'gastos', '2026-10', new Date(2026, 9, 20), '').total, C.resumir(it, q, 'gastos').meses[0].total);
 });
+
+test('fixosVariaveis: fixo e so o marcado como recorrente; o resto e variavel (VS-T10)', () => {
+  const q = qv('a');
+  const it = C.base([Object.assign(ld('2026-10-05T12:00:00', 100, 'saida', 'a'), { recorrente: { intervalo: 1 } }), ld('2026-10-06T12:00:00', 300, 'saida', 'a'),
+    ld('2026-09-06T12:00:00', 50, 'saida', 'a'), Object.assign(ld('2026-10-07T12:00:00', 999, 'saida', 'b'), { recorrente: { intervalo: 1 } })]);
+  const r = C.fixosVariaveis(it, q, 'gastos', '2026-10', '');
+  assert.deepEqual(r.meses.map((m) => m.mes), ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10']);
+  const out = r.meses[5], set = r.meses[4], vazio = r.meses[0];
+  assert.deepEqual([out.total, out.fixo, out.variavel, out.pct], [400, 100, 300, 25]);
+  assert.deepEqual([set.total, set.fixo, set.variavel, set.pct], [50, 0, 50, 0], 'mes so de variaveis: 0%');
+  assert.deepEqual([vazio.total, vazio.pct], [0, null], 'mes vazio: sem percentual');
+});
+
+test('fixosVariaveis: virada de ano, mes cortado e Resultado; soma bate com a barra do mes (VS-T1)', () => {
+  const q = qv('a');
+  const it = C.base([ld('2026-01-10T12:00:00', 10, 'saida', 'a'), ld('2025-12-10T12:00:00', 20, 'saida', 'a')]);
+  const r = C.fixosVariaveis(it, q, 'gastos', '2026-01', '2025-12');
+  assert.deepEqual(r.meses.map((m) => m.mes).slice(0, 2), ['2025-08', '2025-09']);
+  assert.deepEqual(r.meses.map((m) => m.incompleto), [true, true, true, true, true, false]);
+  assert.equal(r.meses[5].total, C.resumir(it, q, 'gastos').meses.find((m) => m.mes === '2026-01').total);
+  assert.equal(C.fixosVariaveis(it, q, 'saldo', '2026-01', ''), null);
+});
