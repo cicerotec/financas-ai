@@ -327,7 +327,7 @@ DynamoDB sem discutir com o dono.**
   - [ ] **Fase 7, uso sem internet** (futuro; segue `.ai/offline-e-sincronizacao.md`).
   **A decidir (no `intent.md`):** `applicationId` (permanente depois do primeiro envio), conta da Play (pessoal ou organização), retorno do login (esquema próprio ou App Link), biometria opcional ou obrigatória,
   distribuição inicial, e o que fazer se os plugins não funcionarem sem bundler. **Fora:** iOS, offline e as mudanças de regra de negócio.
-- 55. [ ] <a id="item-55"></a>**[Próximo] Novas visões dos gastos na Tendências (2026-11-01; rascunho para aprovação, roteiro em [`.ai/specs/tendencias-visoes/`](.ai/specs/tendencias-visoes/intent.md)):** a consulta continua
+- 55. [ ] <a id="item-55"></a>**[Depois] Novas visões dos gastos na Tendências (2026-11-01; rascunho para aprovação, roteiro em [`.ai/specs/tendencias-visoes/`](.ai/specs/tendencias-visoes/intent.md)):** a consulta continua
   sendo o filtro e um seletor **Ver como** troca só o desenho (Meses, Ritmo, Calendário, Fixos, Tags, Pagamento e Metas). Tudo calculado no navegador com os 1000 lançamentos da tela (simulação, nada vai ao servidor),
   menos o limite das Metas. O dono escolheu as seis visões depois de ver onze gráficos de exemplo. A primeira demo foi reprovada em 2026-11-01; a [`demo-tendencias-v2`](.ai/demos/demo-tendencias-v2.html)
   (seções que recolhem pelo título, no desenho da exploração) foi **aprovada em 2026-11-02** e substitui o seletor Ver como: as visões ficam em seções abaixo do resultado, uma por assunto. Fases (cada uma um PR):
@@ -335,8 +335,10 @@ DynamoDB sem discutir com o dono.**
     Maiores tags compara com o mês anterior. **Sobrou:** "Comparar com" (média de 3 meses e mesmo mês do ano passado) e navegar entre meses, que a demo não mostra: pedir demo antes.
   - [x] **B, Ritmo do mês** (concluída em 2026-11-02; só front): acumulado do mês contra o mês anterior inteiro e projeção pelo ritmo dos dias passados (a partir do 3º dia, só no mês atual); não lê Futuros. Fica na seção "Ao longo do mês", antes do calendário.
   - [x] **C, Fixos e variáveis** (concluída em 2026-11-02; só front): seis meses até o mais recente da consulta, fixo = lançamento marcado como recorrente (item 51), o resto é variável; nada migra nem é inferido. Fica numa seção "Comparar", no topo.
-  - [ ] **D, Forma de pagamento**, depois do item 41 (nome e cor do status vêm do servidor).
-  - [ ] **E, Metas por consulta**: campo novo `limite` no item da consulta; **o dono aprova o campo antes**; backend, depois tela.
+  - [ ] **D, Forma de pagamento**, depois do item 41 (nome e cor do status vêm do servidor). **Implementação em outro momento** (decidido em 2026-11-02).
+  - [ ] **E, Metas por consulta**: campo novo `limite` no item da consulta; **o dono aprova o campo antes**; backend, depois tela. **Implementação em outro momento** (decidido em 2026-11-02).
+  - [ ] **F, o que a demo aprovada mostra e ainda não existe**: "Este mês contra o anterior" e "Seis meses, por consulta" (dependem de como as consultas salvas entram), "Comparar com" (média de 3 meses e mesmo mês do ano passado) e navegar entre meses. **Implementação em outro momento** (decidido em 2026-11-02); cada um pede demo antes.
+  - Previstos ficam fora das visões (decidido em 2026-11-02): repetições, parcelas e recorrências já viram lançamento real no dia. Só o previsto pontual (ex.: uma excursão) ficaria de fora; se o dono quiser vê-lo, seria uma janela aberta sob demanda, nunca carregada com a tela.
 - 20. [ ] <a id="item-20"></a>**[Depois] Ideias** (seção no fim deste arquivo).
 
 ### UX/UI (usabilidade do que já existe)
