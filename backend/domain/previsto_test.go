@@ -161,3 +161,23 @@ func TestCatalogoDoCorte(t *testing.T) {
 		t.Errorf("fora do catalogo: %s %s", r, c)
 	}
 }
+
+func TestForaDoTotal(t *testing.T) {
+	casos := []struct {
+		nome string
+		l    Lancamento
+		quer bool
+	}{
+		{"status fora do total", Lancamento{"status": "CONTAS"}, true},
+		{"ponta de transferencia", Lancamento{"status": "PAGO", "transferParId": "t1"}, true},
+		{"pagamento de fatura", Lancamento{"status": "PAGO", "pagaFatura": map[string]any{"meio": "X", "ym": "2026-10"}}, true},
+		{"compra normal", Lancamento{"status": "PAGO"}, false},
+		{"credito conta no total", Lancamento{"status": "CREDITO"}, false},
+		{"campo gravado errado nao conta", Lancamento{"status": "CONTAS", "excluirDoTotal": false}, true},
+	}
+	for _, c := range casos {
+		if got := ForaDoTotal(c.l); got != c.quer {
+			t.Errorf("%s: ForaDoTotal = %v, quer %v", c.nome, got, c.quer)
+		}
+	}
+}

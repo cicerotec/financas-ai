@@ -758,3 +758,30 @@ func TestConfirmarPrevistoAceitaValorZeroENegativo(t *testing.T) {
 		t.Errorf("confirmado com valor negativo: %v", d)
 	}
 }
+
+// GET /tx devolve excluirDoTotal derivado: o CONTAS gravado antes de o servidor calcular o campo (ausente ou falso) sai como true.
+func TestGetTxDerivaExcluirDoTotalDoGravado(t *testing.T) {
+	relogioPrev(t)
+	f := cenario(t)
+	mk := func(id, data, status string, extra doc) {
+		d := doc{"PK": pkEspaco, "SK": dePrefixoTx + data + "#" + id, "id": id, "dataEvento": data, "status": status, "tipo": "saida", "valor": 5.0,
+			"banco": "ITAU", "descricao": id, "tags": []any{}, "criadoPor": "own"}
+		for k, v := range extra {
+			d[k] = v
+		}
+		f.colocar(t, d)
+	}
+	mk("c1", "2019-03-10T15:00:00.000Z", "CONTAS", nil)                          // antigo: sem o campo
+	mk("c2", "2019-03-11T15:00:00.000Z", "CONTAS", doc{"excluirDoTotal": false}) // antigo: gravado falso
+	mk("p1", "2019-03-12T15:00:00.000Z", "PAGO", doc{"transferParId": "t1"})     // transferencia
+	mk("n1", "2019-03-13T15:00:00.000Z", "PAGO", doc{"excluirDoTotal": true})    // compra normal com o campo errado para cima
+	c, d := chamar(t, "own", "GET", "spaces/s1/tx", map[string]string{"de": "2019-03-01", "ate": "2019-03-31"}, "")
+	esperar(t, "periodo de 2019", c, 200)
+	quer := map[string]bool{"c1": true, "c2": true, "p1": true, "n1": false}
+	for _, it := range itensDe(d) {
+		id, _ := it["id"].(string)
+		if it["excluirDoTotal"] != quer[id] {
+			t.Errorf("%s: excluirDoTotal = %v, quer %v", id, it["excluirDoTotal"], quer[id])
+		}
+	}
+}
