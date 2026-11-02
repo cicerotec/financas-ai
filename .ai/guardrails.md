@@ -42,6 +42,9 @@ visual e decide; quem propõe diz o que faz sentido, o que não faz e o que a pr
 e para ajustes em telas que já existem.
 - A demo é uma página interativa publicada com link que abre no celular (artefato privado). O widget inline do chat só
   aparece no app de desktop, então não serve como entrega.
+- **Demos versionadas (item 52):** cada tela tem a demo-padrão `.ai/demos/demo-<tela>-v1.html`, captura fiel do app. Toda
+  mudança parte da **última versão** da tela e gera `demo-<tela>-v<N>-<assunto>.html`; ao aprovar, ela vira a padrão. As
+  demos antigas de assunto ficam em `.ai/demos/arquivo/` como registro. Detalhes em `.ai/padrao-de-telas.md`.
 - **Padrão aprovado (celular primeiro, com versão para computador):** leia `.ai/padrao-de-telas.md` e abra as
   demos de `.ai/demos/` antes de desenhar ou alterar qualquer tela. Em resumo:
   - **Celular:** uma linha-resumo que abre tela cheia; lista que acumula com check redondo (ou escolha única);

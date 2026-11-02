@@ -1,11 +1,11 @@
 // Tela Tendências: gasto por mês filtrado por tags, com grupos (E e NÃO dentro do grupo, OU entre grupos) e, sob demanda,
 // uma expressão livre (parênteses, E, OU, NÃO). A barra do mês mostra quanto do valor tem outras tags além das da consulta.
-// Layout (demo .ai/demos/demo-tendencias-layout.html): no computador (>= 1160 px) o resultado fica à esquerda e as escolhas à direita;
+// Layout (demo .ai/demos/arquivo/demo-tendencias-layout.html): no computador (>= 1160 px) o resultado fica à esquerda e as escolhas à direita;
 // no celular o resultado vem primeiro e as escolhas abrem em tela cheia por "Editar consulta" (o modo avançado abre por cima).
 // Nada de lista de tags ou de combos solta na página: tudo abre numa janela (grupos, combos e "+ Tag" do modo avançado).
 // O seletor Gastos | Receitas | Resultado (padrão: Gastos) escolhe o que somar; Resultado é entradas menos saídas das tags escolhidas.
 // Isto é uma SIMULAÇÃO (a faixa no topo diz): nunca vale como saldo (o saldo real é o do Histórico) e nunca grava nada. Ocultos ficam de fora.
-// Consultas salvas (item 53, demo .ai/demos/demo-tendencias-consultas.html): "Consultas salvas" e "Salvar consulta" abrem janelas; as consultas são do espaço (todos usam; cada
+// Consultas salvas (item 53, demo .ai/demos/arquivo/demo-tendencias-consultas.html): "Consultas salvas" e "Salvar consulta" abrem janelas; as consultas são do espaço (todos usam; cada
 // pessoa altera só as suas, o dono modera: quem decide é o servidor, que manda minha e podeAlterar). Só a consulta é guardada, nunca um número; a lista só é lida quando a janela abre.
 // Lógica pura e testada em web/consulta-tags.js. O front só desenha e soma o que já está na tela: nenhum número daqui vai para a API.
 // Carregado depois do app.js e usa os globais dele (lancamentosCache, tagsUsadas, combosAtuaisLista, esc, fmtMoeda).
@@ -21,6 +21,7 @@
   let listaAberta = false, listaMes = ''; // janela da lista dos lançamentos da consulta e o mês que ela mostra ('' = todos)
   const LIMITE_CARGA = 1000; // quantos lançamentos o app carrega (limit(1000) em app.js; o backend também limita a 1000)
   const MAX_LISTA = 200;  // linhas desenhadas na lista (o resto pede um mês)
+  let qValida = null;    // a última consulta válida: as visões dos gastos desenham dela
   let visao = 'gastos';  // o que somar: 'gastos' (saídas), 'receitas' (entradas) ou 'saldo' (renda menos gasto). Volta a Gastos ao recarregar.
   const $ = (id) => document.getElementById(id);
   const brl0 = (n) => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
@@ -81,6 +82,8 @@
             '<p class="td-pe" id="tdCont"></p></div>' +
         '</div>' +
       '</div></div>' +
+      // ---- visões dos gastos (item 55): seções que recolhem pelo título ----
+      '<div class="gx" id="gxRaiz"></div><div id="gxTip" hidden></div>' +
       // ---- barra de baixo (celular, com a tela de escolhas aberta) ----
       '<div class="td-rodape" id="tdRodape"><div class="td-rs" id="tdRs"></div><button type="button" id="tdPronto">Pronto</button></div>' +
       // ---- janela para escolher as tags de um grupo ----
@@ -117,6 +120,8 @@
         '<div class="td-cs-cnt" id="tdRnCnt"></div><div class="td-msg bad" id="tdRnErro" role="alert"></div>' +
         '<button class="td-jok" id="tdRnOk" type="button">Renomear</button></div></div>';
     $('tendRaiz').addEventListener('click', aoClicar);
+    $('gxRaiz').addEventListener('click', aoClicarVisoes);
+    document.addEventListener('pointermove', dicaVisoes); document.addEventListener('pointerdown', dicaVisoes);
     $('tdJb').addEventListener('input', () => { if (jan) renderJanela(); });
     $('tdCsBusca').addEventListener('input', () => { cs.busca = $('tdCsBusca').value; renderConsultas(); });
     $('tdSvNome').addEventListener('input', () => { $('tdSvCnt').textContent = $('tdSvNome').value.length + ' de ' + CT.MAX_NOME_CONSULTA; $('tdSvErro').textContent = ''; });
@@ -355,18 +360,178 @@
     $('tdEsc').classList.toggle('aberto', edAberto);
   }
 
+  // ---------- visões dos gastos (item 55, demo .ai/demos/demo-tendencias-v2.html) ----------
+  // A mesma consulta e a mesma base do gráfico de meses, só com outro desenho; nada vai ao servidor. O mês é o mais recente em que a consulta tem
+  // lançamento. Só Gastos e Receitas: no Resultado entrada e saída se cancelam. Cada seção recolhe pelo título; a escolha fica só neste aparelho.
+  const GX_SECOES = [['comparar', 'Comparar'], ['ao-longo', 'Ao longo do mês'], ['para-onde', 'Para onde foi']];
+  let gxFechadas = [];
+  try { gxFechadas = JSON.parse(localStorage.getItem('tdVisoesFechadas') || '[]'); } catch (e) { gxFechadas = []; }
+  if (!Array.isArray(gxFechadas)) gxFechadas = [];
+  const gxReais = (n) => 'R$ ' + brl0(n);
+  const gxTxt = (x, y, t, cls, anc, extra) => '<text x="' + x + '" y="' + y + '" class="gx-t ' + (cls || '') + '" text-anchor="' + (anc || 'start') + '"' + (extra || '') + '>' + esc(String(t)) + '</text>';
+  const gxNomeMes = (mes) => new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)) - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
+  const gxMaiu = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const gxCurto = (t) => (t.length > 13 ? t.slice(0, 12) + '…' : t);
+  function gxCalendario(c) {
+    const W = 360, L = 30, cols = Math.ceil((c.inicio + c.dias) / 7), cw = (W - L) / cols, ch = 27, H = ch * 7 + 22;
+    const sem = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+    let h = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gx-chart" role="img" aria-label="Gasto por dia de ' + esc(gxNomeMes(c.mes)) + '">';
+    sem.forEach((d, i) => { h += gxTxt(0, 22 + i * ch + ch / 2 + 3, d, 'mut'); });
+    for (let k = 0; k < cols; k++) h += gxTxt(L + k * cw + cw / 2 - 1, 10, 'sem ' + (k + 1), 'mut', 'middle');
+    for (let d = 1; d <= c.dias; d++) {
+      const i = c.inicio + d - 1, col = Math.floor(i / 7), row = i % 7, k = c.faixas[d - 1], v = c.valores[d - 1];
+      const x = L + col * cw + 1, y = 22 + row * ch + 1, tx = 'var(--i' + Math.max(k, 1) + ')';
+      h += '<rect x="' + x + '" y="' + y + '" width="' + (cw - 2) + '" height="' + (ch - 2) + '" rx="4" style="fill:var(--h' + k + ')" data-tip="' +
+        esc(d + ' de ' + gxNomeMes(c.mes) + ': ' + (v ? gxReais(v) : 'sem gasto')) + '"></rect>' +
+        gxTxt(x + 5, y + 11, d, '', 'start', ' style="fill:' + tx + ';font-size:9px;opacity:.75"') +
+        (v ? gxTxt(x + cw - 7, y + ch - 10, brl0(v), '', 'end', ' style="fill:' + tx + ';font-size:10px;font-weight:600"') : '');
+    }
+    return h + '</svg>';
+  }
+  function gxTags(t, vis) {
+    const rowH = 34, W = 360, H = t.linhas.length * rowH, x0 = 92, mx = Math.max(...t.linhas.map((l) => l.v)), sc = 130 / mx;
+    let h = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gx-chart" role="img" aria-label="Maiores tags de ' + esc(gxNomeMes(t.mes)) + '">';
+    t.linhas.forEach((l, i) => {
+      const y = i * rowH + 6, w = Math.max(l.v * sc, 2);
+      const d = l.dif === 'novo' ? 'novo' : l.dif === 'sem' ? 'sem base' : l.dif === 'igual' ? '■ igual' : (l.dif > 0 ? '▲ +' : '▼ −') + Math.abs(l.dif) + '%';
+      const cor = typeof l.dif !== 'number' || vis === 'receitas' ? 'var(--muted)' : l.dif > 0 ? 'var(--crit)' : 'var(--good-ink)';
+      h += gxTxt(0, y + 14, gxCurto(l.t), 'big') + '<path d="M' + x0 + ',' + y + 'H' + (x0 + w - 4) + 'Q' + (x0 + w) + ',' + y + ' ' + (x0 + w) + ',' + (y + 4) + 'V' + (y + 16) +
+        'Q' + (x0 + w) + ',' + (y + 20) + ' ' + (x0 + w - 4) + ',' + (y + 20) + 'H' + x0 + 'Z" style="fill:var(--s7)" data-tip="' + esc(l.t + ': ' + gxReais(l.v)) + '"></path>' +
+        gxTxt(x0 + w + 6, y + 14, gxReais(l.v), 'val') + gxTxt(W, y + 14, d, '', 'end', ' style="font-weight:600;fill:' + cor + '"');
+    });
+    return h + '</svg>';
+  }
+  // Escala "redonda" do eixo: de 4 a 6 linhas, de 1, 2, 2,5 ou 5 vezes uma potência de 10.
+  function gxEscala(max) {
+    const bruto = Math.max(max, 1) / 5, p = Math.pow(10, Math.floor(Math.log10(bruto)));
+    const passo = [1, 2, 2.5, 5, 10].map((m) => m * p).find((x) => x >= bruto);
+    return { passo, topo: Math.ceil(Math.max(max, 1) / passo) * passo };
+  }
+  const gxMil = (n) => (n >= 1000 ? (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil' : String(n));
+  function gxRitmo(r) {
+    const W = 360, H = 240, L = 36, R = 336, T0 = 14, B = H - 26;
+    const nx = Math.max(r.dias, r.base ? r.base.length : 0), esc2 = gxEscala(Math.max(r.total, r.projecao || 0, r.base ? r.base[r.base.length - 1] : 0));
+    const x = (d) => L + (R - L) * (d - 1) / Math.max(nx - 1, 1), y = (v) => B - (B - T0) * v / esc2.topo;
+    const linha = (arr) => 'M' + arr.map((v, i) => x(i + 1) + ',' + y(v)).join('L');
+    let h = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gx-chart" role="img" aria-label="Gasto acumulado de ' + esc(gxNomeMes(r.mes)) + (r.projecao ? ' e projeção' : '') + '">';
+    for (let v = 0; v <= esc2.topo + 1e-9; v += esc2.passo) h += '<line x1="' + L + '" x2="' + (R + 10) + '" y1="' + y(v) + '" y2="' + y(v) + '" class="' + (v ? 'gx-gl' : 'gx-ax') + '"></line>' + gxTxt(L - 6, y(v) + 3, v ? gxMil(v) : '0', 'mut', 'end');
+    [1, 8, 15, 22, nx].forEach((d) => { h += gxTxt(x(d), H - 8, 'dia ' + d, 'mut', 'middle'); });
+    if (r.base) h += '<path d="' + linha(r.base) + '" style="fill:none;stroke:var(--so);stroke-width:2;stroke-linejoin:round"></path>';
+    if (r.atual && r.ate < r.dias) h += '<line x1="' + x(r.ate) + '" x2="' + x(r.ate) + '" y1="' + T0 + '" y2="' + B + '" style="stroke:var(--g-axis);stroke-dasharray:2 3"></line>' + gxTxt(x(r.ate) + 4, T0 + 8, 'hoje', 'mut');
+    if (r.projecao) h += '<path d="M' + x(r.ate) + ',' + y(r.total) + 'L' + x(r.dias) + ',' + y(r.projecao) + '" style="fill:none;stroke:var(--s1);stroke-width:2;stroke-dasharray:5 4;stroke-linecap:round"></path>';
+    if (r.acum.length) h += '<path d="' + linha(r.acum) + '" style="fill:none;stroke:var(--s1);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round"></path>' +
+      '<circle cx="' + x(r.ate) + '" cy="' + y(r.total) + '" r="4" style="fill:var(--s1);stroke:var(--card);stroke-width:2"></circle>' + gxTxt(x(r.ate) - 6, y(r.total) - 9, gxReais(r.total), 'val', 'end');
+    if (r.projecao) h += '<circle cx="' + x(r.dias) + '" cy="' + y(r.projecao) + '" r="4" style="fill:var(--card);stroke:var(--s1);stroke-width:2"></circle>' + gxTxt(R + 12, y(r.projecao) - 8, '≈ ' + gxReais(r.projecao), 'val', 'end');
+    if (r.base) h += gxTxt(R + 12, y(r.base[r.base.length - 1]) + 17, gxNomeMes(r.mesBase).slice(0, 3) + ': ' + gxReais(r.base[r.base.length - 1]), 'mut', 'end');
+    r.acum.forEach((v, i) => { h += '<circle cx="' + x(i + 1) + '" cy="' + y(v) + '" r="6" style="fill:transparent" data-tip="' + esc('dia ' + (i + 1) + ': ' + gxReais(v) + ' acumulado') + '"></circle>'; });
+    return h + '</svg>';
+  }
+  function gxFixos(f) {
+    const W = 360, H = 230, L = 36, R = 354, T0 = 14, B = H - 26, pitch = (R - L) / 6, bw = 36;
+    const esc2 = gxEscala(Math.max(...f.meses.map((m) => m.total))), y = (v) => B - (B - T0) * v / esc2.topo;
+    let h = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gx-chart" role="img" aria-label="Fixos e variáveis nos seis meses até ' + esc(gxNomeMes(f.mes)) + '">';
+    for (let v = 0; v <= esc2.topo + 1e-9; v += esc2.passo) h += '<line x1="' + L + '" x2="' + R + '" y1="' + y(v) + '" y2="' + y(v) + '" class="' + (v ? 'gx-gl' : 'gx-ax') + '"></line>' + gxTxt(L - 6, y(v) + 3, v ? gxMil(v) : '0', 'mut', 'end');
+    f.meses.forEach((m, i) => {
+      const x = L + pitch * i + (pitch - bw) / 2, op = m.incompleto ? ' opacity:.45;' : '';
+      h += gxTxt(x + bw / 2, H - 8, gxNomeMes(m.mes).slice(0, 3), 'mut', 'middle');
+      if (!m.total) return;
+      if (m.fixo) h += '<path d="M' + x + ',' + y(m.fixo) + 'h' + bw + 'v' + (y(0) - y(m.fixo)) + 'h' + -bw + 'Z" style="fill:var(--nm);stroke:var(--card);stroke-width:2;' + op + '" data-tip="' + esc(gxNomeMes(m.mes) + ' · fixos: ' + gxReais(m.fixo)) + '"></path>';
+      if (m.variavel) h += '<path d="M' + x + ',' + y(m.total) + 'h' + bw + 'v' + (y(m.fixo) - y(m.total)) + 'h' + -bw + 'Z" style="fill:var(--nt);stroke:var(--card);stroke-width:2;' + op + '" data-tip="' + esc(gxNomeMes(m.mes) + ' · variáveis: ' + gxReais(m.variavel)) + '"></path>';
+      if (m.fixo && y(0) - y(m.fixo) >= 16) h += gxTxt(x + bw / 2, y(m.fixo / 2) + 4, m.pct + '%', 'white', 'middle');
+      h += gxTxt(x + bw / 2, y(m.total) - 5, gxMil(Math.round(m.total)), 'val', 'middle');
+    });
+    return h + '</svg>';
+  }
+  function renderVisoes() {
+    const el = $('gxRaiz'), a = ultimo;
+    if (!el || !a) return;
+    const q = qValida || CT.consulta({ modo: 'grupos', grupos: [], fichas: [] });
+    const indisp = a.visao === 'saldo';
+    const mes = a.meses.length ? a.meses[a.meses.length - 1].mes : '';
+    const rit = !indisp && mes ? CT.ritmo(itens(), q, a.visao, mes, new Date(), CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
+    const fix = !indisp && mes ? CT.fixosVariaveis(itens(), q, a.visao, mes, CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
+    const cal = !indisp && mes ? CT.calendario(itens(), q, a.visao, mes) : null;
+    const tags = !indisp && mes ? CT.maioresTags(itens(), q, a.visao, mes, CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
+    const vazio = (t) => '<p class="td-vazio-g">' + esc(t) + '</p>';
+    const motivo = indisp ? 'Disponível em Gastos e Receitas: no Resultado, entradas e saídas se cancelam.' : 'Sem lançamentos com essa consulta ainda.';
+    const nm = mes ? ' em ' + gxNomeMes(mes) : '';
+    let cardRit = '<h3>Ritmo do mês</h3><p class="gx-q">' + (rit && rit.atual ? 'No ritmo de hoje, onde o mês vai terminar' : 'Como o gasto foi se acumulando') + esc(nm) + '?</p>';
+    if (!rit || !rit.total) cardRit += vazio(motivo);
+    else {
+      const nb = gxNomeMes(rit.mesBase), nmes = gxNomeMes(rit.mes);
+      cardRit += '<div class="gx-leg"><span><i class="gx-sw" style="background:var(--s1)"></i>' + gxMaiu(nmes) + (rit.atual ? ' até hoje' : '') + '</span>' +
+        (rit.projecao ? '<span><i class="gx-sw" style="background:none;border:2px dashed var(--s1);height:6px"></i>Projeção</span>' : '') +
+        (rit.base ? '<span><i class="gx-sw" style="background:var(--so)"></i>' + gxMaiu(nb) + '</span>' : '') + '</div><div id="gxRit">' + gxRitmo(rit) + '</div>' +
+        (rit.projecao ? '<p class="gx-nota">Simulação: a projeção repete o ritmo médio dos ' + rit.ate + ' primeiros dias.</p>'
+          : rit.atual ? '<p class="gx-nota">A projeção aparece a partir do 3º dia do mês.</p>' : '') +
+        (rit.semBase ? '<p class="gx-nota">' + esc(gxMaiu(nb)) + ' pode estar incompleto (o app carrega só os ' + LIMITE_CARGA + ' lançamentos mais recentes), então não aparece.</p>'
+          : !rit.base ? '<p class="gx-nota">Sem lançamentos da consulta em ' + esc(nb) + ' para comparar.</p>' : '');
+    }
+    let cardFix = '<h3>Fixos e variáveis</h3><p class="gx-q">Quanto do mês já nasce comprometido (recorrentes)?</p>';
+    if (!fix || !fix.meses.some((m) => m.total)) cardFix += vazio(motivo);
+    else {
+      const inc = fix.meses.filter((m) => m.incompleto && m.total).map((m) => gxNomeMes(m.mes));
+      cardFix += '<div class="gx-leg"><span><i class="gx-sw" style="background:var(--nm)"></i>Fixos (recorrentes)</span><span><i class="gx-sw" style="background:var(--nt)"></i>Variáveis</span></div><div id="gxFix">' + gxFixos(fix) + '</div>' +
+        '<p class="gx-nota">Conta como fixo o que foi marcado como recorrente; antes da marcação, o gasto aparece como variável.</p>' +
+        (inc.length ? '<p class="gx-nota">O app carrega só os ' + LIMITE_CARGA + ' lançamentos mais recentes: ' + esc(inc.join(', ')) + ' pode estar incompleto (barra apagada).</p>' : '');
+    }
+    let cardCal = '<h3>Calendário de calor</h3><p class="gx-q">Em que dias o dinheiro costuma sair' + esc(nm) + '?</p>';
+    if (!cal) cardCal += vazio(motivo);
+    else {
+      const rot = ['0'].concat(cal.cortes.map((c, i) => (i === 0 ? 'até ' : '') + brl0(c)));
+      cardCal += '<div id="gxCal">' + gxCalendario(cal) + '</div><div class="gx-leg gx-leg-cal"><span class="mut">R$ por dia</span>' +
+        rot.map((r, k) => '<span><i class="gx-sw" style="background:var(--h' + k + ')"></i>' + esc(r) + '</span>').join('') + '</div>';
+    }
+    let cardTags = '<h3>Maiores tags do mês</h3><p class="gx-q">Onde está o peso' + esc(nm) + ' e quem mais se mexeu?</p>';
+    if (!tags || !tags.linhas.length) cardTags += vazio(motivo);
+    else {
+      cardTags += '<div id="gxTags">' + gxTags(tags, a.visao) + '</div>' +
+        (tags.nOutras ? '<p class="gx-nota">e mais ' + tags.nOutras + ' tag' + (tags.nOutras > 1 ? 's' : '') + ', somando ' + esc(gxReais(tags.outras)) + '.</p>' : '') +
+        '<p class="gx-nota">Seta: variação contra ' + esc(gxNomeMes(CT.mesAnterior(mes))) + '. Um lançamento com várias tags conta em cada uma.</p>';
+    }
+    const corpo = { comparar: cardFix, 'ao-longo': cardRit + '</section><section class="gx-card">' + cardCal, 'para-onde': cardTags };
+    el.innerHTML = GX_SECOES.map(([id, nome]) => {
+      const aberta = !gxFechadas.includes(id);
+      return '<section class="gx-sec"><h2><button type="button" class="gx-tit" data-gx="' + id + '" aria-expanded="' + aberta + '" aria-controls="gx-' + id + '">' +
+        '<span class="gx-seta" aria-hidden="true">▾</span>' + esc(nome) + '<span class="gx-n">' + (id === 'ao-longo' ? '2 gráficos' : '1 gráfico') + '</span></button></h2>' +
+        '<div class="gx-grid" id="gx-' + id + '"' + (aberta ? '' : ' hidden') + '><section class="gx-card">' + corpo[id] + '</section></div></section>';
+    }).join('');
+  }
+  function aoClicarVisoes(e) {
+    const b = e.target.closest('.gx-tit');
+    if (!b) return;
+    const id = b.dataset.gx, fecha = !gxFechadas.includes(id);
+    gxFechadas = fecha ? gxFechadas.concat(id) : gxFechadas.filter((x) => x !== id);
+    try { localStorage.setItem('tdVisoesFechadas', JSON.stringify(gxFechadas)); } catch (err) { /* sem armazenamento: vale só nesta visita */ }
+    b.setAttribute('aria-expanded', String(!fecha));
+    $('gx-' + id).hidden = fecha;
+  }
+  function dicaVisoes(e) {
+    const tip = $('gxTip'), t = e.target.closest && e.target.closest('#gxRaiz [data-tip]');
+    if (!tip) return;
+    if (!t) { tip.hidden = true; return; }
+    tip.textContent = t.getAttribute('data-tip'); tip.hidden = false;
+    const r = tip.getBoundingClientRect();
+    let x = e.clientX + 12, y = e.clientY - r.height - 10;
+    if (x + r.width > innerWidth - 8) x = innerWidth - r.width - 8;
+    if (y < 4) y = e.clientY + 16;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+
   function render() {
     if (!$('tendRaiz')) return;
     if (!montado) montar();
     limparTagsInexistentes();
     const q = CT.consulta(ten);
     if (q.valida) ultimo = CT.resumir(itens(), q, visao);
-    else if (!ultimo || ultimo.visao !== visao) ultimo = CT.resumir(itens(), CT.consulta({ modo: 'grupos', grupos: [], fichas: [] }), visao);
+    else if (!ultimo || ultimo.visao !== visao) { qValida = CT.consulta({ modo: 'grupos', grupos: [], fichas: [] }); ultimo = CT.resumir(itens(), qValida, visao); } // as visões dos gastos desenham da mesma consulta do resultado
     $('tdGrupos').hidden = ten.modo !== 'grupos';
     $('tdExpr').hidden = ten.modo !== 'avancado';
     renderCombos(); renderFrase(q); renderBarraConsulta(q);
     if (ten.modo === 'grupos') renderGrupos(); else { renderFichas(); renderMsgExpr(q); }
+    if (q.valida) qValida = q;
     renderResultado(q.valida); renderOutras();
+    renderVisoes();
     if (listaAberta) { if (ultimo.n) renderLista(); else fecharLista(); }
     travar();
   }

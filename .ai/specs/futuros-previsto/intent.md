@@ -6,7 +6,7 @@ junto, para o dono aprovar antes de qualquer código.
 **Estado:** rascunho para aprovação, **revisto em 2026-10-24** depois da regra do dono: **o front não trata status de forma
 nenhuma**. As decisões vêm das conversas de 2026-10-18 e 2026-10-24 (registradas em [`decisoes.md`](../../decisoes.md) e em
 [`arquitetura.md`](../../arquitetura.md)); a demo do gesto de confirmar foi aprovada em 2026-10-24
-([`demo-confirmar-previsto.html`](../../demos/demo-confirmar-previsto.html)). **Ordem de execução:** este item vem **depois** dos
+([`demo-confirmar-previsto.html`](../../demos/arquivo/demo-confirmar-previsto.html)). **Ordem de execução:** este item vem **depois** dos
 itens 40 ([`saldo-servidor`](../saldo-servidor/intent.md)) e 33 fatiado ([`fatura-servidor`](../fatura-servidor/intent.md)), que
 tiram do navegador as contas que ainda usam status. **Aprovado pelo dono em 2026-10-24:** o campo novo no DynamoDB se chama `previsto` (booleano, gravado só quando ligado).
 
