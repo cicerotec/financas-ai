@@ -133,7 +133,7 @@ Aprovado pelo dono em 2026-10-14. Presente no topo de todas as demos de `demos/`
   com **Sair**, separado por uma linha e em `--danger`. Com mais de um espaço, o bloco leva um **seletor nativo** "Espaço" no lugar
   da linha do espaço (trocar recarrega). Enquanto não há apelido, uma faixa pequena "Defina seu nome em Listas" leva a Listas.
   A antiga linha de cima (nome, espaço, dica e Sair) deixou de existir; quem monta o bloco é `window.claude.sessao()` (api.js).
-- **Janela larga (1160 px ou mais):** título "Finanças" (só o texto) e abas em botões, como sempre; o canto direito do
+- **Janela larga (1160 px ou mais):** título "Finanças" (só o texto) e abas em botões, **na mesma ordem do menu ⋮** (Lançar, Histórico, Futuros, Cartão, Saldos, Tendências, Listas, Histórico de versões, Configurações); ao passar o mouse, a aba inativa ganha fundo `--accent-bg` e borda `--accent` (só onde há mouse, `@media (hover:hover)`; a ativa não muda); o canto direito do
   cabeçalho ganha um **botão da conta** (inicial e nome) que abre o mesmo bloco, com Sair. O limite é o mesmo da tabela de
   Futuros.
 - **No app**, as abas em botões (`nav`) continuam sendo a fonte das telas e dos nomes; o menu é montado a partir delas
