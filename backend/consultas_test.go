@@ -431,3 +431,68 @@ func TestConsultaLogDaRotaNaoTrazIdNemNome(t *testing.T) { // C-T20
 		}
 	}
 }
+
+// Item 55, fase E (.ai/specs/tendencias-visoes/spec.md, V17): o limite mensal da meta, so o formato; quem altera a consulta altera o limite.
+func TestConsultaLimiteFormatoGravaEDevolve(t *testing.T) { // VS-T17
+	f := cenario(t)
+	com := func(lim string) string { return strings.Replace(consultaBase, `"nome"`, `"limite":`+lim+`,"nome"`, 1) }
+	for nome, lim := range map[string]string{"negativo": "-1", "texto": `"10"`, "tres casas": "10.005", "enorme": "1e12", "booleano": "true"} {
+		c, _ := chamar(t, "own", "POST", "spaces/s1/consultas", nil, com(lim))
+		esperar(t, nome, c, 400)
+	}
+	c, d := chamar(t, "own", "POST", "spaces/s1/consultas", nil, com("1500.5"))
+	esperar(t, "criar com limite", c, 201)
+	if d["limite"] != 1500.5 {
+		t.Errorf("a visao deveria trazer o limite: %v", d["limite"])
+	}
+	id, _ := d["id"].(string)
+	if it := itemConsulta(f, t, id); it["limite"] != 1500.5 {
+		t.Errorf("o item deveria guardar o limite: %v", it["limite"])
+	}
+	c, d = chamar(t, "own", "POST", "spaces/s1/consultas", nil, strings.Replace(comNome("Zero"), `"nome"`, `"limite":0,"nome"`, 1))
+	esperar(t, "limite zero", c, 201)
+	if v, tem := d["limite"]; !tem || v != 0.0 {
+		t.Errorf("limite 0 e um limite: %v", d["limite"])
+	}
+	c, d = chamar(t, "own", "POST", "spaces/s1/consultas", nil, comNome("Sem"))
+	esperar(t, "sem limite", c, 201)
+	if _, tem := d["limite"]; tem {
+		t.Errorf("sem limite o campo nao aparece: %v", d)
+	}
+}
+
+func TestConsultaLimiteMudaSemMexerNaConsultaEPermissao(t *testing.T) { // VS-T17
+	f := cenario(t)
+	propria := nova(t, "mem", consultaBase)
+	doDono := nova(t, "own", comNome("Do dono"))
+
+	c, d := chamar(t, "mem", "PUT", "spaces/s1/consultas/"+propria, nil, `{"version":1,"limite":800}`)
+	esperar(t, "member poe limite na propria", c, 200)
+	if d["limite"] != 800.0 || d["nome"] != "Mercado sem presente" || d["version"] != 2.0 {
+		t.Errorf("so o limite muda e a version sobe: %v", d)
+	}
+	c, _ = chamar(t, "mem", "PUT", "spaces/s1/consultas/"+doDono, nil, `{"version":1,"limite":800}`)
+	esperar(t, "member poe limite na do dono", c, 403)
+	if it := itemConsulta(f, t, doDono); it["limite"] != nil {
+		t.Errorf("a consulta do dono nao pode mudar: %v", it)
+	}
+	c, d = chamar(t, "own", "PUT", "spaces/s1/consultas/"+propria, nil, `{"version":2,"limite":900.25}`)
+	esperar(t, "dono muda o limite da member", c, 200)
+	if d["limite"] != 900.25 {
+		t.Errorf("limite: %v", d["limite"])
+	}
+	// trocar a consulta nao apaga o limite; null tira
+	c, d = chamar(t, "own", "PUT", "spaces/s1/consultas/"+propria, nil, `{"version":3,"modo":"grupos","visao":"gastos","grupos":[{"tem":["a"]}]}`)
+	esperar(t, "troca a consulta", c, 200)
+	if d["limite"] != 900.25 {
+		t.Errorf("trocar a consulta nao mexe no limite: %v", d["limite"])
+	}
+	c, d = chamar(t, "own", "PUT", "spaces/s1/consultas/"+propria, nil, `{"version":4,"limite":null}`)
+	esperar(t, "tira o limite", c, 200)
+	if _, tem := d["limite"]; tem {
+		t.Errorf("null tira o limite: %v", d)
+	}
+	if it := itemConsulta(f, t, propria); it["limite"] != nil {
+		t.Errorf("o item nao deveria ter o limite: %v", it)
+	}
+}

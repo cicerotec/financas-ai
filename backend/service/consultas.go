@@ -86,7 +86,7 @@ func (s *Consultas) visao(ctx context.Context, sid string, d domain.Doc, sub str
 	}
 	minha := domain.EhDono(d, sub)
 	v := domain.Doc{"autor": autor, "minha": minha, "podeAlterar": owner || minha}
-	for _, k := range []string{"id", "nome", "modo", "grupos", "expressao", "visao", "criadoEm", "atualizadoEm", "version"} {
+	for _, k := range []string{"id", "nome", "modo", "grupos", "expressao", "visao", "limite", "criadoEm", "atualizadoEm", "version"} {
 		if x, tem := d[k]; tem {
 			v[k] = x
 		}
@@ -142,6 +142,9 @@ func (s *Consultas) Criar(ctx context.Context, sid, sub string, owner bool, body
 	item := domain.Doc{"id": id, "nome": c.Nome, "criadoPor": sub, "criadoEm": agora, "atualizadoEm": agora, "atualizadoPor": sub}
 	for k, x := range c.Consulta {
 		item[k] = x
+	}
+	if c.Limite != nil {
+		item["limite"] = *c.Limite
 	}
 	gravado, err := s.repo.Salvar(ctx, sid, id, item, 0)
 	if err != nil {
@@ -204,6 +207,13 @@ func (s *Consultas) Atualizar(ctx context.Context, sid, id, sub string, restrito
 		}
 		for k, x := range c.Consulta {
 			d[k] = x
+		}
+	}
+	if c.TemLimite {
+		if c.Limite == nil {
+			delete(d, "limite")
+		} else {
+			d["limite"] = *c.Limite
 		}
 	}
 	d["atualizadoEm"], d["atualizadoPor"] = s.agora(), sub

@@ -47,6 +47,7 @@ Exemplos: [`space-consulta.json`](dynamodb-single-table/space-consulta.json) (mo
 | `grupos` | Só no modo `grupos`: `[{ tem: [tag], nao: [tag] }]`, até 4 grupos e 8 tags em cada lista |
 | `expressao` | Só no modo `avancado`: a lista de fichas `{k:'tag',v}`, `{k:'op',v:'E'\|'OU'\|'NAO'}`, `{k:'('}`, `{k:')'}`, até 60. É o `ten.fichas` do front |
 | `visao` | `gastos`, `receitas` ou `saldo` |
+| `limite` | Opcional (item 55, Metas; aprovado pelo dono em 2026-11-02): o limite mensal da meta, em reais, de 0 a 1.000.000.000 com até 2 casas. O servidor valida **só o formato** e nunca recalcula o gasto (a conta é da tela). Muda pelo `PUT` com a `version`, por quem pode alterar a consulta; `null` tira o limite e trocar a consulta não o apaga |
 | `criadoPor` | O `sub` de quem salvou, **gravado só pelo servidor, a partir do token**; imutável. O apelido não é guardado: o servidor o resolve na leitura |
 | `criadoEm`, `atualizadoEm`, `atualizadoPor` | Quando foi criada e quando e por quem foi alterada por último (o dono pode alterar a de outra pessoa) |
 | `excluidoEm` | Só quando excluída (exclusão lógica); removido ao restaurar. Sem o campo, a consulta está viva. A API nunca o devolve |
