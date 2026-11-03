@@ -1237,13 +1237,14 @@ function renderListas(){
   // reconstruir os <option> zera o select para o primeiro item; guarda e devolve a escolha atual (se ainda existir)
   const refazer = (sel, itens)=>{
     const atual = sel.value;
+    if(atual && !itens.includes(atual) && listas.banco.includes(atual)) itens = [...itens, atual]; // o meio já escolhido fica, mesmo desativado
     sel.innerHTML = itens.map(s=>`<option>${esc(s)}</option>`).join('');
     if(atual && itens.includes(atual)) sel.value = atual;
   };
   refazer(fStatus, listas.status);
   renderMarcaFatura();
   atualizarCampoFatura();
-  [fBanco,tOrig,tDest].forEach(sel=>refazer(sel, listas.banco));
+  [fBanco,tOrig,tDest].forEach(sel=>refazer(sel, meiosSugeridos())); // só os meios ativos são sugeridos; o servidor diz quais (item 43)
   // tira da seleção qualquer status que não existe mais
   filStatusSelecionados = new Set([...filStatusSelecionados]);
   renderFiltrosHistCampos();
@@ -1265,10 +1266,7 @@ function renderListas(){
     corAberta = null;
     salvarListas(); renderListas(); renderHistorico(); renderFuturos();
   };
-  document.getElementById('pillBanco').innerHTML = listas.banco.map(s=>
-    `<span class="pill">${esc(s)} ${ehOwner()?`<button data-del-banco="${esc(s)}" aria-label="Remover ${esc(s)}">✕</button>`:''}</span>`).join('');
-
-  document.querySelectorAll('[data-del-banco]').forEach(b=>b.onclick=()=>removerBanco(b.dataset.delBanco));
+  renderMeios();
   document.querySelectorAll('[data-cor-status]').forEach(b=>b.onclick=()=>{
     corAberta = (corAberta===b.dataset.corStatus) ? null : b.dataset.corStatus;
     renderListas();
@@ -1329,20 +1327,101 @@ async function salvarListas(){
   if(!db) return;
   await db.doc("config/listas").set({banco: listas.banco, statusCor, tema, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
 }
-async function removerBanco(banco){
-  if(!db) return;
-  let snap;
-  try{ snap = await db.collection("lancamentos").where("banco","==",banco).limit(1000).get(); }
-  catch(err){ console.error(err); toast('Não consegui conferir os lançamentos desse banco. Tente de novo.', true); return; }
-  const qtd = snap.docs.length;
-  if(qtd>0){
-    await avisar(`Não dá para remover "${banco}": ${qtd>=1000?'pelo menos 1000':qtd} lançamento(s) usam esse banco. Para tirá-lo da lista, mova ou exclua esses lançamentos antes.`);
-    return;
-  }
-  if(!(await confirmarModal(`Nenhum lançamento usa o banco "${banco}". Remover da lista?`))) return;
-  listas.banco = listas.banco.filter(x=>x!==banco);
-  await salvarListas(); renderListas(); renderHistorico();
-  toast(`✓ Banco "${banco}" removido`);
+// ---------- Meios de pagamento (item 43, demo .ai/demos/demo-listas-v3-meios.html) ----------
+// O servidor diz quais meios estão ativos (GET /cfg/listas: meios[].ativo); aqui só se exibe e se pede (PUT e DELETE /meios/{meio}).
+const meioDe = (nome)=> meiosLista.find(m=>m.nome===nome);
+const meioAtivo = (nome)=>{ const m = meioDe(nome); return !m || m.ativo!==false; };
+const meiosSugeridos = ()=> listas.banco.filter(meioAtivo);
+// garante que o select tem a opção do meio de um lançamento antigo (editar ou copiar), mesmo desativado
+function opcaoMeio(sel, nome){
+  if(nome && ![...sel.options].some(o=>o.value===nome)) sel.insertAdjacentHTML('beforeend', `<option>${esc(nome)}</option>`);
+}
+let verMeiosInativos = false;
+function renderMeios(){
+  const el = document.getElementById('pillBanco');
+  if(!el) return;
+  const mostrar = listas.banco.filter(n=>verMeiosInativos || meioAtivo(n));
+  el.innerHTML = mostrar.map(n=>{
+    const m = meioDe(n) || {nome:n, ativo:true}, off = m.ativo===false, futuro = m.ativo!==false && !!m.ativoAte;
+    const sub = off ? `<small>Inativo desde ${esc(fmtDataCompleta(m.ativoAte))}</small>` : futuro ? `<small>Deixa de ser sugerido em ${esc(fmtDataCompleta(m.ativoAte))}</small>` : '';
+    return `<div class="meio${off?' off':''}" role="button" tabindex="0" data-meio="${esc(n)}"><div class="nm">${esc(n)}${m.cartao?'<span class="sel">crédito</span>':''}${sub}</div><span class="mais" aria-hidden="true">›</span></div>`;
+  }).join('');
+  const abrir = (e)=>{ const r = e.target.closest('[data-meio]'); if(r && ehOwner()) acoesMeio(r.dataset.meio); };
+  el.onclick = abrir;
+  el.onkeydown = (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); abrir(e); } };
+}
+function janelaMeio(msg, extra, botoes){
+  document.getElementById('modalMsg').textContent = msg;
+  document.getElementById('modalExtra').innerHTML = extra;
+  document.getElementById('modalBotoes').innerHTML = botoes;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function fecharJanelaMeio(){ document.getElementById('modalOverlay').classList.add('hidden'); document.getElementById('modalExtra').innerHTML = ''; }
+// as ações de um meio: Desativar (ou Reativar) e Remover
+function acoesMeio(nome){
+  const m = meioDe(nome) || {}, desativado = m.ativo===false || !!m.ativoAte;
+  janelaMeio(nome,
+    `<div class="vz">${desativado?'<button type="button" id="meioReativar">Reativar</button>':'<button type="button" id="meioDesativar">Desativar…</button>'}<button type="button" class="perigo" id="meioRemover">Remover</button></div>
+     <p class="muted" style="margin:0 0 14px;">Desativar guarda o passado. Remover só vale para um meio que nunca teve lançamento.</p>`,
+    '<button class="ghost" id="meioFechar">Fechar</button>');
+  document.getElementById('meioFechar').onclick = fecharJanelaMeio;
+  const bd = document.getElementById('meioDesativar'), br = document.getElementById('meioReativar');
+  if(bd) bd.onclick = ()=>desativarMeio(nome);
+  if(br) br.onclick = ()=>definirMeio(nome, null, `✓ ${nome} reativado`);
+  document.getElementById('meioRemover').onclick = ()=>removerMeio(nome);
+}
+async function definirMeio(nome, ativoAte, aviso){
+  try{ await db.meioDefinir(nome, ativoAte); }
+  catch(err){ console.error(err); fecharJanelaMeio(); toast(err.message || 'Não consegui alterar o meio.', true); return; }
+  fecharJanelaMeio(); toast(aviso);
+}
+function desativarMeio(nome){
+  let quando = 'hoje';
+  janelaMeio(`Desativar ${nome}?`,
+    `<div class="esc" id="meioQuando" role="group" aria-label="A partir de quando"><button type="button" data-q="hoje" aria-pressed="true">A partir de hoje</button><button type="button" data-q="fim" aria-pressed="false">Fim do mês</button><button type="button" data-q="outra" aria-pressed="false">Outra data</button><input type="date" id="meioOutraData" hidden></div>
+     <p class="muted" style="margin:0 0 14px;">Lançamentos e saldos de antes continuam com ${esc(nome)}. Dá para reativar quando quiser.</p>
+     <p class="muted" id="meioErro" style="color:var(--danger);margin:0 0 10px;"></p>`,
+    '<button class="ghost" id="meioCancelar">Cancelar</button><button class="primary" id="meioConfirmar">Desativar</button>');
+  document.getElementById('meioOutraData').value = chaveDia(new Date());
+  document.getElementById('meioQuando').onclick = (e)=>{
+    const b = e.target.closest('button[data-q]'); if(!b) return;
+    quando = b.dataset.q;
+    document.querySelectorAll('#meioQuando button').forEach(x=>x.setAttribute('aria-pressed', x===b));
+    document.getElementById('meioOutraData').hidden = quando!=='outra';
+  };
+  document.getElementById('meioCancelar').onclick = fecharJanelaMeio;
+  document.getElementById('meioConfirmar').onclick = ()=>{
+    const h = new Date();
+    // a data em que o meio deixa de valer: hoje, o 1º dia do mês seguinte (ativo até o fim do mês) ou a escolhida
+    const data = quando==='hoje' ? chaveDia(h) : quando==='fim' ? chaveDia(new Date(h.getFullYear(), h.getMonth()+1, 1)) : document.getElementById('meioOutraData').value;
+    if(!data){ document.getElementById('meioErro').textContent = 'Escolha a data.'; return; }
+    definirMeio(nome, data, `✓ ${nome} desativado`);
+  };
+}
+// Remover: o servidor confere se o meio nunca foi usado (só aqui, ao clicar); com lançamento ou cartão, recusa e explica
+function removerMeio(nome){
+  janelaMeio(`Remover ${nome}?`,
+    `<p class="muted" style="margin:0 0 14px;" id="meioConf">O servidor confere se ${esc(nome)} nunca foi usado em um lançamento. Se foi, ele só pode ser desativado.</p>`,
+    '<button class="ghost" id="meioCancelar">Cancelar</button><button class="primary" id="meioConfirmar">Remover</button>');
+  document.getElementById('meioCancelar').onclick = fecharJanelaMeio;
+  document.getElementById('meioConfirmar').onclick = async ()=>{
+    document.getElementById('meioConf').textContent = `Conferindo se ${nome} já foi usado em algum lançamento…`;
+    document.getElementById('meioConfirmar').disabled = true; document.getElementById('meioCancelar').disabled = true;
+    let r;
+    try{ r = await db.meioRemover(nome); }
+    catch(err){ console.error(err); fecharJanelaMeio(); toast(err.message || 'Não consegui conferir. Tente de novo.', true); return; }
+    if(r.status===409){
+      const cod = r.body && r.body.codigo;
+      document.getElementById('meioConf').innerHTML = cod==='MEIO_E_CARTAO'
+        ? `<b>Não dá para remover.</b> ${esc(nome)} está ligado a um cartão. Tire o cartão na aba Cartão e tente de novo.`
+        : `<b>Não dá para remover.</b> ${esc(nome)} tem lançamentos, e o passado precisa dele. Desative o meio: ele deixa de ser sugerido e o histórico continua igual.`;
+      document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="meioFechar">Fechar</button>' + (cod==='MEIO_EM_USO' ? '<button class="primary" id="meioDesativar2">Desativar…</button>' : '');
+      document.getElementById('meioFechar').onclick = fecharJanelaMeio;
+      const d2 = document.getElementById('meioDesativar2'); if(d2) d2.onclick = ()=>desativarMeio(nome);
+      return;
+    }
+    fecharJanelaMeio(); toast(`✓ ${nome} removido`);
+  };
 }
 
 function normTxt(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
@@ -1600,6 +1679,7 @@ function setupHandlers(){
     }
   });
 
+  document.getElementById('swInativos').onchange = (e)=>{ verMeiosInativos = e.target.checked; renderMeios(); };
   document.getElementById('btnAddBanco').onclick = ()=>{
     const v = document.getElementById('novoBanco').value.trim();
     if(v && !listas.banco.includes(v)){ listas.banco.push(v); salvarListas(); renderListas(); document.getElementById('novoBanco').value=''; }
@@ -2288,6 +2368,7 @@ function iniciarEdicao(id){
   lancarModo('lanc'); lancarMais(!!l.nota || !!(l.aviso && typeof l.aviso === 'object')); // o aviso mora em Mais
   const d = new Date(l.dataEvento); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
   document.getElementById('fData').value = d.toISOString().slice(0,16);
+  opcaoMeio(document.getElementById('fBanco'), l.banco);
   document.getElementById('fBanco').value = l.banco || '';
   atualizarCampoFatura(); // de novo, agora com a data e o banco do lançamento: o campo de aviso só aparece com data futura
   tagsSelecionadas = new Set(l.tags||[]);
@@ -2317,6 +2398,7 @@ function iniciarCopia(id){
   document.getElementById('fNota').value = l.nota || '';
   lancarModo('lanc'); lancarMais(!!l.nota);
   document.getElementById('fData').value = nowLocalInput();
+  opcaoMeio(document.getElementById('fBanco'), l.banco);
   document.getElementById('fBanco').value = l.banco || '';
   tagsSelecionadas = new Set(l.tags||[]);
   renderTagPicker();
@@ -2515,7 +2597,7 @@ function pedirPagamentoFatura(f){
     };
     let lista = await sugerir(agora);
     const opcoes = (itens, atual)=>itens.map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
-    const meios = listas.banco;
+    const meios = listas.banco.filter(n=>meioAtivo(n) || n===f.sugestao.pagador);
     const meioInicial = f.sugestao.pagador && meios.includes(f.sugestao.pagador) ? f.sugestao.pagador : meios[0];
     document.getElementById('modalMsg').textContent = 'Já paguei a fatura ' + f.rotulo + ' · ' + f.meio;
     document.getElementById('modalExtra').innerHTML =
@@ -3185,7 +3267,7 @@ function textoDias(n){ return n===0 ? 'hoje' : 'em '+n+' dia'+(Math.abs(n)===1?'
 // os meios que são cartão, para o Lançar: o servidor diz quais são (a lista chega com o GET /cfg/listas; aqui só se atualiza depois de mexer nos cartões)
 function marcarMeiosCartao(resumo){
   const cartoes = new Set(((resumo && resumo.cartoes) || []).map(c=>c.meio));
-  meiosLista = listas.banco.map(n=>({nome:n, cartao:cartoes.has(n), ativo:true}));
+  meiosLista = listas.banco.map(n=>Object.assign({}, meioDe(n), {nome:n, cartao:cartoes.has(n)})); // só a marca de cartão muda; o ativo e o ativoAte continuam
   atualizarCampoFatura();
   renderMarcaFatura();
 }

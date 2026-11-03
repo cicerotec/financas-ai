@@ -2,7 +2,7 @@
 
 Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
-**Estado:** aprovado pelo dono em 2026-11-03 (inclui o `ativoAte` em `CFG#LISTAS`); nada implementado. Nada implementado.
+**Estado:** aprovado pelo dono em 2026-11-03 (inclui o `ativoAte` em `CFG#LISTAS`); fase A (backend) implementada no #347; fase B (tela) implementada em 2026-11-03, à espera da conferência do dono em dev.
 
 ## Regras
 
@@ -55,7 +55,11 @@ PUT    /spaces/{sid}/cfg/listas        ignora ativoAte; 400 se tirar um nome de 
 | M-T15 | Exportar e importar configurações com `ativoAte` | o campo é preservado; a importação não o apaga nem o inventa (a conferir) |
 | M-T16 | Remover um meio com data futura e sem uso | `204`; o `ativoAte` sai junto |
 
-## Telas (fase B, demo aprovada em 2026-11-03)
+## Telas (fase B, demo aprovada em 2026-11-03; implementada)
+
+**Desvios da demo, avisados antes do PR:** (1) **Remover** é um passo só: o dono confirma "Remover X?", o app mostra "Conferindo…" e o servidor remove ou recusa na mesma chamada (a demo
+mostrava "nunca foi usado" e pedia outra confirmação, o que exigiria uma conferência separada da remoção); (2) **Fim do mês** grava o 1º dia do mês seguinte (o meio vale até o fim do mês) e
+a linha mostra essa data em "Deixa de ser sugerido em…".
 
 - Demo: [`demo-listas-v3-meios`](../../demos/demo-listas-v3-meios.html), partindo da v2 de Listas.
 - Card **Meios de pagamento**: uma linha por meio, tocável; etiqueta "crédito" quando `cartao`; "Inativo desde…" ou "Deixa de ser sugerido em…" a partir de `ativoAte`;
