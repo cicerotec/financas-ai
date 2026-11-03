@@ -234,6 +234,38 @@ func decCursor(c string) (string, bool) {
 	return string(b), true
 }
 
+// UsaMeio diz se algum lancamento do espaco tem esse meio no campo banco (item 43). Conta tambem os excluidos logicamente e os previstos: restaurar uma
+// versao traria o nome de volta. Le em paginas e **para no primeiro achado**; paginas e itens dizem o custo da leitura (o meio sem uso le a particao inteira).
+func (r *Lancamentos) UsaMeio(ctx context.Context, sid, meio string) (usa bool, paginas, itens int, err error) {
+	in := &dynamodb.QueryInput{
+		TableName:              aws.String(r.table),
+		KeyConditionExpression: aws.String("PK = :pk AND SK BETWEEN :a AND :b"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: SpacePK(sid)},
+			":a":  &types.AttributeValueMemberS{Value: "TX#"},
+			":b":  &types.AttributeValueMemberS{Value: "TX#~"},
+		},
+		Limit: aws.Int32(500),
+	}
+	for {
+		out, err := r.db.Query(ctx, in)
+		if err != nil {
+			return false, paginas, itens, err
+		}
+		paginas++
+		for _, it := range out.Items {
+			itens++
+			if b, ok := it["banco"].(*types.AttributeValueMemberS); ok && b.Value == meio {
+				return true, paginas, itens, nil
+			}
+		}
+		if out.LastEvaluatedKey == nil {
+			return false, paginas, itens, nil
+		}
+		in.ExclusiveStartKey = out.LastEvaluatedKey
+	}
+}
+
 // Listar devolve os lancamentos vivos do espaco, em paginas por SK (a data). Os excluidos logicamente nao saem. banco,
 // status e texto filtram em memoria; proximo e o cursor da pagina seguinte ("" se acabou).
 func (r *Lancamentos) Listar(ctx context.Context, sid string, f domain.FiltroTx) ([]domain.Doc, string, error) {

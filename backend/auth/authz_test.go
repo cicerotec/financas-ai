@@ -71,7 +71,7 @@ func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 	todas := []Acao{AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 		AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 		AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao,
-		AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta}
+		AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta, AcaoEscreverMeio}
 	for _, a := range todas {
 		if Permitido(PapelOwner, a) != Liberado {
 			t.Errorf("owner deveria poder %q", a)
@@ -96,6 +96,7 @@ func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 		{"GET", []string{"saldos"}},
 		{"GET", []string{"consultas"}}, {"POST", []string{"consultas"}}, {"PUT", []string{"consultas", "abc"}},
 		{"DELETE", []string{"consultas", "abc"}}, {"POST", []string{"consultas", "abc", "restaurar"}},
+		{"PUT", []string{"meios", "ITAU"}}, {"DELETE", []string{"meios", "ITAU"}},
 		{"POST", []string{"fechamentos", "conferir"}}, {"POST", []string{"fechamentos", "reabrir"}},
 	}
 	for _, r := range rotas {
@@ -234,6 +235,12 @@ func TestRotaParaAcao(t *testing.T) {
 		{"GET", []string{"consultas", "abc"}, "", false},
 		{"POST", []string{"consultas", "abc"}, "", false},
 		{"PUT", []string{"consultas", "abc", "restaurar"}, "", false},
+		// meios de pagamento (item 43): so o dono desativa, reativa e remove
+		{"PUT", []string{"meios", "ITAU"}, AcaoEscreverMeio, true},
+		{"DELETE", []string{"meios", "ITAU"}, AcaoEscreverMeio, true},
+		{"GET", []string{"meios", "ITAU"}, "", false},
+		{"POST", []string{"meios", "ITAU"}, "", false},
+		{"PUT", []string{"meios"}, "", false},
 		{"GET", []string{"consultas", "abc", "restaurar"}, "", false},
 		{"POST", []string{"consultas", "abc", "outra"}, "", false},
 		{"POST", []string{"consultas", "abc", "restaurar", "x"}, "", false},

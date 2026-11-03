@@ -86,8 +86,8 @@ Desvios da fase A, em relação a este texto: (1) a equivalência F-T27 foi cobe
 
 **Lista de meios**
 - **R27.** `GET /spaces/{sid}/cfg/listas` devolve, além de `banco` (nomes, como hoje), `meios: [{ "nome", "cartao": bool, "ativo": bool }]` na mesma ordem:
-  `cartao` é verdadeiro quando o meio é uma chave de `CFG#CARTOES.porBanco`; `ativo` é sempre verdadeiro até o item 43 (meios) deixar o dono desativar um
-  meio. O servidor junta os dois itens; o front não faz chamada extra.
+  `cartao` é verdadeiro quando o meio é uma chave de `CFG#CARTOES.porBanco`; `ativo` vem do `ativoAte` do meio (item 43: verdadeiro enquanto hoje for antes da data;
+  sem data, sempre). O servidor junta os dois itens; o front não faz chamada extra.
 
 **Legado (Fase A) e remoção (Fase C)**
 - **R28.** Na Fase A, `PUT /cfg/cartoes` continua funcionando, mas o servidor **mantém o `conferida` já gravado** e descarta o do corpo. Na

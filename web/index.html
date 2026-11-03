@@ -234,9 +234,11 @@
     <div id="pillStatus"></div>
   </div>
   <div class="card so-owner">
-    <b>Bancos / contas</b>
-    <div class="pill-list" id="pillBanco"></div>
-    <div class="row" style="margin-top:8px;"><input id="novoBanco" placeholder="novo banco"><button class="ghost" id="btnAddBanco">Adicionar</button></div>
+    <b>Meios de pagamento</b>
+    <p class="muted">Contas, carteiras, vales e cartões. Desativar um meio não muda o passado: os lançamentos e os saldos antigos continuam como estão. Ele só deixa de ser sugerido ao lançar, a partir da data escolhida. A etiqueta <b>crédito</b> aparece sozinha quando o meio é ligado a um cartão na aba Cartão.</p>
+    <div id="pillBanco"></div>
+    <label class="fut-sw" style="margin-top:6px;"><input type="checkbox" role="switch" id="swInativos"><span>Mostrar meios inativos</span></label>
+    <div class="row" style="margin-top:4px;"><input id="novoBanco" placeholder="novo meio de pagamento"><button class="ghost" id="btnAddBanco">Adicionar</button></div>
   </div>
   <div class="card so-owner">
     <b>Tags</b>

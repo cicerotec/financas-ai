@@ -501,6 +501,11 @@
   const cartoes = async () => (await api('GET', await cartaoUrl())).body;
   const cartaoFatura = async (meio, ym) => (await api('GET', await cartaoUrl(meio, '/faturas' + (ym ? '/' + ym : '')))).body;
   const cartaoAdicionar = async (meio, diaPadrao) => (await api('POST', await cartaoUrl(), { meio, diaPadrao })).body;
+  // Meios de pagamento (item 43, so o dono): ativoAte (AAAA-MM-DD) desativa a partir da data, null reativa; remover so vale para o que nunca foi usado
+  // (o servidor confere ao clicar: 409 com codigo MEIO_EM_USO ou MEIO_E_CARTAO volta como { status, body }). Depois, a lista e relida.
+  const meioUrl = async (meio) => (await base()) + '/meios/' + encodeURIComponent(meio);
+  const meioDefinir = async (meio, ativoAte) => { const r = await api('PUT', await meioUrl(meio), { ativoAte }); atualizarOuvintes('doc', 'listas'); return r.body; };
+  const meioRemover = async (meio) => { const r = await api('DELETE', await meioUrl(meio)); if (r.status === 204 || r.status === 200) atualizarOuvintes('doc', 'listas'); return r; };
   const cartaoRemover = async (meio) => (await api('DELETE', await cartaoUrl(meio))).body;
   const cartaoInicio = async (meio, inicio) => (await api('PUT', await cartaoUrl(meio), { inicio })).body;
   // pagador e dia do vencimento do cartao ({ pagador?, diaVencimento? }; null remove)
@@ -583,6 +588,8 @@
     cartaoFatura,
     cartaoAdicionar,
     cartaoRemover,
+    meioDefinir,
+    meioRemover,
     cartaoInicio,
     cartaoConfig,
     cartaoFechamento,
