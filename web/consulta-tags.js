@@ -136,6 +136,7 @@
     });
   }
 
+  const MAX_LIMITE = 1e9; // o limite mensal da meta, em reais (o servidor valida o mesmo teto)
   const VISOES = ['gastos', 'receitas', 'saldo'];
   const centavos = (x) => Math.round(x * 100) / 100 + 0; // + 0 troca -0 por 0
 
@@ -195,17 +196,31 @@
   // As tags dos lancamentos da consulta no mes, do maior ao menor (empate: ordem alfabetica). Um lancamento com varias tags conta em cada uma.
   // Variacao contra o mes anterior: pct inteiro, 'novo' (antes era 0), 'sem' (o mes anterior e o cortado pelo limite de carga ou anterior a ele:
   // pode estar incompleto) e 'igual'. mesCorte: o retorno de corte(), ou ''.
-  function maioresTags(itens, q, visao, mes, mesCorte, max) {
+  // Comparar com (item 55): a base e o mes anterior ('ant', o padrao), a media dos 3 meses anteriores ('med'; mes sem gasto conta 0) ou o mesmo mes do
+  // ano passado ('ano'). Qualquer mes da base que seja o cortado pelo limite de carga ou anterior a ele deixa a base "sem base": nunca um percentual falso.
+  function mesesBase(mes, tipo) {
+    if (tipo === 'med') { const a = mesAnterior(mes), b = mesAnterior(a); return [a, b, mesAnterior(b)]; }
+    if (tipo === 'ano') return [(Number(mes.slice(0, 4)) - 1) + mes.slice(4)];
+    return [mesAnterior(mes)];
+  }
+  const semBaseDe = (meses, mesCorte) => !!mesCorte && meses.some((m) => m <= mesCorte);
+  // variacao contra a base: 'sem' (sem base), 'novo' (base 0), 'igual' ou o percentual inteiro
+  function variacao(atual, base, semBase) {
+    if (semBase) return 'sem';
+    if (base === 0) return atual === 0 ? 'igual' : 'novo';
+    return Math.round((atual - base) / base * 100) || 'igual';
+  }
+  function maioresTags(itens, q, visao, mes, mesCorte, max, tipo) {
     if (visao !== 'gastos' && visao !== 'receitas') return null;
     const soma = (ls) => { const t = new Map(); ls.forEach((l) => (l.tags || []).forEach((x) => t.set(x, (t.get(x) || 0) + l.valor))); return t; };
-    const atual = soma(itensDoMes(itens, q, visao, mes)), ant = soma(itensDoMes(itens, q, visao, mesAnterior(mes)));
-    const semBase = !!mesCorte && mesAnterior(mes) <= mesCorte;
+    const mb = mesesBase(mes, tipo), semBase = semBaseDe(mb, mesCorte);
+    const atual = soma(itensDoMes(itens, q, visao, mes)), ant = new Map();
+    mb.forEach((m) => soma(itensDoMes(itens, q, visao, m)).forEach((v, t) => ant.set(t, (ant.get(t) || 0) + v / mb.length)));
     const todas = [...atual.entries()].map(([t, v]) => ({ t, v: centavos(v) })).sort((x, y) => y.v - x.v || x.t.localeCompare(y.t, 'pt-BR'));
     const lim = max || 8;
     const linhas = todas.slice(0, lim).map((x) => {
       const b = centavos(ant.get(x.t) || 0);
-      const dif = semBase ? 'sem' : b === 0 ? 'novo' : Math.round((x.v - b) / b * 100);
-      return { t: x.t, v: x.v, dif: dif === 0 ? 'igual' : dif };
+      return { t: x.t, v: x.v, dif: variacao(x.v, b, semBase) };
     });
     const resto = todas.slice(lim).reduce((t, x) => t + x.v, 0);
     return { mes, linhas, outras: centavos(resto), nOutras: Math.max(0, todas.length - lim) };
@@ -228,7 +243,7 @@
   // Ritmo do mes: o gasto acumulado dia a dia ate hoje (mes atual) ou ate o ultimo dia (mes passado), contra o mes anterior inteiro.
   // Projecao (so no mes atual, com 3 dias passados ou mais): o ritmo medio dos dias passados repetido ate o fim do mes. E uma simulacao:
   // nao soma previstos nem le Futuros. base: null quando o mes anterior nao tem lancamento da consulta ou pode estar incompleto (mesCorte, como em maioresTags).
-  function ritmo(itens, q, visao, mes, hoje, mesCorte) {
+  function ritmo(itens, q, visao, mes, hoje, mesCorte, tipo) {
     if (visao !== 'gastos' && visao !== 'receitas') return null;
     const acumular = (m, n) => {
       const d = new Array(n).fill(0);
@@ -240,10 +255,14 @@
     const dias = nDias(mes), atual = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') === mes;
     const ate = atual ? Math.min(hoje.getDate(), dias) : dias;
     const acum = acumular(mes, ate);
-    const mb = mesAnterior(mes), semBase = !!mesCorte && mb <= mesCorte;
-    const base = semBase ? null : acumular(mb, nDias(mb));
+    const mbs = mesesBase(mes, tipo), semBase = semBaseDe(mbs, mesCorte);
+    let base = null; // media: dia a dia, o mes mais curto segue no ultimo acumulado
+    if (!semBase) {
+      const curvas = mbs.map((m) => acumular(m, nDias(m)));
+      base = curvas.length === 1 ? curvas[0] : Array.from({ length: dias }, (_, d) => centavos(curvas.reduce((t, c) => t + c[Math.min(d, c.length - 1)], 0) / curvas.length));
+    }
     const baseTotal = base ? base[base.length - 1] : 0;
-    return { mes, dias, ate, atual, acum, total: acum.length ? acum[acum.length - 1] : 0, mesBase: mb, base: base && baseTotal > 0 ? base : null, semBase,
+    return { mes, dias, ate, atual, acum, total: acum.length ? acum[acum.length - 1] : 0, mesBase: mbs[0], mesesBase: mbs, base: base && baseTotal > 0 ? base : null, semBase,
       projecao: atual && ate >= 3 ? centavos(acum[ate - 1] / ate * dias) : null };
   }
 
@@ -260,6 +279,51 @@
       total = centavos(total); fixo = centavos(fixo);
       return { mes: m, total, fixo, variavel: centavos(total - fixo), pct: total > 0 ? Math.round(fixo / total * 100) : null, incompleto: !!mesCorte && m <= mesCorte };
     }) };
+  }
+
+  // ---- Consultas salvas nas visoes (item 55): cada consulta e {id, nome, q, limite?}, com q = consulta(deSalvo(item)). Cada uma e calculada aqui, na tela. ----
+  const somaConsulta = (itens, q, visao, mes) => centavos(itensDoMes(itens, q, visao, mes).reduce((t, l) => t + l.valor, 0));
+  const seisMeses = (mes) => { const m = [mes]; for (let i = 1; i < 6; i++) m.unshift(mesAnterior(m[0])); return m; };
+  // As (no maximo) 5 consultas que mais gastaram nos 6 meses ate `mes`, cada uma pelo valor inteiro (uma compra em duas consultas conta nas duas).
+  function maioresConsultas(itens, consultas, visao, mes, max) {
+    const ms = seisMeses(mes);
+    return consultas.filter((c) => c.q && c.q.valida && !c.q.vazia)
+      .map((c) => ({ c, v: centavos(ms.reduce((t, m) => t + somaConsulta(itens, c.q, visao, m), 0)) }))
+      .filter((x) => x.v > 0).sort((x, y) => y.v - x.v || x.c.nome.localeCompare(y.c.nome, 'pt-BR')).slice(0, max || 5).map((x) => x.c);
+  }
+  // "Este mes contra a base", consulta por consulta; "Outros" e o que nenhuma das consultas mostradas pega.
+  function porConsulta(itens, consultas, visao, mes, mesCorte, tipo) {
+    if (visao !== 'gastos' && visao !== 'receitas') return null;
+    const top = maioresConsultas(itens, consultas, visao, mes), mb = mesesBase(mes, tipo), semBase = semBaseDe(mb, mesCorte);
+    const media = (f) => centavos(mb.reduce((t, m) => t + f(m), 0) / mb.length);
+    const linha = (nome, id, f) => { const atual = f(mes), base = semBase ? null : media(f); return { id, nome, atual, base, dif: variacao(atual, base, semBase) }; };
+    const linhas = top.map((c) => linha(c.nome, c.id, (m) => somaConsulta(itens, c.q, visao, m)));
+    const fora = (m) => centavos(itensDoMes(itens, { pred: () => true }, visao, m).filter((l) => !top.some((c) => c.q.pred(l.tags || []))).reduce((t, l) => t + l.valor, 0));
+    if (linhas.length) linhas.push(linha('Outros', null, fora));
+    return { mes, semBase, linhas, mesesBase: mb };
+  }
+  // Os 6 meses ate `mes`, empilhados por consulta: cada lancamento entra na primeira consulta (da maior para a menor) que o pega, para a pilha somar o total.
+  function seisPorConsulta(itens, consultas, visao, mes, mesCorte) {
+    if (visao !== 'gastos' && visao !== 'receitas') return null;
+    const top = maioresConsultas(itens, consultas, visao, mes), ms = seisMeses(mes);
+    const series = top.map((c) => ({ id: c.id, nome: c.nome, valores: new Array(6).fill(0) })).concat([{ id: null, nome: 'Outros', valores: new Array(6).fill(0) }]);
+    ms.forEach((m, i) => itensDoMes(itens, { pred: () => true }, visao, m).forEach((l) => {
+      const k = top.findIndex((c) => c.q.pred(l.tags || []));
+      series[k < 0 ? series.length - 1 : k].valores[i] += l.valor;
+    }));
+    series.forEach((s) => { s.valores = s.valores.map(centavos); });
+    return { mes, meses: ms.map((m) => ({ mes: m, incompleto: !!mesCorte && m <= mesCorte })), series: series.filter((s) => s.id !== null || s.valores.some((v) => v > 0)) };
+  }
+  // Metas: o gasto do mes de cada consulta contra o limite que o dono da consulta escolheu. Dentro (menos de 85%), perto (de 85% a 100%), passou (mais de 100%).
+  // Quem tem limite vem primeiro, do mais perto de estourar para o mais folgado; depois as sem limite, por nome. O servidor so guarda o limite: a conta e daqui.
+  function metas(itens, consultas, mes) {
+    const linhas = consultas.filter((c) => c.q && c.q.valida && !c.q.vazia).map((c) => {
+      const gasto = somaConsulta(itens, c.q, 'gastos', mes), tem = typeof c.limite === 'number';
+      const estado = !tem ? 'sem' : gasto > c.limite ? 'passou' : gasto * 100 >= c.limite * 85 ? 'perto' : 'dentro';
+      return { id: c.id, nome: c.nome, gasto, limite: tem ? c.limite : null, estado, pct: tem && c.limite > 0 ? Math.round(gasto / c.limite * 100) : null,
+        excesso: estado === 'passou' ? centavos(gasto - c.limite) : 0, razao: tem ? (c.limite > 0 ? gasto / c.limite : (gasto > 0 ? Infinity : 0)) : -1 };
+    });
+    return { mes, linhas: linhas.sort((x, y) => (x.razao === y.razao ? 0 : y.razao > x.razao ? 1 : -1) || x.nome.localeCompare(y.nome, 'pt-BR')) };
   }
 
   // O app carrega so os N lancamentos mais recentes (limite). Se vieram N, o mes mais antigo pode estar incompleto: devolve esse mes
@@ -364,8 +428,8 @@
     return { itens, todas: lista.length, minhas: lista.filter((c) => c.minha).length };
   }
 
-  const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
-    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base, mesAnterior, calendario, maioresTags, pagamentos, ritmo, fixosVariaveis,
+  const api = { MAX_LIMITE, MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base, mesAnterior, calendario, maioresTags, pagamentos, mesesBase, porConsulta, seisPorConsulta, metas, ritmo, fixosVariaveis,
     MAX_CONSULTAS, MAX_NOME_CONSULTA, paraSalvar, deSalvo, podeSalvar, fraseSalva, mesmaConsulta, acoesDaConsulta, filtrarConsultas };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.ConsultaTags = api;

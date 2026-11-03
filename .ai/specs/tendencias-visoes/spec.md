@@ -2,7 +2,7 @@
 
 Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
-**Estado:** rascunho para aprovação (2026-11-01). Nada implementado. As regras V1 a V14 valem para as fases A a C (só front); V15 e V16 dependem do item 41; V17 a V19 dependem de o dono aprovar o campo `limite`.
+**Estado:** implementado em 2026-11-02 (fases A a F do item 55). O que mudou do rascunho: as visões são **seções que recolhem pelo título** (demos [`v2`](../../demos/demo-tendencias-v2.html) e [`v3`](../../demos/demo-tendencias-v3.html)), então **V1 e V12 (seletor e janela "Ver como") não existem**; o mês de referência (V3) e o "Comparar com" (V6) ficam no topo das visões, com ‹ ›, e **não são guardados**; o Pagamento (V15) usa o texto do status e a cor que o app recebe do servidor, sem a regra de esconder (V16: o item 41 já está pronto); V17 a V19 valem (o `limite`, aprovado em 2026-11-02, a janela do limite e a leitura de `/consultas`, que acontece uma vez, quando a Tendências mostra uma seção que precisa delas, nunca na subida do app). Pagamento de fatura **sem a marca** `pagaFatura` continua somando duas vezes com as compras no CREDITO: o servidor só tira do total o que está marcado.
 
 ## Regras
 
@@ -40,7 +40,7 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
   recalcula nada. Quem altera é quem pode alterar a consulta (autor e dono, `consulta.editar`); ler é de quem lê consultas. O `limite` entra na versão do item como qualquer atributo (`version`).
 - **V18. Metas, cálculo.** Para o mês de referência, gasto = soma da consulta no mês (V2). Estado: **dentro** abaixo de 85% do limite (✓), **perto** de 85% a 100% (!), **passou** acima de 100% (✕), com a palavra e o
   quanto passou. A barra mostra o limite como marca fixa. A visão lista a consulta aberta e as outras consultas salvas com `limite`, cada uma calculada no navegador.
-- **V19. Metas, leitura.** A visão lê `GET /consultas` **ao abrir** (e relê se a janela de consultas salvas alterar algo), nunca na aba nem na subida. `carga.test.js` ganha esse caso.
+- **V19. Metas e consultas, leitura.** (Implementado assim: as seções "Comparar" e "Ao longo do mês" leem `GET /consultas` **uma vez**, quando a Tendências é mostrada com uma delas aberta.) A visão lê `GET /consultas` **ao abrir** (e relê se a janela de consultas salvas alterar algo), nunca na aba nem na subida. `carga.test.js` ganha esse caso.
 
 ## Testes
 
@@ -68,7 +68,7 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
 ## Telas (depois da demo aprovada)
 
-Demo aprovada em 2026-11-02: [`demo-tendencias-v2`](../../demos/demo-tendencias-v2.html), com as visões em seções recolhíveis (no lugar do seletor "Ver como" da V1/V12). Texto antigo: com o resultado da Tendências inteiro em cada visão (celular e computador), a janela "Ver como", o "Comparar com", o seletor de
+Demo v3 aprovada em 2026-11-02 (mês de referência, Comparar com e janela do limite): [`demo-tendencias-v3`](../../demos/demo-tendencias-v3.html). Demo anterior: [`demo-tendencias-v2`](../../demos/demo-tendencias-v2.html), com as visões em seções recolhíveis (no lugar do seletor "Ver como" da V1/V12). Texto antigo: com o resultado da Tendências inteiro em cada visão (celular e computador), a janela "Ver como", o "Comparar com", o seletor de
 mês e os estados vazio e sem base. O padrão ganha uma linha em `padrao-de-telas.md` na mesma entrega.
 
 ## Fora desta entrega
