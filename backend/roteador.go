@@ -195,6 +195,11 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 		return s.avisos.PostAvisoTeste(ctx, sid, u.Sub)
 	case auth.AcaoEscreverAparenc:
 		return s.cfg.PutAparencia(ctx, sid, u.Sub, body)
+	case auth.AcaoEscreverMeio:
+		if m == "DELETE" {
+			return s.meios.Delete(ctx, sid, parte(p, 3))
+		}
+		return s.meios.Put(ctx, sid, parte(p, 3), body)
 	case auth.AcaoLerConsulta:
 		return s.consultas.Get(ctx, sid, u.Sub, role == auth.PapelOwner)
 	case auth.AcaoCriarConsulta:

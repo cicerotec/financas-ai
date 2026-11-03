@@ -33,6 +33,7 @@ const (
 	AcaoLerConsulta     Acao = "consulta.ler"    // as consultas salvas da Tendencias (item 53), compartilhadas no espaco
 	AcaoCriarConsulta   Acao = "consulta.criar"
 	AcaoEditarConsulta  Acao = "consulta.editar" // renomear, atualizar, excluir e restaurar: o member so as que criou
+	AcaoEscreverMeio    Acao = "meio.escrever"   // desativar, reativar e remover um meio de pagamento (item 43; so o dono)
 )
 
 // Decisao e o que um papel pode fazer com uma acao.
@@ -58,7 +59,7 @@ func Permitido(papel string, a Acao) Decisao {
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso,
 			AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao,
-			AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta:
+			AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta, AcaoEscreverMeio:
 			return Liberado
 		}
 	case PapelMember:
@@ -128,6 +129,8 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		}
 	case len(rest) >= 1 && rest[0] == "consultas":
 		return rotaConsulta(metodo, rest)
+	case len(rest) == 2 && rest[0] == "meios" && rest[1] != "" && (metodo == "PUT" || metodo == "DELETE"): // item 43: /meios/{meio}
+		return AcaoEscreverMeio, true
 	case len(rest) == 1 && rest[0] == "seq" && metodo == "GET":
 		return AcaoLerSeq, true
 	case len(rest) == 1 && rest[0] == "saldos" && metodo == "GET": // o saldo de cada meio, calculado pelo servidor (item 40)

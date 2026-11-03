@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -538,7 +539,8 @@ func TestListasTrazMeiosComMarcaDeCartao(t *testing.T) {
 	}
 	// o que o front devolve no PUT nao grava `meios`
 	v := d["version"].(float64)
-	corpo := fmt.Sprintf(`{"version":%v,"banco":["ITAU","CARTAO-A"],"status":["PAGO"],"meios":[{"nome":"X","cartao":true,"ativo":true}],"faturaPadrao":{"X":1},"statusCorPadrao":{"X":"#000000"}}`, v)
+	nomes, _ := json.Marshal(d["banco"]) // o PUT de Listas so acrescenta nomes (item 43): a lista volta inteira
+	corpo := fmt.Sprintf(`{"version":%v,"banco":%s,"status":["PAGO"],"meios":[{"nome":"X","cartao":true,"ativo":true}],"faturaPadrao":{"X":1},"statusCorPadrao":{"X":"#000000"}}`, v, nomes)
 	c, _ = chamar(t, "own", "PUT", "spaces/s1/cfg/listas", nil, corpo)
 	esperar(t, "gravar listas", c, 200)
 	if _, tem := f.ler(t, pkEspaco, "CFG#LISTAS")["meios"]; tem {

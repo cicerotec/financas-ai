@@ -57,7 +57,9 @@ func (s *Config) Ler(ctx context.Context, sid, nome string) (domain.Doc, error) 
 			delete(out, k)
 		}
 		out["status"] = domain.SugeridosPara("", s.rel.Agora())
-		if err := s.juntarMeios(ctx, sid, out); err != nil {
+		ate, _ := out["ativoAte"].(map[string]any) // o mapa cru nao sai: o front recebe so o ativo de cada meio (item 43)
+		delete(out, "ativoAte")
+		if err := s.juntarMeios(ctx, sid, out, ate); err != nil {
 			return nil, err
 		}
 	}
@@ -65,8 +67,8 @@ func (s *Config) Ler(ctx context.Context, sid, nome string) (domain.Doc, error) 
 }
 
 // juntarMeios acrescenta a lista de meios (item 33a): cada nome de banco com a marca de cartao (e chave de CFG#CARTOES.porBanco) e
-// ativo (sempre verdadeiro ate o item 43). O servidor junta os dois itens; o front nao faz chamada extra nem olha status.
-func (s *Config) juntarMeios(ctx context.Context, sid string, listas domain.Doc) error {
+// ativo (hoje antes do ativoAte do meio, item 43) e, nos que tem, o ativoAte. O servidor junta os itens; o front nao faz chamada extra nem olha status.
+func (s *Config) juntarMeios(ctx context.Context, sid string, listas domain.Doc, ativoAte map[string]any) error {
 	nomes, ok := listas["banco"].([]any)
 	if !ok {
 		return nil
@@ -77,6 +79,7 @@ func (s *Config) juntarMeios(ctx context.Context, sid string, listas domain.Doc)
 		return ErrInterno
 	}
 	por, _ := cartoes["porBanco"].(map[string]any)
+	hoje := domain.HojeDe(s.rel.Agora())
 	meios := make([]domain.Doc, 0, len(nomes))
 	for _, x := range nomes {
 		nome, ok := x.(string)
@@ -84,7 +87,12 @@ func (s *Config) juntarMeios(ctx context.Context, sid string, listas domain.Doc)
 			continue
 		}
 		_, cartao := por[nome].(map[string]any)
-		meios = append(meios, domain.Doc{"nome": nome, "cartao": cartao, "ativo": true})
+		ate, _ := ativoAte[nome].(string)
+		meio := domain.Doc{"nome": nome, "cartao": cartao, "ativo": domain.MeioAtivo(ate, hoje)}
+		if ate != "" {
+			meio["ativoAte"] = ate
+		}
+		meios = append(meios, meio)
 	}
 	listas["meios"] = meios
 	// o ajuste de fatura que cada status de credito do catalogo traz por padrao (CREDITO EX +1, CREDITO IN -1, CREDITO 0): o front so consulta, sem olhar o nome do status
@@ -122,6 +130,27 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 			if v, ok := atual[k]; ok {
 				body[k] = v
 			}
+		}
+		// o ativoAte e do servidor (item 43): so as rotas de /meios o mudam; o corpo e ignorado e o gravado continua
+		delete(body, "ativoAte")
+		if v, ok := atual["ativoAte"]; ok {
+			body["ativoAte"] = v
+		}
+		// um meio so sai da lista por DELETE /meios/{meio}, que confere o uso; o PUT acrescenta nomes, nunca tira
+		if novos, ok := body["banco"].([]any); ok {
+			presentes := map[string]bool{}
+			for _, x := range novos {
+				if n, ok := x.(string); ok {
+					presentes[n] = true
+				}
+			}
+			for _, n := range nomesDeBanco(atual) {
+				if !presentes[n] {
+					return nil, &ErroValidacao{"para tirar um meio de pagamento da lista use Remover: o servidor confere se ele ja foi usado"}
+				}
+			}
+		} else if antigos, ok := atual["banco"]; ok {
+			body["banco"] = antigos
 		}
 	}
 	res, err := s.repo.Salvar(ctx, sid, nome, body, esperada)
