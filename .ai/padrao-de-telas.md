@@ -27,7 +27,7 @@ Cada tela tem uma **demo-padrão** em `demos/`, a captura fiel da tela como est�
 | Futuros | [`demo-futuros-v1`](demos/demo-futuros-v1.html) |
 | Prever, Repetir e Avisar | [`demo-prever-v1`](demos/demo-prever-v1.html), [`demo-repetir-v1`](demos/demo-repetir-v1.html), [`demo-avisar-v1`](demos/demo-avisar-v1.html) |
 | Tendências | [`demo-tendencias-v1`](demos/demo-tendencias-v1.html), [`v2, com as visões dos gastos`](demos/demo-tendencias-v2.html), [`editar`](demos/demo-tendencias-editar-v1.html), [`escolher tags`](demos/demo-tendencias-escolher-tags-v1.html), [`lista`](demos/demo-tendencias-lista-v1.html), [`salvar`](demos/demo-tendencias-salvar-v1.html), [`consultas salvas`](demos/demo-tendencias-consultas-v1.html) |
-| Saldos, Cartão e Listas | [`demo-saldos-v1`](demos/demo-saldos-v1.html), [`demo-cartao-v1`](demos/demo-cartao-v1.html), [`demo-listas-v1`](demos/demo-listas-v1.html) |
+| Saldos, Cartão e Listas | [`demo-saldos-v1`](demos/demo-saldos-v1.html), [`demo-cartao-v1`](demos/demo-cartao-v1.html), [`demo-listas-v1`](demos/demo-listas-v1.html), [`v2, com a paleta de 16 cores`](demos/demo-listas-v2-novas-cores.html) (aprovada em 2026-11-02; a v2 tem script só para o seletor) |
 | Histórico de versões | [`demo-versoes-v1`](demos/demo-versoes-v1.html), [`versões de um lançamento`](demos/demo-versoes-detalhe-v1.html) |
 | Configurações | [`demo-configuracoes-v1`](demos/demo-configuracoes-v1.html) |
 | Menus | [`menu do app (celular)`](demos/demo-menu-v1.html), [`menu da conta (computador)`](demos/demo-conta-v1.html) |
@@ -459,6 +459,7 @@ ações), e tire uma captura para olhar.
 7. Devolva ao padrão o que descobriu (seção "Manter o padrão em dia"): demo, guia e recomendações, na mesma entrega.
 
 ## Armadilhas já encontradas
+- **Paleta de cores da forma de pagamento (2026-11-02):** são 16 cores (`COR_PALETA` em `web/js/app.js`), em grade fixa de 8 colunas (`.fp .pal`, bolinhas de até 36 px que encolhem em celular estreito), frios na primeira linha e quentes e cinza na segunda. Toda cor padrão de status do backend (`CorPadrao` em `domain/catalogo.go`) **precisa estar na paleta**, senão a bolinha do seletor não aparece marcada: ao dar uma cor a um status novo, escolha uma da lista. Cores claras vizinhas se confundem numa linha pequena, então não passe de 16.
 - **Janela com lista (bottom sheet) e `flex-shrink` (Tendências, consultas salvas, 2026-10-31):** numa janela `display:flex;flex-direction:column;max-height:82vh`, os filhos
   com `overflow-x:auto` (a fileira de fichas Todas | Minhas) encolhem até sumir quando a lista é longa. Só a lista rola; o resto leva `flex:none`
   (`.td-jan .td-lcab,.td-jsub,.td-jbusca,.td-lchips{flex:none}`). Vale para toda janela nova com cabeçalho, busca, fichas e lista.

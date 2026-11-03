@@ -54,9 +54,8 @@ O raciocínio completo está em [`arquitetura.md`](arquitetura.md), nas seções
 - **Lançamentos antigos** com os três status antigos **ficam como estão** (eram só previsões): continuam em Futuros, os do
   passado em Atrasados, até alguém tratar (2026-10-24). Sem migração em massa; nada é regravado. Ao confirmar um deles, a
   janela abre com o primeiro status da lista do servidor escolhido (hoje `PAGO`).
-- **`CREDITO IN` e `CREDITO EX`** já estão resolvidos pelo `faturaAjuste`. O **`PAGO`** será desmembrado depois, pela
-  junção de tipo e meio (entrada: recebimento, pix, drex, cripto; saída: débito, pix, drex, cripto). O **`CONTAS`**
-  (transferência entre bancos, `transferParId`) entra nesse desmembramento, fora de Futuros.
+- **`CREDITO IN` e `CREDITO EX`** já estão resolvidos pelo `faturaAjuste`. O **`PAGO`** é desmembrado pelo item 56 (decidido em 2026-11-02, `specs/formas-de-pagamento/`): entram **PIX**, **DEBITO**, **DINHEIRO** e **TED**, em ordem de uso com o `PAGO` no fim (selecionável, não mais o padrão), todas válidas para entrada e saída, contando no saldo como o `PAGO` e sem nada novo no Dynamo. **BOLETO** (é o documento, o meio é PIX, DINHEIRO ou CREDITO) e **RECEBIMENTO** (o tipo `entrada` já diz) ficaram de fora. DREX, CRIPTO e outros virão como entradas novas do catálogo, em versões futuras. O **`CONTAS`**
+  (transferência entre bancos, `transferParId`) **fica como está** (decidido em 2026-11-02): não é selecionável (só o servidor o grava, nas duas pontas da transferência), conta no saldo e fica fora do total, e nada nas formas novas o toca.
 - **Admin** é um complemento ao dono (poderes reduzidos em tela, acesso total internamente); não é decidido agora. Poder
   de mexer em catálogo de status e módulos (PIX, DREX, cripto) seria dele no futuro.
 - **Em aberto para o spec:** como o servidor encontra todos os previstos sem depender dos 1000 lançamentos mais recentes; o que o Prever faz com o "Status das cópias".
