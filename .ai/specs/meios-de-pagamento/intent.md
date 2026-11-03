@@ -2,7 +2,7 @@
 
 Item 43 do BACKLOG. Este documento diz **o quê e por quê**; o como está no [`plan.md`](plan.md) e o roteiro verificável no [`spec.md`](spec.md).
 
-**Estado:** aprovado pelo dono em 2026-11-03 (inclui o `ativoAte` em `CFG#LISTAS`); fase A (backend) implementada no #347; fase B (tela) implementada em 2026-11-03, à espera da conferência do dono em dev. A demo [`demo-listas-v3-meios`](../../demos/demo-listas-v3-meios.html) foi **aprovada pelo dono em 2026-11-03**.
+**Estado:** aprovado pelo dono em 2026-11-03 (inclui o `ativoAte` em `CFG#LISTAS`); fases A (#347) e B (#348) concluídas em 2026-11-03 e conferidas em dev pelo dono. A demo [`demo-listas-v3-meios`](../../demos/demo-listas-v3-meios.html) foi **aprovada pelo dono em 2026-11-03**.
 Decisões da conversa de 2026-11-03 estão marcadas como "decidido" abaixo.
 
 ## Por quê

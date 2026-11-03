@@ -29,7 +29,6 @@ pendentes: nenhum.
 - [\[Front\] - 54 - **\[Próximo\] App Android com Capacitor:**](#item-54)
 - [\[Infra\] - 11 - **\[Depois\] Backup periódico:**](#item-11)
 - [\[Backend\] - 39 - **\[Depois\] Open Finance (visão):**](#item-39)
-- [\[Backend\] - 43 - **\[Depois\] Meios de pagamento: o dono cria e desativa:**](#item-43)
 - [\[Backend\] - 12 - **\[Depois\] Colaboração, Fase 1:**](#item-12)
 - [\[Backend\] - 13 - **\[Depois\] Colaboração, Fase 2:**](#item-13)
 - [\[Backend\] - 15 - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
@@ -197,14 +196,14 @@ DynamoDB sem discutir com o dono.**
   4096 caracteres do item 28. **Ponto de partida (item 32, fatia 4):** o `Avisador` já existe com o nome `service.Notificador`
   (`Enviar(destino, texto)`), o canal Telegram é o primeiro arquivo de `adapter/notificacao/`, e a rotina diária está em
   `service.Avisos`; falta o despachante por assinatura e os outros canais.
-- 43. [ ] <a id="item-43"></a>**[Depois] Meios de pagamento: o dono cria e desativa (rascunho, 2026-10-24):** o que o dono chama de **meio de pagamento** (conta, carteira, vale, cartão:
+- 43. [x] <a id="item-43"></a>**Meios de pagamento: o dono cria, desativa e remove (concluído em 2026-11-03: fase A no #347 e fase B no #348; conferido em dev pelo dono; rascunho de 2026-10-24):** o que o dono chama de **meio de pagamento** (conta, carteira, vale, cartão:
   `SODEXO-REF-IBM`, `DINHEIRO`, `CARTEIRA`...) é o `banco` gravado, com um **de-para só de exibição em `domain/`** (o Dynamo não muda, o campo continua `banco`).
   **O dono cria e desativa meios pelo app** (dado do espaço, não do produto); o front nunca conhece os nomes. Um meio desativado (por exemplo, o `SODEXO` quando o dono sair da
   IBM) **continua nos lançamentos e no saldo do passado** e deixa de ser sugerido a partir de uma data; "ver todos" mostra também os inativos, porque o passado é do
   usuário. `CRIPTO` e `DREX` são **formas** (status), não meios. Pede **um atributo novo no Dynamo** (a data em que o meio deixa de valer, `ativoAte` (AAAA-MM-DD) em
   `CFG#SALDOS.porBanco[meio]`, ausente = ativo; **aprovado pelo dono em 2026-10-24**) e a lista `meios: [{nome, cartao, ativo}]` que o item 33a já entrega com `ativo` sempre verdadeiro.
   Intent, plan e spec depois da conversa sobre o 40, o 33a e o 41. Demo antes de qualquer tela.
-  **Fases A (backend, #347) e B (tela) implementadas em 2026-11-03, falta o dono conferir em dev. Roteiro (aprovado em 2026-11-03):** [`.ai/specs/meios-de-pagamento/`](.ai/specs/meios-de-pagamento/intent.md), em duas fases (A backend, B tela); o `ativoAte` em `CFG#LISTAS` foi reaprovado pelo dono.
+  **Fases A (backend, #347) e B (tela, #348) concluídas em 2026-11-03 e conferidas em dev pelo dono. Roteiro (aprovado em 2026-11-03):** [`.ai/specs/meios-de-pagamento/`](.ai/specs/meios-de-pagamento/intent.md), em duas fases (A backend, B tela); o `ativoAte` em `CFG#LISTAS` foi reaprovado pelo dono.
   **Conversa de 2026-11-03:** o `ativoAte` vai em `CFG#LISTAS` (onde o meio nasce), não em `CFG#SALDOS` (o cartão sem conta não tem saldo); a etiqueta **crédito** vem da aba Cartão
   (Listas só exibe); **Remover** só confere o uso ao clicar, por varredura (a flag `jaUsado` fica em Ideias, para se a varredura ficar cara). Demo: [`demo-listas-v3-meios`](.ai/demos/demo-listas-v3-meios.html) (aprovada em 2026-11-03).
 - 46. [x] <a id="item-46"></a>**Aviso no Telegram para a fatura do cartão** (concluído em 2026-10-26: fase A do backend no #244 e fase B da tela no #246; conferido em dev pelo dono): hoje só um lançamento tem aviso; a fatura, que é calculada pelo servidor, só tem o botão Já paguei. O aviso passa a ser ligado **na própria fatura** em Futuros (botão Avisar, mesma tela do Prever), só para aquela fatura (o cartão não tem aviso padrão) e só se ela tiver vencimento. Dado novo: `faturas[ym].aviso` (mesmo formato do lançamento) mais o item auxiliar já existente em `AVISOS#ATIVOS`; **desempenho: dias sem aviso não leem nada além da Query dos avisos**. A fatura paga some do resumo sozinha. Intent, plan e spec (rascunho) em [`.ai/specs/aviso-fatura/`](.ai/specs/aviso-fatura/intent.md); demo `.ai/demos/arquivo/demo-aviso-fatura.html`.
