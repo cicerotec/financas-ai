@@ -132,7 +132,7 @@
   function base(lancamentos) {
     return lancamentos.filter((l) => !l.oculto && !l.previsto && !l.excluirDoTotal).map((l) => {
       const d = new Date(l.dataEvento);
-      return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), dia: d.getDate(), fixo: !!l.recorrente, valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida', ref: l };
+      return { mes: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), dia: d.getDate(), fixo: !!l.recorrente, status: l.status || '', valor: Number(l.valor) || 0, tags: l.tags || [], entrada: l.tipo !== 'saida', ref: l };
     });
   }
 
@@ -209,6 +209,20 @@
     });
     const resto = todas.slice(lim).reduce((t, x) => t + x.v, 0);
     return { mes, linhas, outras: centavos(resto), nOutras: Math.max(0, todas.length - lim) };
+  }
+
+  // Forma de pagamento: no mes de referencia, quanto da consulta passou por cada status, do maior ao menor (empate: ordem alfabetica). O status e um
+  // texto opaco: o front nao interpreta nem escolhe nome ou cor por ele (a tela pede a cor ao app, que a recebe do servidor). pct inteiro; a soma pode
+  // dar 99 ou 101 pelo arredondamento, e o valor de cada linha e o que vale.
+  function pagamentos(itens, q, visao, mes) {
+    if (visao !== 'gastos' && visao !== 'receitas') return null;
+    const g = new Map();
+    let total = 0;
+    itensDoMes(itens, q, visao, mes).forEach((l) => { g.set(l.status, (g.get(l.status) || 0) + l.valor); total += l.valor; });
+    total = centavos(total);
+    const linhas = [...g.entries()].map(([status, v]) => ({ status, v: centavos(v), pct: total > 0 ? Math.round(v / total * 100) : 0 }))
+      .sort((x, y) => y.v - x.v || x.status.localeCompare(y.status, 'pt-BR'));
+    return { mes, total, linhas };
   }
 
   // Ritmo do mes: o gasto acumulado dia a dia ate hoje (mes atual) ou ate o ultimo dia (mes passado), contra o mes anterior inteiro.
@@ -351,7 +365,7 @@
   }
 
   const api = { MAX_GRUPOS, MAX_TAGS, MAX_FICHAS, MAX_OUTRAS, nomeFicha, grupoVazio, grupoPreenchido, casaGrupo, analisar, avalia, texto,
-    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base, mesAnterior, calendario, maioresTags, ritmo, fixosVariaveis,
+    fraseGrupo, fraseGrupos, consulta, gruposParaFichas, inserirFicha, resumir, listar, corte, tirarTag, VISOES, base, mesAnterior, calendario, maioresTags, pagamentos, ritmo, fixosVariaveis,
     MAX_CONSULTAS, MAX_NOME_CONSULTA, paraSalvar, deSalvo, podeSalvar, fraseSalva, mesmaConsulta, acoesDaConsulta, filtrarConsultas };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.ConsultaTags = api;

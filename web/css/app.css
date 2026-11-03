@@ -941,3 +941,8 @@ svg.gx-chart{display:block;width:100%;max-width:440px;margin:0 auto;height:auto;
 @media (prefers-reduced-motion:reduce){.gx-seta{transition:none;}}
 .gx-leg .mut{color:var(--muted);}
 .gx-leg-cal{margin:8px 0 0;align-items:center;}
+.gx-rows{font-size:13px;margin-top:8px;}
+.gx-rows div{display:flex;align-items:center;gap:8px;padding:3px 0;}
+.gx-rows .n{flex:1;min-width:0;}
+.gx-rows .p{width:44px;text-align:right;font-variant-numeric:tabular-nums;color:var(--g-ink2);}
+.gx-rows .r{width:84px;text-align:right;font-variant-numeric:tabular-nums;}

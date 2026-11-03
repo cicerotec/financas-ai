@@ -593,3 +593,17 @@ test('base: o que o servidor marca com excluirDoTotal fica de fora (pagamento de
   assert.equal(C.resumir(b, vazia, 'gastos').total, 120, 'consulta sem tags: compras sem o pagamento da fatura e sem as pontas da transferencia');
   assert.equal(C.calendario(b, vazia, 'gastos', '2026-10').total, 120);
 });
+
+test('pagamentos: agrupa pelo texto do status, do maior ao menor, e a soma bate com a barra do mes (VS-T1)', () => {
+  const q = qv('a');
+  const com = (l, status) => Object.assign(l, { status });
+  const it = C.base([com(ld('2026-10-02T12:00:00', 300, 'saida', 'a'), 'X1'), com(ld('2026-10-03T12:00:00', 100, 'saida', 'a'), 'X2'),
+    com(ld('2026-10-04T12:00:00', 100, 'saida', 'a'), 'X1'), com(ld('2026-10-05T12:00:00', 100, 'saida', 'a'), 'X0'), com(ld('2026-09-05T12:00:00', 999, 'saida', 'a'), 'X1'),
+    com(ld('2026-10-06T12:00:00', 7, 'saida', 'b'), 'X1')]);
+  const r = C.pagamentos(it, q, 'gastos', '2026-10');
+  assert.deepEqual(r.linhas.map((x) => [x.status, x.v, x.pct]), [['X1', 400, 67], ['X0', 100, 17], ['X2', 100, 17]]);
+  assert.equal(r.total, 600);
+  assert.equal(r.total, C.resumir(it, q, 'gastos').meses.find((m) => m.mes === '2026-10').total);
+  assert.equal(C.pagamentos(it, q, 'saldo', '2026-10'), null);
+  assert.deepEqual(C.pagamentos(it, q, 'gastos', '2026-08'), { mes: '2026-08', total: 0, linhas: [] });
+});
