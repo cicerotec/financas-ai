@@ -30,7 +30,7 @@ Cada tela tem uma **demo-padrão** em `demos/`, a captura fiel da tela como est�
 | Saldos, Cartão e Listas | [`demo-saldos-v1`](demos/demo-saldos-v1.html), [`demo-cartao-v1`](demos/demo-cartao-v1.html), [`demo-listas-v1`](demos/demo-listas-v1.html), [`v2, com a paleta de 16 cores`](demos/demo-listas-v2-novas-cores.html) (aprovada em 2026-11-02; a v2 tem script só para o seletor) |
 | Histórico de versões | [`demo-versoes-v1`](demos/demo-versoes-v1.html), [`versões de um lançamento`](demos/demo-versoes-detalhe-v1.html) |
 | Configurações | [`demo-configuracoes-v1`](demos/demo-configuracoes-v1.html) |
-| Menus | [`menu do app (celular)`](demos/demo-menu-v1.html), [`v2, abas do computador na ordem do menu e com hover`](demos/demo-menu-v2-abas.html), [`menu da conta (computador)`](demos/demo-conta-v1.html) |
+| Menus | [`menu do app (celular)`](demos/demo-menu-v1.html), [`v2, abas do computador na ordem do menu e com hover`](demos/demo-menu-v2-abas.html) (**padrão atual**, aprovada em 2026-11-03), [`menu da conta (computador)`](demos/demo-conta-v1.html) |
 
 Ainda sem captura própria (entram quando forem mexidas): o fluxo de pagar fatura e o aviso da fatura no Cartão, a janela de
 confirmação de mês fechado, o aviso de Desfazer e as telas de Recorrente.
