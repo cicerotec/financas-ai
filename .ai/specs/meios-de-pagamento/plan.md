@@ -2,7 +2,7 @@
 
 Segue o [`intent.md`](intent.md); o roteiro verificável está no [`spec.md`](spec.md).
 
-**Estado:** aprovado pelo dono em 2026-11-03 (inclui o `ativoAte` em `CFG#LISTAS`); fase A (backend) implementada no #347; fase B (tela) implementada em 2026-11-03, à espera da conferência do dono em dev.
+**Estado:** aprovado pelo dono em 2026-11-03 (inclui o `ativoAte` em `CFG#LISTAS`); fases A (#347) e B (#348) concluídas em 2026-11-03 e conferidas em dev pelo dono.
 
 ## Decisões
 

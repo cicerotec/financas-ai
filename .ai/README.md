@@ -62,7 +62,7 @@ feito e ideias).
 | [`demos/demo-listas-v2-novas-cores.html`](demos/demo-listas-v2-novas-cores.html) | Demo **aprovada e implementada em 2026-11-02** da paleta de 16 cores do seletor de cor da forma de pagamento, em Listas (item 56) |
 | [`specs/formas-de-pagamento/`](specs/formas-de-pagamento/intent.md) | Intent, plan e spec do item 56: PIX, DEBITO, DINHEIRO e TED como entradas do catálogo de status, em ordem de uso com o `PAGO` no fim, valendo para entrada e saída (implementado no backend) |
 | [`demos/demo-listas-v3-meios.html`](demos/demo-listas-v3-meios.html) | Demo **aprovada e implementada em 2026-11-03** do card Meios de pagamento em Listas (item 43): Desativar com data, Reativar, Remover com a conferência só ao clicar e a etiqueta crédito vinda da aba Cartão |
-| [`specs/meios-de-pagamento/`](specs/meios-de-pagamento/intent.md) | Intent, plan e spec do item 43: o dono desativa um meio a partir de uma data (`ativoAte` em `CFG#LISTAS`) e remove só o que nunca foi usado, conferido pelo servidor ao clicar (aprovado em 2026-11-03; fases A e B implementadas, falta a conferência em dev) |
+| [`specs/meios-de-pagamento/`](specs/meios-de-pagamento/intent.md) | Intent, plan e spec do item 43: o dono desativa um meio a partir de uma data (`ativoAte` em `CFG#LISTAS`) e remove só o que nunca foi usado, conferido pelo servidor ao clicar (aprovado em 2026-11-03; concluído em 2026-11-03) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.
