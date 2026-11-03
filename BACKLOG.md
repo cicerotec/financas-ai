@@ -204,6 +204,8 @@ DynamoDB sem discutir com o dono.**
   usuário. `CRIPTO` e `DREX` são **formas** (status), não meios. Pede **um atributo novo no Dynamo** (a data em que o meio deixa de valer, `ativoAte` (AAAA-MM-DD) em
   `CFG#SALDOS.porBanco[meio]`, ausente = ativo; **aprovado pelo dono em 2026-10-24**) e a lista `meios: [{nome, cartao, ativo}]` que o item 33a já entrega com `ativo` sempre verdadeiro.
   Intent, plan e spec depois da conversa sobre o 40, o 33a e o 41. Demo antes de qualquer tela.
+  **Conversa de 2026-11-03:** o `ativoAte` vai em `CFG#LISTAS` (onde o meio nasce), não em `CFG#SALDOS` (o cartão sem conta não tem saldo); a etiqueta **crédito** vem da aba Cartão
+  (Listas só exibe); **Remover** só confere o uso ao clicar, por varredura (a flag `jaUsado` fica em Ideias, para se a varredura ficar cara). Demo: [`demo-listas-v3-meios`](.ai/demos/demo-listas-v3-meios.html) (aprovada em 2026-11-03).
 - 46. [x] <a id="item-46"></a>**Aviso no Telegram para a fatura do cartão** (concluído em 2026-10-26: fase A do backend no #244 e fase B da tela no #246; conferido em dev pelo dono): hoje só um lançamento tem aviso; a fatura, que é calculada pelo servidor, só tem o botão Já paguei. O aviso passa a ser ligado **na própria fatura** em Futuros (botão Avisar, mesma tela do Prever), só para aquela fatura (o cartão não tem aviso padrão) e só se ela tiver vencimento. Dado novo: `faturas[ym].aviso` (mesmo formato do lançamento) mais o item auxiliar já existente em `AVISOS#ATIVOS`; **desempenho: dias sem aviso não leem nada além da Query dos avisos**. A fatura paga some do resumo sozinha. Intent, plan e spec (rascunho) em [`.ai/specs/aviso-fatura/`](.ai/specs/aviso-fatura/intent.md); demo `.ai/demos/arquivo/demo-aviso-fatura.html`.
 - 45. [x] <a id="item-45"></a>**Futuros: os atrasados antigos são buscados por ano, sob demanda** (concluído em 2026-10-26, em produção; demo `.ai/demos/arquivo/demo-atrasados-por-ano.html`; `GET /futuros` agrupa em `atrasados[{ano,n,valor,meses}]` e devolve `anosAnteriores`; `?ano=AAAA` busca um ano; anotado em 2026-10-25): hoje Futuros olha só **do mês passado em diante**
   (decisão do dono: ler todos os atrasados de todos os anos de uma vez sobrecarrega a tabela e não faz sentido). Quem tem um previsto mais antigo (por exemplo, um `PREVISTO` esquecido de 2019)
@@ -443,3 +445,17 @@ arquitetura, segurança e permissões, fluxo de versões, hospedagem, ambiente d
   em início de mês (alinhado ao fechamento), um corte global ou um por regra, e onde guardar o campo.
   **Superado em 2026-10-24:** não haverá corte global. O catálogo de status tem uma entrada por nome e a marca `selecionavel`; `desde` e `ate` só sugerem a lista de uma
   data; o passado é do usuário (pode reclassificar); a vigência dos meios é do item 43. Ver itens 41 e 43. (O item 44, troca em massa do admin, foi removido em 2026-10-27.)
+- **Item 43, remover um meio: flag `jaUsado` no lugar da varredura (ideia do dono, conversa de 2026-11-03; guardada aqui para não se perder).**
+  **Decisão de hoje:** no item 43, o botão **Remover** de um meio confere o uso **por varredura**, só ao clicar (nunca ao abrir a tela), parando no
+  primeiro lançamento achado; o meio com lançamento é recusado e só pode ser desativado. **Se a varredura começar a custar caro** (leitura da tabela, 5 RCU,
+  ou demora no Remover), troca-se pela abordagem abaixo, que o dono propôs e que fica pronta para ser retomada:
+  - Todo lançamento tem um meio, então o uso pode ser **marcado na escrita**, sem busca nenhuma: `jaUsado` por meio (junto do `ativoAte`, num mapa
+    `meios: { "<nome>": { ativoAte, jaUsado } }` em `CFG#LISTAS`; o `banco` continua `[]string`). Quando o servidor grava um lançamento num meio com
+    `jaUsado: false`, muda para `true`, **uma vez só**, na mesma transação do lançamento. Remover passa a ser a leitura de um item.
+  - **Três estados**, para não migrar o passado: ausente = "não sei" (uma única varredura, ao primeiro Remover, grava o resultado); `false` = nunca usado
+    (como todo meio novo nasce); `true` = usado, **nunca volta a `false`** (o nome fica no histórico imutável, mesmo com o lançamento excluído).
+  - **Cuidados:** todo caminho que grava `banco` marca a flag (criar, editar trocando o banco, importar em lote, restaurar, as duas pontas da transferência,
+    recorrência, pagamento de fatura), com um teste por caminho: um esquecido deixa `false` num meio usado e o Remover apagaria um meio com histórico;
+    marcar e remover são atômicos (Remover condicional a `jaUsado = false`, no mesmo item); a flag é do servidor, preservada como os campos de status
+    (`CFG#LISTAS` é gravada inteira pelo front) e marcar não sobe o `version` da lista; custo: saber a flag em cada escrita (conferir se `CFG#LISTAS` já é lida ali).
+  - Campo novo no DynamoDB: só entra com a aprovação do dono.
