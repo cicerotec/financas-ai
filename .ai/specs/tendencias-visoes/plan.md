@@ -2,8 +2,7 @@
 
 Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoje (`web/js/tendencias.js`, `web/consulta-tags.js`, `web/api.js`, `backend/service/consulta.go`). O roteiro verificável é o [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação (2026-11-01). Este plan **não cria chave nem campo no DynamoDB**; o único dado novo proposto (`limite`, na fase E) está em "Propostas que o dono pode contestar" e só
-se discute depois de as fases A a C estarem aprovadas.
+**Estado:** implementado em 2026-11-02 (texto original de 2026-11-01). Diferenças: sem o seletor "Ver como" nem a janela dele (seções que recolhem, demos v2 e v3); a lógica ficou em `web/consulta-tags.js` e `web/consulta-tags.test.js`, sem `web/visoes.js`; o `limite` (fase E) foi aprovado pelo dono e é o único campo novo no DynamoDB, dentro do item da consulta. O desenho abaixo é o original.
 
 ## Onde o código está hoje
 

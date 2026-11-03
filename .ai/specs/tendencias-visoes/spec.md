@@ -6,7 +6,7 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
 ## Regras
 
-- **V1. Seletor "Ver como".** A Tendências ganha Meses (a de hoje), Ritmo, Calendário, Fixos, Tags, Pagamento e Metas. Abre em **Meses**, sempre; a escolha não é guardada na consulta nem ao recarregar.
+- **V1. (Substituída: não há seletor "Ver como"; as visões são seções que recolhem pelo título.)** Seletor "Ver como". A Tendências ganha Meses (a de hoje), Ritmo, Calendário, Fixos, Tags, Pagamento e Metas. Abre em **Meses**, sempre; a escolha não é guardada na consulta nem ao recarregar.
   Com **Resultado** escolhido, só Meses fica ativa; as outras mostram o motivo ("Disponível em Gastos e Receitas").
 - **V2. A consulta é a mesma.** Toda visão parte de `CT.base` filtrada por `q.pred` e pela visão de soma (Gastos ou Receitas), como `CT.resumir`. Oculto, `previsto` e o que o servidor marca com `excluirDoTotal` (pagamento de fatura, transferência, status fora do total) ficam de fora; o front só lê o marcador. **A soma de uma visão, para o mesmo
   período, é igual à da visão Meses** (conferência dos números). Nada é enviado ao servidor, exceto V17.
@@ -29,13 +29,13 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 - **V10. A visão Meses não muda** (barras, "Outras tags nesses lançamentos", lista da consulta). A faixa "Simulação" fica no topo em todas as visões.
 - **V11. Cores e acessibilidade.** Só tokens do app, claro e escuro. Valor escrito no calendário; variação em seta **e** palavra; estado das metas em ícone **e** palavra; nenhuma informação só por cor. Cada gráfico tem
   um título de leitura (`aria-label`) e, para leitor de tela, uma lista com os mesmos números.
-- **V12. Janela "Ver como" (celular).** Janela de baixo com as sete opções em linhas de 56 px, a atual marcada com "✓". Entra em `camadasAbertas()` e `fecharCamadaTopo()`; o voltar fecha só ela. No computador (≥ 1160 px)
+- **V12. (Substituída: não há janela "Ver como"; a janela nova é a do limite, em `camadasAbertas()` e `fecharCamadaTopo()`.)** Janela "Ver como" (celular). Janela de baixo com as sete opções em linhas de 56 px, a atual marcada com "✓". Entra em `camadasAbertas()` e `fecharCamadaTopo()`; o voltar fecha só ela. No computador (≥ 1160 px)
   são fichas em linha, sem janela.
 - **V13. Carga.** As visões A a D não leem nada novo: usam `lancamentosCache`. `carga.test.js` continua provando que a subida do app não lê lançamentos nem `/consultas`.
 - **V14. Pior caso.** Medir por script, nos dois temas e em ≈ 390 px e ≥ 1280 px: valor de 7 dígitos, tag de 40 caracteres, mês de 31 dias, mês vazio, 1000 lançamentos, consulta com 60 fichas.
 - **V15. Pagamento (depende do item 41).** Agrupa os itens da consulta pelo **texto** de `status`, sem interpretar. Nome e cor de cada grupo vêm do que o servidor mandar para esse status (a mesma fonte do Histórico).
   Sem nome de status no código de `web/` (`sem-status.test.js` continua passando). Mostra percentual e valor; ordem decrescente.
-- **V16. Pagamento sem catálogo.** Enquanto o servidor não mandar rótulo e cor, a visão **não aparece** no seletor.
+- **V16. (Obsoleta: o item 41 está pronto e o servidor manda status e cor.)** Pagamento sem catálogo. Enquanto o servidor não mandar rótulo e cor, a visão **não aparece** no seletor.
 - **V17. Metas (depende da aprovação do `limite`).** O item da consulta (`CONSULTA#<id>`) ganha `limite`: número ≥ 0, em reais, até 2 casas, opcional; ausente = sem limite. O servidor valida **só o formato**, não
   recalcula nada. Quem altera é quem pode alterar a consulta (autor e dono, `consulta.editar`); ler é de quem lê consultas. O `limite` entra na versão do item como qualquer atributo (`version`).
 - **V18. Metas, cálculo.** Para o mês de referência, gasto = soma da consulta no mês (V2). Estado: **dentro** abaixo de 85% do limite (✓), **perto** de 85% a 100% (!), **passou** acima de 100% (✕), com a palavra e o
@@ -59,7 +59,7 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 | VS-T11 | Resultado escolhido | Só Meses ativa; as outras com motivo |
 | VS-T12 | Oculto e `previsto` | Ficam de fora de todas as visões |
 | VS-T13 | `carga.test.js` | A subida não lê lançamentos nem `/consultas`; as visões A a D não leem nada |
-| VS-T14 | Janela "Ver como" | Entra em `camadasAbertas()`; voltar fecha só ela |
+| VS-T14 | (Não se aplica, ver V12) Janela "Ver como" | Entra em `camadasAbertas()`; voltar fecha só ela |
 | VS-T15 | `sem-status.test.js` | Nenhum nome de status em `web/visoes.js` nem em `tendencias.js` |
 | VS-T16 | Pior caso (V14) | Nada passa da coluna nem encosta no vizinho; captura nos dois temas |
 | VS-T17 | Metas: formato do `limite` (negativo, texto, 3 casas) e permissão (membro na consulta de outro) | `400`; `403`; dono consegue |
