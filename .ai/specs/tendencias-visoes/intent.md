@@ -2,7 +2,7 @@
 
 Este documento diz **o quê e por quê**; o como (`plan.md`) e o roteiro verificável (`spec.md`) vêm junto, para o dono aprovar antes de qualquer código.
 
-**Estado:** rascunho para aprovação (2026-11-01). Saiu da conversa com o dono em 2026-11-01, depois de ele ver onze gráficos de exemplo com dados inventados (a página de exploração não vai para o repositório). Ele
+**Estado:** implementado em 2026-11-02 (texto original de 2026-11-01; as diferenças estão no [`spec.md`](spec.md)). Saiu da conversa com o dono em 2026-11-01, depois de ele ver onze gráficos de exemplo com dados inventados (a página de exploração não vai para o repositório). Ele
 escolheu seis: **Calendário de calor, Metas por consulta, Forma de pagamento, Maiores tags do mês, Fixos e variáveis e Ritmo do mês**. O que ainda é proposta está marcado em "Propostas que o dono pode contestar" no [`plan.md`](plan.md).
 
 ## Por quê
@@ -13,8 +13,8 @@ terminar** no ritmo de hoje, **quem pesa e quem mudou** (tags), **por onde pagou
 
 ## O que queremos
 
-1. **Uma consulta, várias visões.** A consulta continua sendo o filtro (tags, operadores, Gastos | Receitas | Resultado). Um seletor novo, **Ver como**, troca só o desenho: Meses (o de hoje), Ritmo,
-   Calendário, Fixos, Tags, Pagamento e Metas.
+1. **Uma consulta, várias visões.** A consulta continua sendo o filtro (tags, operadores, Gastos | Receitas | Resultado). As visões desenham essa consulta de outros ângulos, em **seções que recolhem pelo título** (Comparar, Ao longo do mês, Para onde foi), sem seletor "Ver como" (a demo com o seletor foi reprovada): Ritmo,
+   Calendário, Fixos, Tags, Pagamento e Metas, com o mês de referência e o "Comparar com" no topo.
 2. **Calendário de calor.** O mês escolhido em dias (semanas nas colunas, dias da semana nas linhas), cada dia pintado pelo quanto saiu.
 3. **Maiores tags do mês** com a **variação contra uma base à escolha**: mês anterior (padrão), média dos 3 meses anteriores ou o mesmo mês do ano passado.
 4. **Ritmo do mês.** A curva acumulada do mês contra a do mês anterior e uma **projeção** do fechamento pelo ritmo dos dias que já passaram.
