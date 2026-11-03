@@ -442,6 +442,17 @@
     });
     return h + '</svg>';
   }
+  // Forma de pagamento: uma barra repartida e uma linha por status (nome = o texto do status; cor = a do app, vinda do servidor).
+  function gxPagamento(p) {
+    const W = 360, H = 40;
+    let h = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gx-chart" role="img" aria-label="Gasto por forma de pagamento em ' + esc(gxNomeMes(p.mes)) + '">', x = 0;
+    p.linhas.forEach((l) => {
+      const w = l.v / p.total * W;
+      h += '<rect x="' + x + '" y="6" width="' + Math.max(w - 2, 1) + '" height="28" rx="4" style="fill:' + corStatus(l.status) + '" data-tip="' + esc(l.status + ': ' + gxReais(l.v)) + '"></rect>';
+      x += w;
+    });
+    return h + '</svg>';
+  }
   function renderVisoes() {
     const el = $('gxRaiz'), a = ultimo;
     if (!el || !a) return;
@@ -450,6 +461,7 @@
     const mes = a.meses.length ? a.meses[a.meses.length - 1].mes : '';
     const rit = !indisp && mes ? CT.ritmo(itens(), q, a.visao, mes, new Date(), CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
     const fix = !indisp && mes ? CT.fixosVariaveis(itens(), q, a.visao, mes, CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
+    const pag = !indisp && mes ? CT.pagamentos(itens(), q, a.visao, mes) : null;
     const cal = !indisp && mes ? CT.calendario(itens(), q, a.visao, mes) : null;
     const tags = !indisp && mes ? CT.maioresTags(itens(), q, a.visao, mes, CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
     const vazio = (t) => '<p class="td-vazio-g">' + esc(t) + '</p>';
@@ -482,6 +494,12 @@
       cardCal += '<div id="gxCal">' + gxCalendario(cal) + '</div><div class="gx-leg gx-leg-cal"><span class="mut">R$ por dia</span>' +
         rot.map((r, k) => '<span><i class="gx-sw" style="background:var(--h' + k + ')"></i>' + esc(r) + '</span>').join('') + '</div>';
     }
+    let cardPag = '<h3>Forma de pagamento</h3><p class="gx-q">Quanto passou por cada forma de pagamento' + esc(nm) + '?</p>';
+    if (!pag || !pag.linhas.length) cardPag += vazio(motivo);
+    else {
+      cardPag += '<div id="gxPag">' + gxPagamento(pag) + '</div><div class="gx-rows">' + pag.linhas.map((l) =>
+        '<div><span class="n"><i class="gx-sw" style="background:' + corStatus(l.status) + ';border-radius:50%"></i> ' + esc(l.status) + '</span><span class="p">' + l.pct + '%</span><span class="r">' + esc(gxReais(l.v)) + '</span></div>').join('') + '</div>';
+    }
     let cardTags = '<h3>Maiores tags do mês</h3><p class="gx-q">Onde está o peso' + esc(nm) + ' e quem mais se mexeu?</p>';
     if (!tags || !tags.linhas.length) cardTags += vazio(motivo);
     else {
@@ -489,11 +507,11 @@
         (tags.nOutras ? '<p class="gx-nota">e mais ' + tags.nOutras + ' tag' + (tags.nOutras > 1 ? 's' : '') + ', somando ' + esc(gxReais(tags.outras)) + '.</p>' : '') +
         '<p class="gx-nota">Seta: variação contra ' + esc(gxNomeMes(CT.mesAnterior(mes))) + '. Um lançamento com várias tags conta em cada uma.</p>';
     }
-    const corpo = { comparar: cardFix, 'ao-longo': cardRit + '</section><section class="gx-card">' + cardCal, 'para-onde': cardTags };
+    const corpo = { comparar: cardFix, 'ao-longo': cardRit + '</section><section class="gx-card">' + cardCal, 'para-onde': cardPag + '</section><section class="gx-card">' + cardTags };
     el.innerHTML = GX_SECOES.map(([id, nome]) => {
       const aberta = !gxFechadas.includes(id);
       return '<section class="gx-sec"><h2><button type="button" class="gx-tit" data-gx="' + id + '" aria-expanded="' + aberta + '" aria-controls="gx-' + id + '">' +
-        '<span class="gx-seta" aria-hidden="true">▾</span>' + esc(nome) + '<span class="gx-n">' + (id === 'ao-longo' ? '2 gráficos' : '1 gráfico') + '</span></button></h2>' +
+        '<span class="gx-seta" aria-hidden="true">▾</span>' + esc(nome) + '<span class="gx-n">' + (id === 'comparar' ? '1 gráfico' : '2 gráficos') + '</span></button></h2>' +
         '<div class="gx-grid" id="gx-' + id + '"' + (aberta ? '' : ' hidden') + '><section class="gx-card">' + corpo[id] + '</section></div></section>';
     }).join('');
   }
