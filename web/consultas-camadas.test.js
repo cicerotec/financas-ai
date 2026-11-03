@@ -16,7 +16,7 @@ const corpo = (nome) => {
 const abertas = corpo('camadasAbertas'), fechar = corpo('fecharCamadaTopo');
 
 // janela -> botao que a fecha, de cima para baixo (a de renomear e a de salvar ficam por cima da lista, que fica por cima da lista de lancamentos)
-const janelas = [['tdRnVeu', 'tdRnFechar'], ['tdSvVeu', 'tdSvFechar'], ['tdCsVeu', 'tdCsFechar'], ['tdListaVeu', 'tdLFechar']];
+const janelas = [['gxLimVeu', 'gxLimFechar'], ['tdRnVeu', 'tdRnFechar'], ['tdSvVeu', 'tdSvFechar'], ['tdCsVeu', 'tdCsFechar'], ['tdListaVeu', 'tdLFechar']];
 let falhas = 0;
 const teste = (nome, fn) => { try { fn(); console.log('ok   ' + nome); } catch (e) { falhas++; console.error('FALHOU: ' + nome + '\n  ' + e.message); } };
 
@@ -43,7 +43,7 @@ teste('fecharCamadaTopo() fecha cada janela pelo botao dela, na ordem de cima pa
 });
 
 teste('o botao de cada janela fecha a janela por um clique (o voltar clica nele)', () => {
-  for (const botao of ['tdRnFechar', 'tdSvFechar', 'tdCsFechar']) {
+  for (const botao of ['gxLimFechar', 'tdRnFechar', 'tdSvFechar', 'tdCsFechar']) {
     assert.ok(tend.includes("t.id === '" + botao + "'"), 'aoClicar nao trata #' + botao);
   }
 });

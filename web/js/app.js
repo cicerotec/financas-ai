@@ -1062,6 +1062,7 @@ function camadasAbertas(){
   let n = 0;
   if(camadaVisivel('modalOverlay')) n++;
   if(camadaVisivel('mnDrop')) n++;
+  if(camadaVisivel('gxLimVeu')) n++;
   if(camadaVisivel('tdRnVeu')) n++;
   if(camadaVisivel('tdSvVeu')) n++;
   if(camadaVisivel('tdCsVeu')) n++;
@@ -1079,6 +1080,7 @@ function fecharCamadaTopo(){ // na ordem de cima para baixo; o que nao existe e 
   const clicar = sel=>{ const e = document.querySelector(sel); if(e) e.click(); return !!e; };
   if(camadaVisivel('modalOverlay')){ clicar('#modalCancelar') || clicar('#modalOk'); return; }
   if(camadaVisivel('mnDrop')){ fecharMenuApp(false); return; }
+  if(camadaVisivel('gxLimVeu')){ clicar('#gxLimFechar'); return; }
   if(camadaVisivel('tdRnVeu')){ clicar('#tdRnFechar'); return; }
   if(camadaVisivel('tdSvVeu')){ clicar('#tdSvFechar'); return; }
   if(camadaVisivel('tdCsVeu')){ clicar('#tdCsFechar'); return; }

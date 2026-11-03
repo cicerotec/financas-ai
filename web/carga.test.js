@@ -126,6 +126,16 @@ const teste = async (nome, fn) => {
     assert.deepStrictEqual(quais(), ['POST /spaces/e1/consultas', 'PUT /spaces/e1/consultas/c1', 'DELETE /spaces/e1/consultas/c1', 'POST /spaces/e1/consultas/c1/restaurar']);
   });
 
+  await teste('a Tendencias le as consultas so de dois lugares: a janela "Consultas salvas" e as visoes com a secao aberta, uma vez, nunca na subida (item 55)', async () => {
+    const tend = fs.readFileSync(path.join(__dirname, 'js', 'tendencias.js'), 'utf8');
+    const app = fs.readFileSync(path.join(__dirname, 'js', 'app.js'), 'utf8');
+    const corpo = (nome) => { const i = tend.indexOf('function ' + nome + '('); assert.ok(i >= 0, nome + ' nao existe'); return tend.slice(i, tend.indexOf('\n  }', i)); };
+    assert.ok(corpo('abrirConsultas').includes('carregarConsultas()'), 'a janela abre e le');
+    assert.ok(corpo('gxGarantirConsultas').includes('gxTentou') && corpo('gxGarantirConsultas').includes('carregarConsultas()'), 'o gancho das visoes le uma vez (gxTentou)');
+    assert.ok(tend.includes("gxFechadas.includes('comparar') || !gxFechadas.includes('ao-longo')"), 'so le com uma secao que precisa das consultas aberta');
+    assert.strictEqual(app.includes('carregarConsultas'), false, 'o app.js (a subida) nao chama a leitura das consultas');
+  });
+
   if (falhas) process.exit(1);
   console.log('carga.test.js: ok');
 })();

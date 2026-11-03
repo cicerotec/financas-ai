@@ -118,7 +118,14 @@
         '<p class="td-jsub" id="tdRnSub"></p>' +
         '<input type="text" class="td-cs-nome" id="tdRnNome" maxlength="' + CT.MAX_NOME_CONSULTA + '" aria-label="Novo nome" autocomplete="off">' +
         '<div class="td-cs-cnt" id="tdRnCnt"></div><div class="td-msg bad" id="tdRnErro" role="alert"></div>' +
-        '<button class="td-jok" id="tdRnOk" type="button">Renomear</button></div></div>';
+        '<button class="td-jok" id="tdRnOk" type="button">Renomear</button></div></div>' +
+      '<div class="td-veu td-alto" id="gxLimVeu" hidden><div class="td-jan" role="dialog" aria-modal="true" aria-labelledby="gxLimT">' +
+        '<div class="td-lcab"><h2 id="gxLimT">Limite mensal</h2><button type="button" id="gxLimFechar" aria-label="Fechar">✕</button></div>' +
+        '<p class="td-jsub">Quanto você quer gastar, no máximo, por mês com esta consulta. Vale para todos os meses.</p>' +
+        '<label class="td-jsub" for="gxLimVal">Valor em reais</label>' +
+        '<input type="text" inputmode="decimal" class="td-cs-nome" id="gxLimVal" placeholder="0,00" autocomplete="off">' +
+        '<div class="td-msg bad" id="gxLimErro" role="alert"></div>' +
+        '<button class="td-jok" id="gxLimOk" type="button">Salvar</button><button class="td-cs-sec" id="gxLimTirar" type="button" hidden>Tirar limite</button></div></div>';
     $('tendRaiz').addEventListener('click', aoClicar);
     $('gxRaiz').addEventListener('click', aoClicarVisoes);
     document.addEventListener('pointermove', dicaVisoes); document.addEventListener('pointerdown', dicaVisoes);
@@ -127,9 +134,12 @@
     $('tdSvNome').addEventListener('input', () => { $('tdSvCnt').textContent = $('tdSvNome').value.length + ' de ' + CT.MAX_NOME_CONSULTA; $('tdSvErro').textContent = ''; });
     $('tdSvNome').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); salvarNova(); } });
     $('tdRnNome').addEventListener('input', () => { $('tdRnCnt').textContent = $('tdRnNome').value.length + ' de ' + CT.MAX_NOME_CONSULTA; $('tdRnErro').textContent = ''; });
+    $('gxLimVal').addEventListener('input', () => { $('gxLimErro').textContent = ''; });
+    $('gxLimVal').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); gxGravarLimite(false); } });
     $('tdRnNome').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); renomear(); } });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
+      if (gxLim.id) { gxFecharLimite(); return; }
       if (cs.rn) { fecharRenomear(); return; }
       if (cs.sv) { fecharSalvar(); return; }
       if (cs.aberta) { fecharConsultas(); return; }
@@ -356,7 +366,7 @@
   function travar() {
     const celular = !largo() && edAberto;
     document.body.classList.toggle('td-edit', celular);
-    document.body.classList.toggle('td-trava', celular || !$('tdVeu').hidden || listaAberta || cs.aberta || cs.sv || !!cs.rn);
+    document.body.classList.toggle('td-trava', celular || !$('tdVeu').hidden || listaAberta || cs.aberta || cs.sv || !!cs.rn || !!gxLim.id);
     $('tdEsc').classList.toggle('aberto', edAberto);
   }
 
@@ -453,31 +463,131 @@
     });
     return h + '</svg>';
   }
+  // Estado das visões: o mês de referência ('' = o mais recente da consulta) e o "Comparar com" (mês anterior, média de 3 meses ou mesmo mês do ano passado).
+  // Nenhum dos dois vai para a consulta salva nem para o servidor; ao recarregar voltam ao padrão.
+  let gxMes = '', gxCmp = 'ant', gxTentou = false;
+  const gxAnoMes = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  const gxMesesDaBase = () => [...new Set(itens().map((l) => l.mes).concat(gxAnoMes(new Date())))].sort();
+  const gxRotuloMes = (mes) => gxMaiu(gxNomeMes(mes)) + ' de ' + mes.slice(0, 4);
+  function gxBaseTxt(mes) {
+    const b = CT.mesesBase(mes, gxCmp);
+    if (gxCmp === 'med') return 'a média de ' + gxNomeMes(b[2]).slice(0, 3) + ' a ' + gxNomeMes(b[0]).slice(0, 3);
+    if (gxCmp === 'ano') return gxNomeMes(b[0]) + ' de ' + b[0].slice(0, 4);
+    return gxNomeMes(b[0]);
+  }
+  const gxSemBaseMotivo = () => (gxCmp === 'ano' ? 'o mesmo mês do ano passado está além dos ' + LIMITE_CARGA + ' lançamentos que o app carrega' : 'o app carrega só os ' + LIMITE_CARGA + ' lançamentos mais recentes e a base pode estar incompleta');
+  const gxQDe = (c) => ({ id: c.id, nome: c.nome, q: CT.consulta(CT.deSalvo(c)), limite: c.limite });
+  // As consultas salvas são lidas uma vez, quando a Tendências mostra uma seção que precisa delas (nunca na subida do app).
+  function gxGarantirConsultas() {
+    if (cs.lista || cs.carregando || gxTentou) return;
+    gxTentou = true; carregarConsultas();
+  }
+  function gxContra(p, mesAtual) {
+    const rowH = 44, W = 360, H = p.linhas.length * rowH + 6, x0 = 84, esc2 = gxEscala(Math.max(1, ...p.linhas.map((l) => Math.max(l.atual, l.base || 0)))), sc = 170 / esc2.topo;
+    let h = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gx-chart" role="img" aria-label="' + esc(gxNomeMes(mesAtual)) + ' contra ' + esc(gxBaseTxt(mesAtual)) + ', por consulta">';
+    p.linhas.forEach((l, i) => {
+      const y = i * rowH + 4, cor = l.id ? 'var(--s' + ((i % 5) + 1) + ')' : 'var(--so)';
+      const d = l.dif === 'novo' ? 'novo' : l.dif === 'sem' ? 'sem base' : l.dif === 'igual' ? '■ igual' : (l.dif > 0 ? '▲ +' : '▼ −') + Math.abs(l.dif) + '%';
+      const dc = typeof l.dif !== 'number' ? 'var(--muted)' : l.dif > 0 ? 'var(--crit)' : 'var(--good-ink)';
+      h += gxTxt(0, y + 19, gxCurto(l.nome), 'big');
+      if (l.base !== null) h += '<path d="M' + x0 + ',' + y + 'h' + Math.max(l.base * sc, 1) + 'v13h-' + Math.max(l.base * sc, 1) + 'Z" style="fill:' + cor + ';opacity:.38" data-tip="' + esc(l.nome + ', ' + gxBaseTxt(mesAtual) + ': ' + gxReais(l.base)) + '"></path>' + gxTxt(x0 + l.base * sc + 5, y + 10, gxReais(l.base), 'mut');
+      h += '<path d="M' + x0 + ',' + (y + 16) + 'h' + Math.max(l.atual * sc, 1) + 'v13h-' + Math.max(l.atual * sc, 1) + 'Z" style="fill:' + cor + '" data-tip="' + esc(l.nome + ', ' + gxNomeMes(mesAtual) + ': ' + gxReais(l.atual)) + '"></path>' +
+        gxTxt(x0 + l.atual * sc + 5, y + 26, gxReais(l.atual), 'val') + gxTxt(W, y + 19, d, '', 'end', ' style="font-weight:600;fill:' + dc + '"');
+    });
+    return h + '<line x1="' + x0 + '" x2="' + x0 + '" y1="0" y2="' + (H - 6) + '" class="gx-ax"></line></svg>';
+  }
+  function gxSeis(s) {
+    const W = 360, H = 250, L = 36, R = 354, T0 = 14, B = H - 26, pitch = (R - L) / 6, bw = 36;
+    const totais = s.meses.map((m, i) => s.series.reduce((t, x) => t + x.valores[i], 0)), esc2 = gxEscala(Math.max(...totais)), y = (v) => B - (B - T0) * v / esc2.topo;
+    let h = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gx-chart" role="img" aria-label="Gasto dos seis meses até ' + esc(gxNomeMes(s.mes)) + ', empilhado por consulta">';
+    for (let v = 0; v <= esc2.topo + 1e-9; v += esc2.passo) h += '<line x1="' + L + '" x2="' + R + '" y1="' + y(v) + '" y2="' + y(v) + '" class="' + (v ? 'gx-gl' : 'gx-ax') + '"></line>' + gxTxt(L - 6, y(v) + 3, v ? gxMil(v) : '0', 'mut', 'end');
+    s.meses.forEach((m, c) => {
+      const x = L + pitch * c + (pitch - bw) / 2, op = m.incompleto ? 'opacity:.45;' : '';
+      let acc = 0;
+      s.series.forEach((sr, k) => {
+        const v = sr.valores[c];
+        if (v > 0) h += '<path d="M' + x + ',' + y(acc + v) + 'h' + bw + 'v' + (y(acc) - y(acc + v)) + 'h' + -bw + 'Z" style="fill:' + gxCorSerie(sr, k) + ';stroke:var(--card);stroke-width:2;' + op + '" data-tip="' + esc(gxNomeMes(m.mes) + ' · ' + sr.nome + ': ' + gxReais(v)) + '"></path>';
+        acc += v;
+      });
+      h += gxTxt(x + bw / 2, y(acc) - 5, gxMil(Math.round(acc)), 'val', 'middle') + gxTxt(x + bw / 2, H - 8, gxNomeMes(m.mes).slice(0, 3), m.mes === s.mes ? 'val' : 'mut', 'middle');
+    });
+    return h + '</svg>';
+  }
+  const gxCorSerie = (sr, k) => (sr.id ? 'var(--s' + ((k % 5) + 1) + ')' : 'var(--so)');
+  function gxMetasHtml(m, mes) {
+    const MAXL = 8, vis = m.linhas.slice(0, MAXL), resto = m.linhas.length - vis.length;
+    const MSG = { dentro: ['✓', 'var(--good-ink)', 'Dentro do limite'], perto: ['!', 'var(--warn)', 'Perto do limite'], passou: ['✕', 'var(--crit)', 'Passou'] };
+    const h = vis.map((l, i) => {
+      const c = achar(l.id), cor = 'var(--s' + ((i % 5) + 1) + ')';
+      const acao = !c ? '' : c.podeAlterar ? '<button type="button" class="gx-lim" data-gx-lim="' + esc(l.id) + '">' + (l.limite === null ? 'Definir limite' : 'Alterar limite') + '</button>'
+        : '<span class="gx-so">Só quem salvou a consulta ou o dono altera o limite</span>';
+      if (l.estado === 'sem') return '<div class="gx-meta"><div class="gx-mhead"><span class="l"><i class="gx-sw" style="background:' + cor + ';border-radius:50%"></i>' + esc(l.nome) + '</span><span class="gx-mst">Sem limite</span></div>' +
+        '<div class="gx-mfoot gx-mrow"><span>' + esc(gxReais(l.gasto)) + ' gasto</span>' + acao + '</div></div>';
+      const st = MSG[l.estado], dom = Math.max(l.limite, l.gasto) * 1.25 || 1, w = Math.min(l.gasto / dom, 1) * 100, lp = l.limite / dom * 100;
+      const cb = l.estado === 'passou' ? 'var(--crit)' : l.estado === 'perto' ? 'var(--warn)' : cor;
+      return '<div class="gx-meta"><div class="gx-mhead"><span class="l"><i class="gx-sw" style="background:' + cor + ';border-radius:50%"></i>' + esc(l.nome) + '</span>' +
+        '<span class="gx-mst"><b style="color:' + st[1] + '">' + st[0] + '</b> ' + st[2] + (l.estado === 'passou' ? ' ' + esc(gxReais(l.excesso)) : '') + (l.pct === null ? '' : ' · ' + l.pct + '%') + '</span></div>' +
+        '<div class="gx-track" data-tip="' + esc(l.nome + ': ' + gxReais(l.gasto) + ' de ' + gxReais(l.limite)) + '"><div class="gx-fill" style="width:' + w + '%;background:' + cb + '"></div><i class="gx-limit" style="left:' + lp + '%"></i></div>' +
+        '<div class="gx-mfoot gx-mrow"><span>' + esc(gxReais(l.gasto)) + ' de ' + esc(gxReais(l.limite)) + '</span>' + acao + '</div></div>';
+    }).join('');
+    return h + (resto > 0 ? '<p class="gx-nota">E mais ' + resto + ' consulta' + (resto > 1 ? 's' : '') + ' sem limite. Para definir, carregue a consulta em Consultas salvas.</p>' : '');
+  }
   function renderVisoes() {
     const el = $('gxRaiz'), a = ultimo;
     if (!el || !a) return;
     const q = qValida || CT.consulta({ modo: 'grupos', grupos: [], fichas: [] });
     const indisp = a.visao === 'saldo';
-    const mes = a.meses.length ? a.meses[a.meses.length - 1].mes : '';
-    const rit = !indisp && mes ? CT.ritmo(itens(), q, a.visao, mes, new Date(), CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
-    const fix = !indisp && mes ? CT.fixosVariaveis(itens(), q, a.visao, mes, CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
-    const pag = !indisp && mes ? CT.pagamentos(itens(), q, a.visao, mes) : null;
-    const cal = !indisp && mes ? CT.calendario(itens(), q, a.visao, mes) : null;
-    const tags = !indisp && mes ? CT.maioresTags(itens(), q, a.visao, mes, CT.corte(lancamentosCache.length, LIMITE_CARGA, a)) : null;
+    const lista = gxMesesDaBase();
+    let mes = gxMes && lista.includes(gxMes) ? gxMes : (a.meses.length ? a.meses[a.meses.length - 1].mes : '');
+    if (!indisp && mes && !lista.includes(mes)) mes = lista[lista.length - 1];
+    const corteMes = CT.corte(lancamentosCache.length, LIMITE_CARGA, a), its = itens();
+    const rit = !indisp && mes ? CT.ritmo(its, q, a.visao, mes, new Date(), corteMes, gxCmp) : null;
+    const fix = !indisp && mes ? CT.fixosVariaveis(its, q, a.visao, mes, corteMes) : null;
+    const pag = !indisp && mes ? CT.pagamentos(its, q, a.visao, mes) : null;
+    const cal = !indisp && mes ? CT.calendario(its, q, a.visao, mes) : null;
+    const tags = !indisp && mes ? CT.maioresTags(its, q, a.visao, mes, corteMes, 8, gxCmp) : null;
     const vazio = (t) => '<p class="td-vazio-g">' + esc(t) + '</p>';
     const motivo = indisp ? 'Disponível em Gastos e Receitas: no Resultado, entradas e saídas se cancelam.' : 'Sem lançamentos com essa consulta ainda.';
     const nm = mes ? ' em ' + gxNomeMes(mes) : '';
+    const nBase = mes ? gxBaseTxt(mes) : '';
+    // consultas salvas: lidas quando uma seção que precisa delas está aberta
+    const precisa = !indisp && mes && (!gxFechadas.includes('comparar') || !gxFechadas.includes('ao-longo'));
+    if (precisa) gxGarantirConsultas();
+    const csq = cs.lista ? cs.lista.map(gxQDe) : null;
+    const semConsultas = (t) => (cs.lista ? vazio(t || 'Nenhuma consulta salva ainda. Monte uma consulta e toque em Salvar consulta.') : cs.carregando || !cs.erro ? vazio('Carregando as consultas salvas...') :
+      '<p class="td-vazio-g">' + esc(cs.erro) + ' <button type="button" class="td-cs-link" data-gx-retry>Tentar de novo</button></p>');
+    const nomeContra = (mes ? (mes === gxAnoMes(new Date()) ? 'Este mês' : gxMaiu(gxNomeMes(mes))) : 'Este mês') + ' contra ' + (gxCmp === 'ant' ? 'o anterior' : gxCmp === 'med' ? 'a média de 3 meses' : 'o mesmo mês do ano passado');
+
+    let cardCon = '<h3>' + esc(nomeContra) + '</h3><p class="gx-q">O que subiu e o que desceu, consulta por consulta?</p>';
+    const pc = !indisp && mes && csq ? CT.porConsulta(its, csq, a.visao, mes, corteMes, gxCmp) : null;
+    if (indisp) cardCon += vazio(motivo);
+    else if (!csq || !pc || !pc.linhas.length) cardCon += semConsultas(csq ? 'Nenhuma consulta salva com gasto nos últimos seis meses.' : '');
+    else if (pc.semBase) cardCon += vazio('Sem base: ' + gxSemBaseMotivo() + '.');
+    else cardCon += '<div class="gx-leg"><span><i class="gx-sw" style="background:var(--g-ink2);opacity:.38"></i>' + esc(gxMaiu(nBase.replace(/^a /, ''))) + '</span><span><i class="gx-sw" style="background:var(--g-ink2)"></i>' + esc(gxMaiu(gxNomeMes(mes))) + '</span></div>' +
+      '<div id="gxCon">' + gxContra(pc, mes) + '</div><p class="gx-nota">Uma compra que está em duas consultas conta nas duas. Outros é o que nenhuma destas consultas pega.</p>';
+
+    let cardSeis = '<h3>Seis meses, por consulta</h3><p class="gx-q">O total mudou por causa de quem?</p>';
+    const sp = !indisp && mes && csq ? CT.seisPorConsulta(its, csq, a.visao, mes, corteMes) : null;
+    if (indisp) cardSeis += vazio(motivo);
+    else if (!csq || !sp || !sp.series.length) cardSeis += semConsultas(csq ? 'Nenhuma consulta salva com gasto nos últimos seis meses.' : '');
+    else {
+      const inc = sp.meses.filter((m) => m.incompleto).map((m) => gxNomeMes(m.mes));
+      cardSeis += '<div class="gx-leg">' + sp.series.map((x, k) => '<span><i class="gx-sw" style="background:' + gxCorSerie(x, k) + '"></i>' + esc(x.nome) + '</span>').join('') + '</div><div id="gxSeis">' + gxSeis(sp) + '</div>' +
+        '<p class="gx-nota">Aqui cada lançamento entra na primeira consulta (da maior para a menor) que o pega, para a pilha somar o total.</p>' +
+        (inc.length ? '<p class="gx-nota">O app carrega só os ' + LIMITE_CARGA + ' lançamentos mais recentes: ' + esc(inc.join(', ')) + ' pode estar incompleto (barra apagada).</p>' : '');
+    }
+
     let cardRit = '<h3>Ritmo do mês</h3><p class="gx-q">' + (rit && rit.atual ? 'No ritmo de hoje, onde o mês vai terminar' : 'Como o gasto foi se acumulando') + esc(nm) + '?</p>';
     if (!rit || !rit.total) cardRit += vazio(motivo);
     else {
-      const nb = gxNomeMes(rit.mesBase), nmes = gxNomeMes(rit.mes);
+      const nmes = gxNomeMes(rit.mes);
       cardRit += '<div class="gx-leg"><span><i class="gx-sw" style="background:var(--s1)"></i>' + gxMaiu(nmes) + (rit.atual ? ' até hoje' : '') + '</span>' +
         (rit.projecao ? '<span><i class="gx-sw" style="background:none;border:2px dashed var(--s1);height:6px"></i>Projeção</span>' : '') +
-        (rit.base ? '<span><i class="gx-sw" style="background:var(--so)"></i>' + gxMaiu(nb) + '</span>' : '') + '</div><div id="gxRit">' + gxRitmo(rit) + '</div>' +
+        (rit.base ? '<span><i class="gx-sw" style="background:var(--so)"></i>' + esc(gxMaiu(nBase.replace(/^a /, ''))) + '</span>' : '') + '</div><div id="gxRit">' + gxRitmo(rit) + '</div>' +
         (rit.projecao ? '<p class="gx-nota">Simulação: a projeção repete o ritmo médio dos ' + rit.ate + ' primeiros dias.</p>'
           : rit.atual ? '<p class="gx-nota">A projeção aparece a partir do 3º dia do mês.</p>' : '') +
-        (rit.semBase ? '<p class="gx-nota">' + esc(gxMaiu(nb)) + ' pode estar incompleto (o app carrega só os ' + LIMITE_CARGA + ' lançamentos mais recentes), então não aparece.</p>'
-          : !rit.base ? '<p class="gx-nota">Sem lançamentos da consulta em ' + esc(nb) + ' para comparar.</p>' : '');
+        (rit.semBase ? '<p class="gx-nota">Sem base para comparar: ' + esc(gxSemBaseMotivo()) + '.</p>'
+          : !rit.base ? '<p class="gx-nota">Sem lançamentos da consulta em ' + esc(nBase.replace(/^a /, '')) + ' para comparar.</p>' : '');
     }
     let cardFix = '<h3>Fixos e variáveis</h3><p class="gx-q">Quanto do mês já nasce comprometido (recorrentes)?</p>';
     if (!fix || !fix.meses.some((m) => m.total)) cardFix += vazio(motivo);
@@ -494,6 +604,11 @@
       cardCal += '<div id="gxCal">' + gxCalendario(cal) + '</div><div class="gx-leg gx-leg-cal"><span class="mut">R$ por dia</span>' +
         rot.map((r, k) => '<span><i class="gx-sw" style="background:var(--h' + k + ')"></i>' + esc(r) + '</span>').join('') + '</div>';
     }
+    let cardMet = '<h3>Metas por consulta</h3><p class="gx-q">Quem está perto do limite que você escolheu' + esc(nm) + '?</p>';
+    if (a.visao !== 'gastos') cardMet += vazio(indisp ? motivo : 'Metas comparam o gasto: escolha Gastos.');
+    else if (!csq) cardMet += semConsultas();
+    else if (!csq.length) cardMet += semConsultas();
+    else cardMet += '<div id="gxMet">' + gxMetasHtml(CT.metas(its, csq, mes), mes) + '</div><p class="gx-nota">A marca preta é o limite mensal. Ele fica guardado na consulta e vale para todos os meses; o gasto é sempre calculado na tela.</p>';
     let cardPag = '<h3>Forma de pagamento</h3><p class="gx-q">Quanto passou por cada forma de pagamento' + esc(nm) + '?</p>';
     if (!pag || !pag.linhas.length) cardPag += vazio(motivo);
     else {
@@ -505,17 +620,61 @@
     else {
       cardTags += '<div id="gxTags">' + gxTags(tags, a.visao) + '</div>' +
         (tags.nOutras ? '<p class="gx-nota">e mais ' + tags.nOutras + ' tag' + (tags.nOutras > 1 ? 's' : '') + ', somando ' + esc(gxReais(tags.outras)) + '.</p>' : '') +
-        '<p class="gx-nota">Seta: variação contra ' + esc(gxNomeMes(CT.mesAnterior(mes))) + '. Um lançamento com várias tags conta em cada uma.</p>';
+        '<p class="gx-nota">Seta: variação contra ' + esc(nBase) + '. Um lançamento com várias tags conta em cada uma.</p>' +
+        (tags.linhas.some((l) => l.dif === 'sem') ? '<p class="gx-nota">Sem base: ' + esc(gxSemBaseMotivo()) + '.</p>' : '');
     }
-    const corpo = { comparar: cardFix, 'ao-longo': cardRit + '</section><section class="gx-card">' + cardCal, 'para-onde': cardPag + '</section><section class="gx-card">' + cardTags };
-    el.innerHTML = GX_SECOES.map(([id, nome]) => {
+    const J = '</section><section class="gx-card">';
+    const corpo = { comparar: cardCon + J + cardSeis + J + cardFix, 'ao-longo': cardRit + J + cardCal + J + cardMet, 'para-onde': cardPag + J + cardTags };
+    const NG = { comparar: 3, 'ao-longo': 3, 'para-onde': 2 };
+    const i = lista.indexOf(mes);
+    const barra = indisp || !mes ? '' : '<div class="gx-per"><div class="gx-nav" role="group" aria-label="Mês de referência"><button type="button" data-gx-m="-1" aria-label="Mês anterior"' + (i <= 0 ? ' disabled' : '') + '>‹</button>' +
+      '<b aria-live="polite">' + esc(gxRotuloMes(mes)) + (mes === gxAnoMes(new Date()) ? ' (mês atual)' : '') + '</b><button type="button" data-gx-m="1" aria-label="Próximo mês"' + (i >= lista.length - 1 ? ' disabled' : '') + '>›</button></div>' +
+      '<div class="gx-cmp" role="group" aria-label="Comparar com"><span class="gx-cmpl">Comparar com</span>' +
+      [['ant', 'Mês anterior'], ['med', 'Média de 3 meses'], ['ano', 'Mesmo mês do ano passado']].map(([k, t]) => '<button type="button" data-gx-c="' + k + '" aria-pressed="' + (gxCmp === k) + '">' + t + '</button>').join('') + '</div></div>';
+    el.innerHTML = barra + GX_SECOES.map(([id, nome]) => {
       const aberta = !gxFechadas.includes(id);
       return '<section class="gx-sec"><h2><button type="button" class="gx-tit" data-gx="' + id + '" aria-expanded="' + aberta + '" aria-controls="gx-' + id + '">' +
-        '<span class="gx-seta" aria-hidden="true">▾</span>' + esc(nome) + '<span class="gx-n">' + (id === 'comparar' ? '1 gráfico' : '2 gráficos') + '</span></button></h2>' +
+        '<span class="gx-seta" aria-hidden="true">▾</span>' + esc(nome) + '<span class="gx-n">' + NG[id] + ' gráficos</span></button></h2>' +
         '<div class="gx-grid" id="gx-' + id + '"' + (aberta ? '' : ' hidden') + '><section class="gx-card">' + corpo[id] + '</section></div></section>';
     }).join('');
   }
+  // ---- limite da meta (item 55): janela de baixo; quem decide se a pessoa pode alterar é o servidor (podeAlterar) ----
+  const gxLim = { id: null };
+  function gxAbrirLimite(id) {
+    const c = achar(id);
+    if (!c || !c.podeAlterar) return;
+    gxLim.id = id; $('gxLimT').textContent = 'Limite mensal de ' + c.nome;
+    $('gxLimVal').value = typeof c.limite === 'number' ? String(c.limite).replace('.', ',') : ''; $('gxLimErro').textContent = '';
+    $('gxLimTirar').hidden = typeof c.limite !== 'number';
+    $('gxLimVeu').hidden = false; travar(); $('gxLimVal').focus();
+  }
+  function gxFecharLimite() { const id = gxLim.id; gxLim.id = null; $('gxLimVeu').hidden = true; travar(); const b = id && document.querySelector('[data-gx-lim="' + id + '"]'); if (b) b.focus(); }
+  async function gxGravarLimite(tirar) {
+    const c = achar(gxLim.id);
+    if (!c || cs.ocupado) return;
+    let n = null;
+    if (!tirar) {
+      const t = $('gxLimVal').value.trim().replace(/\./g, '').replace(',', '.');
+      n = t === '' ? NaN : Number(t);
+      if (isNaN(n) || n < 0 || n > CT.MAX_LIMITE) { $('gxLimErro').textContent = 'Digite um valor em reais, de 0 até ' + brl0(CT.MAX_LIMITE) + '.'; return; }
+      if (Math.abs(n * 100 - Math.round(n * 100)) > 1e-6) { $('gxLimErro').textContent = 'Use no máximo 2 casas decimais.'; return; }
+    }
+    cs.ocupado = true; $('gxLimOk').disabled = true; $('gxLimTirar').disabled = true;
+    try {
+      substituir(await db.atualizarConsulta(c.id, { version: c.version, limite: n }));
+      gxFecharLimite(); renderConsultas(); render(); toast(tirar ? '✓ Limite tirado' : '✓ Limite salvo');
+    } catch (e) { erroJanela('gxLimErro', e); }
+    cs.ocupado = false; $('gxLimOk').disabled = false; $('gxLimTirar').disabled = false;
+  }
   function aoClicarVisoes(e) {
+    const m = e.target.closest('[data-gx-m],[data-gx-c],[data-gx-lim],[data-gx-retry]');
+    if (m) {
+      if (m.dataset.gxM) { const l = gxMesesDaBase(), atual = gxMes && l.includes(gxMes) ? gxMes : (ultimo && ultimo.meses.length ? ultimo.meses[ultimo.meses.length - 1].mes : l[l.length - 1]); gxMes = l[Math.max(0, Math.min(l.length - 1, l.indexOf(atual) + Number(m.dataset.gxM)))]; renderVisoes(); }
+      else if (m.dataset.gxC) { gxCmp = m.dataset.gxC; renderVisoes(); }
+      else if (m.dataset.gxLim) gxAbrirLimite(m.dataset.gxLim);
+      else { gxTentou = false; renderVisoes(); }
+      return;
+    }
     const b = e.target.closest('.gx-tit');
     if (!b) return;
     const id = b.dataset.gx, fecha = !gxFechadas.includes(id);
@@ -523,6 +682,7 @@
     try { localStorage.setItem('tdVisoesFechadas', JSON.stringify(gxFechadas)); } catch (err) { /* sem armazenamento: vale só nesta visita */ }
     b.setAttribute('aria-expanded', String(!fecha));
     $('gx-' + id).hidden = fecha;
+    if (!fecha) renderVisoes();
   }
   function dicaVisoes(e) {
     const tip = $('gxTip'), t = e.target.closest && e.target.closest('#gxRaiz [data-tip]');
@@ -775,7 +935,7 @@
     ten.fichas = r.fichas; ten.pos = r.pos; render();
   }
   function aoClicar(e) {
-    const t = e.target.closest('#tdBtnSalvas,#tdCsFechar,#tdCsRetry,[data-cs-f],[data-cs-usar],[data-cs-ren],[data-cs-del],#tdBtnSalvar,#tdSvFechar,#tdSvOk,#tdSvAtual,#tdRnFechar,#tdRnOk,#tdBtnLista,[data-mes],[data-lm],#tdLFechar,[data-v],[data-combo],#tdCombos,#tdBtnTag,[data-add],[data-rm],[data-del],#tdNovo,[data-t],#tdJok,[data-i],[data-k],[data-tag],#tdAvanc,#tdVoltar,#tdVoltarCel,[data-cot],#tdDesf,#tdEditar,#tdFechar,#tdPronto');
+    const t = e.target.closest('#gxLimFechar,#gxLimOk,#gxLimTirar,#tdBtnSalvas,#tdCsFechar,#tdCsRetry,[data-cs-f],[data-cs-usar],[data-cs-ren],[data-cs-del],#tdBtnSalvar,#tdSvFechar,#tdSvOk,#tdSvAtual,#tdRnFechar,#tdRnOk,#tdBtnLista,[data-mes],[data-lm],#tdLFechar,[data-v],[data-combo],#tdCombos,#tdBtnTag,[data-add],[data-rm],[data-del],#tdNovo,[data-t],#tdJok,[data-i],[data-k],[data-tag],#tdAvanc,#tdVoltar,#tdVoltarCel,[data-cot],#tdDesf,#tdEditar,#tdFechar,#tdPronto');
     if (!t) {
       if (e.target === $('tdVeu')) fecharJanela(); else if (e.target === $('tdListaVeu')) fecharLista();
       else if (e.target === $('tdCsVeu')) fecharConsultas(); else if (e.target === $('tdSvVeu')) fecharSalvar(); else if (e.target === $('tdRnVeu')) fecharRenomear();
@@ -792,6 +952,9 @@
     if (t.id === 'tdSvFechar') return fecharSalvar();
     if (t.id === 'tdSvOk') return salvarNova();
     if (t.id === 'tdSvAtual') return atualizarAtual();
+    if (t.id === 'gxLimFechar') return gxFecharLimite();
+    if (t.id === 'gxLimOk') return gxGravarLimite(false);
+    if (t.id === 'gxLimTirar') return gxGravarLimite(true);
     if (t.id === 'tdRnFechar') return fecharRenomear();
     if (t.id === 'tdRnOk') return renomear();
     if (t.id === 'tdBtnLista') return abrirLista('');
