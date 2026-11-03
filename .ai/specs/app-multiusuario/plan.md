@@ -58,8 +58,8 @@ Cognito**, não numa rota pública nova:
   `500`, e nenhum nome do dono (bancos, tags, status) vaza como padrão. O catálogo de status vem do servidor e é regra do produto, não dado do dono.
 - **Status do app, não do usuário** (decisões de 2026-10-27, no intent): teste de que o espaço novo recebe a lista de `GET /cfg/listas` e `GET /status` **só do catálogo**,
   que `PUT /cfg/listas` com `status` no corpo não muda nada e que a importação de um status fora do catálogo é rejeitada. Os antigos ficam não selecionáveis e fora
-  da lista do espaço novo. Incluir `PIX`, `DEBITO` ou `CRIPTO` **não** faz parte desta entrega: cada um é uma entrada do `Catalogo` com spec própria (o desmembramento do
-  `PAGO` já está descrito em `.ai/specs/futuros-previsto/`).
+  da lista do espaço novo. Incluir `PIX`, `DEBITO` ou `CRIPTO` **não** faz parte desta entrega: cada um é uma entrada do `Catalogo` com spec própria (PIX, DEBITO, DINHEIRO e TED estão em
+  `.ai/specs/formas-de-pagamento/`).
 - Tela de **boas-vindas** (demo antes): dizer o que fazer primeiro (criar o primeiro meio de pagamento e o início do controle), com o padrão de janelas do app e
   seletores nativos do celular. O front só exibe; qualquer regra vem da API.
 - O Telegram continua opcional por pessoa (`telegramChatId` já é por usuário); revisar o texto da tela de aviso para quem nunca configurou um bot.

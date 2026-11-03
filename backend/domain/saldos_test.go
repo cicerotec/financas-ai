@@ -189,7 +189,7 @@ func TestCachesValidosEPontoDePartida(t *testing.T) {
 func TestBaseDoCache(t *testing.T) {
 	cfg := ConfigBanco{Existe: true, SaldoInicial: 100.5, DataInicio: "2026-01-01"}
 	b := BaseCache(cfg)
-	if b != "v3|100.5|2026-01-01|PAGO,CONTAS" {
+	if b != "v3|100.5|2026-01-01|PIX,DEBITO,DINHEIRO,TED,PAGO,CONTAS" {
 		t.Errorf("base = %q", b)
 	}
 	if BaseCache(ConfigBanco{Existe: true, SaldoInicial: 100, DataInicio: "2026-01-01"}) == b {
@@ -198,7 +198,7 @@ func TestBaseDoCache(t *testing.T) {
 	// mudar o catalogo (um status passa a contar no saldo) muda a base: o cache antigo nao vale
 	antes := Catalogo
 	defer func() { Catalogo = antes }()
-	Catalogo = append(append([]EntradaStatus{}, antes...), EntradaStatus{Nome: "PIX", Rotulo: "PIX", ContaNoSaldo: true, Selecionavel: true})
+	Catalogo = append(append([]EntradaStatus{}, antes...), EntradaStatus{Nome: "DREX", Rotulo: "DREX", ContaNoSaldo: true, Selecionavel: true})
 	if BaseCache(cfg) == b {
 		t.Error("mudar o que conta no saldo muda a base")
 	}

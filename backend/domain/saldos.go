@@ -305,13 +305,11 @@ func MesesDoPainel(mapa map[string]float64, conf map[string]Doc, atual string) [
 	return out
 }
 
-// StatusDeAjuste devolve o status de um lancamento de ajuste da conferencia: o primeiro selecionavel do catalogo que conta no saldo
-// (PAGO). Vazio se nenhum conta.
+// StatusDeAjuste devolve o status de um lancamento de ajuste da conferencia: o generico (PAGO), porque o ajuste nao foi um PIX, um debito
+// nem dinheiro. Vazio se o generico nao for selecionavel ou nao contar no saldo.
 func StatusDeAjuste() string {
-	for _, e := range Catalogo {
-		if e.Selecionavel && e.ContaNoSaldo && !e.Previsto {
-			return e.Nome
-		}
+	if e, ok := EntradaDe(StatusGenerico); ok && e.Selecionavel && e.ContaNoSaldo && !e.Previsto {
+		return e.Nome
 	}
 	return ""
 }
