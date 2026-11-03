@@ -60,8 +60,8 @@ problemas que o dono apontou:
 
 - **Saldo, fechamento e totais** são do item 40, e **faturas e cartões**, do item 33 fatiado. Eles vêm **antes**: quando este item
   começar, o navegador já não soma nada com status, e o previsto só precisa ficar fora da conta que o **servidor** faz.
-- **O desmembramento do `PAGO`** (tipo e meio: recebimento, débito, pix, drex, cripto), o destino do **`CONTAS`** e do
-  `excluirDoTotal`, e o papel de **Admin** ficam para depois.
+- **O desmembramento do `PAGO`** (PIX, DEBITO, DINHEIRO e TED, em [`formas-de-pagamento`](../formas-de-pagamento/intent.md), item 56), o **`CONTAS`** (**fica como está**, decidido em 2026-11-02) e o
+  `excluirDoTotal` calculado pelo servidor, e o papel de **Admin** ficam fora desta entrega.
 - Não cria chave, índice nem item novo no DynamoDB: só **um atributo opcional** no lançamento (e nas versões do histórico, que
   guardam o lançamento inteiro). O nome (`previsto`) e o tipo (booleano) foram aprovados pelo dono em 2026-10-24 (princípio 3 da arquitetura).
 - Não muda a trava de mês conferido nem a de mês fechado por data (item 38): confirmar um previsto passa pelas duas.

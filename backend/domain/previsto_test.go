@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -123,7 +125,7 @@ func TestEfeitoEMudaSaldo(t *testing.T) {
 
 // P-T35 e P-T45: o catalogo contra os padroes de hoje.
 func TestCatalogoDoCorte(t *testing.T) {
-	if got := Selecionaveis(); len(got) != 2 || got[0] != "PAGO" || got[1] != "CREDITO" {
+	if got := Selecionaveis(); fmt.Sprint(got) != "[PIX DEBITO CREDITO DINHEIRO TED PAGO]" {
 		t.Errorf("selecionaveis: %v", got)
 	}
 	quer := map[string]struct {
@@ -131,6 +133,10 @@ func TestCatalogoDoCorte(t *testing.T) {
 		ajuste                          int
 	}{
 		"PAGO":         {saldo: true},
+		"PIX":          {saldo: true},
+		"DEBITO":       {saldo: true},
+		"DINHEIRO":     {saldo: true},
+		"TED":          {saldo: true},
 		"CREDITO":      {credito: true},
 		"CONTAS":       {saldo: true, fora: true},
 		"CREDITO IN":   {credito: true, ajuste: -1},
@@ -147,7 +153,7 @@ func TestCatalogoDoCorte(t *testing.T) {
 		if !ok || e.ContaNoSaldo != q.saldo || e.ForaDoTotal != q.fora || e.Credito != q.credito || e.Previsto != q.previsto || e.AjustePadrao != q.ajuste {
 			t.Errorf("%s: %+v", nome, e)
 		}
-		if e.Selecionavel != (nome == "PAGO" || nome == "CREDITO") {
+		if e.Selecionavel != strings.Contains(" PIX DEBITO CREDITO DINHEIRO TED PAGO ", " "+nome+" ") {
 			t.Errorf("%s: selecionavel = %v", nome, e.Selecionavel)
 		}
 	}
