@@ -52,7 +52,11 @@ func respostaErro(err error) (Resp, error) {
 		return Out(http.StatusConflict, domain.Doc{"erro": difFat.Error(), "codigo": "diferenca", "total": difFat.Total, "valorBanco": difFat.ValorBanco, "diferenca": difFat.Diferenca})
 	case errors.Is(err, service.ErrNaoPrevisto):
 		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "nao_previsto"})
-	case errors.Is(err, service.ErrCartaoNaoEncontrado), errors.Is(err, service.ErrFaturaNaoConferida):
+	case errors.Is(err, service.ErrMeioEmUso): // o meio tem lancamentos: so desativar
+		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "MEIO_EM_USO"})
+	case errors.Is(err, service.ErrMeioECartao): // o meio e um cartao: tirar na aba Cartao antes
+		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "MEIO_E_CARTAO"})
+	case errors.Is(err, service.ErrCartaoNaoEncontrado), errors.Is(err, service.ErrFaturaNaoConferida), errors.Is(err, service.ErrMeioNaoEncontrado):
 		return Erro(http.StatusNotFound, err.Error())
 	case errors.Is(err, service.ErrTelegramNaoConfigurado):
 		return Erro(http.StatusServiceUnavailable, err.Error())

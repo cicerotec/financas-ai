@@ -397,8 +397,11 @@ func TestNaoExisteMetodoParaEditarOuApagarVersao(t *testing.T) {
 	if got := nomes(reflect.TypeOf((*service.Repositorio)(nil)).Elem()); !reflect.DeepEqual(got, quer) {
 		t.Errorf("service.Repositorio = %v, esperado %v", got, quer)
 	}
-	if got := nomes(reflect.TypeOf(&repository.Lancamentos{})); !reflect.DeepEqual(got, quer) {
-		t.Errorf("repository.Lancamentos = %v, esperado %v", got, quer)
+	// UsaMeio (item 43) so le: confere se um meio ja foi usado, sem editar nem apagar nada
+	querRepo := append(append([]string{}, quer...), "UsaMeio")
+	sort.Strings(querRepo)
+	if got := nomes(reflect.TypeOf(&repository.Lancamentos{})); !reflect.DeepEqual(got, querRepo) {
+		t.Errorf("repository.Lancamentos = %v, esperado %v", got, querRepo)
 	}
 }
 

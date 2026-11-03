@@ -21,6 +21,7 @@ type Servidor struct {
 	rec       *controller.Recorrencias
 	consultas *controller.Consultas
 	cartoes   *rotasCartao
+	meios     *controller.Meios
 }
 
 // novoServidor liga repository, service e controller. Recebe o que vem de fora (banco, tabela, relogio, canal de envio e o
@@ -55,5 +56,6 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 		rec:       controller.NewRecorrencias(recorrencias),
 		consultas: controller.NewConsultas(service.NewConsultas(repository.NewConsultas(db, table), pessoas, rel)),
 		cartoes:   &rotasCartao{c: controller.NewCartoes(cartoes)},
+		meios:     controller.NewMeios(service.NewMeios(cfgRepo, lancRepo, rel)),
 	}
 }
