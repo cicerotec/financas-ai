@@ -593,3 +593,62 @@ test('base: o que o servidor marca com excluirDoTotal fica de fora (pagamento de
   assert.equal(C.resumir(b, vazia, 'gastos').total, 120, 'consulta sem tags: compras sem o pagamento da fatura e sem as pontas da transferencia');
   assert.equal(C.calendario(b, vazia, 'gastos', '2026-10').total, 120);
 });
+
+test('pagamentos: agrupa pelo texto do status, do maior ao menor, e a soma bate com a barra do mes (VS-T1)', () => {
+  const q = qv('a');
+  const com = (l, status) => Object.assign(l, { status });
+  const it = C.base([com(ld('2026-10-02T12:00:00', 300, 'saida', 'a'), 'X1'), com(ld('2026-10-03T12:00:00', 100, 'saida', 'a'), 'X2'),
+    com(ld('2026-10-04T12:00:00', 100, 'saida', 'a'), 'X1'), com(ld('2026-10-05T12:00:00', 100, 'saida', 'a'), 'X0'), com(ld('2026-09-05T12:00:00', 999, 'saida', 'a'), 'X1'),
+    com(ld('2026-10-06T12:00:00', 7, 'saida', 'b'), 'X1')]);
+  const r = C.pagamentos(it, q, 'gastos', '2026-10');
+  assert.deepEqual(r.linhas.map((x) => [x.status, x.v, x.pct]), [['X1', 400, 67], ['X0', 100, 17], ['X2', 100, 17]]);
+  assert.equal(r.total, 600);
+  assert.equal(r.total, C.resumir(it, q, 'gastos').meses.find((m) => m.mes === '2026-10').total);
+  assert.equal(C.pagamentos(it, q, 'saldo', '2026-10'), null);
+  assert.deepEqual(C.pagamentos(it, q, 'gastos', '2026-08'), { mes: '2026-08', total: 0, linhas: [] });
+});
+
+test('Comparar com: media de 3 meses (mes vazio conta 0), mesmo mes do ano passado e sem base antes do corte (VS-T6, VS-T7)', () => {
+  const q = qv('a');
+  const it = C.base([ld('2026-10-05T12:00:00', 300, 'saida', 'a'), ld('2026-09-05T12:00:00', 90, 'saida', 'a'), ld('2026-07-05T12:00:00', 30, 'saida', 'a'),
+    ld('2025-10-05T12:00:00', 150, 'saida', 'a')]);
+  assert.deepEqual(C.mesesBase('2026-10', 'med'), ['2026-09', '2026-08', '2026-07']);
+  assert.deepEqual(C.mesesBase('2026-01', 'ant'), ['2025-12']);
+  assert.deepEqual(C.mesesBase('2026-10', 'ano'), ['2025-10']);
+  const dif = (tipo, corte) => C.maioresTags(it, q, 'gastos', '2026-10', corte || '', 8, tipo).linhas[0].dif;
+  assert.equal(dif('ant'), 233, '(300 - 90) / 90');
+  assert.equal(dif('med'), 650, '(90 + 0 + 30) / 3 = 40; (300 - 40) / 40');
+  assert.equal(dif('ano'), 100, '(300 - 150) / 150');
+  assert.equal(dif('ano', '2025-01'), 100, 'o corte e antes da base: vale');
+  assert.equal(dif('ano', '2025-10'), 'sem', 'a base e o mes cortado');
+  assert.equal(dif('med', '2026-07'), 'sem', 'um dos tres meses e o cortado');
+  assert.equal(C.ritmo(it, q, 'gastos', '2026-10', new Date(2026, 9, 20), '', 'ano').base[4], 150);
+  assert.equal(C.ritmo(it, q, 'gastos', '2026-10', new Date(2026, 9, 20), '2025-10', 'ano').semBase, true);
+});
+
+test('porConsulta e seisPorConsulta: as maiores consultas, o resto em Outros e a pilha soma o total (VS-T1)', () => {
+  const it = C.base([ld('2026-10-02T12:00:00', 100, 'saida', 'a'), ld('2026-10-03T12:00:00', 50, 'saida', 'a', 'b'), ld('2026-10-04T12:00:00', 7, 'saida', 'c'),
+    ld('2026-09-02T12:00:00', 80, 'saida', 'a'), ld('2026-09-03T12:00:00', 20, 'saida', 'b')]);
+  const cs = [{ id: '1', nome: 'B', q: qv('b') }, { id: '2', nome: 'A', q: qv('a') }, { id: '3', nome: 'Vazia', q: qv('zzz') }];
+  const p = C.porConsulta(it, cs, 'gastos', '2026-10', '', 'ant');
+  assert.deepEqual(p.linhas.map((l) => [l.nome, l.atual, l.base, l.dif]), [['A', 150, 80, 88], ['B', 50, 20, 150], ['Outros', 7, 0, 'novo']]);
+  assert.equal(C.porConsulta(it, cs, 'saldo', '2026-10', '', 'ant'), null);
+  const sem = C.porConsulta(it, cs, 'gastos', '2026-10', '2026-09', 'ant');
+  assert.equal(sem.semBase, true); assert.equal(sem.linhas[0].dif, 'sem');
+  const s = C.seisPorConsulta(it, cs, 'gastos', '2026-10', '');
+  assert.deepEqual(s.series.map((x) => x.nome), ['A', 'B', 'Outros']);
+  const totalPilha = (i) => s.series.reduce((t, x) => t + x.valores[i], 0);
+  assert.equal(totalPilha(5), C.resumir(it, qv(), 'gastos').meses.find((m) => m.mes === '2026-10').total, 'a pilha do mes soma o total da base');
+  assert.equal(s.series[0].valores[5], 150, 'A pega o lancamento de a e de a+b primeiro');
+  assert.equal(s.series[1].valores[4], 20);
+});
+
+test('metas: dentro abaixo de 85%, perto de 85% a 100%, passou acima de 100% (VS-T18); sem limite vem depois', () => {
+  const mk = (gasto) => C.base([ld('2026-10-02T12:00:00', gasto, 'saida', 'a')]);
+  const est = (gasto) => C.metas(mk(gasto), [{ id: '1', nome: 'A', q: qv('a'), limite: 1000 }], '2026-10').linhas[0];
+  assert.equal(est(849).estado, 'dentro'); assert.equal(est(850).estado, 'perto'); assert.equal(est(1000).estado, 'perto');
+  assert.equal(est(1000.01).estado, 'passou'); assert.equal(est(1000.01).excesso, 0.01); assert.equal(est(850).pct, 85);
+  const r = C.metas(mk(10), [{ id: '2', nome: 'Z sem', q: qv('a') }, { id: '3', nome: 'Folgada', q: qv('a'), limite: 100 }, { id: '4', nome: 'Zero', q: qv('a'), limite: 0 }], '2026-10').linhas;
+  assert.deepEqual(r.map((l) => l.nome), ['Zero', 'Folgada', 'Z sem']);
+  assert.equal(r[0].estado, 'passou'); assert.equal(r[0].pct, null); assert.equal(r[2].estado, 'sem');
+});

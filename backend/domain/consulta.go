@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"unicode/utf8"
 )
@@ -16,6 +17,7 @@ const (
 	MaxTagsConsulta    = 8  // tags em cada lista ("tem" e "nao") de um grupo
 	MaxFichasConsulta  = 60 // fichas da expressao livre
 	MaxTagConsulta     = 60 // caracteres de uma tag
+	MaxLimiteConsulta  = 1e9 // o limite mensal (Metas, item 55), em reais
 	ModoGrupos         = "grupos"
 	ModoAvancado       = "avancado"
 	campoExpressaoSalv = "expressao"
@@ -50,6 +52,8 @@ type CorpoConsulta struct {
 	Consulta  Doc    // modo + (grupos | expressao) + visao, em bloco; nil = nao veio
 	Versao    float64
 	TemVersao bool
+	TemLimite bool     // "limite" veio no corpo
+	Limite    *float64 // nil com TemLimite = tirar o limite (null no corpo)
 }
 
 // ValidarCorpoConsulta confere o corpo de um POST (criar=true: nome e consulta obrigatorios, sem version) ou de um PUT (criar=false:
@@ -58,7 +62,7 @@ func ValidarCorpoConsulta(corpo Doc, criar bool) (CorpoConsulta, error) {
 	var c CorpoConsulta
 	for k := range corpo {
 		switch k {
-		case "nome", "modo", "grupos", campoExpressaoSalv, "visao":
+		case "nome", "modo", "grupos", campoExpressaoSalv, "visao", "limite":
 		case "version":
 			if criar {
 				return c, fmt.Errorf("campo desconhecido: %s", k)
@@ -83,6 +87,13 @@ func ValidarCorpoConsulta(corpo Doc, criar bool) (CorpoConsulta, error) {
 	} else if criar {
 		return c, errors.New("de um nome para a consulta")
 	}
+	if v, tem := corpo["limite"]; tem {
+		l, err := limiteConsulta(v)
+		if err != nil {
+			return c, err
+		}
+		c.TemLimite, c.Limite = true, l
+	}
 	_, temModo := corpo["modo"]
 	_, temGrupos := corpo["grupos"]
 	_, temExpr := corpo[campoExpressaoSalv]
@@ -94,10 +105,27 @@ func ValidarCorpoConsulta(corpo Doc, criar bool) (CorpoConsulta, error) {
 		}
 		c.Consulta = q
 	}
-	if !criar && c.Nome == "" && c.Consulta == nil {
-		return c, errors.New("nada para alterar: informe o nome ou a consulta")
+	if !criar && c.Nome == "" && c.Consulta == nil && !c.TemLimite {
+		return c, errors.New("nada para alterar: informe o nome, a consulta ou o limite")
 	}
 	return c, nil
+}
+
+// limiteConsulta confere o limite mensal da meta: null tira o limite; senao um numero de 0 a MaxLimiteConsulta com ate 2 casas.
+// O servidor valida so o formato: nao recalcula gasto nenhum (a conta e da tela).
+func limiteConsulta(v any) (*float64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	n, ok := v.(float64)
+	if !ok || n != n || n < 0 || n > MaxLimiteConsulta {
+		return nil, fmt.Errorf("o limite deve ser um numero de 0 a %.0f", MaxLimiteConsulta)
+	}
+	if math.Abs(n*100-math.Round(n*100)) > 1e-6 {
+		return nil, errors.New("o limite tem no maximo 2 casas decimais")
+	}
+	r := math.Round(n*100) / 100
+	return &r, nil
 }
 
 func validarBlocoConsulta(corpo Doc) (Doc, error) {
