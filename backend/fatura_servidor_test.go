@@ -526,7 +526,7 @@ func TestListasTrazMeiosComMarcaDeCartao(t *testing.T) {
 			t.Errorf("meio %d: %v", i, m)
 		}
 	}
-	if cores, _ := d["statusCorPadrao"].(map[string]any); len(cores) != 8 || cores["PAGO"] != "#639922" || cores["CREDITO IN"] != "#378ADD" {
+	if cores, _ := d["statusCorPadrao"].(map[string]any); len(cores) != 12 || cores["PAGO"] != "#639922" || cores["CREDITO IN"] != "#378ADD" {
 		t.Errorf("statusCorPadrao (todos os status do catalogo): %v", d["statusCorPadrao"])
 	}
 	fp, _ := d["faturaPadrao"].(map[string]any)

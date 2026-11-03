@@ -60,6 +60,7 @@ feito e ideias).
 | [`specs/app-android/`](specs/app-android/intent.md) | Intent, plan e spec (fases 1 a 3) do app Android com Capacitor: o `web/` empacotado, login pelo navegador do sistema com token no Keystore, biometria opcional, push e Play Store nas fases seguintes (rascunho, nada implementado) |
 | [`specs/tendencias-visoes/`](specs/tendencias-visoes/intent.md) | Intent, plan e spec do item 55: o seletor Ver como da Tendências (Ritmo, Calendário, Fixos, Tags, Pagamento e Metas), tudo calculado na tela, com o limite das Metas como único dado novo (rascunho) |
 | [`demos/demo-listas-v2-novas-cores.html`](demos/demo-listas-v2-novas-cores.html) | Demo **aprovada e implementada em 2026-11-02** da paleta de 16 cores do seletor de cor da forma de pagamento, em Listas (item 56) |
+| [`specs/formas-de-pagamento/`](specs/formas-de-pagamento/intent.md) | Intent, plan e spec do item 56: PIX, DEBITO, DINHEIRO e TED como entradas do catálogo de status, em ordem de uso com o `PAGO` no fim, valendo para entrada e saída (implementado no backend) |
 | `specs/<feature>/{intent,plan,spec}.md` | O que, como e o roteiro de cada feature |
 
 A coleção do Postman continua em `docs/postman/`, porque é ferramenta de teste da API, não contexto para a IA.

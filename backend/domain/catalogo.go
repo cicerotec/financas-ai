@@ -29,8 +29,13 @@ var StatusAntigosPrevistos = []string{"PREVISTO", "TRANSFERINDO", "CREDITANDO"}
 // Catalogo e o catalogo do corte, na ordem em que as selecionaveis sao sugeridas (o primeiro e o padrao). Os valores sao os padroes de hoje.
 // E uma variavel so para os testes trocarem por um catalogo com mais entradas; o codigo de producao nunca a altera.
 var Catalogo = []EntradaStatus{
-	{Nome: "PAGO", Rotulo: "PAGO", CorPadrao: "#639922", ContaNoSaldo: true, Selecionavel: true},
+	// as selecionaveis seguem a ordem de uso (item 56): o primeiro e o padrao, e o PAGO fica no fim como forma generica
+	{Nome: "PIX", Rotulo: "PIX", CorPadrao: "#1D9E75", ContaNoSaldo: true, Selecionavel: true},
+	{Nome: "DEBITO", Rotulo: "DEBITO", CorPadrao: "#D4537E", ContaNoSaldo: true, Selecionavel: true},
 	{Nome: "CREDITO", Rotulo: "CREDITO", CorPadrao: "#888780", Credito: true, Selecionavel: true},
+	{Nome: "DINHEIRO", Rotulo: "DINHEIRO", CorPadrao: "#EF9F27", ContaNoSaldo: true, Selecionavel: true},
+	{Nome: "TED", Rotulo: "TED", CorPadrao: "#5DCAA5", ContaNoSaldo: true, Selecionavel: true},
+	{Nome: "PAGO", Rotulo: "PAGO", CorPadrao: "#639922", ContaNoSaldo: true, Selecionavel: true},
 	{Nome: "CONTAS", Rotulo: "CONTAS", CorPadrao: "#888780", ContaNoSaldo: true, ForaDoTotal: true},
 	{Nome: "CREDITO IN", Rotulo: "CREDITO IN", CorPadrao: "#378ADD", Credito: true, AjustePadrao: -1},
 	{Nome: "CREDITO EX", Rotulo: "CREDITO EX", CorPadrao: "#7F77DD", Credito: true, AjustePadrao: 1},
@@ -38,6 +43,10 @@ var Catalogo = []EntradaStatus{
 	{Nome: "TRANSFERINDO", Rotulo: "TRANSFERINDO", CorPadrao: "#888780", ForaDoTotal: true, Previsto: true},
 	{Nome: "CREDITANDO", Rotulo: "CREDITANDO", CorPadrao: "#D85A30", Previsto: true},
 }
+
+// StatusGenerico e a forma de pagamento sem nome proprio (item 56): fica no fim da lista de escolha e e o status dos lancamentos que o servidor
+// cria por conta propria (o ajuste da conferencia), que nao foram um PIX, um debito nem dinheiro.
+const StatusGenerico = "PAGO"
 
 // CorNeutra e a cor de um status fora do catalogo.
 const CorNeutra = "#888780"

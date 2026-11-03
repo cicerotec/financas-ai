@@ -537,7 +537,7 @@ func TestListasTemStatusDoServidorEIgnoraAsCaixas(t *testing.T) {
 		"afetaSaldoBanco": map[string]any{"PAGO": true}, "statusCor": map[string]any{"PAGO": "#111111"}})
 	c, d := chamar(t, "mem", "GET", "spaces/s1/cfg/listas", nil, "")
 	esperar(t, "ler", c, 200)
-	if fmt.Sprint(d["status"]) != "[PAGO CREDITO]" {
+	if fmt.Sprint(d["status"]) != "[PIX DEBITO CREDITO DINHEIRO TED PAGO]" {
 		t.Errorf("status do servidor: %v", d["status"])
 	}
 	for _, k := range []string{"statusFuturo", "statusReal", "afetaSaldoBanco"} {
@@ -567,27 +567,27 @@ func TestStatusSugeridoPorData(t *testing.T) {
 	cenario(t)
 	c, d := chamar(t, "mem", "GET", "spaces/s1/status", map[string]string{"data": "2019-03-10T15:00:00.000Z"}, "")
 	esperar(t, "status", c, 200)
-	if fmt.Sprint(d["status"]) != "[PAGO CREDITO]" || d["todos"] != false {
+	if fmt.Sprint(d["status"]) != "[PIX DEBITO CREDITO DINHEIRO TED PAGO]" || d["todos"] != false {
 		t.Errorf("2019: %v", d)
 	}
 	_, d = chamar(t, "mem", "GET", "spaces/s1/status", map[string]string{"todos": "1"}, "")
-	if fmt.Sprint(d["status"]) != "[PAGO CREDITO]" || d["todos"] != true {
+	if fmt.Sprint(d["status"]) != "[PIX DEBITO CREDITO DINHEIRO TED PAGO]" || d["todos"] != true {
 		t.Errorf("todos: %v", d)
 	}
 	// uma entrada com desde no futuro some da sugestao e aparece em todos=1
 	antes := domain.Catalogo
 	defer func() { domain.Catalogo = antes }()
-	domain.Catalogo = append(append([]domain.EntradaStatus{}, antes...), domain.EntradaStatus{Nome: "PIX", Rotulo: "PIX", ContaNoSaldo: true, Selecionavel: true, Desde: "2027-01-01"})
+	domain.Catalogo = append(append([]domain.EntradaStatus{}, antes...), domain.EntradaStatus{Nome: "DREX", Rotulo: "DREX", ContaNoSaldo: true, Selecionavel: true, Desde: "2027-01-01"})
 	_, d = chamar(t, "mem", "GET", "spaces/s1/status", nil, "")
-	if fmt.Sprint(d["status"]) != "[PAGO CREDITO]" {
-		t.Errorf("PIX ainda nao vale: %v", d)
+	if fmt.Sprint(d["status"]) != "[PIX DEBITO CREDITO DINHEIRO TED PAGO]" {
+		t.Errorf("DREX ainda nao vale: %v", d)
 	}
 	_, d = chamar(t, "mem", "GET", "spaces/s1/status", map[string]string{"data": "2027-02-01T15:00:00.000Z"}, "")
-	if fmt.Sprint(d["status"]) != "[PAGO CREDITO PIX]" {
-		t.Errorf("PIX vale em 2027: %v", d)
+	if fmt.Sprint(d["status"]) != "[PIX DEBITO CREDITO DINHEIRO TED PAGO DREX]" {
+		t.Errorf("DREX vale em 2027: %v", d)
 	}
 	_, d = chamar(t, "mem", "GET", "spaces/s1/status", map[string]string{"todos": "1"}, "")
-	if fmt.Sprint(d["status"]) != "[PAGO CREDITO PIX]" {
+	if fmt.Sprint(d["status"]) != "[PIX DEBITO CREDITO DINHEIRO TED PAGO DREX]" {
 		t.Errorf("todos: %v", d)
 	}
 }
@@ -660,14 +660,9 @@ func TestTravaPeloEfeitoNoSaldo(t *testing.T) {
 	}
 }
 
-// P-T46: reclassificar o passado entre status que contam no saldo nao toca na trava.
+// P-T46: reclassificar o passado entre status que contam no saldo nao toca na trava (PIX e DEBITO entraram no catalogo no item 56).
 func TestReclassificarOPassadoNaoPassaPelaTrava(t *testing.T) {
 	relogioPrev(t)
-	antes := domain.Catalogo
-	defer func() { domain.Catalogo = antes }()
-	domain.Catalogo = append(append([]domain.EntradaStatus{}, antes...),
-		domain.EntradaStatus{Nome: "PIX", Rotulo: "PIX", CorPadrao: "#111111", ContaNoSaldo: true, Selecionavel: true},
-		domain.EntradaStatus{Nome: "DEBITO", Rotulo: "DEBITO", CorPadrao: "#222222", ContaNoSaldo: true, Selecionavel: true})
 	f := cenario(t)
 	mk := func(id, data string) {
 		f.colocar(t, doc{"PK": pkEspaco, "SK": dePrefixoTx + data + "#" + id, "id": id, "dataEvento": data, "status": "PAGO", "tipo": "saida", "valor": 10.0,

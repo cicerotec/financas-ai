@@ -171,8 +171,8 @@ O cartão tem **lógica, tela e conceitos próprios**; não é um banco com outr
 - **Cada valor conta uma vez.** O gasto conta quando nasce o `CREDITO`; o saldo muda quando a fatura é paga. O
   pagamento mexe no saldo do banco pagador e **fica fora do total de gastos**, para o mesmo gasto não ser contado duas
   vezes. Hoje isso é feito pelo status `CONTAS` (afeta saldo) com `excluirDoTotal`. O `CONTAS` também carrega a
-  **transferência entre bancos** (dois lançamentos com o mesmo `transferParId`). Seu destino fica para o desmembramento
-  do `PAGO` (ver "Futuros, status e saldo no servidor"); não entra na mudança de Futuros.
+  **transferência entre bancos** (dois lançamentos com o mesmo `transferParId`). **Fica como está** (decidido em 2026-11-02, junto do
+  item 56): não é selecionável, só o servidor o grava, e as formas novas não o tocam.
 - Cartão e banco compartilham **só a ideia** de ponto de partida verificado, descrita abaixo; o resto (período, total,
   conferência, pagamento) é de cada um.
 
@@ -281,8 +281,8 @@ Só a aba **Futuros** entra nesta rodada. Decisões:
   com o **primeiro status da lista do servidor** escolhido (hoje `PAGO`) e a pessoa troca se for o caso; os três nomes antigos não aparecem na lista de
   status da janela. Editar e excluir seguem como hoje. Não há migração em massa; o backend tem uma única função que
   responde "isto é futuro?".
-- **Fora desta rodada:** o desmembramento do `PAGO` por tipo e meio (recebimento, débito, pix, drex, cripto), o destino
-  do `CONTAS` e do `excluirDoTotal` como regra do servidor, e um papel de Admin (complemento ao dono).
+- **Fora desta rodada:** o desmembramento do `PAGO` (PIX, DEBITO, DINHEIRO e TED, decidido em 2026-11-02 e especificado no item 56, `specs/formas-de-pagamento/`), o `CONTAS` (**fica como está**, decidido
+  em 2026-11-02) e um papel de Admin (complemento ao dono).
 - **Aberto para o spec:** como o servidor encontra todos os previstos sem depender dos 1000 lançamentos mais
   recentes (só se exigir chave nova no Dynamo volta ao dono); e o que o Prever faz com o "Status das cópias".
 
