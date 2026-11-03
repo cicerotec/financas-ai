@@ -6,7 +6,8 @@ let statusCor = {};
 let tema = 'auto'; // da aparencia da pessoa: auto (segue o aparelho), claro ou escuro (js/tema.js aplica)
 let estiloCor = 'ambos';
 let corAberta = null;
-const COR_PALETA = ['#639922','#BA7517','#378ADD','#7F77DD','#888780','#D85A30','#1D9E75','#D4537E','#E24B4A'];
+// 16 cores, 8 por linha: frios em cima, quentes e cinza embaixo (demo-listas-v2-novas-cores). As cores padrao dos status tambem estao aqui, para a bolinha aparecer marcada.
+const COR_PALETA = ['#97C459','#639922','#5DCAA5','#1D9E75','#85B7EB','#378ADD','#AFA9EC','#7F77DD','#EF9F27','#BA7517','#F0997B','#D85A30','#E24B4A','#ED93B1','#D4537E','#888780'];
 let coresPadrao = {}; // cor padrao de cada status, vinda do servidor (GET /cfg/listas); a cor que a pessoa escolheu (statusCor) vale por cima
 function corStatus(s){ const c = statusCor[s] || coresPadrao[s] || '#888780'; return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '#888780'; }
 function seloStatus(status){
