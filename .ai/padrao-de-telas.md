@@ -30,7 +30,7 @@ Cada tela tem uma **demo-padrão** em `demos/`, a captura fiel da tela como est�
 | Saldos, Cartão e Listas | [`demo-saldos-v1`](demos/demo-saldos-v1.html), [`demo-cartao-v1`](demos/demo-cartao-v1.html), [`demo-listas-v1`](demos/demo-listas-v1.html), [`v2, com a paleta de 16 cores`](demos/demo-listas-v2-novas-cores.html) (aprovada em 2026-11-02; a v2 tem script só para o seletor) |
 | Histórico de versões | [`demo-versoes-v1`](demos/demo-versoes-v1.html), [`versões de um lançamento`](demos/demo-versoes-detalhe-v1.html) |
 | Configurações | [`demo-configuracoes-v1`](demos/demo-configuracoes-v1.html) |
-| Menus | [`menu do app (celular)`](demos/demo-menu-v1.html), [`menu da conta (computador)`](demos/demo-conta-v1.html) |
+| Menus | [`menu do app (celular)`](demos/demo-menu-v1.html), [`v2, abas do computador na ordem do menu e com hover`](demos/demo-menu-v2-abas.html), [`menu da conta (computador)`](demos/demo-conta-v1.html) |
 
 Ainda sem captura própria (entram quando forem mexidas): o fluxo de pagar fatura e o aviso da fatura no Cartão, a janela de
 confirmação de mês fechado, o aviso de Desfazer e as telas de Recorrente.
@@ -133,7 +133,7 @@ Aprovado pelo dono em 2026-10-14. Presente no topo de todas as demos de `demos/`
   com **Sair**, separado por uma linha e em `--danger`. Com mais de um espaço, o bloco leva um **seletor nativo** "Espaço" no lugar
   da linha do espaço (trocar recarrega). Enquanto não há apelido, uma faixa pequena "Defina seu nome em Listas" leva a Listas.
   A antiga linha de cima (nome, espaço, dica e Sair) deixou de existir; quem monta o bloco é `window.claude.sessao()` (api.js).
-- **Janela larga (1160 px ou mais):** título "Finanças" (só o texto) e abas em botões, **na mesma ordem do menu ⋮** (Lançar, Histórico, Futuros, Cartão, Saldos, Tendências, Listas, Histórico de versões, Configurações); ao passar o mouse, a aba inativa ganha fundo `--accent-bg` e borda `--accent` (só onde há mouse, `@media (hover:hover)`; a ativa não muda); o canto direito do
+- **Janela larga (1160 px ou mais):** título "Finanças" (só o texto) e abas em botões, **na mesma ordem do menu ⋮** (Lançar, Histórico, Futuros, Cartão, Saldos, Tendências, Listas, Histórico de versões, Configurações); ao passar o mouse (demo `demo-menu-v2-abas`), a aba inativa ganha fundo `--accent-bg` e borda `--accent` (só onde há mouse, `@media (hover:hover)`; a ativa não muda); o canto direito do
   cabeçalho ganha um **botão da conta** (inicial e nome) que abre o mesmo bloco, com Sair. O limite é o mesmo da tabela de
   Futuros.
 - **No app**, as abas em botões (`nav`) continuam sendo a fonte das telas e dos nomes; o menu é montado a partir delas

@@ -41,7 +41,6 @@ h1{font-size:18px;margin:10px 0 8px;}
 nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
 nav button{border:1px solid var(--border);background:var(--card);color:var(--text);padding:7px 12px;border-radius:20px;font-size:13px;white-space:nowrap;cursor:pointer;}
 nav button.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
-@media (hover:hover){nav button:not(.active):hover,nav button:not(.active):focus-visible{background:var(--accent-bg);border-color:var(--accent);}}
 /* Menu do app (padrao: .ai/padrao-de-telas.md, demos/demo-futuros.html). Celular e janela < 1160 px: nome da tela + menu ⋮.
    Janela larga: o h1 e as abas em botoes de sempre. */
 header h1,header nav{display:none;}
@@ -921,11 +920,11 @@ body.lote-ativo #tab-historico{padding-bottom:84px;}
   <nav>
     <button data-tab="lancar" class="active">Lançar</button>
     <button data-tab="historico">Histórico</button>
-    <button data-tab="futuros" class="">Futuros</button>
+    <button data-tab="listas">Listas</button>
+    <button data-tab="tendencias">Tendências</button>
     <button data-tab="cartao">Cartão</button>
     <button data-tab="saldos">Saldos</button>
-    <button data-tab="tendencias">Tendências</button>
-    <button data-tab="listas">Listas</button>
+    <button data-tab="futuros" class="">Futuros</button>
     <button data-tab="versoes">Histórico de versões</button>
     <button data-tab="configuracoes">Configurações</button>
   </nav>
