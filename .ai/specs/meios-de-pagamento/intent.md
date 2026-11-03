@@ -35,7 +35,7 @@ quebra a regra de que o front não decide, e não prova nada além do 1000º lan
 ## Limites (o que fica de fora)
 
 - **Um campo novo no DynamoDB:** `ativoAte`, um mapa `{ "<meio>": "AAAA-MM-DD" }` dentro do item `CFG#LISTAS` que já existe. Sem chave nem item novo. A aprovação de 2026-10-24
-  era para `CFG#SALDOS.porBanco`; o lugar mudou em 2026-11-03, então **o dono reaprovou o novo lugar em 2026-11-03.**
+  era para `CFG#SALDOS.porBanco`; o lugar mudou em 2026-11-03 e **o dono reaprovou o novo lugar no mesmo dia**.
 - Desativar **não proíbe** lançar no meio (ele aparece em "ver todos"); só deixa de ser sugerido. O servidor não valida lançamento contra o `ativoAte`.
 - Saldos, faturas, fechamento e conferência não mudam: um meio inativo continua somando no passado.
 - `CRIPTO` e `DREX` são **formas** (status), não meios.
