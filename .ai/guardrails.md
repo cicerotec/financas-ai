@@ -79,6 +79,20 @@ e para ajustes em telas que já existem.
 - A grande mudança de UX/UI prevista (item 21) segue a mesma regra, tela por tela. O Figma é a ferramenta do time de
   design; o conector ainda não está autorizado nesta conta.
 
+## Roteiros (intent, plan e spec)
+- **Premissas escondidas (2026-11-03, obrigatório antes de pedir a aprovação do roteiro):** todo `plan.md` tem uma seção **Premissas** e todo `spec.md`
+  uma regra para cada uma. Uma premissa é qualquer regra que **só funciona por causa de outra tela, campo ou regra** (esconder um controle por data ou
+  por papel, preencher um valor por padrão, herdar um campo, depender da ordem de duas chamadas). Quem escreve o roteiro **não revisa o próprio roteiro**:
+  um agente independente (subagente ou outra sessão, sem o contexto de quem escreveu) lê o `spec.md` **e o código** e responde por escrito a uma pergunta:
+  *"que regra desta feature só funciona por causa de outra, e o que acontece se essa outra deixar de valer?"*. A resposta entra no `plan.md`, mesmo que seja
+  "nenhuma", e o dono a vê junto com o roteiro.
+- **A mesma pergunta ao contrário, antes de mudar uma tela existente:** se a mudança **esconde, limita ou preenche** algo (regra de data, de papel, de modo, valor
+  padrão), pergunte *"que outra feature contava com isso?"* e leia o código do servidor que recebe o campo, não só o da tela. Se achar uma dependência que
+  ninguém registrou, **avise o dono antes de seguir** e anote no roteiro da feature que dependia.
+- Origem: o Recorrente do Lançar (item 51) herda o aviso do lançamento original para a primeira cópia (`CopiaDeRecorrencia`, R5 e R17 do spec), o que só era
+  inofensivo porque o Lançar escondia o aviso quando a data não era futura. A dependência não estava escrita em lugar nenhum e só apareceu quando a tela
+  Repetir única (itens 47 e 42) removeu essa regra de esconder.
+
 ## Git
 - Rode `git branch --show-current` antes de commitar e use `git push origin <branch>` com o nome da branch. Não commite
   direto em `develop` ou `main`: o push numa branch de trabalho abre o PR sozinho, já pronto para mergear.
