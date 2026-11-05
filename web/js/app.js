@@ -267,7 +267,7 @@ function abrirRecorrenciaForm(){
 function pvBaseRec(){
   if(!pv.rec.form) return pv.base;
   const v = document.getElementById('fData').value;
-  return {dataEvento: (v ? new Date(v) : new Date()).toISOString(), descricao: document.getElementById('fDesc').value || '(sem descrição)', valor: document.getElementById('fValor').value, tipo: document.getElementById('fTipo').value};
+  return {dataEvento: (v ? new Date(v) : new Date()).toISOString(), descricao: document.getElementById('fDesc').value || '(sem descrição)', valor: Number.isFinite(lerValorForm()) ? String(lerValorForm()) : '', tipo: document.getElementById('fTipo').value};
 }
 function pvPreviaRec(){
   const b = pvBaseRec(), d = Recorrencia.proximaCopiaRecorrente(new Date(b.dataEvento), pv.meses, new Date());
@@ -1100,7 +1100,7 @@ function fecharCamadaTopo(){ // na ordem de cima para baixo; o que nao existe e 
 let assinaturaEdicao = null;
 function assinaturaFormulario(){
   const v = id=>document.getElementById(id).value;
-  return JSON.stringify([v('fTipo'), v('fValor'), v('fDesc'), v('fNota'), v('fData'), v('fBanco'), v('fStatus'), v('fFatura'),
+  return JSON.stringify([v('fTipo'), lerValorForm(), v('fDesc'), v('fNota'), v('fData'), v('fBanco'), v('fStatus'), v('fFatura'),
     document.getElementById('fEstimado').checked, [...tagsSelecionadas].sort()]);
 }
 function formularioSujo(){ return !!editandoId && assinaturaEdicao !== null && abaAtual() === 'lancar' && assinaturaFormulario() !== assinaturaEdicao; }
@@ -1480,6 +1480,7 @@ function renderTagPicker(){
   const l = lista.length ? lista.map(chipTag).join('') : '<span class="muted">Nenhuma tag encontrada. Digite abaixo e Enter para criar.</span>';
   document.getElementById('tagsCnt').textContent = sel.length + (sel.length===1 ? ' tag marcada' : ' tags marcadas');
   document.getElementById('tagPicker').innerHTML = l;
+  if(document.getElementById('barraResumo')) atualizarLancarExtras();
   document.getElementById('tagsResumo').innerHTML = sel.length ? sel.map(t=>`<span class="chip" data-rm-tag="${esc(t)}">${esc(t)}</span>`).join('') : '<span class="tags-vazio">Nenhuma</span>';
   if(seletorHist) seletorHist.render();
 }
@@ -1589,10 +1590,61 @@ async function garantirTags(novasTags){
   }
 }
 
+// Valor do Lançar (demo-lancar-v4-atalhos): digita-se em reais e a vírgula só serve para os centavos
+// (450 = 450,00; 450,5 = 450,50). O ponto vale como vírgula; um "-" no começo é aceito (estorno).
+function valorNum(s){
+  s = String(s == null ? '' : s).trim();
+  if(!s || s === '-') return NaN;
+  return parseFloat(s.replace(/\./g,'').replace(',','.'));
+}
+function fmtValorCampo(n){
+  return Number.isFinite(n) ? n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
+}
+function limparDigitacaoValor(v){
+  const neg = v.trim().startsWith('-');
+  v = v.replace(/[^0-9.,]/g,'').replace(/\./g,',');
+  const i = v.indexOf(',');
+  if(i >= 0) v = v.slice(0, i+1) + v.slice(i+1).replace(/,/g,'').slice(0,2);
+  return (neg ? '-' : '') + v;
+}
+function poeValorForm(n){ document.getElementById('fValor').value = fmtValorCampo(Number(n)); }
+function lerValorForm(){ return valorNum(document.getElementById('fValor').value); }
+
+// Atalhos de data e resumo da barra (só desenham; a data e o valor continuam nos campos de sempre).
+function atalhoData(a){
+  const f = document.getElementById('fData');
+  if(a === 'agora'){ f.value = nowLocalInput(); }
+  else {
+    const d = new Date(); d.setDate(d.getDate()-Number(a));
+    const h = f.value ? f.value.slice(11,16) : pad2(new Date().getHours())+':'+pad2(new Date().getMinutes());
+    f.value = chaveDia(d)+'T'+h;
+  }
+  atualizarLancarExtras();
+}
+function atualizarLancarExtras(){
+  const f = document.getElementById('fData'), dia = f.value.slice(0,10);
+  const hoje = new Date(), ont = new Date(); ont.setDate(ont.getDate()-1);
+  document.querySelector('#dtAtalhos [data-atalho="0"]').setAttribute('aria-pressed', String(dia === chaveDia(hoje)));
+  document.querySelector('#dtAtalhos [data-atalho="1"]').setAttribute('aria-pressed', String(dia === chaveDia(ont)));
+  document.getElementById('dtHint').textContent = f.value
+    ? new Date(f.value).toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) + ' às ' + f.value.slice(11,16)
+    : '';
+  const r = document.getElementById('barraResumo'), num = lerValorForm(), ds = document.getElementById('fDesc').value.trim();
+  if(!Number.isFinite(num) || !ds){ r.textContent = 'Preencha valor e descrição.'; return; }
+  const sel = id=>{ const s = document.getElementById(id); return s.selectedOptions[0] ? s.selectedOptions[0].textContent : ''; };
+  const saida = document.getElementById('fTipo').value === 'saida';
+  const n = tagsSelecionadas.size;
+  r.innerHTML = '<b>' + (saida ? '−' : '+') + ' ' + fmtMoeda(Math.abs(num)) + '</b> · ' + esc(ds) + ' · '
+    + new Date(f.value).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + f.value.slice(11,16)
+    + ' · ' + esc(sel('fBanco')) + ' · ' + esc(sel('fStatus')) + (n ? ' · ' + n + ' tag' + (n > 1 ? 's' : '') : '');
+}
+
 // Aba Lançar: o <select id="fTipo"> continua sendo a fonte do valor; os botões só o espelham.
 function definirTipo(v){
   document.getElementById('fTipo').value = v;
   document.querySelectorAll('#tipoLancar [data-tipo]').forEach(b=>b.setAttribute('aria-checked', b.dataset.tipo===v ? 'true' : 'false'));
+  const vg = document.querySelector('.valor-grande'); if(vg) vg.classList.toggle('entrada', v === 'entrada');
+  if(document.getElementById('barraResumo')) atualizarLancarExtras();
 }
 function lancarModo(m){
   document.querySelectorAll('#modoLancar [data-modo]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.modo===m ? 'true' : 'false'));
@@ -1627,6 +1679,15 @@ function ligarLancar(){
     if((e.key==='Enter' || e.key===' ') && e.target.dataset && e.target.dataset.tag!==undefined){ e.preventDefault(); e.target.click(); }
   });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.getElementById('tagsCard').classList.contains('aberto')) lancarTags(false); });
+  const vi = document.getElementById('fValor');
+  vi.addEventListener('input', ()=>{ const l = limparDigitacaoValor(vi.value); if(l !== vi.value) vi.value = l; atualizarLancarExtras(); });
+  vi.addEventListener('focus', ()=>{ vi.value = vi.value.replace(/\./g,''); setTimeout(()=>vi.select()); });
+  vi.addEventListener('blur', ()=>{ const n = valorNum(vi.value); vi.value = fmtValorCampo(n); atualizarLancarExtras(); });
+  document.getElementById('dtAtalhos').addEventListener('click', e=>{ const b = e.target.closest('[data-atalho]'); if(b) atalhoData(b.dataset.atalho); });
+  ['fData','fDesc','fBanco','fStatus'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', atualizarLancarExtras);
+    document.getElementById(id).addEventListener('change', atualizarLancarExtras);
+  });
   definirTipo(document.getElementById('fTipo').value);
 }
 
@@ -1714,7 +1775,7 @@ Se não souber o banco com certeza, deixe banco como "".`;
     const res = await sample.json(prompt, {modelTier:"quick"});
     if(res.status){ document.getElementById('fStatus').value = res.status; document.getElementById('fFatura').value = String(ajustePadrao(res.status)); atualizarCampoFatura(); }
     if(res.tipo) definirTipo(res.tipo);
-    if(res.valor) document.getElementById('fValor').value = res.valor;
+    if(res.valor){ poeValorForm(res.valor); }
     if(res.descricao) document.getElementById('fDesc').value = res.descricao;
     if(res.banco){
       if(!listas.banco.includes(res.banco)){ listas.banco.push(res.banco); salvarListas(); renderListas(); }
@@ -1731,6 +1792,7 @@ Se não souber o banco com certeza, deixe banco como "".`;
       garantirTags(res.tags).then(renderTagPicker);
       renderTagPicker();
     }
+    atualizarLancarExtras();
     statusEl.textContent = "Confira os campos abaixo e salve.";
   }catch(err){
     statusEl.textContent = "Não consegui interpretar agora (" + (err.code||'erro') + "). Preencha manualmente.";
@@ -1746,7 +1808,7 @@ function salvarLancamento(){
 }
 async function salvarLancamentoInterno(){
   if(!db){ await avisar("Banco de dados indisponível nesta visualização."); return; }
-  const valor = parseFloat(document.getElementById('fValor').value);
+  const valor = lerValorForm();
   // zero (lançamento só de nota) e negativo (estorno/reembolso) são aceitos de propósito
   if(!Number.isFinite(valor)){ await avisar("Informe um valor válido."); return; }
   const tags = [...tagsSelecionadas];
@@ -2362,7 +2424,7 @@ function iniciarEdicao(id){
   preencherAvisoNoFormulario(l.aviso);
   atualizarCampoFatura();
   definirTipo(l.tipo);
-  document.getElementById('fValor').value = l.valor;
+  poeValorForm(l.valor);
   document.getElementById('fDesc').value = l.descricao;
   document.getElementById('fNota').value = l.nota || '';
   lancarModo('lanc'); lancarMais(!!l.nota || !!(l.aviso && typeof l.aviso === 'object')); // o aviso mora em Mais
@@ -2393,7 +2455,7 @@ function iniciarCopia(id){
   preencherAvisoNoFormulario(null); // a copia tem outra data: o aviso e escolhido de novo
   atualizarCampoFatura();
   definirTipo(l.tipo);
-  document.getElementById('fValor').value = l.valor;
+  poeValorForm(l.valor);
   document.getElementById('fDesc').value = l.descricao;
   document.getElementById('fNota').value = l.nota || '';
   lancarModo('lanc'); lancarMais(!!l.nota);
