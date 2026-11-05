@@ -22,15 +22,31 @@ Cada tela tem uma **demo-padrão** em `demos/`, a captura fiel da tela como est�
 
 | Tela | Demo-padrão |
 |---|---|
-| Lançar | [`demo-lancar-v1`](demos/demo-lancar-v1.html), [`Mais`](demos/demo-lancar-mais-v1.html), [`Tags`](demos/demo-tags-v1.html) |
-| Histórico | [`demo-historico-v1`](demos/demo-historico-v1.html), [`ações`](demos/demo-acoes-historico-v1.html), [`Filtros`](demos/demo-filtros-historico-v1.html), [`seleção em lote`](demos/demo-selecao-historico-v1.html) |
+| Lançar | [`v4, atalhos de data, valor colorido e entrada em reais`](demos/demo-lancar-v4-atalhos.html) (**padrão atual**, aprovada em 2026-11-05; vale sobre a v1 na linha Data, no valor e na barra), [`demo-lancar-v1`](demos/demo-lancar-v1.html), [`Mais`](demos/demo-lancar-mais-v1.html), [`Tags`](demos/demo-tags-v1.html), [`v3, Repetir numa linha só`](demos/demo-lancar-v3-repetir.html) (**exploração de 2026-11-03, não vale como padrão**: não cobre edição nem cópia; ver `specs/repetir-unificado/`). **Quando a v3 for aprovada, vira a v5: a v3 mesclada com a v4**, partindo da v4 (a v3 foi feita sobre a v1 e não tem os atalhos de data, o valor colorido nem a entrada em reais) |
+| Histórico | [`demo-historico-v1`](demos/demo-historico-v1.html), [`ações`](demos/demo-acoes-historico-v1.html), [`Filtros`](demos/demo-filtros-historico-v1.html), [`seleção em lote`](demos/demo-selecao-historico-v1.html), [`v2, ação Repetir`](demos/demo-historico-v2-repetir.html) (**exploração de 2026-11-03, não vale como padrão**: não cobre Estender série, Parar recorrência nem o lote; ver `specs/repetir-unificado/`) |
 | Futuros | [`demo-futuros-v1`](demos/demo-futuros-v1.html) |
-| Prever, Repetir e Avisar | [`demo-prever-v1`](demos/demo-prever-v1.html), [`demo-repetir-v1`](demos/demo-repetir-v1.html), [`demo-avisar-v1`](demos/demo-avisar-v1.html) |
+| Prever, Repetir e Avisar | [`demo-prever-v1`](demos/demo-prever-v1.html), [`demo-repetir-v1`](demos/demo-repetir-v1.html), [`demo-avisar-v1`](demos/demo-avisar-v1.html), [`v2, seletor`](demos/demo-repetir-v2-seletor.html) (**exploração de 2026-11-03, não vale como padrão**: não cobre o lote, o Estender nem o Cartão; a padrão continua sendo as três v1; ver `specs/repetir-unificado/`) |
 | Tendências | [`demo-tendencias-v1`](demos/demo-tendencias-v1.html), [`v2, com as visões dos gastos`](demos/demo-tendencias-v2.html), [`editar`](demos/demo-tendencias-editar-v1.html), [`escolher tags`](demos/demo-tendencias-escolher-tags-v1.html), [`lista`](demos/demo-tendencias-lista-v1.html), [`salvar`](demos/demo-tendencias-salvar-v1.html), [`consultas salvas`](demos/demo-tendencias-consultas-v1.html) |
 | Saldos, Cartão e Listas | [`demo-saldos-v1`](demos/demo-saldos-v1.html), [`demo-cartao-v1`](demos/demo-cartao-v1.html), [`demo-listas-v1`](demos/demo-listas-v1.html), [`v2, com a paleta de 16 cores`](demos/demo-listas-v2-novas-cores.html) (aprovada em 2026-11-02; a v2 tem script só para o seletor), [`v3, meios de pagamento`](demos/demo-listas-v3-meios.html) (aprovada em 2026-11-03 e implementada: o card Bancos / contas virou Meios de pagamento, com Desativar, Reativar e Remover; vale sobre a v2 nesse card) |
 | Histórico de versões | [`demo-versoes-v1`](demos/demo-versoes-v1.html), [`versões de um lançamento`](demos/demo-versoes-detalhe-v1.html) |
 | Configurações | [`demo-configuracoes-v1`](demos/demo-configuracoes-v1.html) |
 | Menus | [`menu do app (celular)`](demos/demo-menu-v1.html), [`v2, abas do computador na ordem do menu e com hover`](demos/demo-menu-v2-abas.html) (**padrão atual**, aprovada em 2026-11-03), [`menu da conta (computador)`](demos/demo-conta-v1.html) |
+
+### Repetir: exploração de 2026-11-03 (**não vale como padrão**)
+**Revisto em 2026-11-03:** estas demos foram feitas antes de levantar todas as telas afetadas (faltam Estender série, Parar recorrência, lote, edição, cópia e Cartão) e **não são o padrão**. O roteiro foi
+refeito em [`specs/repetir-unificado/`](specs/repetir-unificado/intent.md): primeiro tirar a duplicação sem mudar o visual (trilha A) e só depois redesenhar (trilha B), com uma demo que cubra o inventário.
+O texto abaixo registra a exploração, para não se perder, e **não deve ser seguido** até o dono decidir as perguntas do `plan.md`.
+
+Exploração: Prever, Estender, Tornar previstos, Tornar recorrente, o Repetir do Lançar e o aviso numa **tela Repetir**, com o seletor
+**Só este · N vezes · Recorrente** (um toque), a linha **Avisar no Telegram** dentro dela e as telas Intervalo e Avisar. As demos
+`demo-repetir-v2-seletor`, `demo-lancar-v3-repetir` e `demo-historico-v2-repetir` têm um pouco de script **só para a demo** (a barra preta do topo não existe no app).
+- **Só este** existe só no Lançar. No Histórico e em Futuros o lançamento já existe, então o seletor tem duas posições (N vezes e Recorrente).
+- **Avisar** aparece nas três posições. Em Só este liga só com data futura; com data de hoje fica desligado, com a dica "Só com data futura, ou escolha Repetir ou Recorrente". Em N vezes e Recorrente o aviso vale para as cópias.
+- **Lançar:** uma linha **Repetir** em "Mais", sempre visível, sem a regra de data futura; o valor da linha mostra o resumo ("3× mensal · 🔔", "🔁 Mensal, sem fim · 🔔"). Concluir guarda; a seta descarta.
+- **Histórico e Futuros:** um botão **Repetir** (versão A) no lugar de Prever e Tornar recorrente; a tela abre em N vezes. A marca 🔁 das linhas recorrentes continua.
+- **Ícones:** Recorrente é o 🔁 que o dono já conhece; **N vezes é a pilha** (três barras empilhadas), escolhida no lugar do chip 3× e do calendário.
+- Rodapé por contexto: Lançar, **Concluir**; Histórico e Futuros, **Criar N eventos** ou **Ativar recorrência**.
+- Vira componente reutilizável (item 47): uma casca, as seções Repetir e Avisar com entradas explícitas, sem o estado global `pv` e sem a regra de data futura na tela.
 
 Ainda sem captura própria (entram quando forem mexidas): o fluxo de pagar fatura e o aviso da fatura no Cartão, a janela de
 confirmação de mês fechado, o aviso de Desfazer e as telas de Recorrente.
@@ -254,6 +270,13 @@ Demo [`demos/arquivo/demo-lancar-layout.html`](demos/arquivo/demo-lancar-layout.
 - **Transferência:** valor em destaque como em Lançamento, De e Para, e **Data e hora** (`datetime-local`; vazio vale agora).
 - **Computador (900 px ou mais):** formulário à esquerda (Valor, Descrição, Data, Banco, Status e Nota em grade de duas colunas, sem "Mais"; a linha **Tags** ocupa a largura toda e lista as tags escolhidas em chips com × para tirar, pois quem escolhe é a coluna da direita), **IA e Tags na coluna da direita**, sempre à vista; as Tags têm um só lugar (`#tagsCard`, que é janela de baixo no celular e coluna no computador). Transferência em coluna de 560 px com De e Para lado a lado.
 - **Rótulo "Tags" depois dos Combos** (2026-10-20): nos seletores de tags do Lançar e do Histórico, um rótulo pequeno "Tags" marca onde acabam os combos e começa a lista de tags.
+- **v4 (2026-11-05, demo [`demo-lancar-v4-atalhos`](demos/demo-lancar-v4-atalhos.html), ideias de um protótipo de outra IA):**
+  - **Valor colorido pelo tipo:** Saída em `--danger` e Entrada em `--income` (o valor, o "R$" e o texto do botão Entrada); `definirTipo()` põe a classe `entrada` em `.valor-grande`.
+  - **Valor digitado em reais:** campo `type="text"` com `inputmode="decimal"`; `450` vale 450,00 e a vírgula só serve para os centavos (`450,5` = 450,50, no máximo 2 casas). O ponto vale como vírgula e um `-` no começo é aceito (estorno), zero também. Ao sair do campo mostra `1.234,00`; ao entrar, tira os pontos e seleciona tudo. Leitura sempre por `lerValorForm()`/`valorNum()`, escrita por `poeValorForm()` (nunca `.value` direto), teste em `web/valor.test.js`.
+  - **Atalhos de data** Hoje · Ontem · Agora (44 px) sob a linha Data, mais a data por extenso; Hoje e Ontem acendem pela data do campo e mantêm a hora; o seletor nativo continua sendo a fonte da data.
+  - **Resumo na barra (só no computador, 900 px ou mais)** depois de Salvar: "− R$ 45,00 · Uber · 04/11 14:44 · Nubank · PAGO · 2 tags" (o status é o texto que o servidor mandou). Sem valor ou descrição mostra "Preencha valor e descrição."; o Salvar nunca fica desabilitado.
+  - **A v3 (Repetir numa linha só) continua exploração e não entra aqui.** Quando for aprovada, será a **v5 = v3 mesclada com a v4** (a v3 parte da v1 e não tem estes ajustes).
+  - **Custo:** os atalhos ocupam ~55 px a mais no celular e repetem a data na frase; o campo deixa de ser numérico do navegador (quem digitava centavos puros, como no protótipo, estranha); o resumo não aparece no celular.
 - **Custo:** Nota, repetir, avisar e fatura custam um toque a mais no celular (a tela abre "Mais" sozinha ao editar um lançamento com nota); Tags também; trocar para Transferência são dois toques em vez de rolar a página; a IA fica recolhida.
 
 ## Histórico (tela, lista de lançamentos)

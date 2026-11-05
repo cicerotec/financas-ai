@@ -176,6 +176,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .seg button[aria-pressed="true"],.seg button[aria-checked="true"]{background:var(--accent-bg);color:var(--text);font-weight:600;}
 .seg.tipo{background:var(--bg);}
 .seg.tipo button[data-tipo="saida"][aria-checked="true"]{background:var(--danger-bg);color:var(--danger);}
+.seg.tipo button[data-tipo="entrada"][aria-checked="true"]{color:var(--income);}
+/* valor colorido pelo tipo: saida em --danger, entrada em --income (demo-lancar-v4-atalhos) */
+.valor-grande input,.valor-grande span{color:var(--danger);}
+.valor-grande.entrada input,.valor-grande.entrada span{color:var(--income);}
 .ia-card{padding:0;overflow:hidden;}
 .ia-card>button{width:100%;min-height:56px;border:0;background:transparent;color:var(--text);font:inherit;display:flex;align-items:center;gap:10px;padding:0 16px;text-align:left;cursor:pointer;}
 .ia-card .t{flex:1;min-width:0;}
@@ -205,6 +209,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .barra button{margin:0;min-height:52px;border-radius:14px;}
 .barra .primary{flex:1;width:auto;}
 .barra .ghost{flex:none;padding:0 16px;background:var(--ck);border:0;color:var(--text);}
+/* atalhos de data sob a linha Data e resumo ao lado do Salvar (so no computador) */
+.lh-data>.lh{border-top:0;}
+.dt-atalhos{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 16px 10px;}
+.dt-atalhos button{min-height:44px;padding:0 16px;border:1px solid transparent;border-radius:999px;background:var(--ck);color:var(--text);font:inherit;font-size:14px;cursor:pointer;}
+.dt-atalhos button[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent);font-weight:600;}
+.dt-hint{flex-basis:100%;margin:2px 0 0;font-size:13px;color:var(--muted);}
+.barra-resumo{display:none;}
 .transf-campos{display:flex;flex-direction:column;gap:2px;}
 /* Tags: janela de baixo no celular; no computador fica a direita, sempre a vista */
 .tags-veu{display:none;}
@@ -246,6 +257,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .mais-det{display:block;grid-column:1 / -1;border:0;padding:0;}
   .barra{position:static;background:none;padding-top:4px;}
   .barra .primary{flex:none;min-width:260px;}
+  .dt-atalhos{padding:8px 0 0;}
+  .barra{align-items:center;}
+  .barra-resumo{display:block;flex:1;min-width:0;margin-left:8px;font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .barra-resumo b{color:var(--text);font-weight:600;}
   #painelTransf{max-width:560px;}
   .transf-campos{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
   .transf-campos .tdata{grid-column:1 / -1;}
