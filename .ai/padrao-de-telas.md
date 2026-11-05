@@ -22,18 +22,22 @@ Cada tela tem uma **demo-padrão** em `demos/`, a captura fiel da tela como est�
 
 | Tela | Demo-padrão |
 |---|---|
-| Lançar | [`demo-lancar-v1`](demos/demo-lancar-v1.html), [`Mais`](demos/demo-lancar-mais-v1.html), [`Tags`](demos/demo-tags-v1.html), [`v3, Repetir numa linha só`](demos/demo-lancar-v3-repetir.html) (aprovada em 2026-11-03, ainda não implementada; vale sobre o `Mais` nas linhas Repetir, Recorrente e Avisar) |
-| Histórico | [`demo-historico-v1`](demos/demo-historico-v1.html), [`ações`](demos/demo-acoes-historico-v1.html), [`Filtros`](demos/demo-filtros-historico-v1.html), [`seleção em lote`](demos/demo-selecao-historico-v1.html), [`v2, ação Repetir`](demos/demo-historico-v2-repetir.html) (aprovada em 2026-11-03, ainda não implementada; vale sobre as `ações`: Prever e Tornar recorrente viram o botão **Repetir**, versão A) |
+| Lançar | [`demo-lancar-v1`](demos/demo-lancar-v1.html), [`Mais`](demos/demo-lancar-mais-v1.html), [`Tags`](demos/demo-tags-v1.html), [`v3, Repetir numa linha só`](demos/demo-lancar-v3-repetir.html) (**exploração de 2026-11-03, não vale como padrão**: não cobre edição nem cópia; ver `specs/repetir-unificado/`) |
+| Histórico | [`demo-historico-v1`](demos/demo-historico-v1.html), [`ações`](demos/demo-acoes-historico-v1.html), [`Filtros`](demos/demo-filtros-historico-v1.html), [`seleção em lote`](demos/demo-selecao-historico-v1.html), [`v2, ação Repetir`](demos/demo-historico-v2-repetir.html) (**exploração de 2026-11-03, não vale como padrão**: não cobre Estender série, Parar recorrência nem o lote; ver `specs/repetir-unificado/`) |
 | Futuros | [`demo-futuros-v1`](demos/demo-futuros-v1.html) |
-| Prever, Repetir e Avisar | [`demo-prever-v1`](demos/demo-prever-v1.html), [`demo-repetir-v1`](demos/demo-repetir-v1.html), [`demo-avisar-v1`](demos/demo-avisar-v1.html), [`v2, seletor`](demos/demo-repetir-v2-seletor.html) (aprovada em 2026-11-03, ainda não implementada; **padrão da tela Repetir**, vale sobre as três v1) |
+| Prever, Repetir e Avisar | [`demo-prever-v1`](demos/demo-prever-v1.html), [`demo-repetir-v1`](demos/demo-repetir-v1.html), [`demo-avisar-v1`](demos/demo-avisar-v1.html), [`v2, seletor`](demos/demo-repetir-v2-seletor.html) (**exploração de 2026-11-03, não vale como padrão**: não cobre o lote, o Estender nem o Cartão; a padrão continua sendo as três v1; ver `specs/repetir-unificado/`) |
 | Tendências | [`demo-tendencias-v1`](demos/demo-tendencias-v1.html), [`v2, com as visões dos gastos`](demos/demo-tendencias-v2.html), [`editar`](demos/demo-tendencias-editar-v1.html), [`escolher tags`](demos/demo-tendencias-escolher-tags-v1.html), [`lista`](demos/demo-tendencias-lista-v1.html), [`salvar`](demos/demo-tendencias-salvar-v1.html), [`consultas salvas`](demos/demo-tendencias-consultas-v1.html) |
 | Saldos, Cartão e Listas | [`demo-saldos-v1`](demos/demo-saldos-v1.html), [`demo-cartao-v1`](demos/demo-cartao-v1.html), [`demo-listas-v1`](demos/demo-listas-v1.html), [`v2, com a paleta de 16 cores`](demos/demo-listas-v2-novas-cores.html) (aprovada em 2026-11-02; a v2 tem script só para o seletor), [`v3, meios de pagamento`](demos/demo-listas-v3-meios.html) (aprovada em 2026-11-03 e implementada: o card Bancos / contas virou Meios de pagamento, com Desativar, Reativar e Remover; vale sobre a v2 nesse card) |
 | Histórico de versões | [`demo-versoes-v1`](demos/demo-versoes-v1.html), [`versões de um lançamento`](demos/demo-versoes-detalhe-v1.html) |
 | Configurações | [`demo-configuracoes-v1`](demos/demo-configuracoes-v1.html) |
 | Menus | [`menu do app (celular)`](demos/demo-menu-v1.html), [`v2, abas do computador na ordem do menu e com hover`](demos/demo-menu-v2-abas.html) (**padrão atual**, aprovada em 2026-11-03), [`menu da conta (computador)`](demos/demo-conta-v1.html) |
 
-### Repetir: uma tela só (aprovada em 2026-11-03)
-Prever, Estender, Tornar previstos, Tornar recorrente, o Repetir do Lançar e o aviso viram **uma tela Repetir**, com o seletor
+### Repetir: exploração de 2026-11-03 (**não vale como padrão**)
+**Revisto em 2026-11-03:** estas demos foram feitas antes de levantar todas as telas afetadas (faltam Estender série, Parar recorrência, lote, edição, cópia e Cartão) e **não são o padrão**. O roteiro foi
+refeito em [`specs/repetir-unificado/`](specs/repetir-unificado/intent.md): primeiro tirar a duplicação sem mudar o visual (trilha A) e só depois redesenhar (trilha B), com uma demo que cubra o inventário.
+O texto abaixo registra a exploração, para não se perder, e **não deve ser seguido** até o dono decidir as perguntas do `plan.md`.
+
+Exploração: Prever, Estender, Tornar previstos, Tornar recorrente, o Repetir do Lançar e o aviso numa **tela Repetir**, com o seletor
 **Só este · N vezes · Recorrente** (um toque), a linha **Avisar no Telegram** dentro dela e as telas Intervalo e Avisar. As demos
 `demo-repetir-v2-seletor`, `demo-lancar-v3-repetir` e `demo-historico-v2-repetir` têm um pouco de script **só para a demo** (a barra preta do topo não existe no app).
 - **Só este** existe só no Lançar. No Histórico e em Futuros o lançamento já existe, então o seletor tem duas posições (N vezes e Recorrente).
