@@ -1563,7 +1563,7 @@ function renderTagPicker(){
   if(document.getElementById('barraResumo')) atualizarLancarExtras();
   if(seletorHist) seletorHist.render();
 }
-// Marcar pela busca (toque ou Enter) limpa o campo, para a próxima busca começar do zero.
+// Enter e criar tag limpam o campo; tocar num resultado não, para marcar várias tags da mesma busca (o X do campo limpa).
 function limparBuscaTags(){
   if(!tagBusca) return;
   tagBusca = ''; document.getElementById('tagBusca').value = '';
@@ -1812,15 +1812,15 @@ function setupHandlers(){
     const b = e.target.closest('button'); if(!b) return;
     if(b.dataset.combo !== undefined){
       const c = combosVisiveis[parseInt(b.dataset.combo,10)]; if(!c) return;
-      // o combo acrescenta as tags dele sem tirar as marcadas; tocar de novo desliga só as dele
+      // o combo acrescenta as tags dele sem tirar as marcadas; tocar de novo desliga só as dele. A busca fica: o X do campo limpa
       if(c.tags.every(t=>tagsSelecionadas.has(t))) c.tags.forEach(t=>tagsSelecionadas.delete(t));
       else c.tags.forEach(t=>tagsSelecionadas.add(t));
-      limparBuscaTags(); renderTagPicker(); return;
+      renderTagPicker(); return;
     }
     if(b.dataset.tag !== undefined){
       const t = b.dataset.tag;
       tagsSelecionadas.has(t) ? tagsSelecionadas.delete(t) : tagsSelecionadas.add(t);
-      limparBuscaTags(); renderTagPicker(); return;
+      renderTagPicker(); return;
     }
     if(b.id === 'tgAbaTags'){ tagsAba = 'tags'; renderTagPicker(); return; }
     if(b.id === 'tgAbaCombos'){ tagsAba = 'combos'; renderTagPicker(); return; }
