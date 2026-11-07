@@ -71,7 +71,7 @@ func TestTodaAcaoConhecidaTemDecisaoParaOwnerEMember(t *testing.T) {
 	todas := []Acao{AcaoLerTx, AcaoCriarTx, AcaoEditarTx, AcaoExcluirTx, AcaoImportarTx,
 		AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 		AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao,
-		AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta, AcaoEscreverMeio}
+		AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta, AcaoEscreverMeio, AcaoRotinaCombos}
 	for _, a := range todas {
 		if Permitido(PapelOwner, a) != Liberado {
 			t.Errorf("owner deveria poder %q", a)
@@ -240,6 +240,10 @@ func TestRotaParaAcao(t *testing.T) {
 		{"DELETE", []string{"meios", "ITAU"}, AcaoEscreverMeio, true},
 		{"GET", []string{"meios", "ITAU"}, "", false},
 		{"POST", []string{"meios", "ITAU"}, "", false},
+		// rotina dos combos sugeridos (item 57): so o dono liga e desliga
+		{"PUT", []string{"combos", "rotina"}, AcaoRotinaCombos, true},
+		{"GET", []string{"combos", "rotina"}, "", false},
+		{"POST", []string{"combos", "rotina"}, "", false},
 		{"PUT", []string{"meios"}, "", false},
 		{"GET", []string{"consultas", "abc", "restaurar"}, "", false},
 		{"POST", []string{"consultas", "abc", "outra"}, "", false},

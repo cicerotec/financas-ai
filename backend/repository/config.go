@@ -92,3 +92,27 @@ func (r *Config) GravarAparencia(ctx context.Context, sid, sub string, body doma
 	}
 	return domain.Publico(body), nil
 }
+
+// AtualizarCombos grava so sugeridos e geradoEm de CFG#COMBOS, sem mexer em lista nem em version (a rotina semanal nao pode
+// causar conflito numa tela de Listas aberta). O item precisa existir: sem ele a condicao falha (domain.ErrConflitoConfig).
+func (r *Config) AtualizarCombos(ctx context.Context, sid string, sugeridos []domain.Doc, geradoEm string) error {
+	lista, err := attributevalue.Marshal(sugeridos)
+	if err != nil {
+		return domain.ErrDadosInvalidos
+	}
+	_, err = r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName:           &r.table,
+		Key:                 Key(SpacePK(sid), skConfig("combos")),
+		UpdateExpression:    aws.String("SET sugeridos = :s, geradoEm = :g"),
+		ConditionExpression: aws.String("attribute_exists(PK)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":s": lista,
+			":g": &types.AttributeValueMemberS{Value: geradoEm},
+		},
+	})
+	var cf *types.ConditionalCheckFailedException
+	if errors.As(err, &cf) {
+		return domain.ErrConflitoConfig
+	}
+	return err
+}

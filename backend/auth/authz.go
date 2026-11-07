@@ -34,6 +34,7 @@ const (
 	AcaoCriarConsulta   Acao = "consulta.criar"
 	AcaoEditarConsulta  Acao = "consulta.editar" // renomear, atualizar, excluir e restaurar: o member so as que criou
 	AcaoEscreverMeio    Acao = "meio.escrever"   // desativar, reativar e remover um meio de pagamento (item 43; so o dono)
+	AcaoRotinaCombos    Acao = "combos.rotina"   // liga e desliga a rotina semanal dos combos sugeridos (item 57; so o dono)
 )
 
 // Decisao e o que um papel pode fazer com uma acao.
@@ -59,7 +60,7 @@ func Permitido(papel string, a Acao) Decisao {
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso,
 			AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao,
-			AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta, AcaoEscreverMeio:
+			AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta, AcaoEscreverMeio, AcaoRotinaCombos:
 			return Liberado
 		}
 	case PapelMember:
@@ -131,6 +132,8 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		return rotaConsulta(metodo, rest)
 	case len(rest) == 2 && rest[0] == "meios" && rest[1] != "" && (metodo == "PUT" || metodo == "DELETE"): // item 43: /meios/{meio}
 		return AcaoEscreverMeio, true
+	case len(rest) == 2 && rest[0] == "combos" && rest[1] == "rotina" && metodo == "PUT": // item 57: /combos/rotina
+		return AcaoRotinaCombos, true
 	case len(rest) == 1 && rest[0] == "seq" && metodo == "GET":
 		return AcaoLerSeq, true
 	case len(rest) == 1 && rest[0] == "saldos" && metodo == "GET": // o saldo de cada meio, calculado pelo servidor (item 40)

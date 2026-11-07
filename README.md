@@ -115,8 +115,10 @@ A regra está em `backend/auth/authz.go` e tem testes; o que não está liberado
   não mexe no saldo e aparece em Futuros); `statusCor`; `estiloCor`, `layoutSaldos`, `ordemSaldos`, `ordemManual`
   (aparência).
 - `tags`: `{ usadas: [textos] }`.
-- `combos`: `{ lista: [ { tags: [textos] } ] }`. Combos sugeridos não são guardados: o app os recalcula contando
-  conjuntos de tags repetidos nos lançamentos.
+- `combos`: `{ lista: [ { tags: [textos] } ], sugeridos: [ { tags: [textos], contagem } ], geradoEm: "AAAA-MM-DD" }`. `lista` são os combos
+  salvos pelo dono; `sugeridos` e `geradoEm` são do servidor (item 57): uma rotina semanal (`{"acao":"combos"}`) conta os conjuntos de tags dos
+  1000 lançamentos mais recentes (2 tags ou mais, 3 usos ou mais, até 10) e os guarda sem subir o `version`; o PUT manual os preserva. A rotina
+  roda nos espaços que têm o item auxiliar `tipo: "combos"` no `AVISOS#ATIVOS`, que o dono liga e desliga em Listas (`PUT /combos/rotina`).
 - `cartoes`: `{ porBanco: { "<banco>": { diaPadrao, inicio, faturas: { "AAAA-MM": { fechamento, valorBanco, conferida } } } } }`.
   Estar aqui marca o banco como cartão. `AAAA-MM` é o mês em que a fatura fecha.
 - `saldos`: `{ porBanco: { "<banco>": { saldoInicial, dataInicio } } }`.

@@ -2,7 +2,7 @@
 
 Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 
-**Estado:** rascunho para aprovação (2026-11-06). Nada implementado.
+**Estado:** roteiro e demo aprovados em 2026-11-06; implementado (backend, front e a regra no `template.yaml`), falta conferir no dev e na produção.
 
 ## Regras
 
@@ -13,9 +13,9 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 - **R5.** A rotina é o evento `{"acao":"combos"}` (regra semanal do EventBridge, separada da dos avisos). Age só nos itens `tipo: "combos"` do `AVISOS#ATIVOS` e devolve `{"espacos": n, "sugeridos": n}`. Sem item ativo, não faz nada e devolve zeros.
 - **R5a.** **Interruptor (só o dono):** `PUT /spaces/{sid}/combos/rotina { "ativa": true|false }` cria ou apaga o item `tipo: "combos"` (com o `sid`) e `GET` de `combos` devolve `rotinaAtiva`. Ligar não roda a rotina na hora. Desligar mantém `sugeridos`. Membro que não é dono recebe `403`. A aba Listas mostra o interruptor já ligado quando o item existe.
 - **R5b.** A rotina diária dos avisos **ignora** o item `tipo: "combos"` (não é aviso), como já faz com `recorrencia`.
-- **R6.** A rotina grava só `sugeridos` e `geradoEm`, por atualização parcial: **não altera `version` nem `lista`**. Item inexistente é criado com `lista: []` e `version` 0.
+- **R6.** A rotina grava só `sugeridos` e `geradoEm`, por atualização parcial: **não altera `version` nem `lista`**. Item inexistente é criado com `lista: []` e `version` 1, como uma gravação normal.
 - **R7.** Falha em um espaço não impede os outros; o erro vai ao log com o `sid`.
-- **R8.** Leitura em páginas pequenas com espera entre elas; nenhuma varredura da tabela inteira; só os `TX#` do espaço, do mais novo para trás, parando em 1000.
+- **R8.** Leitura em páginas de 500; nenhuma varredura da tabela inteira; só os `TX#` do espaço, do mais novo para trás, parando em 1000. Não há espera entre as páginas: se a tabela limitar a leitura, o SDK repete.
 - **R9.** O PUT de `combos` (gravação manual) **preserva** `sugeridos` e `geradoEm` do item guardado; o corpo do front não precisa enviá-los, e se enviar são ignorados. O `version` sobe como hoje.
 - **R10.** `GET` de `combos` devolve `lista`, `sugeridos` e `geradoEm`.
 - **R11.** O Lançar mostra os combos manuais primeiro e depois os sugeridos (5, com "Mostrar mais"); um sugerido igual a um manual não aparece e o manual mostra a contagem.

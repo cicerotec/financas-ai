@@ -133,6 +133,12 @@ Resources:
             Description: Avisos diarios de lancamentos futuros (Telegram)
             Schedule: cron(0 11 * * ? *)      # 08:00 em Sao Paulo (UTC-3, sem horario de verao)
             Input: '{"acao":"avisos"}'
+        CombosSemanais:
+          Type: Schedule
+          Properties:
+            Description: Combos sugeridos de cada espaco com a rotina ligada em Listas (item 57)
+            Schedule: cron(0 6 ? * SUN *)     # domingo 03:00 em Sao Paulo (UTC-3)
+            Input: '{"acao":"combos"}'
       FunctionUrlConfig:
         AuthType: NONE               # o JWT do Cognito e validado dentro da Lambda
         Cors:
