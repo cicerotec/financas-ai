@@ -34,4 +34,6 @@ assert.ok(/class="sel">crédito</.test(app), 'etiqueta crédito');
 assert.ok(/listas\.banco\.map\(\(_,i\)=>i\)\.filter\(i=>meioAtivo\(listas\.banco\[i\]\)\)/.test(app), 'indicesOrdenados so lista os ativos');
 assert.ok(/\$\{meiosSugeridos\(\)\.length\} banco/.test(app), 'o subtitulo de Saldos conta so os ativos');
 
+assert.ok(/listas\.banco\.filter\(x=>meioAtivo\(x\) \|\| x===atual\)/.test(app), 'Paga com sugere so os ativos, mantendo o atual');
+
 console.log('ok meios.test.js');

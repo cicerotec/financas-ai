@@ -3516,9 +3516,9 @@ function conferenciaHtml(f){
   return h;
 }
 
-// as opcoes de "Paga com": nenhum e os meios da lista, menos o proprio cartao
+// as opcoes de "Paga com": nenhum e os meios ativos da lista (e o atual, mesmo desativado)
 function opcoesPagador(cartao, atual){
-  return '<option value="">(nenhum)</option>' + listas.banco.map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
+  return '<option value="">(nenhum)</option>' + listas.banco.filter(x=>meioAtivo(x) || x===atual).map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
 }
 function linhaCfg(chave, rotulo, valor, ym){
   return `<button type="button" class="cfg-lin" data-ed="${chave}" data-ym="${ym||''}"><span>${rotulo}</span><span class="v">${esc(valor)} ›</span></button>`;

@@ -325,3 +325,29 @@ func TestSaldosNaoTrazMeioDesativado(t *testing.T) {
 		t.Error("reativar traz o meio de volta, com o saldo do passado")
 	}
 }
+
+// A aba Cartao tambem nao mostra o meio desativado (nem como cartao, nem entre os meios livres para virar cartao).
+func TestCartaoNaoTrazMeioDesativado(t *testing.T) {
+	cenarioMeios(t)
+	c, d := chamar(t, "own", "GET", "spaces/s1/cartoes", nil, "")
+	esperar(t, "cartoes", c, 200)
+	if len(d["cartoes"].([]any)) != 1 {
+		t.Fatalf("o CITIBANK e cartao: %v", d["cartoes"])
+	}
+	chamar(t, "own", "PUT", "spaces/s1/meios/CITIBANK", nil, `{"ativoAte":"2026-11-03"}`)
+	chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":"2026-11-03"}`)
+	_, d = chamar(t, "own", "GET", "spaces/s1/cartoes", nil, "")
+	if len(d["cartoes"].([]any)) != 0 {
+		t.Errorf("o cartao desativado sai da aba: %v", d["cartoes"])
+	}
+	for _, x := range d["disponiveis"].([]any) {
+		if m := x.(map[string]any)["meio"]; m == "SODEXO" || m == "CITIBANK" {
+			t.Errorf("o meio desativado nao e oferecido para virar cartao: %v", m)
+		}
+	}
+	chamar(t, "own", "PUT", "spaces/s1/meios/CITIBANK", nil, `{"ativoAte":null}`)
+	_, d = chamar(t, "own", "GET", "spaces/s1/cartoes", nil, "")
+	if len(d["cartoes"].([]any)) != 1 {
+		t.Errorf("reativar traz o cartao de volta: %v", d["cartoes"])
+	}
+}
