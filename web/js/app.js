@@ -1745,7 +1745,7 @@ function lancarTags(abrir){
   document.getElementById('tagsCard').classList.toggle('aberto', abrir);
   document.getElementById('tagsVeu').classList.toggle('aberto', abrir);
   const busca = document.getElementById('tagBusca');
-  if(abrir) setTimeout(()=>busca.focus(), 50); else busca.blur();
+  if(!abrir) busca.blur(); // abre sem teclado: as tags aparecem; o teclado sobe só ao tocar na busca
 }
 function ligarLancar(){
   document.getElementById('modoLancar').addEventListener('click', e=>{ const b = e.target.closest('[data-modo]'); if(b) lancarModo(b.dataset.modo); });
