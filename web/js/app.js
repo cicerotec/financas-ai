@@ -820,6 +820,7 @@ function clonar(x){ return x===undefined ? x : JSON.parse(JSON.stringify(x)); }
 let combosSalvos = [];
 let filaCombos = Promise.resolve();
 let combosVisiveis = [];
+let combosSugeridos = [], combosGeradoEm = '', rotinaCombosAtiva = false; // do servidor (item 57)
 let tagBusca = '';
 let tagsTodasAbertas = false;
 let tagsAba = 'tags', tagsLimite = 30, tagsLimiteCb = 5, tagsOrdem = 'az';
@@ -1029,6 +1030,9 @@ async function init(){
     db.doc("config/combos").onSnapshot(snap=>{
       const d = snap.data();
       combosSalvos = (d && Array.isArray(d.lista)) ? clonar(d.lista) : [];
+      combosSugeridos = (d && Array.isArray(d.sugeridos)) ? clonar(d.sugeridos) : [];
+      combosGeradoEm = (d && d.geradoEm) || '';
+      rotinaCombosAtiva = !!(d && d.rotinaAtiva);
       renderTagPicker();
       renderCombosLista();
     }, ()=>{});
@@ -1427,23 +1431,13 @@ function removerMeio(nome){
 
 function normTxt(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
 function chaveTags(a){ return [...a].sort().join('|'); }
-function contagemConjuntos(){
-  const m = new Map();
-  lancamentosCache.forEach(l=>{
-    const t = l.tags || [];
-    if(t.length < 2) return;
-    const k = chaveTags(t);
-    const e = m.get(k);
-    if(e) e.n++; else m.set(k, {tags:[...t], n:1});
-  });
-  return m;
-}
+// Combos sugeridos (item 57): quem conta e o servidor, uma vez por semana (config/combos: sugeridos); o navegador so junta e exibe.
+// Um combo salvo igual a um sugerido aparece uma vez, como salvo e com a contagem; os demais sugeridos vêm na ordem do servidor.
 function combosAtuaisLista(){
-  const conj = contagemConjuntos();
-  const salvos = combosSalvos.map(c=>({tags:c.tags, n:(conj.get(chaveTags(c.tags))||{}).n||0, salvo:true}));
+  const cont = new Map(combosSugeridos.map(c=>[chaveTags(c.tags), c.contagem||0]));
+  const salvos = combosSalvos.map(c=>({tags:c.tags, n:cont.get(chaveTags(c.tags))||0, salvo:true}));
   const ks = new Set(salvos.map(c=>chaveTags(c.tags)));
-  const sug = [...conj.values()].filter(x=>x.n>=3 && !ks.has(chaveTags(x.tags)))
-    .sort((a,b)=>b.n-a.n).slice(0,5).map(x=>({tags:x.tags, n:x.n, salvo:false}));
+  const sug = combosSugeridos.filter(c=>!ks.has(chaveTags(c.tags))).map(c=>({tags:c.tags, n:c.contagem||0, salvo:false}));
   return [...salvos, ...sug];
 }
 function salvarCombos(){
@@ -1455,7 +1449,7 @@ function salvarCombos(){
   });
   return filaCombos;
 }
-// Tags do Lançar (demo-tags-v2-busca): busca e criação no mesmo campo, abas Tags | Combos e o campo Tags
+// Tags do Lançar (demo-lancar-v5-tags): busca e criação no mesmo campo, abas Tags | Combos e o campo Tags
 // do cartão em chips (até 3 linhas). A janela é de baixo no celular e a coluna da direita no computador.
 const TG_TOPO = 8, TG_LINHAS = 3;
 function limpaTagBusca(s){ return String(s||'').trim().replace(/^#/,''); }
@@ -1573,12 +1567,24 @@ function criarTagLancar(v){
   tagsSelecionadas.add(v); garantirTags([v]);
   limparBuscaTags(); renderTagPicker();
 }
+function dataBr(iso){ const p = String(iso||'').split('-'); return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : ''; }
 function renderCombosLista(){
   const el = document.getElementById('listaCombos');
   if(!el) return;
-  el.innerHTML = combosSalvos.map((c,i)=>
+  // interruptor da rotina semanal (item 57): o servidor diz se esta ligada; aqui so se mostra
+  const sw = document.getElementById('swRotinaCombos');
+  sw.checked = rotinaCombosAtiva;
+  const calc = combosGeradoEm ? 'Último cálculo: ' + dataBr(combosGeradoEm) + '.' : 'Ainda não calculado.';
+  document.getElementById('rotinaDica').textContent = rotinaCombosAtiva
+    ? 'Todo domingo, de madrugada. ' + calc
+    : (combosGeradoEm ? 'Desligado. Os sugeridos abaixo são do último cálculo (' + dataBr(combosGeradoEm) + ') e não se atualizam.' : 'Desligado.');
+  document.getElementById('cbSug').innerHTML = combosSugeridos.length
+    ? '<div class="muted" style="margin:10px 0 4px;font-size:12px;">Sugeridos pelo histórico</div>' + combosSugeridos.map(c=>
+        `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13px;${rotinaCombosAtiva?'':'color:var(--muted);'}">${esc(c.tags.join(' · '))}</span><span class="muted" style="font-size:12px;">${c.contagem||0}x</span></div>`).join('')
+    : '';
+  el.innerHTML = (combosSugeridos.length ? '<div class="muted" style="margin:12px 0 4px;font-size:12px;">Salvos por você</div>' : '') + (combosSalvos.map((c,i)=>
     `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13px;">${esc(c.tags.join(' · '))}</span><button class="ghost" data-del-combo="${i}">Excluir</button></div>`).join('')
-    || '<p class="muted">Nenhum combo salvo ainda.</p>';
+    || '<p class="muted">Nenhum combo salvo ainda.</p>');
   el.querySelectorAll('[data-del-combo]').forEach(b=>b.onclick=()=>{
     combosSalvos.splice(parseInt(b.dataset.delCombo,10),1);
     salvarCombos(); renderCombosLista(); renderTagPicker();
@@ -1850,6 +1856,16 @@ function setupHandlers(){
     else criarTagLancar(bruto);
   });
 
+  document.getElementById('swRotinaCombos').onchange = async (e)=>{
+    const sw = e.target, ativa = sw.checked;
+    sw.disabled = true;
+    try{
+      await db.combosRotina(ativa);
+      rotinaCombosAtiva = ativa; renderCombosLista();
+      toast(ativa ? '✓ Rotina ligada. O próximo cálculo é no domingo.' : '✓ Rotina desligada. Os sugeridos atuais continuam.');
+    }catch(err){ console.error(err); sw.checked = !ativa; toast((err && err.message) || 'Não consegui mudar a rotina. Tente de novo.', true); }
+    sw.disabled = false;
+  };
   document.getElementById('swInativos').onchange = (e)=>{ verMeiosInativos = e.target.checked; renderMeios(); };
   document.getElementById('btnAddBanco').onclick = ()=>{
     const v = document.getElementById('novoBanco').value.trim();

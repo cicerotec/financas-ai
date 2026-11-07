@@ -170,6 +170,9 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 			recorrencias = append(recorrencias, aux)
 			continue
 		}
+		if tipo, _ := aux["tipo"].(string); tipo == domain.TipoItemCombos { // o interruptor da rotina dos combos (item 57) nao e aviso
+			continue
+		}
 		data, _ := aux["dataEvento"].(string)
 		venc, _ := aux["venc"].(string)
 		dias, insistir, _ := domain.LerAviso(domain.Doc{"aviso": domain.Doc{"dias": aux["dias"], "insistir": aux["insistir"]}})

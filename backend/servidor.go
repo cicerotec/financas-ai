@@ -22,6 +22,7 @@ type Servidor struct {
 	consultas *controller.Consultas
 	cartoes   *rotasCartao
 	meios     *controller.Meios
+	combos    *controller.Combos
 }
 
 // novoServidor liga repository, service e controller. Recebe o que vem de fora (banco, tabela, relogio, canal de envio e o
@@ -46,10 +47,13 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 	recorrencias := service.NewRecorrencias(repository.NewAvisos(db, table), lancSvc, rel)
 	lancSvc.UsarRecorrencias(recorrencias)
 	avisos.UsarRecorrencias(recorrencias)
+	combos := service.NewCombos(repository.NewAvisos(db, table), cfgRepo, lancRepo, rel)
+	cfgSvc := service.NewConfig(cfgRepo, rel)
+	cfgSvc.UsarRotinaCombos(combos)
 	return &Servidor{
 		lanc:      controller.NewLancamentos(lancSvc),
 		esp:       controller.NewEspacos(service.NewEspacos(espacos)),
-		cfg:       controller.NewConfig(service.NewConfig(cfgRepo, rel), tags, contador),
+		cfg:       controller.NewConfig(cfgSvc, tags, contador),
 		perfil:    controller.NewPerfil(service.NewPerfil(pessoas)),
 		fech:      controller.NewFechamento(fech, saldos, service.NewConferencia(saldos, fech, lancSvc)),
 		avisos:    controller.NewAvisos(avisos),
@@ -57,5 +61,6 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 		consultas: controller.NewConsultas(service.NewConsultas(repository.NewConsultas(db, table), pessoas, rel)),
 		cartoes:   &rotasCartao{c: controller.NewCartoes(cartoes)},
 		meios:     controller.NewMeios(service.NewMeios(cfgRepo, lancRepo, rel)),
+		combos:    controller.NewCombos(combos),
 	}
 }
