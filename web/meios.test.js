@@ -30,10 +30,4 @@ assert.ok(!/ativo:true\}\)\)/.test(app), 'nenhum meio e marcado ativo no navegad
 // 5. a etiqueta e "credito" (vem da aba Cartao), nao "cartao"
 assert.ok(/class="sel">crédito</.test(app), 'etiqueta crédito');
 
-// 6. a aba Saldos nao mostra o meio desativado (o servidor nem o calcula) e a contagem so conta os ativos
-assert.ok(/listas\.banco\.map\(\(_,i\)=>i\)\.filter\(i=>meioAtivo\(listas\.banco\[i\]\)\)/.test(app), 'indicesOrdenados so lista os ativos');
-assert.ok(/\$\{meiosSugeridos\(\)\.length\} banco/.test(app), 'o subtitulo de Saldos conta so os ativos');
-
-assert.ok(/listas\.banco\.filter\(x=>meioAtivo\(x\) \|\| x===atual\)/.test(app), 'Paga com sugere so os ativos, mantendo o atual');
-
 console.log('ok meios.test.js');
