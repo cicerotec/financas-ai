@@ -1061,13 +1061,13 @@ body.lote-ativo #tab-historico{padding-bottom:84px;}
 <details class="demo-nota" open>
   <summary>Notas desta demo (não existem no app)</summary>
   <ul>
-    <li><b>Parte da v4 do Lançar</b> (padrão atual) <b>sem o atalho “Agora”</b> (só Hoje e Ontem; a data já abre em “agora”). <b>Nota e Tags ficam no primeiro cartão, logo abaixo da Descrição</b>, no mesmo desenho dos campos: o campo Tags mostra as tags marcadas em chips (no computador com × para tirar) e a janela de escolha continua como era, em baixo no celular e no lado direito no computador. No celular toque em Tags; no computador a janela fica à direita.</li>
+    <li><b>É a v5 do Lançar:</b> a v4 com Nota e Tags no cartão e a janela Tags | Combos (padrão atual, em produção desde 2026-11-06). <b>Sem o atalho “Agora”</b> (só Hoje e Ontem; a data já abre em “agora”). <b>Nota e Tags ficam no primeiro cartão, logo abaixo da Descrição</b>, no mesmo desenho dos campos: o campo Tags mostra as tags marcadas em chips (no computador com × para tirar) e a janela de escolha continua como era, em baixo no celular e no lado direito no computador. No celular toque em Tags; no computador a janela fica à direita.</li>
     <li><b>Duas abas com a contagem: Tags | Combos.</b> Ao buscar, as duas mostram quantos achou (“Tags 21”, “Combos 4”), e a aba que achou algo e não está aberta fica em destaque: é o aviso de que <b>também há combos</b> com o texto. Se só houver combos, a janela abre direto na aba Combos. Sem busca, “Tags” mostra as marcadas e as 8 mais usadas, e “Combos” os marcados primeiro.</li>
     <li><b>Teclado aberto:</b> a janela cresce para os resultados terem o espaço; tocar numa tag ou combo não fecha o teclado, então dá para marcar várias seguidas. O <b>Pronto fica no cabeçalho, ao lado de Limpar</b>, sempre visível (no computador a janela fica à direita e não precisa dele). O campo não põe a primeira letra em maiúscula, para a tag nova sair como foi digitada.</li>
     <li><b>Busca única:</b> Enter marca o primeiro resultado; se nada casar, cria a tag. Quando não existe uma tag igual, o botão “＋ Criar” é o primeiro da fila de resultados. O campo “nova tag + Enter” sai.</li>
     <li><b>Combos:</b> gravados pelo dono (sólidos) e sugeridos pelo uso (tracejados, com a contagem). Tocar liga ou desliga as tags do combo, <b>sem tirar as que já estão marcadas</b>. “Salvar seleção como combo” é só do dono, com 2 tags ou mais que ainda não formam um combo.</li>
-    <li><b>Todas as tags:</b> recolhida por padrão, só na aba Tags e sem busca. Aberta, ordena por A → Z, Z → A, Marcadas primeiro, Mais usadas e Criadas recentemente, 30 por vez (os números são inventados aqui; no app vêm do servidor).</li>
-    <li><b>O que se perde:</b> os combos ficam atrás de uma aba (um toque para vê-los); quem quer criar uma tag parecida com uma que existe (ex.: <i>merc</i>) precisa tocar em “Criar”, porque Enter marca o primeiro resultado; os combos sugeridos vêm do servidor uma vez por semana.</li>
+    <li><b>Todas as tags:</b> recolhida por padrão, só na aba Tags e sem busca. Aberta, ordena por A → Z, Z → A, Marcadas primeiro e Criadas recentemente, 30 por vez. <b>Não há “Mais usadas”</b> (a contagem de uso por tag foi dispensada).</li>
+    <li><b>O que se perde:</b> os combos ficam atrás de uma aba (um toque para vê-los); quem quer criar uma tag parecida com uma que existe (ex.: <i>merc</i>) precisa tocar em “Criar”, porque Enter marca o primeiro resultado; os combos sugeridos vêm do servidor, calculados uma vez por semana (item 57; o dono liga a rotina em Listas).</li>
   </ul>
 </details>
 <section id="tab-lancar" class="">
@@ -1203,7 +1203,6 @@ body.lote-ativo #tab-historico{padding-bottom:84px;}
                     <option value="az">A → Z</option>
                     <option value="za">Z → A</option>
                     <option value="marc">Marcadas primeiro</option>
-                    <option value="uso">Mais usadas</option>
                     <option value="rec">Criadas recentemente</option>
                   </select>
                 </label>
@@ -1415,9 +1414,9 @@ body.lote-ativo #tab-historico{padding-bottom:84px;}
     $('tgTagsSec').hidden=ef!=='tags';
     $('tgCombosSec').hidden=ef!=='combos';
 
-    /* TAGS: sem busca, as marcadas e as mais usadas; com busca, as encontradas (e "Criar" como primeiro botao) */
+    /* TAGS: sem busca, as marcadas e as criadas mais recentemente; com busca, as encontradas (e "Criar" como primeiro botao) */
     if(!q){
-      var marc=ordenar(),resto=todas.filter(function(t){return !sel.has(t);}).sort(function(a,b){return uso(b)-uso(a)||a.localeCompare(b);}).slice(0,TOPO);
+      var marc=ordenar(),resto=todas.filter(function(t){return !sel.has(t);}).sort(function(a,b){return criadas.indexOf(b)-criadas.indexOf(a)||a.localeCompare(b);}).slice(0,TOPO);
       $('tagPicker').innerHTML=marc.concat(resto).map(function(t){return chip(t,'');}).join('');
     }else{
       var exata=todas.some(function(t){return norm(t)===q;}),mostra=achouTags.slice(0,40);
@@ -1452,7 +1451,6 @@ body.lote-ativo #tab-historico{padding-bottom:84px;}
     if(o==='za')l.sort(function(a,b){return b.localeCompare(a);});
     else if(o==='rec')l.sort(function(a,b){return criadas.indexOf(b)-criadas.indexOf(a)||az(a,b);});
     else if(o==='marc')l.sort(function(a,b){return (sel.has(b)?1:0)-(sel.has(a)?1:0)||az(a,b);});
-    else if(o==='uso')l.sort(function(a,b){return uso(b)-uso(a)||az(a,b);});
     else l.sort(az);
     return l;
   }
