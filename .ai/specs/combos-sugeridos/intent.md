@@ -27,7 +27,7 @@ Combos **gravados à mão não existem em produção** (o dono não os cria), en
 ## Limites (o que fica de fora)
 
 - **Só `sugeridos`.** Contagem de uso por tag ("Mais usadas") e sugestão pela descrição (`porDescricao`) **não entram**: o dono dispensou em 2026-11-06.
-- **Uma tela só mexe:** o interruptor em Listas > Combos (com demo antes). A janela de Tags v2 já mostra os combos; só muda de onde vêm os sugeridos.
+- **Uma tela só mexe:** o interruptor em Listas > Combos (com demo antes). A janela de Tags da v5 do Lançar (`demo-lancar-v5-tags`) já mostra os combos; só muda de onde vêm os sugeridos.
 - **O passado não é tocado.** Nenhum lançamento é alterado.
 - **A sugestão pode ficar até uma semana velha.** É aceitável para sugerir.
 - **Dependência da rotina:** com o interruptor desligado e sem nunca ter rodado, só aparecem os combos manuais, também no filtro do Histórico.
