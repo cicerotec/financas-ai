@@ -31,6 +31,7 @@ Cada tela tem uma **demo-padrão** em `demos/`, a captura fiel da tela como est�
 | Histórico de versões | [`demo-versoes-v1`](demos/demo-versoes-v1.html), [`versões de um lançamento`](demos/demo-versoes-detalhe-v1.html) |
 | Configurações | [`demo-configuracoes-v1`](demos/demo-configuracoes-v1.html) |
 | Menus | [`menu do app (celular)`](demos/demo-menu-v1.html), [`v2, abas do computador na ordem do menu e com hover`](demos/demo-menu-v2-abas.html) (**padrão atual**, aprovada em 2026-11-03), [`menu da conta (computador)`](demos/demo-conta-v1.html) |
+| Esconder valores (olho) | [`demo-valores-v1-esconder`](demos/demo-valores-v1-esconder.html) (**padrão atual**, aprovada e implementada em 2026-11-07; junta as demos-padrão de Lançar v5, Histórico, Futuros, Cartão, Saldos e Tendências; a barra preta de baixo e o script são só da demo) |
 
 ### Repetir: exploração de 2026-11-03 (**não vale como padrão**)
 **Revisto em 2026-11-03:** estas demos foram feitas antes de levantar todas as telas afetadas (faltam Estender série, Parar recorrência, lote, edição, cópia e Cartão) e **não são o padrão**. O roteiro foi
@@ -285,6 +286,14 @@ Demo [`demos/arquivo/demo-lancar-layout.html`](demos/arquivo/demo-lancar-layout.
   - **Combos sugeridos (item 57, [`.ai/specs/combos-sugeridos/`](specs/combos-sugeridos/intent.md)):** vêm do servidor (`config/combos` → `sugeridos`, calculados uma vez por semana com os 1000 lançamentos mais recentes); nenhuma tela conta. Em Listas, o cartão "Combos de tags" ganha o interruptor "Gerar combos sugeridos toda semana" (demo [`demo-listas-v4-combos`](demos/demo-listas-v4-combos.html), aprovada em 2026-11-06). A contagem de uso por tag ("Mais usadas") foi dispensada: a ordem não existe.
   - **Custo:** os combos ficam atrás de uma aba (um toque); quem quer criar uma tag parecida com uma que existe (ex.: *merc*) toca em "Criar", porque Enter marca o primeiro resultado; o campo Tags passa a ocupar até 3 linhas no cartão.
 - **Custo:** Nota, repetir, avisar e fatura custam um toque a mais no celular (a tela abre "Mais" sozinha ao editar um lançamento com nota); Tags também; trocar para Transferência são dois toques em vez de rolar a página; a IA fica recolhida.
+
+## Esconder valores, o olho (2026-11-07, demo [`demo-valores-v1-esconder`](demos/demo-valores-v1-esconder.html), aprovada pelo dono)
+Como nos apps de banco. Código: `web/js/valores.js` (e o bloco "Esconder valores" de `web/css/app.css`); teste: `web/valores.test.js`. Só front; nada vai ao servidor.
+- **O olho** fica no topo: no celular (e janela < 1160 px) antes do menu ⋮, na barra; no computador, ao lado do nome do usuário. Aberto = valores visíveis; fechado = escondidos. A escolha **fica lembrada só neste aparelho** (`localStorage`, chave `valoresEscondidos`); na primeira vez, visível.
+- **Escondido:** todo valor **lido** vira `R$ ••••••` (o sinal e a cor da entrada ou da saída ficam), em qualquer tela, aviso (toast) ou rótulo (`aria-label` e `title`). Nos **gráficos** da Tendências somem os números das barras e do eixo (viram `••`) e as barras ficam.
+- **Nunca esconde** o que a pessoa digita no Lançar (`.valor-grande`, `#barraResumo`) nem onde ela decide olhando o número: as janelas (`.modal-box`, as confirmações) e a conferência com o extrato (`.fm-conf`). Ao criar uma tela nova com valor digitado ou decisão sobre valor, acrescente a classe à lista `EXCECOES` de `valores.js`.
+- **Como funciona:** um `MutationObserver` mascara o que o app desenha depois, no mesmo ciclo e antes de pintar; as telas não sabem do olho e `fmtMoeda` continua devolvendo o valor real. Todo valor novo em tela precisa conter o texto `R$ ...` (ou ser rótulo numérico de `<text>` de SVG) para ser mascarado.
+- **Custo:** um toque a mais para ver um valor; a proporção entre as barras ainda aparece; captura de tela com o olho aberto mostra tudo (esconder na lista de apps recentes fica para o app Android, item 54).
 
 ## Histórico (tela, lista de lançamentos)
 Demo [`demos/arquivo/demo-historico-layout.html`](demos/arquivo/demo-historico-layout.html), aprovada pelo dono em 2026-10-19; implementação em `web/index.html` (`#tab-historico` e a janela `#histFilOv`), `web/css/app.css` (bloco "Historico") e `web/js/app.js` (`renderHistorico` e funções `*Hist`). Reaproveita as classes `.fut-*` de Futuros (linha, tabela, título de grupo, janela de ações); nada de regra de negócio mudou.
