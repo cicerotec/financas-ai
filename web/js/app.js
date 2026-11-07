@@ -3191,7 +3191,7 @@ function ordemManualEfetiva(){
   return base;
 }
 function indicesOrdenados(){
-  const idx = listas.banco.map((_,i)=>i);
+  const idx = listas.banco.map((_,i)=>i).filter(i=>meioAtivo(listas.banco[i])); // o meio desativado não aparece em Saldos: o servidor nem o calcula (item 43)
   if(ordemSaldos==='valor'){
     const v = i=>{ const r = saldosAtuais[listas.banco[i]]; return r ? r.saldo : -Infinity; };
     return idx.sort((a,b)=> (v(b)-v(a)) || (a-b));
@@ -3252,7 +3252,7 @@ function renderSaldos(){
   te.style.fontSize = '32px';
   const hora = saldosUltimaCalc ? new Date(saldosUltimaCalc).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
   document.getElementById('saldoSub').textContent = saldosCarregando ? 'Calculando...' :
-    `${listas.banco.length} banco${listas.banco.length>1?'s':''}${tot.fora?` · ${tot.fora} fora do total`:''}${tot.incompleto?' · ⚠ confira':''}${hora?` · atualizado ${hora}`:''}`;
+    `${meiosSugeridos().length} banco${meiosSugeridos().length>1?'s':''}${tot.fora?` · ${tot.fora} fora do total`:''}${tot.incompleto?' · ⚠ confira':''}${hora?` · atualizado ${hora}`:''}`;
   let h = '';
   if(layoutSaldos==='tiles'){
     h += '<div class="sd-tiles">' + indicesOrdenados().map(i=>{

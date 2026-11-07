@@ -283,3 +283,45 @@ func TestLancarNumMeioInativoContinuaValendo(t *testing.T) {
 		t.Errorf("o ativoAte continua: %v", ate)
 	}
 }
+
+// A aba Saldos nao mostra o meio desativado e o total nao o soma (todo numero e a soma das linhas mostradas); o passado dele continua nos lancamentos.
+func temMeioEmSaldos(d doc, meio string) bool {
+	itens, _ := d["meios"].([]any)
+	for _, x := range itens {
+		if x.(map[string]any)["meio"] == meio {
+			return true
+		}
+	}
+	return false
+}
+
+func TestSaldosNaoTrazMeioDesativado(t *testing.T) {
+	f := cenarioMeios(t)
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0, "porBanco": map[string]any{
+		"SODEXO": map[string]any{"saldoInicial": 100.0, "dataInicio": "2026-01-01"},
+		"VR-NOVO": map[string]any{"saldoInicial": 50.0, "dataInicio": "2026-01-01"}}})
+	c, d := saldos(t, "own")
+	esperar(t, "saldos", c, 200)
+	if !temMeioEmSaldos(d, "SODEXO") || !temMeioEmSaldos(d, "VR-NOVO") {
+		t.Fatalf("ativos aparecem: %v", d["meios"])
+	}
+	antes := d["total"].(map[string]any)["valor"].(float64)
+	chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":"2026-11-03"}`)
+	chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, `{"ativoAte":"2026-12-31"}`)
+	c, d = saldos(t, "mem")
+	esperar(t, "saldos depois", c, 200)
+	if temMeioEmSaldos(d, "SODEXO") {
+		t.Errorf("o meio desativado sai de Saldos: %v", d["meios"])
+	}
+	if !temMeioEmSaldos(d, "VR-NOVO") {
+		t.Errorf("a data futura ainda e ativo: %v", d["meios"])
+	}
+	if depois := d["total"].(map[string]any)["valor"].(float64); !quase(antes-depois, 100) {
+		t.Errorf("o total perde so os 100 do desativado: antes %v, depois %v", antes, depois)
+	}
+	chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":null}`)
+	_, d = saldos(t, "own")
+	if !temMeioEmSaldos(d, "SODEXO") {
+		t.Error("reativar traz o meio de volta, com o saldo do passado")
+	}
+}

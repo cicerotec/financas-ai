@@ -20,7 +20,9 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 - **R7.** A conferência de uso lê só quando o `DELETE` é chamado (nenhuma rota de leitura nem a abertura de Listas varre lançamentos) e **para no primeiro lançamento achado**.
 - **R8.** Cada `DELETE` escreve uma linha de log `meios: remover meio=<n> paginas=<n> itens=<n> ms=<n> resultado=<ok|em_uso|cartao>`, sem conteúdo de lançamento (gatilho para a flag `jaUsado`).
 - **R9.** O servidor **não** valida lançamento contra o `ativoAte`: lançar, editar, importar e restaurar num meio inativo continuam funcionando.
-- **R10.** Saldo, fechamento, conferência, fatura e histórico não mudam. Nenhum lançamento é regravado. O passado não é tocado.
+- **R12.** `GET /spaces/{sid}/saldos` traz só os meios **ativos** (R2), na lista e no total; o meio desativado volta, com o saldo do passado, ao ser reativado. A conferência de um meio
+  (`/fechamentos/conferir`) e o cálculo dele não mudam. A aba Saldos do front só desenha o que o servidor mandou (Teste M-T17).
+- **R10.** Fechamento, conferência, fatura e histórico não mudam. Nenhum lançamento é regravado. O passado não é tocado.
 - **R11.** Tela (fase B): Lançar e Transferência listam só os meios com `ativo`; o meio de um lançamento em **edição** fica na lista mesmo inativo; as demais telas usam todos. O front não compara data nem nome.
   A etiqueta "crédito" aparece quando `cartao` é verdadeiro (vindo de `CFG#CARTOES`).
 
