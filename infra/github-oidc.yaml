@@ -101,7 +101,7 @@ Resources:
                 Resource: !Sub
                   - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Funcao}'
                   - Funcao: !If [EhDev, financas-api-dev, financas-api]
-              - Sid: AgendamentoDosAvisos
+              - Sid: AgendamentoDasRotinas
                 Effect: Allow
                 Action:
                   - events:PutRule
@@ -115,9 +115,13 @@ Resources:
                   - events:TagResource
                   - events:UntagResource
                   - events:ListTagsForResource
-                Resource: !Sub
-                  - 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${Stack}-ApiFunctionAvisosDiarios-*'
-                  - Stack: !If [EhDev, financas-dev, financas]
+                Resource:
+                  - !Sub
+                    - 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${Stack}-ApiFunctionAvisosDiarios-*'
+                    - Stack: !If [EhDev, financas-dev, financas]
+                  - !Sub  # a rotina semanal dos combos sugeridos (item 57)
+                    - 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${Stack}-ApiFunctionCombosSemanais-*'
+                    - Stack: !If [EhDev, financas-dev, financas]
               - Sid: Logs
                 Effect: Allow
                 Action:
