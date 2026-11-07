@@ -125,7 +125,7 @@ func (s *Cartoes) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 	total, minDias := 0.0, 0
 	temMin := false
 	cartoes := []domain.Doc{}
-	nomes := nomesAtivos(listas, hoje) // o meio desativado sai da aba Cartao, do total e da lista de meios livres (item 43)
+	nomes := nomesDeBancos(listas)
 	for _, nome := range nomes {
 		c, ok := domain.CartaoDe(cfgC, nome)
 		if !ok {
