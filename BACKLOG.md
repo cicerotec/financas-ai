@@ -22,6 +22,7 @@ Só o que ainda não foi feito, na ordem de prioridade (**[Agora]**, depois **[P
 com o salto para o registro real. **Ao concluir um item, marque `[x]` no registro e tire a linha daqui.** Bugs
 pendentes: nenhum.
 
+- [\[Backend\] - 58 - **\[Agora\] Meio desativado: impacto, quando some e o que deixa de poder mudar (análise):**](#item-58)
 - [\[Infra\] - 49 - **\[Próximo\] App multiusuário (MFA, cadastro com convite, espaço próprio, isolamento):**](#item-49)
 - [\[Backend\] - 34 - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[Backend\] - 57 - **\[Próximo\] Combos sugeridos calculados pelo servidor:**](#item-57)
@@ -76,6 +77,31 @@ pendentes: nenhum.
 Os itens 31 a 34 vêm das decisões de 2026-10-10 (erro grave: uma edição sobrescreveu um registro e o dado se perdeu).
 O documento de referência é [`.ai/arquitetura.md`](.ai/arquitetura.md); leia antes de mexer. **Nenhuma chave nova no
 DynamoDB sem discutir com o dono.**
+- 58. [ ] <a id="item-58"></a>**[Agora] Meio desativado: impacto, quando some e o que deixa de poder mudar (análise, 2026-11-07; primeira tarefa, antes de qualquer código):**
+  Veio do teste do dono (2026-11-07): ele criou o banco `Teste`, fez um lançamento, desativou (não dava para remover) e o meio continuou em Saldos. A correção que o escondia de Saldos e Cartão
+  foi **revertida** (#370): um meio desativado pode ter saldo, e esconder esse dinheiro está errado. O item 43 entregou só "deixa de ser sugerido"; este item decide o que é, de verdade, desativar.
+  **Ideia do dono:** o meio **não pode ser desativado enquanto houver lançamentos futuros para ele**; depois de desativado **não consta em nenhum evento** (Saldos, Cartão, Futuros) e **só aparece no Histórico**,
+  de preferência com uma **marca de desativado**, **sem permitir edições que alterem chaves** como data e valor. A comparação é com o banco, que manda zerar o saldo para encerrar a conta.
+  **O que analisar (nesta ordem, só levantamento e decisão, nada de código):**
+  1. **O impacto de um cartão desativado hoje, tela por tela:** Cartão (lista, total, próximo fechamento, "disponíveis"); Futuros (faturas calculadas, previstos, atrasados, resumo do mês);
+     Saldos; **avisos** (itens `AVISOS#ATIVOS` de fatura e de lançamento continuam disparando); **recorrências ativas** (a rotina diária cria a próxima cópia no meio desativado);
+     Prever, Repetir e Estender; Transferência; **pagador** do cartão e das faturas (o pagador pode ser um meio desativado); conferência de mês e de fatura; importar, restaurar versão e Confirmar
+     previsto; Tendências; exportar. Para cada um: o que acontece, o que deveria acontecer.
+  2. **Quando um meio pode sair de Saldos, Cartão e Futuros:** as condições para **desativar**. Candidatas: saldo zero (banco) ou faturas abertas e fechadas todas pagas (cartão); nenhum
+     lançamento futuro ou previsto (de qualquer data); nenhuma recorrência ativa; nenhuma fatura a pagar; nenhum aviso pendente. Definir o que é "saldo zero" para um meio **sem início
+     do controle** e para um meio **fora do total**. A recusa explica o que falta, como o Remover faz hoje.
+  3. **Desativar bloqueia lançar?** Hoje não (R9 do roteiro do item 43: o servidor não valida lançamento contra o `ativoAte`). Pela ideia do dono, passa a recusar criar, importar, restaurar e
+     confirmar no meio desativado. Isso **reverte uma decisão do item 43** e precisa de confirmação.
+  4. **O que se pode editar num lançamento de um meio desativado:** só o que não muda o saldo (descrição, nota e tags), na mesma lógica do `mudaSaldo` do item 38; recusar valor, tipo, status,
+     banco, data, ocultar, excluir e restaurar. Conferir o que o Desfazer e o Histórico de versões fazem com esse meio.
+  5. **Histórico:** marca "desativado" nas linhas e no filtro de meio (**demo antes**); o meio desativado continua sendo escolhível no filtro.
+  6. **Desativar com data futura** ("fim do mês", "outra data"): conferir a trava na hora ou na data? Se a data for futura, ainda dá para lançar até lá e o saldo pode mudar.
+  7. **Reativar:** sempre possível? O meio volta a aparecer em tudo com o que tem.
+  8. **Remover versus desativar:** desativar passa a ser "encerrar"; remover continua só para o que nunca teve lançamento. **Furo achado na conversa:** um lançamento excluído logicamente conta como
+     uso, então um meio criado por engano e usado uma vez (como o `Teste`) **nunca mais pode ser removido**. Decidir se o Remover aceita um meio cujos lançamentos estão todos excluídos.
+  **Também entra aqui (lembrado na conversa):** o cache das faturas de Futuros acompanha a versão de `CFG#LISTAS` (já ficou assim na tentativa revertida); os documentos do item 43
+  (`.ai/specs/meios-de-pagamento/`, o R9 e os Limites do `intent.md`, `padrao-de-telas.md`) precisam ser corrigidos quando a regra for decidida; o meio `Teste` do dono, que hoje está desativado com um
+  lançamento, precisa de um fim (excluir o lançamento e remover, se o item 8 permitir). **Dado novo no DynamoDB:** nenhum previsto (o `ativoAte` basta); se a análise pedir um (por exemplo `desativadoEm`), só entra com a aprovação do dono.
 - 31. [x] <a id="item-31"></a>**[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
   edição, ocultação, exclusão e restauração gera uma versão (quem, quando, o registro completo; **criar e importar `id` novo não geram**, ajuste de 2026-10-23), gravada na mesma transação
   do registro atual (`TransactWriteItems`) e com checagem de versão contra edição concorrente. Excluir passa a ser
