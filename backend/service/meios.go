@@ -44,6 +44,19 @@ func nomesDeBanco(listas domain.Doc) []string {
 	return nomes
 }
 
+// nomesAtivos devolve os nomes de banco que ainda valem em hoje (sem ativoAte, ou hoje antes da data), na ordem da lista.
+func nomesAtivos(listas domain.Doc, hoje string) []string {
+	ate, _ := listas["ativoAte"].(map[string]any)
+	var nomes []string
+	for _, n := range nomesDeBancos(listas) {
+		d, _ := ate[n].(string)
+		if domain.MeioAtivo(d, hoje) {
+			nomes = append(nomes, n)
+		}
+	}
+	return nomes
+}
+
 func temNome(nomes []string, nome string) bool {
 	for _, n := range nomes {
 		if n == nome {
