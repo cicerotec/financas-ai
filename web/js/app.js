@@ -1747,11 +1747,22 @@ function lancarMais(abrir){
   document.getElementById('maisDet').classList.toggle('aberto', abrir);
   document.getElementById('maisAbrir').setAttribute('aria-expanded', String(abrir));
 }
+// A janela de Tags (celular) fica logo acima do teclado: no Android o teclado cobre a página sem encolhê-la, e a janela, presa ao
+// fundo da página, ficava com a lista escondida atrás dele. A área visível vem do visualViewport; sem teclado, o CSS manda.
+function ajustarJanelaTags(){
+  const card = document.getElementById('tagsCard'); if(!card) return;
+  const vv = window.visualViewport;
+  const teclado = vv ? Math.round(window.innerHeight - vv.height - vv.offsetTop) : 0;
+  if(!vv || teclado < 80 || !card.classList.contains('aberto') || matchMedia('(min-width:900px)').matches){ card.style.bottom = ''; card.style.maxHeight = ''; return; }
+  card.style.bottom = teclado + 'px';
+  card.style.maxHeight = Math.floor(vv.height * 0.96) + 'px';
+}
 function lancarTags(abrir){
   document.getElementById('tagsCard').classList.toggle('aberto', abrir);
   document.getElementById('tagsVeu').classList.toggle('aberto', abrir);
   const busca = document.getElementById('tagBusca');
   if(!abrir) busca.blur(); // abre sem teclado: as tags aparecem; o teclado sobe só ao tocar na busca
+  ajustarJanelaTags();
 }
 function ligarLancar(){
   document.getElementById('modoLancar').addEventListener('click', e=>{ const b = e.target.closest('[data-modo]'); if(b) lancarModo(b.dataset.modo); });
@@ -1841,8 +1852,9 @@ function setupHandlers(){
     }
   });
   document.getElementById('tgOrdem').addEventListener('change', e=>{ tagsOrdem = e.target.value; tagsLimite = 30; renderTagPicker(); });
-  campoBusca.addEventListener('focus', ()=>cardTags.classList.add('buscando')); // teclado aberto: a janela cresce
-  campoBusca.addEventListener('blur', ()=>cardTags.classList.remove('buscando'));
+  campoBusca.addEventListener('focus', ()=>{ cardTags.classList.add('buscando'); ajustarJanelaTags(); }); // teclado aberto: a janela cresce
+  campoBusca.addEventListener('blur', ()=>{ cardTags.classList.remove('buscando'); ajustarJanelaTags(); });
+  if(window.visualViewport){ visualViewport.addEventListener('resize', ajustarJanelaTags); visualViewport.addEventListener('scroll', ajustarJanelaTags); }
   campoBusca.addEventListener('keydown', e=>{
     if(e.key === 'Escape' && campoBusca.value){ e.preventDefault(); e.stopPropagation(); tagBusca = ''; campoBusca.value = ''; renderTagPicker(); return; }
     if(e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
