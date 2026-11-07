@@ -28,8 +28,8 @@ func TestF2LerConfiguracao(t *testing.T) {
 	}
 	st, d = chamar(t, "mem", "GET", "spaces/s1/cfg/combos", nil, "")
 	esperar(t, "item ausente", st, 200)
-	if d["version"] != 0.0 || len(d) != 1 {
-		t.Errorf("sem item deve ser so {version:0}: %v", d)
+	if d["version"] != 0.0 || d["rotinaAtiva"] != false || len(d) != 2 { // item 57: combos devolve rotinaAtiva
+		t.Errorf("sem item deve ser so {version:0, rotinaAtiva:false}: %v", d)
 	}
 	st, _ = chamar(t, "mem", "GET", "spaces/s1/cfg/inexistente", nil, "")
 	esperar(t, "nome fora da lista", st, 404)

@@ -245,11 +245,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .tags-card.aberto .tags-lista{max-height:46vh;}
   .tags-veu.aberto{display:none;}
   .lh.lh-mais{display:none;}
-  .lh.lh-tags{display:block;grid-column:1 / -1;cursor:default;}
-  .lh-tags .seta{display:none;}
-  .lh-tags .v{justify-content:flex-start;min-height:40px;align-items:center;}
-  .lh-tags .chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 6px 0 12px;font-size:14px;}
-  .lh-tags .chip::after{content:'×';font-size:18px;line-height:1;width:24px;height:24px;display:grid;place-items:center;color:var(--muted);cursor:pointer;}
   .linhas{padding:12px 16px !important;display:grid;grid-template-columns:1fr 1fr;gap:12px;overflow:visible;}
   .lh{display:block;min-height:0;padding:0;border:0;cursor:default;}
   .lh .r{display:block;width:auto;font-size:12px;color:var(--muted);margin:0 0 4px;}
@@ -1000,3 +995,100 @@ svg.gx-chart{display:block;width:100%;max-width:440px;margin:0 auto;height:auto;
 .esc button{flex:1 1 auto;min-height:44px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px;padding:0 14px;cursor:pointer;}
 .esc button[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent);font-weight:600;}
 .esc input[type=date]{flex:1 1 100%;min-height:44px;}
+
+/* ===== Tags do Lancar (v2): busca unica, abas Tags | Combos e campo Tags no cartao ===== */
+.tg-topo{display:flex;align-items:center;gap:10px;margin:0 0 8px;}
+.tg-topo h2{margin:0;font-size:17px;}
+.tg-cnt{font-size:12.5px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:2px 10px;}
+.tg-cnt.on{background:var(--accent-bg);border-color:transparent;color:var(--text);font-weight:600;}
+.tg-link{margin-left:auto;border:0;background:transparent;color:var(--danger);font:inherit;font-size:14px;min-height:44px;padding:0 8px;cursor:pointer;border-radius:8px;}
+.tg-link[hidden]{display:none;}
+
+/* tags marcadas: sempre no topo, com x para tirar */
+.tg-marcadas{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px;}
+.tg-marcadas:empty{display:none;}
+.tg-x{display:inline-flex;align-items:center;gap:2px;min-height:44px;padding:0 4px 0 14px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+.tg-x .x{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;font-size:18px;line-height:1;}
+.tg-x:hover .x{background:rgba(0,0,0,.15);}
+
+/* busca unica: filtra e cria */
+.tg-busca{position:relative;}
+.tg-busca svg{position:absolute;left:12px;top:50%;width:18px;height:18px;transform:translateY(-50%);color:var(--muted);pointer-events:none;}
+.tg-busca input{min-height:48px;padding-left:38px;border-radius:12px;font-size:15px;}
+.tg-dica{font-size:12px;color:var(--faint);margin:4px 2px 6px;}
+
+.tg-sec{display:flex;align-items:baseline;gap:8px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:12px 2px 6px;}
+.tg-sec small{text-transform:none;letter-spacing:0;font-weight:400;color:var(--faint);font-size:12px;}
+
+/* chips de tag e de combo */
+.tg-res,.tg-cbs{display:flex;flex-wrap:wrap;gap:6px;}
+.tg-ch,.tg-cb{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border:1px solid var(--border);background:var(--card);color:var(--text);font:inherit;font-size:14px;cursor:pointer;text-align:left;}
+.tg-ch{border-radius:999px;}
+.tg-cb{border-radius:10px;}
+.tg-cb.sug{border-style:dashed;}
+.tg-ch:hover,.tg-cb:hover{border-color:var(--accent);}
+.tg-ch[aria-pressed="true"],.tg-cb[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent);font-weight:600;}
+.tg-ch[aria-pressed="true"]::before,.tg-cb[aria-pressed="true"]::before{content:'✓';color:var(--accent);font-weight:700;}
+.tg-ch mark,.tg-cb mark{background:transparent;color:var(--accent);font-weight:700;}
+.tg-ch .u,.tg-cb .u{font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums;font-weight:400;}
+.tg-primeiro{outline:2px solid var(--accent);outline-offset:2px;}
+
+.tg-lista-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 2px 6px;}
+.tg-lista-topo .tg-sec{margin:0;}
+.tg-ord{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);}
+.tg-ord select{width:auto;min-height:44px;padding:0 28px 0 10px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-size:13px;cursor:pointer;}
+.tg-mais{display:block;width:100%;min-height:44px;margin-top:10px;border:1px solid var(--border);border-radius:12px;background:transparent;color:var(--accent);font:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+.tg-mais:hover{background:var(--accent-bg);}
+.tg-mais[hidden]{display:none;}
+.tg-vazio{font-size:13px;color:var(--muted);margin:6px 2px;}
+.tg-criar{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;margin:6px 0 8px;padding:0 14px;border:1px dashed var(--accent);border-radius:12px;background:transparent;color:var(--accent);font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left;}
+.tg-criar:hover{background:var(--accent-bg);}
+.tg-salvar{display:block;margin:2px 0 8px;min-height:44px;padding:0 4px;border:0;background:transparent;color:var(--accent);font:inherit;font-size:13.5px;cursor:pointer;text-align:left;}
+.tg-salvar[hidden]{display:none;}
+.tg-ch:focus-visible,.tg-cb:focus-visible,.tg-x:focus-visible,.tg-criar:focus-visible,.tg-link:focus-visible,.tg-mais:focus-visible,.tg-salvar:focus-visible,.tg-ord select:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+
+.tg-topo,.tg-busca,.tg-abas,.tags-ok{flex:none;}
+.tg-salvar{margin:6px 0 0;}
+#tgTodasSec{margin-top:10px;}
+/* abas Tags | Combos com a contagem; com busca, a aba que achou algo e nao esta aberta fica em destaque */
+.tg-abas{display:flex;gap:6px;margin:8px 0 6px;}
+.tg-abas button{flex:1;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--muted);font:inherit;font-size:14px;cursor:pointer;}
+.tg-abas button[aria-selected="true"]{background:var(--accent-bg);border-color:var(--accent);color:var(--text);font-weight:600;}
+.tg-abas .n{min-width:22px;padding:0 6px;border-radius:999px;background:var(--bg);font-size:12px;line-height:20px;font-variant-numeric:tabular-nums;}
+.tg-abas .n:empty{display:none;}
+.tg-abas button.achou .n{background:var(--accent);color:var(--accent-ink);font-weight:700;}
+.tg-abas button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+/* "Criar" e um botao pequeno, o primeiro da fila de resultados */
+.tg-criar{display:inline-flex;width:auto;min-height:44px;margin:0;padding:0 14px;border-radius:999px;}
+/* teclado aberto (campo com foco): janela mais alta */
+@media (max-width:899px){
+  .tags-card.aberto.buscando{max-height:96vh;}
+  /* se o teclado deixar pouca altura, a lista nao some: mantem um minimo e a janela rola */
+  .tags-card.aberto{overflow-y:auto;}
+  .tags-card.aberto .tags-lista{min-height:160px;}
+}
+.tg-pronto{flex:none;min-height:44px;padding:0 16px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+.tg-pronto:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.tg-link[hidden]+.tg-pronto{margin-left:auto;}
+@media (min-width:900px){.tg-pronto{display:none;}}
+
+/* Nota e Tags dentro do primeiro cartao, no mesmo desenho dos campos */
+.opc{font-weight:400;color:var(--faint);font-size:12px;}
+.campo-tags{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:44px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;cursor:pointer;}
+.campo-tags .v{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+.campo-tags .chip{display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 6px 0 12px;border:0;border-radius:999px;background:var(--accent-bg);color:var(--text);font-size:14px;}
+.campo-tags .rm{display:none;width:24px;height:24px;place-items:center;border-radius:50%;color:var(--muted);font-size:18px;line-height:1;}
+.campo-tags .rm:hover{background:rgba(0,0,0,.12);}
+.campo-tags .mais{color:var(--muted);font-size:13px;}
+.campo-tags .tags-vazio{color:var(--faint);}
+.campo-tags .seta{flex:none;color:var(--muted);font-size:18px;line-height:1;}
+.campo-tags:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.campo-tags .chip.oculto{display:none;}
+.campo-tags .mais[hidden]{display:none;}
+.campo-tags .chip{padding-right:12px;}
+@media (min-width:900px){
+  .campo-tags .chip{padding-right:6px;}
+  .campo-tags .rm{display:grid;}
+  .campo-tags .seta{display:none;}
+}

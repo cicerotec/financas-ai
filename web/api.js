@@ -506,6 +506,8 @@
   const meioUrl = async (meio) => (await base()) + '/meios/' + encodeURIComponent(meio);
   const meioDefinir = async (meio, ativoAte) => { const r = await api('PUT', await meioUrl(meio), { ativoAte }); atualizarOuvintes('doc', 'listas'); return r.body; };
   const meioRemover = async (meio) => { const r = await api('DELETE', await meioUrl(meio)); if (r.status === 204 || r.status === 200) atualizarOuvintes('doc', 'listas'); return r; };
+  // Rotina semanal dos combos sugeridos (item 57, so o dono): liga ou desliga; o servidor grava e calcula, o navegador so pede. Depois, a configuracao e relida.
+  const combosRotina = async (ativa) => { const r = await api('PUT', (await base()) + '/combos/rotina', { ativa: !!ativa }); atualizarOuvintes('doc', 'combos'); return r.body; };
   const cartaoRemover = async (meio) => (await api('DELETE', await cartaoUrl(meio))).body;
   const cartaoInicio = async (meio, inicio) => (await api('PUT', await cartaoUrl(meio), { inicio })).body;
   // pagador e dia do vencimento do cartao ({ pagador?, diaVencimento? }; null remove)
@@ -590,6 +592,7 @@
     cartaoRemover,
     meioDefinir,
     meioRemover,
+    combosRotina,
     cartaoInicio,
     cartaoConfig,
     cartaoFechamento,

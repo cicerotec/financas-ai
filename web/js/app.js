@@ -820,8 +820,10 @@ function clonar(x){ return x===undefined ? x : JSON.parse(JSON.stringify(x)); }
 let combosSalvos = [];
 let filaCombos = Promise.resolve();
 let combosVisiveis = [];
+let combosSugeridos = [], combosGeradoEm = '', rotinaCombosAtiva = false; // do servidor (item 57)
 let tagBusca = '';
 let tagsTodasAbertas = false;
+let tagsAba = 'tags', tagsLimite = 30, tagsLimiteCb = 5, tagsOrdem = 'az';
 let seletorHist = null;
 let filStatusSelecionados = new Set();
 let filBancoSelecionados = new Set();
@@ -1028,6 +1030,9 @@ async function init(){
     db.doc("config/combos").onSnapshot(snap=>{
       const d = snap.data();
       combosSalvos = (d && Array.isArray(d.lista)) ? clonar(d.lista) : [];
+      combosSugeridos = (d && Array.isArray(d.sugeridos)) ? clonar(d.sugeridos) : [];
+      combosGeradoEm = (d && d.geradoEm) || '';
+      rotinaCombosAtiva = !!(d && d.rotinaAtiva);
       renderTagPicker();
       renderCombosLista();
     }, ()=>{});
@@ -1426,23 +1431,13 @@ function removerMeio(nome){
 
 function normTxt(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
 function chaveTags(a){ return [...a].sort().join('|'); }
-function contagemConjuntos(){
-  const m = new Map();
-  lancamentosCache.forEach(l=>{
-    const t = l.tags || [];
-    if(t.length < 2) return;
-    const k = chaveTags(t);
-    const e = m.get(k);
-    if(e) e.n++; else m.set(k, {tags:[...t], n:1});
-  });
-  return m;
-}
+// Combos sugeridos (item 57): quem conta e o servidor, uma vez por semana (config/combos: sugeridos); o navegador so junta e exibe.
+// Um combo salvo igual a um sugerido aparece uma vez, como salvo e com a contagem; os demais sugeridos vêm na ordem do servidor.
 function combosAtuaisLista(){
-  const conj = contagemConjuntos();
-  const salvos = combosSalvos.map(c=>({tags:c.tags, n:(conj.get(chaveTags(c.tags))||{}).n||0, salvo:true}));
+  const cont = new Map(combosSugeridos.map(c=>[chaveTags(c.tags), c.contagem||0]));
+  const salvos = combosSalvos.map(c=>({tags:c.tags, n:cont.get(chaveTags(c.tags))||0, salvo:true}));
   const ks = new Set(salvos.map(c=>chaveTags(c.tags)));
-  const sug = [...conj.values()].filter(x=>x.n>=3 && !ks.has(chaveTags(x.tags)))
-    .sort((a,b)=>b.n-a.n).slice(0,5).map(x=>({tags:x.tags, n:x.n, salvo:false}));
+  const sug = combosSugeridos.filter(c=>!ks.has(chaveTags(c.tags))).map(c=>({tags:c.tags, n:c.contagem||0, salvo:false}));
   return [...salvos, ...sug];
 }
 function salvarCombos(){
@@ -1454,42 +1449,142 @@ function salvarCombos(){
   });
   return filaCombos;
 }
-function chipTag(t){
-  const on = tagsSelecionadas.has(t);
-  return `<span class="tag ${on?'on':''}" role="checkbox" aria-checked="${on}" tabindex="0" data-tag="${esc(t)}">${on?'✓ ':''}${esc(t)}</span>`;
+// Tags do Lançar (demo-lancar-v5-tags): busca e criação no mesmo campo, abas Tags | Combos e o campo Tags
+// do cartão em chips (até 3 linhas). A janela é de baixo no celular e a coluna da direita no computador.
+const TG_TOPO = 8, TG_LINHAS = 3;
+function limpaTagBusca(s){ return String(s||'').trim().replace(/^#/,''); }
+function tagsUniverso(){ return [...new Set([...tagsUsadas, ...tagsSelecionadas])]; }
+function destacaTag(txt, q){
+  const i = q ? normTxt(txt).indexOf(q) : -1;
+  if(i < 0) return esc(txt);
+  return esc(txt.slice(0,i)) + '<mark>' + esc(txt.slice(i,i+q.length)) + '</mark>' + esc(txt.slice(i+q.length));
+}
+function chipBusca(t, q, extra, sufixo){
+  return `<button type="button" class="tg-ch${extra||''}" data-tag="${esc(t)}" aria-pressed="${tagsSelecionadas.has(t)}"><span>${destacaTag(t,q)}${sufixo||''}</span></button>`;
+}
+function botaoCombo(c, i, q){
+  const on = c.tags.every(t=>tagsSelecionadas.has(t));
+  return `<button type="button" class="tg-cb${c.salvo?'':' sug'}" data-combo="${i}" aria-pressed="${on}"><span>${c.tags.map(t=>destacaTag(t,q)).join(' · ')}</span>${c.n?`<span class="u">${c.n}x</span>`:''}</button>`;
+}
+function ordemTodasTags(){
+  const l = tagsUniverso();
+  const az = (a,b)=>a.localeCompare(b);
+  const pos = t=>{ const i = tagsUsadas.indexOf(t); return i < 0 ? Infinity : i; }; // tag ainda não gravada é a mais nova
+  if(tagsOrdem === 'za') l.sort((a,b)=>b.localeCompare(a));
+  else if(tagsOrdem === 'rec') l.sort((a,b)=>(pos(b) === pos(a) ? 0 : pos(b) > pos(a) ? 1 : -1) || az(a,b));
+  else if(tagsOrdem === 'marc') l.sort((a,b)=>(tagsSelecionadas.has(b)?1:0)-(tagsSelecionadas.has(a)?1:0) || az(a,b));
+  else l.sort(az);
+  return l;
+}
+// O campo Tags do cartão mostra até TG_LINHAS linhas de chips; o que não couber vira "+N" no fim da última.
+function ajustarChipsTags(){
+  const v = document.getElementById('tagsResumo'); if(!v) return;
+  const cs = [...v.querySelectorAll('.chip')], m = v.querySelector('.mais');
+  cs.forEach(c=>c.classList.remove('oculto'));
+  if(!m || !cs.length || !cs[0].offsetHeight) return; // campo escondido (outra aba): refaz quando aparecer
+  m.hidden = true;
+  const base = cs[0].offsetTop, passo = cs[0].offsetHeight + 6;
+  const linha = el=>Math.round((el.offsetTop - base) / passo) + 1;
+  let n = 0;
+  cs.forEach(c=>{ if(linha(c) > TG_LINHAS){ c.classList.add('oculto'); n++; } });
+  if(!n) return;
+  m.hidden = false; m.textContent = '+' + n;
+  for(let i = cs.length - 1; i >= 0 && linha(m) > TG_LINHAS; i--){
+    if(!cs[i].classList.contains('oculto')){ cs[i].classList.add('oculto'); n++; m.textContent = '+' + n; }
+  }
 }
 function renderTagPicker(){
   if(!document.getElementById('tagArea')) return;
+  const $ = id=>document.getElementById(id);
   combosVisiveis = combosAtuaisLista();
-  const sel = [...tagsSelecionadas];
-  const kSel = chaveTags(sel);
-  const temSugerido = combosVisiveis.some(c=>!c.salvo);
-  let h = '';
-  if(combosVisiveis.length){
-    h += `<div class="muted">Combos${temSugerido?' (tracejado = sugerido pelo histórico)':''}</div><div class="tags">` +
-      combosVisiveis.map((c,i)=>{
-        const on = sel.length===c.tags.length && chaveTags(c.tags)===kSel;
-        return `<span class="tag ${on?'on':''}" data-combo="${i}" style="border-radius:8px;${c.salvo?'':'border-style:dashed;'}">${esc(c.tags.join(' · '))}${c.n?` <span style="font-size:11px;">${c.n}x</span>`:''}</span>`;
-      }).join('') + '</div>';
+  const bruto = limpaTagBusca(tagBusca), q = normTxt(bruto);
+  const marcadas = [...tagsSelecionadas].sort((a,b)=>a.localeCompare(b));
+  const todas = tagsUniverso();
+  const achouTags = q ? todas.filter(t=>normTxt(t).includes(q)) : [];
+  achouTags.sort((a,b)=>(normTxt(a).startsWith(q)?0:1)-(normTxt(b).startsWith(q)?0:1) || a.length-b.length || a.localeCompare(b));
+  // combos: com busca, os que têm a tag; sem busca, os completos primeiro
+  const completo = x=>x.c.tags.every(t=>tagsSelecionadas.has(t));
+  let lc = combosVisiveis.map((c,i)=>({c,i}));
+  if(q) lc = lc.filter(x=>x.c.tags.some(t=>normTxt(t).includes(q)));
+  else lc = lc.filter(completo).concat(lc.filter(x=>!completo(x)));
+  const ef = (q && !achouTags.length && lc.length) ? 'combos' : tagsAba; // só achou combos: abre direto em Combos
+  $('tgNTags').textContent = q ? achouTags.length : '';
+  $('tgNCombos').textContent = lc.length;
+  $('tgAbaTags').setAttribute('aria-selected', String(ef==='tags'));
+  $('tgAbaCombos').setAttribute('aria-selected', String(ef==='combos'));
+  $('tgAbaCombos').classList.toggle('achou', !!q && lc.length>0 && ef!=='combos'); // aviso: também há combos
+  $('tgAbaTags').classList.toggle('achou', !!q && achouTags.length>0 && ef!=='tags');
+  $('tgTagsSec').hidden = ef !== 'tags';
+  $('tgCombosSec').hidden = ef !== 'combos';
+  // Tags: sem busca, as marcadas e as 8 criadas mais recentemente; com busca, as achadas e "Criar" como primeiro botão
+  if(!q){
+    const rec = [...tagsUsadas].reverse().filter(t=>!tagsSelecionadas.has(t)).slice(0, TG_TOPO);
+    $('tagPicker').innerHTML = [...marcadas, ...rec].map(t=>chipBusca(t,'')).join('');
+  } else {
+    const exata = todas.some(t=>normTxt(t) === q), mostra = achouTags.slice(0, 40);
+    $('tagPicker').innerHTML = (exata ? '' : `<button type="button" class="tg-criar" id="tgCriar" data-nova="${esc(bruto)}"><span aria-hidden="true">＋</span> Criar “${esc(bruto)}”</button>`)
+      + mostra.map((t,i)=>chipBusca(t, q, i===0 ? ' tg-primeiro' : '')).join('')
+      + (achouTags.length > mostra.length ? '<p class="tg-vazio">Mostrando 40. Digite mais para refinar.</p>' : '');
   }
-  const jaSalvo = combosSalvos.some(c=>chaveTags(c.tags)===kSel);
-  if(sel.length>=2 && !jaSalvo && ehOwner()) h += '<button class="ghost" id="btnSalvarCombo" style="margin-top:8px;">Salvar seleção como combo</button>';
-  document.getElementById('tagCombos').innerHTML = h;
-  const q = normTxt(tagBusca.trim());
-  const lista = [...sel.filter(t=>!tagsUsadas.includes(t)), ...tagsUsadas].filter(t=>!q || normTxt(t).includes(q));
-  const l = lista.length ? lista.map(chipTag).join('') : '<span class="muted">Nenhuma tag encontrada. Digite abaixo e Enter para criar.</span>';
-  document.getElementById('tagsCnt').textContent = sel.length + (sel.length===1 ? ' tag marcada' : ' tags marcadas');
-  document.getElementById('tagPicker').innerHTML = l;
+  // Combos
+  const lim = q ? 99 : tagsLimiteCb, mc = lc.slice(0, lim), mais = $('tgCbMais');
+  $('tagCombos').innerHTML = mc.length ? mc.map(x=>botaoCombo(x.c, x.i, q)).join('') : `<p class="tg-vazio">Nenhum combo${q ? ' tem “'+esc(bruto)+'”' : ' ainda'}.</p>`;
+  mais.hidden = lc.length <= lim;
+  mais.textContent = lc.length > lim ? 'Mostrar mais ' + Math.min(5, lc.length-lim) + ' de ' + (lc.length-lim) + ' combos' : '';
+  $('tgCbDica').hidden = !!q || !lc.length;
+  // Todas as tags: recolhida, só sem busca
+  $('tgTodasSec').hidden = !!q;
+  $('tgTodasBtn').textContent = (tagsTodasAbertas ? 'Esconder' : 'Ver') + ' todas as tags (' + todas.length + ')';
+  $('tgTodasBtn').setAttribute('aria-expanded', String(tagsTodasAbertas));
+  $('tgTodasCorpo').hidden = !tagsTodasAbertas;
+  if(tagsTodasAbertas && !q){
+    const l = ordemTodasTags(), m2 = l.slice(0, tagsLimite), mt = $('tgMais');
+    $('tgTodas').innerHTML = m2.map(t=>chipBusca(t,'')).join('');
+    mt.hidden = l.length <= tagsLimite;
+    mt.textContent = l.length > tagsLimite ? 'Mostrar mais ' + Math.min(30, l.length-tagsLimite) + ' de ' + (l.length-tagsLimite) + ' restantes' : '';
+  }
+  // cabeçalho, salvar combo e o campo Tags do cartão
+  const n = marcadas.length, cnt = $('tagsCnt');
+  cnt.textContent = n ? n + (n===1 ? ' marcada' : ' marcadas') : 'Nenhuma';
+  cnt.classList.toggle('on', n>0);
+  $('tagsLimpar').hidden = !n;
+  const kSel = chaveTags(marcadas), jaSalvo = combosSalvos.some(c=>chaveTags(c.tags)===kSel);
+  $('tgSalvarCombo').hidden = !(n>=2 && !jaSalvo && ehOwner() && !q);
+  $('tagsResumo').innerHTML = n
+    ? marcadas.map(t=>`<span class="chip">${esc(t)}<span class="rm" data-rm="${esc(t)}" role="button" aria-label="Tirar ${esc(t)}">×</span></span>`).join('') + '<span class="mais" hidden></span>'
+    : '<span class="tags-vazio">Nenhuma</span>';
+  ajustarChipsTags();
   if(document.getElementById('barraResumo')) atualizarLancarExtras();
-  document.getElementById('tagsResumo').innerHTML = sel.length ? sel.map(t=>`<span class="chip" data-rm-tag="${esc(t)}">${esc(t)}</span>`).join('') : '<span class="tags-vazio">Nenhuma</span>';
   if(seletorHist) seletorHist.render();
 }
+// Enter e criar tag limpam o campo; tocar num resultado não, para marcar várias tags da mesma busca (o X do campo limpa).
+function limparBuscaTags(){
+  if(!tagBusca) return;
+  tagBusca = ''; document.getElementById('tagBusca').value = '';
+  tagsLimiteCb = 5;
+}
+function criarTagLancar(v){
+  tagsSelecionadas.add(v); garantirTags([v]);
+  limparBuscaTags(); renderTagPicker();
+}
+function dataBr(iso){ const p = String(iso||'').split('-'); return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : ''; }
 function renderCombosLista(){
   const el = document.getElementById('listaCombos');
   if(!el) return;
-  el.innerHTML = combosSalvos.map((c,i)=>
+  // interruptor da rotina semanal (item 57): o servidor diz se esta ligada; aqui so se mostra
+  const sw = document.getElementById('swRotinaCombos');
+  sw.checked = rotinaCombosAtiva;
+  const calc = combosGeradoEm ? 'Último cálculo: ' + dataBr(combosGeradoEm) + '.' : 'Ainda não calculado.';
+  document.getElementById('rotinaDica').textContent = rotinaCombosAtiva
+    ? 'Todo domingo, de madrugada. ' + calc
+    : (combosGeradoEm ? 'Desligado. Os sugeridos abaixo são do último cálculo (' + dataBr(combosGeradoEm) + ') e não se atualizam.' : 'Desligado.');
+  document.getElementById('cbSug').innerHTML = combosSugeridos.length
+    ? '<div class="muted" style="margin:10px 0 4px;font-size:12px;">Sugeridos pelo histórico</div>' + combosSugeridos.map(c=>
+        `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13px;${rotinaCombosAtiva?'':'color:var(--muted);'}">${esc(c.tags.join(' · '))}</span><span class="muted" style="font-size:12px;">${c.contagem||0}x</span></div>`).join('')
+    : '';
+  el.innerHTML = (combosSugeridos.length ? '<div class="muted" style="margin:12px 0 4px;font-size:12px;">Salvos por você</div>' : '') + (combosSalvos.map((c,i)=>
     `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13px;">${esc(c.tags.join(' · '))}</span><button class="ghost" data-del-combo="${i}">Excluir</button></div>`).join('')
-    || '<p class="muted">Nenhum combo salvo ainda.</p>';
+    || '<p class="muted">Nenhum combo salvo ainda.</p>');
   el.querySelectorAll('[data-del-combo]').forEach(b=>b.onclick=()=>{
     combosSalvos.splice(parseInt(b.dataset.delCombo,10),1);
     salvarCombos(); renderCombosLista(); renderTagPicker();
@@ -1613,12 +1708,9 @@ function lerValorForm(){ return valorNum(document.getElementById('fValor').value
 // Atalhos de data e resumo da barra (só desenham; a data e o valor continuam nos campos de sempre).
 function atalhoData(a){
   const f = document.getElementById('fData');
-  if(a === 'agora'){ f.value = nowLocalInput(); }
-  else {
-    const d = new Date(); d.setDate(d.getDate()-Number(a));
-    const h = f.value ? f.value.slice(11,16) : pad2(new Date().getHours())+':'+pad2(new Date().getMinutes());
-    f.value = chaveDia(d)+'T'+h;
-  }
+  const d = new Date(); d.setDate(d.getDate()-Number(a));
+  const h = f.value ? f.value.slice(11,16) : pad2(new Date().getHours())+':'+pad2(new Date().getMinutes());
+  f.value = chaveDia(d)+'T'+h;
   atualizarLancarExtras();
 }
 function atualizarLancarExtras(){
@@ -1658,6 +1750,8 @@ function lancarMais(abrir){
 function lancarTags(abrir){
   document.getElementById('tagsCard').classList.toggle('aberto', abrir);
   document.getElementById('tagsVeu').classList.toggle('aberto', abrir);
+  const busca = document.getElementById('tagBusca');
+  if(!abrir) busca.blur(); // abre sem teclado: as tags aparecem; o teclado sobe só ao tocar na busca
 }
 function ligarLancar(){
   document.getElementById('modoLancar').addEventListener('click', e=>{ const b = e.target.closest('[data-modo]'); if(b) lancarModo(b.dataset.modo); });
@@ -1668,16 +1762,20 @@ function ligarLancar(){
     if(aberto) document.getElementById('notaLivre').focus();
   });
   document.getElementById('maisAbrir').addEventListener('click', ()=>lancarMais(!document.getElementById('maisDet').classList.contains('aberto')));
-  document.getElementById('tagsAbrir').addEventListener('click', e=>{
-    const x = e.target.closest('[data-rm-tag]');
-    if(x && matchMedia('(min-width:900px)').matches){ tagsSelecionadas.delete(x.dataset.rmTag); renderTagPicker(); return; } // computador: o × tira a tag
-    if(!matchMedia('(min-width:900px)').matches) lancarTags(true);
+  const campoTags = document.getElementById('tagsAbrir');
+  const abrirTags = ()=>{ if(matchMedia('(min-width:900px)').matches) document.getElementById('tagBusca').focus(); else lancarTags(true); };
+  campoTags.addEventListener('click', e=>{
+    const x = e.target.closest('[data-rm]');
+    if(x){ tagsSelecionadas.delete(x.dataset.rm); renderTagPicker(); return; } // o × (só no computador) tira a tag
+    abrirTags();
   });
+  campoTags.addEventListener('keydown', e=>{ if((e.key==='Enter' || e.key===' ') && e.target === campoTags){ e.preventDefault(); abrirTags(); } });
+  if(window.ResizeObserver){ // o campo muda de largura (rotação, janela) ou aparece depois de editar de outra aba: refaz as 3 linhas
+    let largura = 0;
+    new ResizeObserver(()=>{ const w = Math.round(campoTags.getBoundingClientRect().width); if(w !== largura){ largura = w; ajustarChipsTags(); } }).observe(campoTags);
+  }
   document.getElementById('tagsPronto').addEventListener('click', ()=>lancarTags(false));
   document.getElementById('tagsVeu').addEventListener('click', ()=>lancarTags(false));
-  document.getElementById('tagArea').addEventListener('keydown', e=>{
-    if((e.key==='Enter' || e.key===' ') && e.target.dataset && e.target.dataset.tag!==undefined){ e.preventDefault(); e.target.click(); }
-  });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.getElementById('tagsCard').classList.contains('aberto')) lancarTags(false); });
   const vi = document.getElementById('fValor');
   vi.addEventListener('input', ()=>{ const l = limparDigitacaoValor(vi.value); if(l !== vi.value) vi.value = l; atualizarLancarExtras(); });
@@ -1712,34 +1810,62 @@ function setupHandlers(){
   document.getElementById('listaCartoes').addEventListener('click', onCartaoClick);
   document.getElementById('btnAtualizarCartao').addEventListener('click', ()=>carregarCartoes(true));
   document.getElementById('btnAddCartao').addEventListener('click', adicionarCartaoUI);
-  document.getElementById('tagBusca').addEventListener('input', e=>{ tagBusca = e.target.value; renderTagPicker(); });
-  document.getElementById('tagArea').addEventListener('click', e=>{
-    const el = e.target.closest('[data-tag],[data-combo],[data-todas],#btnSalvarCombo');
-    if(!el) return;
-    if(el.dataset.tag!==undefined){
-      const t = el.dataset.tag;
+  document.getElementById('tagBusca').addEventListener('input', e=>{ tagBusca = e.target.value; tagsAba = 'tags'; renderTagPicker(); });
+  const cardTags = document.getElementById('tagsCard'), campoBusca = document.getElementById('tagBusca');
+  // tocar num resultado não tira o foco do campo: o teclado continua aberto para marcar várias tags
+  cardTags.addEventListener('mousedown', e=>{ if(e.target.closest('.tg-ch,.tg-cb,.tg-criar,.tg-abas button,.tg-mais,.tg-salvar,.tg-pronto')) e.preventDefault(); });
+  cardTags.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    if(b.dataset.combo !== undefined){
+      const c = combosVisiveis[parseInt(b.dataset.combo,10)]; if(!c) return;
+      // o combo acrescenta as tags dele sem tirar as marcadas; tocar de novo desliga só as dele. A busca fica: o X do campo limpa
+      if(c.tags.every(t=>tagsSelecionadas.has(t))) c.tags.forEach(t=>tagsSelecionadas.delete(t));
+      else c.tags.forEach(t=>tagsSelecionadas.add(t));
+      renderTagPicker(); return;
+    }
+    if(b.dataset.tag !== undefined){
+      const t = b.dataset.tag;
       tagsSelecionadas.has(t) ? tagsSelecionadas.delete(t) : tagsSelecionadas.add(t);
       renderTagPicker(); return;
     }
-    if(el.dataset.combo!==undefined){
-      const c = combosVisiveis[parseInt(el.dataset.combo,10)];
-      if(c){ tagsSelecionadas = new Set(c.tags); renderTagPicker(); }
-      return;
-    }
-    if(el.dataset.todas){ tagsTodasAbertas = !tagsTodasAbertas; renderTagPicker(); return; }
-    if(el.id==='btnSalvarCombo'){
+    if(b.id === 'tgAbaTags'){ tagsAba = 'tags'; renderTagPicker(); return; }
+    if(b.id === 'tgAbaCombos'){ tagsAba = 'combos'; renderTagPicker(); return; }
+    if(b.id === 'tgCriar'){ criarTagLancar(b.dataset.nova); campoBusca.focus(); return; }
+    if(b.id === 'tgMais'){ tagsLimite += 30; renderTagPicker(); return; }
+    if(b.id === 'tgCbMais'){ tagsLimiteCb += 5; renderTagPicker(); return; }
+    if(b.id === 'tgTodasBtn'){ tagsTodasAbertas = !tagsTodasAbertas; renderTagPicker(); return; }
+    if(b.id === 'tagsLimpar'){ tagsSelecionadas.clear(); renderTagPicker(); return; }
+    if(b.id === 'tgSalvarCombo'){
       combosSalvos.push({tags:[...tagsSelecionadas]});
       salvarCombos(); renderTagPicker(); renderCombosLista();
     }
   });
-  document.getElementById('novaTagInput').addEventListener('keydown', e=>{
-    if(e.key==='Enter'){
-      e.preventDefault();
-      const v = e.target.value.trim().replace(/^#/,'');
-      if(v){ tagsSelecionadas.add(v); garantirTags([v]); renderTagPicker(); e.target.value=''; }
-    }
+  document.getElementById('tgOrdem').addEventListener('change', e=>{ tagsOrdem = e.target.value; tagsLimite = 30; renderTagPicker(); });
+  campoBusca.addEventListener('focus', ()=>cardTags.classList.add('buscando')); // teclado aberto: a janela cresce
+  campoBusca.addEventListener('blur', ()=>cardTags.classList.remove('buscando'));
+  campoBusca.addEventListener('keydown', e=>{
+    if(e.key === 'Escape' && campoBusca.value){ e.preventDefault(); e.stopPropagation(); tagBusca = ''; campoBusca.value = ''; renderTagPicker(); return; }
+    if(e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    const bruto = limpaTagBusca(campoBusca.value), q = normTxt(bruto);
+    if(!q){ campoBusca.blur(); return; } // campo vazio: o Enter fecha o teclado
+    const exata = tagsUniverso().find(t=>normTxt(t) === q);
+    const primeiro = document.querySelector('#tagPicker .tg-primeiro');
+    const alvo = exata || (primeiro && primeiro.dataset.tag);
+    if(alvo){ tagsSelecionadas.has(alvo) ? tagsSelecionadas.delete(alvo) : tagsSelecionadas.add(alvo); limparBuscaTags(); renderTagPicker(); }
+    else criarTagLancar(bruto);
   });
 
+  document.getElementById('swRotinaCombos').onchange = async (e)=>{
+    const sw = e.target, ativa = sw.checked;
+    sw.disabled = true;
+    try{
+      await db.combosRotina(ativa);
+      rotinaCombosAtiva = ativa; renderCombosLista();
+      toast(ativa ? '✓ Rotina ligada. O próximo cálculo é no domingo.' : '✓ Rotina desligada. Os sugeridos atuais continuam.');
+    }catch(err){ console.error(err); sw.checked = !ativa; toast((err && err.message) || 'Não consegui mudar a rotina. Tente de novo.', true); }
+    sw.disabled = false;
+  };
   document.getElementById('swInativos').onchange = (e)=>{ verMeiosInativos = e.target.checked; renderMeios(); };
   document.getElementById('btnAddBanco').onclick = ()=>{
     const v = document.getElementById('novoBanco').value.trim();
@@ -2427,7 +2553,7 @@ function iniciarEdicao(id){
   poeValorForm(l.valor);
   document.getElementById('fDesc').value = l.descricao;
   document.getElementById('fNota').value = l.nota || '';
-  lancarModo('lanc'); lancarMais(!!l.nota || !!(l.aviso && typeof l.aviso === 'object')); // o aviso mora em Mais
+  lancarModo('lanc'); lancarMais(!!(l.aviso && typeof l.aviso === 'object')); // o aviso mora em Mais; a nota fica no cartão
   const d = new Date(l.dataEvento); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
   document.getElementById('fData').value = d.toISOString().slice(0,16);
   opcaoMeio(document.getElementById('fBanco'), l.banco);
@@ -2458,7 +2584,7 @@ function iniciarCopia(id){
   poeValorForm(l.valor);
   document.getElementById('fDesc').value = l.descricao;
   document.getElementById('fNota').value = l.nota || '';
-  lancarModo('lanc'); lancarMais(!!l.nota);
+  lancarModo('lanc'); lancarMais(false);
   document.getElementById('fData').value = nowLocalInput();
   opcaoMeio(document.getElementById('fBanco'), l.banco);
   document.getElementById('fBanco').value = l.banco || '';

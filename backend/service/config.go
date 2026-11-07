@@ -26,9 +26,18 @@ func (e *ErroConflitoConfig) Error() string { return domain.ErrConflitoConfig.Er
 
 // Config le e grava as configuracoes compartilhadas (listas, tags, combos, saldos, cartoes) e a aparencia de cada pessoa.
 type Config struct {
-	repo RepositorioConfig
-	rel  Relogio
+	repo   RepositorioConfig
+	rel    Relogio
+	rotina LeitorRotinaCombos
 }
+
+// LeitorRotinaCombos diz se a rotina semanal dos combos sugeridos esta ligada no espaco (item 57); quem implementa e o service de combos.
+type LeitorRotinaCombos interface {
+	RotinaAtiva(ctx context.Context, sid string) (bool, error)
+}
+
+// UsarRotinaCombos liga a leitura do interruptor da rotina (montada depois, porque o service de combos usa a configuracao).
+func (s *Config) UsarRotinaCombos(r LeitorRotinaCombos) { s.rotina = r }
 
 func NewConfig(repo RepositorioConfig, rel Relogio) *Config { return &Config{repo: repo, rel: rel} }
 
@@ -51,6 +60,14 @@ func (s *Config) Ler(ctx context.Context, sid, nome string) (domain.Doc, error) 
 		return nil, ErrInterno
 	}
 	out := semItem(d)
+	if strings.EqualFold(nome, "combos") && s.rotina != nil {
+		// o interruptor da rotina vem do item auxiliar dos avisos, nunca do CFG#COMBOS
+		ativa, err := s.rotina.RotinaAtiva(ctx, sid)
+		if err != nil {
+			return nil, err
+		}
+		out["rotinaAtiva"] = ativa
+	}
 	if strings.EqualFold(nome, "listas") {
 		// a lista de status e do servidor (item 41): so as selecionaveis sugeridas hoje; as caixas de status deixam de ser lidas e de sair
 		for _, k := range statusDeListas {
@@ -151,6 +168,17 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 			}
 		} else if antigos, ok := atual["banco"]; ok {
 			body["banco"] = antigos
+		}
+	case "combos":
+		// sugeridos e geradoEm sao do servidor (item 57): so a rotina semanal os muda; o corpo e ignorado e o gravado continua
+		delete(body, "rotinaAtiva")
+		delete(body, "sugeridos")
+		delete(body, "geradoEm")
+		atual, _ := s.repo.Ler(ctx, sid, "combos")
+		for _, k := range []string{"sugeridos", "geradoEm"} {
+			if v, ok := atual[k]; ok {
+				body[k] = v
+			}
 		}
 	}
 	res, err := s.repo.Salvar(ctx, sid, nome, body, esperada)

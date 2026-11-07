@@ -200,6 +200,8 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 			return s.meios.Delete(ctx, sid, parte(p, 3))
 		}
 		return s.meios.Put(ctx, sid, parte(p, 3), body)
+	case auth.AcaoRotinaCombos:
+		return s.combos.Put(ctx, sid, body)
 	case auth.AcaoLerConsulta:
 		return s.consultas.Get(ctx, sid, u.Sub, role == auth.PapelOwner)
 	case auth.AcaoCriarConsulta:
@@ -217,13 +219,16 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 }
 
 // entrada separa os dois tipos de evento que a Lambda recebe: a chamada HTTP da Function URL e o agendamento diario
-// do EventBridge ({"acao":"avisos"}, enviado como entrada fixa da regra).
+// do EventBridge ({"acao":"avisos"} ou {"acao":"combos"}, enviado como entrada fixa da regra).
 func (s *Servidor) entrada(ctx context.Context, raw json.RawMessage) (any, error) {
 	var ev struct {
 		Acao string `json:"acao"`
 	}
 	if json.Unmarshal(raw, &ev) == nil && ev.Acao == "avisos" {
 		return s.avisos.Rodar(ctx)
+	}
+	if ev.Acao == "combos" { // semanal (item 57): calcula os combos sugeridos dos espacos com a rotina ligada
+		return s.combos.Rodar(ctx)
 	}
 	var r req
 	if err := json.Unmarshal(raw, &r); err != nil {
