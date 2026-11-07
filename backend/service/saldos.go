@@ -269,7 +269,7 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 		log.Println("saldos: listas:", err)
 		return nil, ErrInterno
 	}
-	nomes := nomesDeBancos(listas)
+	nomes := nomesAtivos(listas, domain.HojeDe(s.rel.Agora())) // o meio desativado sai da aba Saldos e do total (item 43); o passado dele continua nos lancamentos
 	inicio := time.Now()
 	por, _, atual, leit, err := s.calcular(ctx, sid, nomes)
 	if err != nil {
