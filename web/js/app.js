@@ -1807,7 +1807,7 @@ function setupHandlers(){
   document.getElementById('tagBusca').addEventListener('input', e=>{ tagBusca = e.target.value; tagsAba = 'tags'; renderTagPicker(); });
   const cardTags = document.getElementById('tagsCard'), campoBusca = document.getElementById('tagBusca');
   // tocar num resultado não tira o foco do campo: o teclado continua aberto para marcar várias tags
-  cardTags.addEventListener('mousedown', e=>{ if(e.target.closest('.tg-ch,.tg-cb,.tg-criar,.tg-abas button,.tg-mais,.tg-salvar')) e.preventDefault(); });
+  cardTags.addEventListener('mousedown', e=>{ if(e.target.closest('.tg-ch,.tg-cb,.tg-criar,.tg-abas button,.tg-mais,.tg-salvar,.tg-pronto')) e.preventDefault(); });
   cardTags.addEventListener('click', e=>{
     const b = e.target.closest('button'); if(!b) return;
     if(b.dataset.combo !== undefined){
