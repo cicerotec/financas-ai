@@ -1449,7 +1449,7 @@ function salvarCombos(){
   });
   return filaCombos;
 }
-// Tags do Lançar (demo-tags-v2-busca): busca e criação no mesmo campo, abas Tags | Combos e o campo Tags
+// Tags do Lançar (demo-lancar-v5-tags): busca e criação no mesmo campo, abas Tags | Combos e o campo Tags
 // do cartão em chips (até 3 linhas). A janela é de baixo no celular e a coluna da direita no computador.
 const TG_TOPO = 8, TG_LINHAS = 3;
 function limpaTagBusca(s){ return String(s||'').trim().replace(/^#/,''); }
