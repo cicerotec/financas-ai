@@ -23,6 +23,19 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 - **R13.** O passado não é tocado: nenhum lançamento é alterado.
 - **R14.** Isolamento: a rotina lê e grava só no espaço do `sid` de cada item ativo.
 
+## API
+
+Uma rota nova; as outras duas já existem e só mudam o conteúdo. Rotas novas pedem uma `Acao` nova em `auth/authz.go`, só do dono.
+
+```
+PUT  /spaces/{sid}/combos/rotina   { "ativa": true|false }   -> 200 { rotinaAtiva }   | 400 | 403   (NOVA; ação combos.rotina, só do dono; cria ou apaga o item tipo "combos" no AVISOS#ATIVOS)
+GET  /spaces/{sid}/cfg/combos                                -> 200 { lista, sugeridos, geradoEm, rotinaAtiva }   (existe; passa a devolver os três campos novos; qualquer membro lê)
+PUT  /spaces/{sid}/cfg/combos      { lista, version }        -> 200 { version }   | 409   (existe; preserva sugeridos e geradoEm, ignora os que vierem no corpo; só do dono, como hoje)
+evento {"acao":"combos"}                                     -> { espacos, sugeridos }   (EventBridge, semanal; não é rota HTTP)
+```
+
+`rotinaAtiva` não é gravado no `CFG#COMBOS`: o servidor o calcula ao responder, pela existência do item `tipo: "combos"` do espaço.
+
 ## Testes (backend)
 
 1. Conta: `[mercado, casa]` e `[casa, mercado]` contam como o mesmo conjunto (R2).
