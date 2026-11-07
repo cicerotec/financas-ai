@@ -22,8 +22,9 @@ Dois cuidados:
 
 ## A rotina
 
-- **Regra nova no `template.yaml`**, separada da dos avisos: `cron(0 6 ? * SUN *)` (domingo 03:00 em São Paulo), entrada `{"acao":"combos","espacos":["<sid>"]}`.
-- **`roteador.entrada`** reconhece `acao == "combos"` e chama o service novo (`service/combos.go`), que devolve `{"espacos": n, "sugeridos": n}`.
+- **Regra nova no `template.yaml`**, separada da dos avisos: `cron(0 6 ? * SUN *)` (domingo 03:00 em São Paulo), entrada fixa `{"acao":"combos"}`, sem lista de espaços.
+- **Quem comanda é o dono, pela aba Listas** (como os avisos e as recorrências): a rotina lê o `AVISOS#ATIVOS` (`Ativos`) e age só nos itens `tipo: "combos"`, cada um com o `sid` do espaço. O item nasce e morre no interruptor (abaixo).
+- **`roteador.entrada`** reconhece `acao == "combos"` e chama o service novo (`service/combos.go`), que devolve `{"espacos": n, "sugeridos": n}`. A rotina dos avisos passa a **pular** o tipo `combos` (como já pula `recorrencia`).
 - **Leitura:** `Listar` já pagina por SK; a rotina usa a faixa `TX#<hoje - 12 meses>` a `TX#<hoje>` em páginas pequenas, com uma espera curta entre elas (5 unidades de leitura). Ignora excluídos e previstos.
 - **Conta** (`domain/combos.go`, função pura e testada): chave do conjunto = tags ordenadas; só conjuntos com 2 tags ou mais e contagem 3 ou mais; ordena por contagem (empate: ordem alfabética da chave) e fica com 10.
 
@@ -35,7 +36,7 @@ Dois cuidados:
 
 ## Decisões para o dono
 
-- **D1. Como a rotina descobre os espaços.** Não há lista global. Recomendo **passar o(s) espaço(s) na entrada da regra** (`"espacos":["financas"]`): zero consulta extra, nenhum campo novo. Quando o app abrir a outros usuários (item 49), troca-se por uma lista. A alternativa (varrer a tabela atrás de `META`) custa leitura demais.
+- **D1. Como a rotina descobre os espaços (decidido pelo dono em 2026-11-06).** Não há lista global e nada é automático: o dono **liga a rotina na aba Listas, seção Combos**, num interruptor "Gerar combos sugeridos toda semana", **já ligado**. Ligar grava um item auxiliar `tipo: "combos"` no `AVISOS#ATIVOS` (mesma partição e mesmo desenho da recorrência, com o `sid`); desligar apaga o item e **mantém** o último `sugeridos`. Só o dono liga e desliga. O espaço atual do dono ganha o item uma vez, na primeira carga (eu disparo à mão); espaços novos do item 49 já nascem com ele. **Isso é um tipo novo de item auxiliar no DynamoDB: precisa da aprovação do dono.** Pede demo da tela antes de implementar.
 - **D2. Janela de 12 meses** em vez dos 1000 últimos. Recomendo 12 meses.
 - **D3. Guardar 10, mostrar 5.** Recomendo.
 

@@ -10,7 +10,9 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 - **R2.** Um conjunto entra em `sugeridos` se tem **2 tags ou mais** e aparece em **3 lançamentos ou mais**, ignorando a ordem das tags (a chave é a lista ordenada). Lançamentos **excluídos** e **previstos** não contam.
 - **R3.** Só contam lançamentos dos **últimos 12 meses** (de hoje, no fuso de São Paulo, para trás).
 - **R4.** Ordem: maior `contagem` primeiro; empate pela chave em ordem alfabética. Guarda no máximo **10**.
-- **R5.** A rotina é o evento `{"acao":"combos","espacos":[...]}` (regra semanal do EventBridge, separada da dos avisos). Devolve `{"espacos": n, "sugeridos": n}`. Evento sem `espacos` não faz nada e devolve zeros.
+- **R5.** A rotina é o evento `{"acao":"combos"}` (regra semanal do EventBridge, separada da dos avisos). Age só nos itens `tipo: "combos"` do `AVISOS#ATIVOS` e devolve `{"espacos": n, "sugeridos": n}`. Sem item ativo, não faz nada e devolve zeros.
+- **R5a.** **Interruptor (só o dono):** `PUT /spaces/{sid}/combos/rotina { "ativa": true|false }` cria ou apaga o item `tipo: "combos"` (com o `sid`) e `GET` de `combos` devolve `rotinaAtiva`. Ligar não roda a rotina na hora. Desligar mantém `sugeridos`. Membro que não é dono recebe `403`. A aba Listas mostra o interruptor já ligado quando o item existe.
+- **R5b.** A rotina diária dos avisos **ignora** o item `tipo: "combos"` (não é aviso), como já faz com `recorrencia`.
 - **R6.** A rotina grava só `sugeridos` e `geradoEm`, por atualização parcial: **não altera `version` nem `lista`**. Item inexistente é criado com `lista: []` e `version` 0.
 - **R7.** Falha em um espaço não impede os outros; o erro vai ao log com o `sid`.
 - **R8.** Leitura em páginas pequenas com espera entre elas; nenhuma varredura da tabela inteira; só a faixa `TX#<de>` a `TX#<até>` do espaço.
@@ -19,7 +21,7 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 - **R11.** O Lançar mostra os combos manuais primeiro e depois os sugeridos (5, com "Mostrar mais"); um sugerido igual a um manual não aparece e o manual mostra a contagem.
 - **R12.** Abrir o Lançar **não lê nenhum lançamento** (nenhuma chamada a `/tx`).
 - **R13.** O passado não é tocado: nenhum lançamento é alterado.
-- **R14.** Isolamento: a rotina lê e grava só no espaço de cada `sid` da entrada.
+- **R14.** Isolamento: a rotina lê e grava só no espaço do `sid` de cada item ativo.
 
 ## Testes (backend)
 
@@ -32,9 +34,11 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
 7. Rotina grava `sugeridos` e `geradoEm` sem mudar `version` nem `lista` (R6).
 8. Rotina cria o item quando não existe (R6).
 9. Um espaço com erro não impede o seguinte (R7).
+9a. Ligar cria o item; desligar apaga e mantém `sugeridos`; membro não dono recebe 403 (R5a).
+9b. A rotina dos avisos não trata o item `combos` como aviso (R5b).
 10. PUT manual preserva `sugeridos` e `geradoEm`, mesmo se o corpo trouxer outros (R9).
 11. `GET` devolve `sugeridos` (R10).
-12. Evento sem `espacos` devolve zeros (R5).
+12. Sem item ativo a rotina devolve zeros (R5).
 
 ## Testes (front, `web/*.test.js`)
 
