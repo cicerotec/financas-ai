@@ -69,6 +69,10 @@
         <div class="valor-grande"><span>R$</span><input id="fValor" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00"></div>
         <label for="fDesc">Descrição</label>
         <input id="fDesc" type="text" placeholder="Descrição do lançamento">
+        <label for="fNota">Nota <span class="opc">(detalhe extra, opcional)</span></label>
+        <textarea id="fNota" placeholder="Nota do lançamento"></textarea>
+        <label id="tagsRot">Tags</label>
+        <div class="campo-tags" id="tagsAbrir" role="button" tabindex="0" aria-haspopup="dialog" aria-labelledby="tagsRot"><span class="v" id="tagsResumo"></span><span class="seta" aria-hidden="true">›</span></div>
       </div>
 
       <div class="card linhas">
@@ -77,17 +81,13 @@
           <div class="dt-atalhos" id="dtAtalhos" role="group" aria-label="Atalhos de data">
             <button type="button" data-atalho="0" aria-pressed="false">Hoje</button>
             <button type="button" data-atalho="1" aria-pressed="false">Ontem</button>
-            <button type="button" data-atalho="agora">Agora</button>
             <p class="dt-hint" id="dtHint" aria-live="polite"></p>
           </div>
         </div>
         <label class="lh" for="fBanco"><span class="r">Banco</span><select id="fBanco"></select></label>
         <label class="lh" for="fStatus"><span class="r">Status</span><select id="fStatus"></select></label>
-        <button type="button" class="lh lh-tags" id="tagsAbrir" aria-haspopup="dialog"><span class="r">Tags</span><span class="v" id="tagsResumo"></span><span class="seta" aria-hidden="true">›</span></button>
-        <button type="button" class="lh lh-mais" id="maisAbrir" aria-expanded="false" aria-controls="maisDet"><span class="r">Mais</span><span class="v">Nota, fatura, repetir, avisar</span><span class="seta" aria-hidden="true">›</span></button>
+        <button type="button" class="lh lh-mais" id="maisAbrir" aria-expanded="false" aria-controls="maisDet"><span class="r">Mais</span><span class="v">Fatura, repetir, avisar</span><span class="seta" aria-hidden="true">›</span></button>
         <div class="mais-det" id="maisDet">
-          <label for="fNota">Nota (detalhe extra, opcional)</label>
-          <textarea id="fNota"></textarea>
           <div id="fRepetirWrap" class="hidden">
             <label style="margin-top:8px;">🔁 Repetir (opcional)</label>
             <div id="fRepetirMount"></div>
@@ -124,18 +124,49 @@
 
     <div class="tags-veu" id="tagsVeu"></div>
     <div class="card tags-card" id="tagsCard" role="dialog" aria-modal="true" aria-labelledby="tagsTit">
-      <h2 id="tagsTit">Tags do lançamento</h2>
-      <p class="tags-sub">Toque para marcar ou desmarcar. Para criar uma nova, digite no campo de baixo e aperte Enter.</p>
-      <input id="tagBusca" type="search" class="tags-busca" placeholder="Buscar tag..." aria-label="Buscar tag">
-      <div id="tagArea" class="tags-lista">
-        <div id="tagCombos"></div>
-        <div class="tags" id="tagMarcadas" hidden></div>
-        <div class="muted tags-rot">Tags</div>
-        <div class="tags" id="tagPicker"></div>
+      <div class="tg-topo">
+        <h2 id="tagsTit">Tags</h2>
+        <span class="tg-cnt" id="tagsCnt" aria-live="polite">Nenhuma</span>
+        <button type="button" class="tg-link" id="tagsLimpar" hidden>Limpar</button>
+        <button type="button" class="tg-pronto" id="tagsPronto">Pronto</button>
       </div>
-      <p class="tags-cnt" id="tagsCnt"></p>
-      <input id="novaTagInput" type="text" placeholder="nova tag + Enter">
-      <button class="tags-ok" id="tagsPronto" type="button">Pronto</button>
+      <div class="tg-busca">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="tagBusca" type="search" placeholder="Buscar ou criar tag" aria-label="Buscar ou criar tag" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done">
+      </div>
+      <div class="tg-abas" role="tablist" aria-label="O que mostrar">
+        <button type="button" role="tab" id="tgAbaTags" aria-selected="true" aria-controls="tagArea">Tags <span class="n" id="tgNTags"></span></button>
+        <button type="button" role="tab" id="tgAbaCombos" aria-selected="false" aria-controls="tagArea">Combos <span class="n" id="tgNCombos"></span></button>
+      </div>
+      <div id="tagArea" class="tags-lista" role="tabpanel">
+        <section id="tgTagsSec">
+          <div id="tagPicker" class="tg-res" role="group" aria-label="Tags"></div>
+          <section id="tgTodasSec">
+            <button type="button" class="tg-mais" id="tgTodasBtn" aria-expanded="false" aria-controls="tgTodasCorpo"></button>
+            <div id="tgTodasCorpo" hidden>
+              <div class="tg-lista-topo">
+                <h3 class="tg-sec" id="tgTodasTit">Todas as tags</h3>
+                <label class="tg-ord"><span>Ordenar</span>
+                  <select id="tgOrdem" aria-label="Ordenar tags">
+                    <option value="az">A → Z</option>
+                    <option value="za">Z → A</option>
+                    <option value="marc">Marcadas primeiro</option>
+                    <option value="rec">Criadas recentemente</option>
+                  </select>
+                </label>
+              </div>
+              <div id="tgTodas" class="tg-res" role="group" aria-labelledby="tgTodasTit"></div>
+              <button type="button" class="tg-mais" id="tgMais" hidden></button>
+            </div>
+          </section>
+        </section>
+        <section id="tgCombosSec" hidden>
+          <p class="tg-vazio" id="tgCbDica">Tracejado = sugerido pelo histórico. Tocar liga ou desliga as tags do combo.</p>
+          <div id="tagCombos" class="tg-cbs" role="group" aria-label="Combos"></div>
+          <button type="button" class="tg-mais" id="tgCbMais" hidden></button>
+          <button type="button" class="tg-salvar" id="tgSalvarCombo" hidden>Salvar seleção como combo</button>
+        </section>
+      </div>
     </div>
   </div>
 
