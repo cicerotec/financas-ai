@@ -1064,6 +1064,9 @@ svg.gx-chart{display:block;width:100%;max-width:440px;margin:0 auto;height:auto;
 /* teclado aberto (campo com foco): janela mais alta */
 @media (max-width:899px){
   .tags-card.aberto.buscando{max-height:96vh;}
+  /* se o teclado deixar pouca altura, a lista nao some: mantem um minimo e a janela rola */
+  .tags-card.aberto{overflow-y:auto;}
+  .tags-card.aberto .tags-lista{min-height:160px;}
 }
 .tg-pronto{flex:none;min-height:44px;padding:0 16px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;}
 .tg-pronto:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
