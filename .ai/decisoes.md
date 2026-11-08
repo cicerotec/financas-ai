@@ -62,6 +62,19 @@ O raciocínio completo está em [`arquitetura.md`](arquitetura.md), nas seções
 - **Aprovado em 2026-10-24:** o nome do campo do marcador é `previsto`; o atributo `ativoAte` (data AAAA-MM-DD, ausente = ativo) em `CFG#SALDOS.porBanco[meio]` para o item 43; o
   **total do Histórico sai até o item 42**.
 
+## Nomes na tela: "meio de pagamento" e "forma de pagamento" (2026-11-07)
+O nome mudou: o que o código e o DynamoDB chamam de `banco` passa a se chamar **meio de pagamento** na tela, e o que chamam de `status` passa a se chamar **forma de pagamento**.
+O de-para já existia para o catálogo de status e para Listas (ver "Status, meios e o passado", acima); esta decisão estende o nome a **todos** os rótulos visíveis.
+- **Só o texto da tela muda.** `banco` e `status` continuam como nomes de campo no DynamoDB, na API (JSON), no Go e nos ids do HTML (`fBanco`, `fStatus`...). Nada é renomeado no banco de dados
+  (regra de `guardrails.md`: chave ou campo só se discute com o dono) e não há migração.
+- **Rótulos sempre por extenso**, "Meio de pagamento" e "Forma de pagamento", em campos, filtros, seções, janelas **e cabeçalhos de coluna** (Futuros, Histórico e a verificação de arquivo), sem abreviar
+  (decidido pelo dono em 2026-11-07). Em Futuros e Histórico (computador) as duas colunas ficam **iguais, 150 px cada** (antes 90 e 140, desproporcionais); no Lançar do celular o rótulo da linha passa de 72 para 84 px e quebra em duas linhas.
+- **"Banco" no texto só quando é de fato o banco de dados.** O extrato não é só de banco (o `SODEXO-REF-IBM` é vale-refeição): "extrato do banco" vira **"extrato do meio de pagamento"**.
+- **O que não muda de nome:** "banco de dados" (a tecnologia) e os nomes de coluna da planilha de importação e exportação (`BANCO`, `ST`), que são o formato do arquivo.
+- **Onde vale nos documentos:** nos documentos vivos (`guardrails.md`, `padrao-de-telas.md`, `ux.md`, `arquitetura.md`) o termo de tela passa a ser o novo, com o nome de campo entre crases
+  quando for o campo. As specs e demos já fechadas ficam como estão, como registro do que foi decidido na época.
+- Não tem relação com o item 58 (meio desativado), que segue em análise à parte.
+
 ## Outras decisões
 - Descartado: bloquear duplicidade por conteúdo (a mesma compra pode ter outro horário e outra descrição).
 - Atualização da tela por gatilho (foco da aba, troca de aba, antes de salvar, botão Atualizar, checagem lenta de 3 a

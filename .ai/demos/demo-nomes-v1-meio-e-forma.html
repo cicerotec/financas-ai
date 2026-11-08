@@ -1,0 +1,153 @@
+<!doctype html>
+<!-- demo-nomes-v1-meio-e-forma: antes e depois dos rotulos "Banco" -> "Meio de pagamento" e "Status" -> "Forma de pagamento" (2026-11-07), dados ficticios. Estatica, sem script. Tokens do app (padrao-de-telas.md). Aguardando aprovacao do dono. -->
+<html lang="pt-BR"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nomes: meio de pagamento e forma de pagamento</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--text:#1a1a1a;--muted:#6b6b6b;--border:#e3e2de;--accent:#2f6f4f;--accent-bg:#dcefe5;--danger:#b3413a;--danger-bg:#f8e6e2;--mark:#fff3b0;color-scheme:light dark;}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#211f1e;--text:#eee;--muted:#9a9a9a;--border:#37352f;--accent:#5fb98a;--accent-bg:#1c3a2e;--danger:#e08a83;--danger-bg:#3a1f1a;--mark:#5a4d12;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.4}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:8px 0}
+h2{font-size:16px;margin:28px 0 4px}
+p{margin:4px 0;color:var(--muted);font-size:14px}
+.par{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+@media (max-width:760px){.par{grid-template-columns:1fr}}
+.lado{border:1px solid var(--border);border-radius:14px;background:var(--card);padding:12px;min-width:0}
+.tag{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.depois .tag{color:var(--accent)}
+mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 2px}
+.sel{border:1px solid var(--border);border-radius:10px;padding:10px;font-size:15px;background:var(--bg)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:11px;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:6px;border-bottom:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.v,th.v{text-align:right}
+.msg{font-size:14px;color:var(--text);margin:6px 0}
+.btn{display:inline-block;border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:14px;margin:4px 4px 0 0}
+.fica{border:1px dashed var(--border);border-radius:14px;padding:12px;margin-top:8px;font-size:14px}
+.fica li{margin:3px 0}
+.perde{border-left:4px solid var(--danger);background:var(--danger-bg);border-radius:8px;padding:8px 12px;font-size:14px;margin-top:8px}
+code{font-size:12px}
+</style></head><body><main>
+<h1>Meio de pagamento e forma de pagamento</h1>
+<p>Antes e depois de cada tela que mostra o campo <code>banco</code> ou o campo <code>status</code>. <mark>Amarelo</mark> é o que muda. Só o texto muda: campos, API e DynamoDB continuam <code>banco</code> e <code>status</code>.</p>
+<p>Regra desta demo: <b>tudo por extenso</b>, inclusive os cabeçalhos de coluna das tabelas. As telas completas, medidas, estão em <a href="demo-lancar-v6-nomes.html">Lançar</a>, <a href="demo-futuros-v2-nomes.html">Futuros</a> e <a href="demo-historico-v2-nomes.html">Histórico</a>.</p>
+
+<h2>1. Lançar e Editar (celular)</h2>
+<p>A tela real tem uma linha por campo: rótulo à esquerda, valor à direita. O rótulo ocupa 84 px (antes 72) e quebra em duas linhas; a linha fica com 61 px. Medido em 360 px com <code>SODEXO-REF-IBM</code>: sem corte e sem rolagem lateral. No computador o rótulo fica em cima do campo (12 px), sem quebra. Em <b>Transferência</b>: "De (meio de pagamento)" e "Para (meio de pagamento)".</p>
+<div class="par">
+ <div class="lado"><div class="tag">Antes</div>
+  <div class="msg">Banco &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SODEXO-REF-IBM</div>
+  <div class="msg">Status &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PIX</div></div>
+ <div class="lado depois"><div class="tag">Depois</div>
+  <div class="msg"><mark>Meio de<br>pagamento</mark> &nbsp;&nbsp;&nbsp; SODEXO-REF-IBM</div>
+  <div class="msg"><mark>Forma de<br>pagamento</mark> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PIX</div></div>
+</div>
+
+<h2>2. Histórico: janela de Filtros</h2>
+<div class="par">
+ <div class="lado"><div class="tag">Antes</div>
+  <div class="msg">Dentro de <b>Status</b> e <b>Banco</b> vale qualquer uma das escolhidas.</div>
+  <label>Status</label><span class="btn">PIX</span><span class="btn">DEBITO</span>
+  <label>Banco</label><span class="btn">NUBANK</span><span class="btn">ITAÚ</span></div>
+ <div class="lado depois"><div class="tag">Depois</div>
+  <div class="msg">Dentro de <mark>Forma de pagamento</mark> e <mark>Meio de pagamento</mark> vale qualquer uma das escolhidas.</div>
+  <label><mark>Forma de pagamento</mark></label><span class="btn">PIX</span><span class="btn">DEBITO</span>
+  <label><mark>Meio de pagamento</mark></label><span class="btn">NUBANK</span><span class="btn">ITAÚ</span></div>
+</div>
+
+<h2>3. Histórico e Futuros: colunas da tabela (computador)</h2>
+<p>As duas colunas ficam <b>iguais, 150 px cada</b> (antes 90 e 140, desproporcionais). A coluna do evento fica com 248 px na janela mínima de 1160 px (antes 321). Medido com <code>SODEXO-REF-IBM</code>, sem corte e sem rolagem lateral, em 1160 px e 1280 px.</p>
+<div class="par">
+ <div class="lado"><div class="tag">Antes</div>
+  <table><tr><th>Data</th><th>Lançamento</th><th>Banco</th><th>Status</th><th class="v">Valor</th></tr>
+  <tr><td>05/11/2026</td><td>Mercado</td><td>NUBANK</td><td>PIX</td><td class="v">-R$ 120,00</td></tr></table></div>
+ <div class="lado depois"><div class="tag">Depois</div>
+  <table><tr><th>Data</th><th>Lançamento</th><th><mark>Meio de pagamento</mark></th><th><mark>Forma de pagamento</mark></th><th class="v">Valor</th></tr>
+  <tr><td>05/11/2026</td><td>Mercado</td><td>NUBANK</td><td>PIX</td><td class="v">-R$ 120,00</td></tr></table></div>
+</div>
+
+<h2>4. Confirmar previsto e pagar fatura</h2>
+<div class="par">
+ <div class="lado"><div class="tag">Antes</div>
+  <label>Status</label><div class="sel">PIX</div>
+  <div class="msg">Escolha o status e o meio de saída.</div></div>
+ <div class="lado depois"><div class="tag">Depois</div>
+  <label><mark>Forma de pagamento</mark></label><div class="sel">PIX</div>
+  <div class="msg">Escolha a <mark>forma de pagamento</mark> e o meio de saída.</div></div>
+</div>
+
+<h2>5. Repetir, Prever e aviso de duplicidade</h2>
+<div class="par">
+ <div class="lado"><div class="tag">Antes</div>
+  <div class="msg">Cada cópia leva valor, <b>banco</b>, tags e nota deste lançamento.</div>
+  <div class="msg">Já existe um lançamento igual (mesmo <b>status</b>, descrição, valor, <b>banco</b> e data). Salvar mesmo assim?</div></div>
+ <div class="lado depois"><div class="tag">Depois</div>
+  <div class="msg">Cada cópia leva valor, <mark>meio de pagamento</mark>, tags e nota deste lançamento.</div>
+  <div class="msg">Já existe um lançamento igual (mesma <mark>forma de pagamento</mark>, descrição, valor, <mark>meio de pagamento</mark> e data). Salvar mesmo assim?</div></div>
+</div>
+
+<h2>6. Histórico de versões e Desfazer</h2>
+<div class="par">
+ <div class="lado"><div class="tag">Antes</div>
+  <div class="msg">Valor · Descrição · <b>Banco</b> · <b>Status</b> · Tipo · Data</div></div>
+ <div class="lado depois"><div class="tag">Depois</div>
+  <div class="msg">Valor · Descrição · <mark>Meio de pagamento</mark> · <mark>Forma de pagamento</mark> · Tipo · Data</div></div>
+</div>
+
+<h2>7. Cartão, Saldos e Listas</h2>
+<div class="par">
+ <div class="lado"><div class="tag">Antes</div>
+  <div class="msg">Escolha o <b>banco ou conta</b> que é cartão de crédito e o dia de fechamento da fatura atual.</div>
+  <label>Banco / conta</label><div class="sel">INTER</div>
+  <div class="msg">Toque num <b>banco</b> para configurar</div>
+  <div class="msg">Use as setas para mover cada <b>banco</b>.</div>
+  <div class="msg">⚠️ Escolha um <b>banco ou conta</b>.</div>
+  <div class="msg">Confira com o extrato do <b>banco</b>: o mês conferido fica travado.</div></div>
+ <div class="lado depois"><div class="tag">Depois</div>
+  <div class="msg">Escolha o <mark>meio de pagamento</mark> que é cartão de crédito e o dia de fechamento da fatura atual.</div>
+  <label><mark>Meio de pagamento</mark></label><div class="sel">INTER</div>
+  <div class="msg">Toque num <mark>meio de pagamento</mark> para configurar</div>
+  <div class="msg">Use as setas para mover cada <mark>meio de pagamento</mark>.</div>
+  <div class="msg">⚠️ Escolha um <mark>meio de pagamento</mark>.</div>
+  <div class="msg">Confira com o extrato do <mark>meio de pagamento</mark>: o mês conferido fica travado.</div></div>
+</div>
+
+<h2>8. Configurações: importar e conferir o arquivo</h2>
+<div class="par">
+ <div class="lado"><div class="tag">Antes</div>
+  <div class="msg">Os <b>bancos</b> da planilha (X) não estão na lista de <b>bancos</b> do app.</div>
+  <table><tr><th>Ano · mês</th><th>Banco</th><th class="v">Arquivo</th></tr><tr><td>2026 · 10</td><td>NUBANK</td><td class="v">R$ 3.200,00</td></tr></table>
+  <div class="msg">(sem banco)</div></div>
+ <div class="lado depois"><div class="tag">Depois</div>
+  <div class="msg">Os <mark>meios de pagamento</mark> da planilha (X) não estão na lista de <mark>meios de pagamento</mark> do app.</div>
+  <table><tr><th>Ano · mês</th><th><mark>Meio de pagamento</mark></th><th class="v">Arquivo</th></tr><tr><td>2026 · 10</td><td>NUBANK</td><td class="v">R$ 3.200,00</td></tr></table>
+  <div class="msg">(sem <mark>meio de pagamento</mark>)</div></div>
+</div>
+
+<h2>9. Saldos e Listas: o que faltava (telas completas em <a href="demo-saldos-v2-nomes.html">Saldos</a> e <a href="demo-listas-v5-nomes.html">Listas</a>)</h2>
+<p>Medido em 360 px: sem corte e sem rolagem lateral. Em Aparência, os dois botões do layout de Saldos não cabem na mesma linha e o segundo desce para a linha de baixo.</p>
+<div class="par">
+ <div class="lado"><div class="tag">Antes</div>
+  <div class="msg">Saldos por banco <span class="muted">(o que o membro vê no lugar de "Toque num banco para configurar")</span></div>
+  <div class="msg"><span class="btn">Uma linha por banco</span><span class="btn">Quadradinhos</span></div>
+  <div class="msg">Exemplo de lançamento · 14:30 · PIX · <b>Banco</b></div></div>
+ <div class="lado depois"><div class="tag">Depois</div>
+  <div class="msg"><mark>Saldos por meio de pagamento</mark> <span class="muted">(e, para o dono, "Toque num meio de pagamento para configurar")</span></div>
+  <div class="msg"><span class="btn"><mark>Uma linha por meio de pagamento</mark></span><span class="btn">Quadradinhos</span></div>
+  <div class="msg">Exemplo de lançamento · 14:30 · PIX · <mark>Meio de pagamento</mark></div></div>
+</div>
+
+<h2>O que continua igual</h2>
+<div class="fica"><ul>
+ <li>"Banco de dados" (a tecnologia): "Banco de dados indisponível", "Conferindo duplicidade no banco de dados".</li>
+ <li>As colunas <code>BANCO</code> e <code>ST</code> da planilha de importação e exportação (formato do arquivo).</li>
+ <li>Nomes de campo, JSON da API, chaves do DynamoDB e ids do HTML.</li>
+ <li>Os cartões "Formas de pagamento" e "Meios de pagamento" de Listas, que já usam os nomes novos.</li>
+</ul></div>
+<div class="perde"><b>O que a proposta faz perder:</b> os rótulos ficam bem mais compridos. No Lançar, em 360 px, "Meio de pagamento" e "Forma de pagamento" passam a ocupar duas linhas (a linha cresce de 56 para 61 px). Nas tabelas, as colunas de meio e forma ficam com 150 px cada e o evento perde espaço. Os textos que diziam "banco" passam a dizer "meio de pagamento", inclusive "extrato do meio de pagamento" (vale-refeição e carteira não são banco); o ganho é o texto ser verdadeiro para todo meio.</div>
+</main></body></html>
