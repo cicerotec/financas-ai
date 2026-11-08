@@ -1142,7 +1142,7 @@ function irParaAba(t){
   document.querySelectorAll('.mn-at').forEach(x=>{
     if(x.dataset.atalho===t) x.setAttribute('aria-current','page'); else x.removeAttribute('aria-current');
   });
-  document.querySelectorAll('main section').forEach(sec=>sec.classList.add('hidden'));
+  document.querySelectorAll('main > section').forEach(sec=>sec.classList.add('hidden')); // so as abas: as <section> de dentro delas (janela de Tags) nao se escondem
   document.getElementById('tab-'+t).classList.remove('hidden');
   // Cada tela le so o que e dela. Historico e Tendencias leem os lancamentos (sob demanda); as outras saem deles.
   const usaLancamentos = t==='historico' || t==='tendencias';
