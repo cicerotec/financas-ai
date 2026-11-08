@@ -455,6 +455,9 @@ Mesma tela, mesmos dados, desenho de tabela.
 - Português com letra maiúscula só no começo da frase; verbos curtos nas ações ("Editar", "Estender série").
 - Prazo relativo junto da data real, nunca no lugar dela (na Futuros, embaixo do valor).
 - Todo limite (quantidade, dias, tamanho) aparece na tela antes de ser atingido e tem mensagem de erro própria.
+- **Vocabulário (2026-11-07):** na tela, o campo `banco` é sempre **"Meio de pagamento"** e o campo `status` é sempre **"Forma de pagamento"**, por extenso (nunca "Banco" nem "Status" como rótulo).
+  "Banco de dados" não muda, nem as colunas `BANCO` e `ST` da planilha; "extrato do banco" vira "extrato do meio de pagamento". Cabeçalhos de coluna também por extenso. Só o texto muda; os campos e ids continuam `banco`/`status`
+  (ver [`decisoes.md`](decisoes.md)).
 
 ## Acessibilidade e tema
 - Controles com `role` e `aria-checked` corretos (`checkbox`, `radio`, `switch`) e `aria-label` quando não há texto.

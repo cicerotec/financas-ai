@@ -86,8 +86,8 @@
             <p class="dt-hint" id="dtHint" aria-live="polite"></p>
           </div>
         </div>
-        <label class="lh" for="fBanco"><span class="r">Banco</span><select id="fBanco"></select></label>
-        <label class="lh" for="fStatus"><span class="r">Status</span><select id="fStatus"></select></label>
+        <label class="lh" for="fBanco"><span class="r">Meio de pagamento</span><select id="fBanco"></select></label>
+        <label class="lh" for="fStatus"><span class="r">Forma de pagamento</span><select id="fStatus"></select></label>
         <button type="button" class="lh lh-mais" id="maisAbrir" aria-expanded="false" aria-controls="maisDet"><span class="r">Mais</span><span class="v">Fatura, repetir, avisar</span><span class="seta" aria-hidden="true">›</span></button>
         <div class="mais-det" id="maisDet">
           <div id="fRepetirWrap" class="hidden">
@@ -177,8 +177,8 @@
       <label for="tValor">Valor</label>
       <div class="valor-grande"><span>R$</span><input id="tValor" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
       <div class="transf-campos">
-        <div><label for="tBancoOrigem">De (banco)</label><select id="tBancoOrigem"></select></div>
-        <div><label for="tBancoDestino">Para (banco)</label><select id="tBancoDestino"></select></div>
+        <div><label for="tBancoOrigem">De (meio de pagamento)</label><select id="tBancoOrigem"></select></div>
+        <div><label for="tBancoDestino">Para (meio de pagamento)</label><select id="tBancoDestino"></select></div>
         <div class="tdata"><label for="tData">Data e hora</label><input id="tData" type="datetime-local"></div>
       </div>
       <p class="muted">Move dinheiro de uma conta sua para outra sem contar como gasto/receita real.</p>
@@ -228,9 +228,9 @@
 <div class="fut-ov hidden" id="histFilOv">
   <div class="hist-jan" role="dialog" aria-modal="true" aria-label="Filtros do Histórico" id="histFilJan">
     <h3>Filtros</h3>
-    <p class="mm">Dentro de Status e Banco vale qualquer uma das escolhidas. Nas tags você escolhe entre todas ou qualquer uma.</p>
-    <div class="hf-sec">Status</div><div class="tags" id="histFilStatus"></div>
-    <div class="hf-sec">Banco</div><div class="tags" id="histFilBanco"></div>
+    <p class="mm">Dentro de Forma de pagamento e Meio de pagamento vale qualquer uma das escolhidas. Nas tags você escolhe entre todas ou qualquer uma.</p>
+    <div class="hf-sec">Forma de pagamento</div><div class="tags" id="histFilStatus"></div>
+    <div class="hf-sec">Meio de pagamento</div><div class="tags" id="histFilBanco"></div>
     <div class="hf-sec">Tags</div><div id="histTags"></div>
     <label class="fut-sw"><input type="checkbox" id="filMostrarOcultos"><span>Mostrar ocultos<small class="muted"> (entram na lista e no total)</small></span></label>
     <label class="fut-sw hidden"><input type="checkbox" id="buscaIncluiFuturos"><span>Incluir eventos futuros<small class="muted"> (só na busca por texto)</small></span></label>
@@ -313,9 +313,9 @@
   <div id="listaCartoes"></div>
   <div class="card so-owner" id="novoCartaoCard">
     <b>Adicionar cartão</b>
-    <p class="muted">Escolha o banco ou conta que é cartão de crédito e o dia de fechamento da fatura atual. Depois você ajusta o fechamento de cada fatura, que muda todo mês.</p>
+    <p class="muted">Escolha o meio de pagamento que é cartão de crédito e o dia de fechamento da fatura atual. Depois você ajusta o fechamento de cada fatura, que muda todo mês.</p>
     <div class="row">
-      <div><label>Banco / conta</label><select id="ncBanco"></select></div>
+      <div><label>Meio de pagamento</label><select id="ncBanco"></select></div>
       <div><label>Dia do fechamento</label><input type="number" id="ncDia" min="1" max="31" placeholder="ex: 25"></div>
     </div>
     <p class="muted" id="ncMsg"></p>
@@ -330,7 +330,7 @@
     <div class="muted" id="saldoSub"></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin:0 2px 4px;">
-    <span class="muted" id="saldoDica">Toque num banco para configurar</span>
+    <span class="muted" id="saldoDica">Toque num meio de pagamento para configurar</span>
     <button class="ghost" id="btnRecalcularSaldos" style="padding:4px 10px;">Atualizar ⟳</button>
   </div>
   <div id="listaSaldos"></div>
