@@ -19,7 +19,9 @@ Roteiro verificável do [`intent.md`](intent.md) e do [`plan.md`](plan.md).
   - Sem uso e sem cartão: `204`; `banco` sem o nome; `ativoAte` sem a chave; versão de `CFG#LISTAS` sobe.
 - **R7.** A conferência de uso lê só quando o `DELETE` é chamado (nenhuma rota de leitura nem a abertura de Listas varre lançamentos) e **para no primeiro lançamento achado**.
 - **R8.** Cada `DELETE` escreve uma linha de log `meios: remover meio=<n> paginas=<n> itens=<n> ms=<n> resultado=<ok|em_uso|cartao>`, sem conteúdo de lançamento (gatilho para a flag `jaUsado`).
-- **R9.** O servidor **não** valida lançamento contra o `ativoAte`: lançar, editar, importar e restaurar num meio inativo continuam funcionando.
+- ~~**R9.** O servidor **não** valida lançamento contra o `ativoAte`: lançar, editar, importar e restaurar num meio inativo continuam funcionando.~~
+  **R9 revogado em 2026-11-08 (item 58, [`BACKLOG.md`](../../../BACKLOG.md#item-58)):** o servidor passa a recusar criar, Transferir, Confirmar previsto, recorrência, restaurar e trocar o banco para um meio desativado
+  (`MEIO_DESATIVADO`); importar só aceita `dataEvento` anterior à `dataInicio` do meio; desativar só a partir de hoje e só com saldo zero e sem evento. O teste M-T14 abaixo vale só para a fase do item 43 e será substituído.
 - **R10.** Saldo, fechamento, conferência, fatura e histórico não mudam. Nenhum lançamento é regravado. O passado não é tocado.
 - **R11.** Tela (fase B): Lançar e Transferência listam só os meios com `ativo`; o meio de um lançamento em **edição** fica na lista mesmo inativo; as demais telas usam todos. O front não compara data nem nome.
   A etiqueta "crédito" aparece quando `cartao` é verdadeiro (vindo de `CFG#CARTOES`).
