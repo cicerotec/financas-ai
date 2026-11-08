@@ -234,8 +234,8 @@ func decCursor(c string) (string, bool) {
 	return string(b), true
 }
 
-// UsaMeio diz se algum lancamento do espaco tem esse meio no campo banco (item 43). Conta tambem os excluidos logicamente e os previstos: restaurar uma
-// versao traria o nome de volta. Le em paginas e **para no primeiro achado**; paginas e itens dizem o custo da leitura (o meio sem uso le a particao inteira).
+// UsaMeio diz se algum lancamento do espaco tem esse meio no campo banco (item 43). Conta os previstos; os excluidos logicamente nao contam desde o
+// item 58 (R18): restaurar uma versao agora confere se o meio ainda esta na lista. Le em paginas e **para no primeiro achado**; paginas e itens dizem o custo da leitura (o meio sem uso le a particao inteira).
 func (r *Lancamentos) UsaMeio(ctx context.Context, sid, meio string) (usa bool, paginas, itens int, err error) {
 	in := &dynamodb.QueryInput{
 		TableName:              aws.String(r.table),
@@ -255,6 +255,9 @@ func (r *Lancamentos) UsaMeio(ctx context.Context, sid, meio string) (usa bool, 
 		paginas++
 		for _, it := range out.Items {
 			itens++
+			if _, excluido := it["excluidoEm"]; excluido { // excluido logicamente nao conta como uso (item 58, R18); restaurar confere se o meio ainda esta na lista
+				continue
+			}
 			if b, ok := it["banco"].(*types.AttributeValueMemberS); ok && b.Value == meio {
 				return true, paginas, itens, nil
 			}

@@ -154,12 +154,16 @@ func (s *Cartoes) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 			}
 			avisoPadrao = domain.Doc{"dias": lista, "insistir": insistir}
 		}
-		cartoes = append(cartoes, domain.Doc{
+		entrada := domain.Doc{
 			"pagador": pagador, "diaVencimento": diaVenc, "aviso": avisoPadrao,
 			"meio":                 nome,
 			"fatura":               domain.Doc{"ym": atual, "fechamento": fech, "diasAteFechar": dias, "total": t},
 			"conferidasQueMudaram": conferidasQueMudaram(c, rs, atual),
-		})
+		}
+		if domain.MeioDesativado(listas, nome, hoje) && domain.Arred(t) == 0 { // item 58, R20: cartao encerrado; com fatura (dado antigo) continua visivel
+			entrada["encerrado"] = true
+		}
+		cartoes = append(cartoes, entrada)
 	}
 	comCredito := map[string]bool{}
 	for _, l := range itens {
@@ -170,7 +174,7 @@ func (s *Cartoes) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 	}
 	var livres []string
 	for _, nome := range nomes {
-		if _, ok := domain.CartaoDe(cfgC, nome); !ok {
+		if _, ok := domain.CartaoDe(cfgC, nome); !ok && !domain.MeioDesativado(listas, nome, hoje) { // meio desativado nao vira cartao (item 58)
 			livres = append(livres, nome)
 		}
 	}
@@ -457,6 +461,9 @@ func (s *Cartoes) Adicionar(ctx context.Context, sid string, body domain.Doc) (d
 	if !na {
 		return nil, &ErroValidacao{"esse meio nao esta na lista"}
 	}
+	if domain.MeioDesativado(listas, banco, s.hoje()) { // item 58: cartao tem fatura, pagador e vencimento, que sao eventos novos
+		return nil, &domain.ErroMeioDesativado{Meio: banco, Motivo: "o meio esta desativado: reative-o em Listas para torna-lo cartao"}
+	}
 	err = s.atualizar(ctx, sid, func(por map[string]any) error {
 		if _, ja := por[banco]; ja {
 			return &ErroValidacao{"esse meio ja e um cartao"}
@@ -578,6 +585,9 @@ func (s *Cartoes) validarPagador(ctx context.Context, sid, cartao, pagador strin
 	}
 	for _, n := range nomesDeBancos(listas) {
 		if n == pagador {
+			if domain.MeioDesativado(listas, pagador, s.hoje()) { // item 58, R19: o pagador e um evento do meio
+				return &ErroValidacao{"o pagador esta desativado: escolha um meio ativo"}
+			}
 			return nil
 		}
 	}

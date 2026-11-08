@@ -216,6 +216,66 @@ func (s *Cartoes) AFuturos(ctx context.Context, sid string, seq float64, seqOk b
 	return itens, nil
 }
 
+// EmAberto devolve, de cada cartao, as ultimas tres faturas (a aberta e as duas fechadas antes dela, as nao historicas) com valor maior que zero e sem
+// pagamento registrado (a marca pagaFatura). Diferente de AFuturos, nao depende de vencimento: e o que o encerramento do meio (item 58) confere.
+// Cada item traz meio, ym, rotulo, valor (o total, ou o valor do banco da fatura fechada) e pagador ("" se nao tem).
+func (s *Cartoes) EmAberto(ctx context.Context, sid string) ([]domain.Doc, error) {
+	cfgC, err := s.cfg.Ler(ctx, sid, "cartoes")
+	if err != nil {
+		log.Println("faturas em aberto: cartoes:", err)
+		return nil, ErrInterno
+	}
+	hoje := s.hoje()
+	por, _ := cfgC["porBanco"].(map[string]any)
+	meios := make([]string, 0, len(por))
+	for nome := range por {
+		meios = append(meios, nome)
+	}
+	sort.Strings(meios)
+	itens := []domain.Doc{}
+	var marcados []domain.Doc
+	leuMarcados := false
+	for _, meio := range meios {
+		c, ok := domain.CartaoDe(cfgC, meio)
+		if !ok {
+			continue
+		}
+		atual := domain.FaturaAtual(c, hoje)
+		var cands []string
+		for _, ym := range []string{domain.SomaMes(atual, -2), domain.SomaMes(atual, -1), atual} {
+			if !domain.FaturaHistorica(c, ym) {
+				cands = append(cands, ym)
+			}
+		}
+		if len(cands) == 0 {
+			continue
+		}
+		if !leuMarcados {
+			ini, _ := domain.PeriodoFatura(c, domain.SomaMes(atual, -2))
+			marcados, err = s.marcados(ctx, sid, instanteDoDia(ini, -1), instanteDoDia(domain.SomaDias(hoje, 120), 2))
+			if err != nil {
+				return nil, err
+			}
+			leuMarcados = true
+		}
+		rs, err := s.registros(ctx, sid, c, meio, domain.SomaMes(atual, -1), nil)
+		if err != nil {
+			return nil, err
+		}
+		for _, ym := range cands {
+			valor := domain.TotalFatura(rs, ym)
+			if vb := c.Faturas[ym].ValorBanco; vb != nil && ym < atual {
+				valor = *vb
+			}
+			if !(valor > 0) || temMarca(marcados, meio, ym) {
+				continue
+			}
+			itens = append(itens, domain.Doc{"meio": meio, "ym": ym, "rotulo": domain.RotuloMes(ym), "valor": valor, "pagador": domain.PagadorDe(c, ym)})
+		}
+	}
+	return itens, nil
+}
+
 // marcados le os lancamentos de todos os meios entre dois instantes e devolve os que levam a marca pagaFatura e nao estao excluidos.
 func (s *Cartoes) marcados(ctx context.Context, sid, de, ate string) ([]domain.Doc, error) {
 	todos, err := s.compras(ctx, sid, "", de, ate)

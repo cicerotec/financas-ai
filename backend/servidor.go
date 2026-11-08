@@ -47,6 +47,7 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 	recorrencias := service.NewRecorrencias(repository.NewAvisos(db, table), lancSvc, rel)
 	lancSvc.UsarRecorrencias(recorrencias)
 	avisos.UsarRecorrencias(recorrencias)
+	encerramento := service.NewEncerramento(saldos, lancRepo, cfgRepo, repository.NewAvisos(db, table), lancSvc, cartoes, rel)
 	combos := service.NewCombos(repository.NewAvisos(db, table), cfgRepo, lancRepo, rel)
 	cfgSvc := service.NewConfig(cfgRepo, rel)
 	cfgSvc.UsarRotinaCombos(combos)
@@ -60,7 +61,7 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 		rec:       controller.NewRecorrencias(recorrencias),
 		consultas: controller.NewConsultas(service.NewConsultas(repository.NewConsultas(db, table), pessoas, rel)),
 		cartoes:   &rotasCartao{c: controller.NewCartoes(cartoes)},
-		meios:     controller.NewMeios(service.NewMeios(cfgRepo, lancRepo, rel)),
+		meios:     controller.NewMeios(service.NewMeios(cfgRepo, lancRepo, rel, encerramento)),
 		combos:    controller.NewCombos(combos),
 	}
 }

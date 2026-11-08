@@ -150,6 +150,9 @@ func (s *Lancamentos) criar(ctx context.Context, sid, sub string, body domain.La
 	if err := validarStatus(domain.StatusDe(body)); err != nil {
 		return nil, err
 	}
+	if err := s.guardaDeMeio(ctx, sid).ExigirAtivo(bancoDe(body)); err != nil { // meio desativado nao recebe lancamento (item 58, R14)
+		return nil, err
+	}
 	if err := s.validarMarca(ctx, sid, body); err != nil {
 		return nil, err
 	}
@@ -227,6 +230,9 @@ func (s *Lancamentos) editar(ctx context.Context, sid, id, de string, patch doma
 			return nil, err
 		}
 	}
+	if err := s.guardaDeMeio(ctx, sid).PodeEditar(antes, novo); err != nil { // item 58, R14 e R15
+		return nil, err
+	}
 	if _, mexeu := patch["pagaFatura"]; mexeu {
 		if err := s.validarMarca(ctx, sid, novo); err != nil {
 			return nil, err
@@ -282,6 +288,9 @@ func (s *Lancamentos) Excluir(ctx context.Context, sid, id, de, sub string, conf
 	if antigo == nil || domain.Excluido(antigo) {
 		return domain.Doc{"ok": true}, nil
 	}
+	if err := s.guardaDeMeio(ctx, sid).PodeExcluir(antigo); err != nil { // item 58, R14
+		return nil, err
+	}
 	if err := s.travaDeFatura(ctx, sid).Checar(antigo, nil); err != nil {
 		return nil, err
 	}
@@ -331,6 +340,7 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 	ultimas := map[string]int{} // maior versao por id, contando o que este lote ja vai gravar
 	tr := s.ef.Travas(ctx, sid)
 	trF := s.travaDeFatura(ctx, sid)
+	guarda := s.guardaDeMeio(ctx, sid)
 	var alvos []domain.Alvo
 	var aceitos []domain.Lancamento
 	var mudancas []domain.Mudanca
@@ -357,6 +367,14 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 			var ev *ErroValidacao
 			if errors.As(err, &ev) {
 				rejeitados = append(rejeitados, domain.Doc{"indice": i, "motivo": ev.Msg})
+				continue
+			}
+			return nil, err
+		}
+		if err := s.importavelNoMeio(ctx, sid, guarda, d); err != nil {
+			var dm *domain.ErroMeioDesativado
+			if errors.As(err, &dm) {
+				rejeitados = append(rejeitados, domain.Doc{"indice": i, "codigo": "meio_desativado", "motivo": dm.Error()})
 				continue
 			}
 			return nil, err
@@ -403,6 +421,14 @@ func (s *Lancamentos) Importar(ctx context.Context, sid, sub string, body domain
 		if err != nil {
 			log.Println("importar: buscar:", err)
 			return nil, ErrInterno
+		}
+		if err := s.importavelSobre(ctx, sid, guarda, antigo); err != nil {
+			var dm *domain.ErroMeioDesativado
+			if errors.As(err, &dm) {
+				rejeitados = append(rejeitados, domain.Doc{"indice": i, "codigo": "meio_desativado", "motivo": dm.Error()})
+				continue
+			}
+			return nil, err
 		}
 		if err := trF.Checar(antigo, d); err != nil {
 			var fc *domain.ErroFaturaConferida

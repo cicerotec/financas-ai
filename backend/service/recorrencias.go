@@ -231,6 +231,14 @@ func (s *Recorrencias) Rodar(ctx context.Context, hoje string, itens []domain.Do
 		copia["id"] = domain.IDCopiaRecorrencia(primeiro, proxima)
 		criadoPor, _ := ponta["criadoPor"].(string)
 		nova, err := s.lanc.CriarCopia(ctx, sid, criadoPor, copia)
+		var desat *domain.ErroMeioDesativado
+		if errors.As(err, &desat) { // o meio foi encerrado (ou removido): a recorrencia acaba em vez de tentar todo dia (item 58, R14)
+			log.Println("recorrencia: o meio da recorrencia esta desativado; recorrencia removida")
+			if err := s.repo.Remover(ctx, sid, id); err != nil {
+				log.Println("recorrencia: apagar item:", err)
+			}
+			continue
+		}
 		if err != nil {
 			log.Println("recorrencia: criar a copia:", err)
 			continue

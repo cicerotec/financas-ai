@@ -35,7 +35,13 @@ func respostaErro(err error) (Resp, error) {
 	var dif *service.ErroDiferenca
 	var difFat *service.ErroDiferencaFatura
 	var fatConf *domain.ErroFaturaConferida
+	var desat *domain.ErroMeioDesativado
+	var pend *service.ErroMeioComPendencia
 	switch {
+	case errors.As(err, &desat): // o meio foi encerrado (ou removido): nao recebe lancamento
+		return Out(http.StatusConflict, domain.Doc{"erro": desat.Error(), "codigo": "MEIO_DESATIVADO", "meio": desat.Meio})
+	case errors.As(err, &pend): // desativar enquanto o meio ainda participa de algum evento
+		return Out(http.StatusConflict, domain.Doc{"erro": pend.Error(), "codigo": "MEIO_COM_PENDENCIA", "pendencias": pend.Itens})
 	case errors.As(err, &ev):
 		return Erro(http.StatusBadRequest, ev.Error())
 	case errors.Is(err, domain.ErrDadosInvalidos):

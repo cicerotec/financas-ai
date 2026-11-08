@@ -1242,7 +1242,7 @@ function renderListas(){
   // reconstruir os <option> zera o select para o primeiro item; guarda e devolve a escolha atual (se ainda existir)
   const refazer = (sel, itens)=>{
     const atual = sel.value;
-    if(atual && !itens.includes(atual) && listas.banco.includes(atual)) itens = [...itens, atual]; // o meio já escolhido fica, mesmo desativado
+    if(editandoId && atual && !itens.includes(atual) && listas.banco.includes(atual)) itens = [...itens, atual]; // editando: o meio do lançamento fica, mesmo desativado (item 58: fora da edição, um meio desativado depois não é mantido)
     sel.innerHTML = itens.map(s=>`<option>${esc(s)}</option>`).join('');
     if(atual && itens.includes(atual)) sel.value = atual;
   };
@@ -1336,6 +1336,8 @@ async function salvarListas(){
 // O servidor diz quais meios estão ativos (GET /cfg/listas: meios[].ativo); aqui só se exibe e se pede (PUT e DELETE /meios/{meio}).
 const meioDe = (nome)=> meiosLista.find(m=>m.nome===nome);
 const meioAtivo = (nome)=>{ const m = meioDe(nome); return !m || m.ativo!==false; };
+const meioDesativado = (nome)=>{ const m = meioDe(nome); return !!m && m.ativo===false; }; // quem diz e o servidor (meios[].ativo); item 58
+const marcaDesativado = (nome, cls)=>meioDesativado(nome) ? `<span class="desat${cls?' '+cls:''}">desativado</span>` : '';
 const meiosSugeridos = ()=> listas.banco.filter(meioAtivo);
 // garante que o select tem a opção do meio de um lançamento antigo (editar ou copiar), mesmo desativado
 function opcaoMeio(sel, nome){
@@ -1348,7 +1350,7 @@ function renderMeios(){
   const mostrar = listas.banco.filter(n=>verMeiosInativos || meioAtivo(n));
   el.innerHTML = mostrar.map(n=>{
     const m = meioDe(n) || {nome:n, ativo:true}, off = m.ativo===false, futuro = m.ativo!==false && !!m.ativoAte;
-    const sub = off ? `<small>Inativo desde ${esc(fmtDataCompleta(m.ativoAte))}</small>` : futuro ? `<small>Deixa de ser sugerido em ${esc(fmtDataCompleta(m.ativoAte))}</small>` : '';
+    const sub = off ? `<small>Inativo desde ${esc(fmtDataCompleta(m.ativoAte))}</small>` : futuro ? `<small>Deixa de ser sugerido em ${esc(fmtDataCompleta(m.ativoAte))}</small>` : ''; // futuro: dado antigo do item 43; hoje so se desativa a partir de hoje
     return `<div class="meio${off?' off':''}" role="button" tabindex="0" data-meio="${esc(n)}"><div class="nm">${esc(n)}${m.cartao?'<span class="sel">crédito</span>':''}${sub}</div><span class="mais" aria-hidden="true">›</span></div>`;
   }).join('');
   const abrir = (e)=>{ const r = e.target.closest('[data-meio]'); if(r && ehOwner()) acoesMeio(r.dataset.meio); };
@@ -1367,7 +1369,9 @@ function acoesMeio(nome){
   const m = meioDe(nome) || {}, desativado = m.ativo===false || !!m.ativoAte;
   janelaMeio(nome,
     `<div class="vz">${desativado?'<button type="button" id="meioReativar">Reativar</button>':'<button type="button" id="meioDesativar">Desativar…</button>'}<button type="button" class="perigo" id="meioRemover">Remover</button></div>
-     <p class="muted" style="margin:0 0 14px;">Desativar guarda o passado. Remover só vale para um meio que nunca teve lançamento.</p>`,
+     <p class="muted" style="margin:0 0 14px;">${m.ativo===false
+       ? `Desativado em ${esc(fmtDataCompleta(m.ativoAte))}: não recebe lançamentos, e os que já tem só aceitam mudar descrição, nota e tags. Reative para voltar a usar. Remover só vale se todos os lançamentos dele estiverem excluídos.`
+       : 'Desativar encerra a conta e guarda o passado. Remover só vale para um meio sem lançamentos.'}</p>`,
     '<button class="ghost" id="meioFechar">Fechar</button>');
   document.getElementById('meioFechar').onclick = fecharJanelaMeio;
   const bd = document.getElementById('meioDesativar'), br = document.getElementById('meioReativar');
@@ -1376,31 +1380,32 @@ function acoesMeio(nome){
   document.getElementById('meioRemover').onclick = ()=>removerMeio(nome);
 }
 async function definirMeio(nome, ativoAte, aviso){
-  try{ await db.meioDefinir(nome, ativoAte); }
+  let r;
+  try{ r = await db.meioDefinir(nome, ativoAte); }
   catch(err){ console.error(err); fecharJanelaMeio(); toast(err.message || 'Não consegui alterar o meio.', true); return; }
+  if(r.status===409){ mostrarPendenciasMeio(nome, (r.body && r.body.pendencias) || [], r.body && r.body.erro); return; }
   fecharJanelaMeio(); toast(aviso);
 }
+// o servidor recusou (409 MEIO_COM_PENDENCIA): mostra o que falta, nas frases dele (demo: .ai/demos/demo-listas-v6-encerrar.html)
+function mostrarPendenciasMeio(nome, itens, erro){
+  document.getElementById('modalMsg').textContent = `Não dá para desativar ${nome} ainda`;
+  document.getElementById('modalExtra').innerHTML = itens.length
+    ? `<p class="muted" style="margin:0 0 8px;">Resolva o que falta e tente de novo:</p><ul class="pend">${itens.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`
+    : `<p class="muted" style="margin:0 0 14px;">${esc(erro || 'O servidor recusou.')}</p>`;
+  document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="meioFechar">Fechar</button>';
+  document.getElementById('meioFechar').onclick = fecharJanelaMeio;
+}
+// Desativar e encerrar a conta (item 58): so a partir de hoje, e o servidor confere antes se o meio ainda participa de algum evento
 function desativarMeio(nome){
-  let quando = 'hoje';
   janelaMeio(`Desativar ${nome}?`,
-    `<div class="esc" id="meioQuando" role="group" aria-label="A partir de quando"><button type="button" data-q="hoje" aria-pressed="true">A partir de hoje</button><button type="button" data-q="fim" aria-pressed="false">Fim do mês</button><button type="button" data-q="outra" aria-pressed="false">Outra data</button><input type="date" id="meioOutraData" hidden></div>
-     <p class="muted" style="margin:0 0 14px;">Lançamentos e saldos de antes continuam com ${esc(nome)}. Dá para reativar quando quiser.</p>
-     <p class="muted" id="meioErro" style="color:var(--danger);margin:0 0 10px;"></p>`,
+    `<p class="muted" style="margin:0 0 10px;">Vale <b>a partir de hoje</b>. Antes de desativar, o servidor confere se ${esc(nome)} ainda participa de algum evento: saldo, lançamentos previstos ou futuros, recorrência, fatura e pagador do cartão.</p>
+     <p class="muted" style="margin:0 0 14px;">Depois de desativado, ${esc(nome)} não recebe mais lançamentos. O passado continua igual, e dá para reativar quando quiser.</p>`,
     '<button class="ghost" id="meioCancelar">Cancelar</button><button class="primary" id="meioConfirmar">Desativar</button>');
-  document.getElementById('meioOutraData').value = chaveDia(new Date());
-  document.getElementById('meioQuando').onclick = (e)=>{
-    const b = e.target.closest('button[data-q]'); if(!b) return;
-    quando = b.dataset.q;
-    document.querySelectorAll('#meioQuando button').forEach(x=>x.setAttribute('aria-pressed', x===b));
-    document.getElementById('meioOutraData').hidden = quando!=='outra';
-  };
   document.getElementById('meioCancelar').onclick = fecharJanelaMeio;
-  document.getElementById('meioConfirmar').onclick = ()=>{
-    const h = new Date();
-    // a data em que o meio deixa de valer: hoje, o 1º dia do mês seguinte (ativo até o fim do mês) ou a escolhida
-    const data = quando==='hoje' ? chaveDia(h) : quando==='fim' ? chaveDia(new Date(h.getFullYear(), h.getMonth()+1, 1)) : document.getElementById('meioOutraData').value;
-    if(!data){ document.getElementById('meioErro').textContent = 'Escolha a data.'; return; }
-    definirMeio(nome, data, `✓ ${nome} desativado`);
+  document.getElementById('meioConfirmar').onclick = async ()=>{
+    document.getElementById('modalExtra').innerHTML = `<p class="muted" style="margin:0 0 14px;">Conferindo se ${esc(nome)} ainda participa de algum evento…</p>`;
+    document.getElementById('meioConfirmar').disabled = true; document.getElementById('meioCancelar').disabled = true;
+    await definirMeio(nome, 'hoje', `✓ ${nome} desativado`);
   };
 }
 // Remover: o servidor confere se o meio nunca foi usado (só aqui, ao clicar); com lançamento ou cartão, recusa e explica
@@ -2053,6 +2058,7 @@ function definirStatusDoFormulario(status, soDaLista){
   sel.value = status;
 }
 function limparFormulario(){
+  travarFormulario('');
   formRec = null; atualizarLinhaRec(); atualizarCampoRec();
   definirMarcaDoFormulario(null);
   [...document.querySelectorAll('#fStatus option[data-extra]')].forEach(o=>o.remove());
@@ -2255,18 +2261,22 @@ function dataBR(l){ return new Date(l.dataEvento).toLocaleDateString('pt-BR'); }
 // Acoes de um evento, na ordem e com as mesmas permissoes de antes. t = nome da acao (janela do celular e dica do botao da tabela); i = o icone.
 function acoesDoEvento(l){
   const a = [];
+  // Meio desativado (item 58): so descricao, nota e tags mudam; as outras acoes aparecem apagadas com o motivo na janela de baixo e somem dos icones da tabela.
+  // Demo: .ai/demos/demo-historico-v3-desativado.html. Quem recusa de verdade e o servidor (409 MEIO_DESATIVADO).
+  const off = meioDesativado(l.banco);
+  const bloq = (x, motivo)=>off ? Object.assign(x, {desab:true, motivo: motivo || `${l.banco} está desativado`}) : x;
   // Confirmar vale so para previsto (o servidor manda previsto: true); em saida o texto e "Já paguei", em entrada "Já recebi"
-  if(l.previsto && podeMexer(l)) a.push({k:'confirmar', i:'confirmar', t:l.tipo==='saida'?'Já paguei':'Já recebi', pri:true});
-  if(podeMexer(l)) a.push({k:'editar', i:'editar', t:'Editar'});
-  a.push({k:'copiar', i:'copiar', t:'Copiar'});
-  if(!l.transferParId) a.push({k:'prever', i:l.serie?'estender':'prever', t:l.serie?'Estender série':'Prever próximas datas'});
+  if(l.previsto && podeMexer(l)) a.push(bloq({k:'confirmar', i:'confirmar', t:l.tipo==='saida'?'Já paguei':'Já recebi', pri:true}));
+  if(podeMexer(l)) a.push(off ? {k:'editar', i:'editar', t:'Editar', sub:'só descrição, nota e tags'} : {k:'editar', i:'editar', t:'Editar'});
+  a.push(bloq({k:'copiar', i:'copiar', t:'Copiar'}));
+  if(!l.transferParId) a.push(bloq({k:'prever', i:l.serie?'estender':'prever', t:l.serie?'Estender série':'Prever próximas datas'}));
   // Recorrencia (item 51): tornar recorrente quem ainda nao e; parar so na ponta (a copia que o servidor diz ser a mais recente).
   if(!l.transferParId && podeMexer(l)){
     if(recorrenciaDe(l)) a.push({k:'pararRec', i:'pararRec', t:'Parar recorrência'});
-    else if(!l.recorrente) a.push({k:'tornarRec', i:'recorrente', t:'Tornar recorrente'});
+    else if(!l.recorrente) a.push(bloq({k:'tornarRec', i:'recorrente', t:'Tornar recorrente'}));
   }
-  if(podeMexer(l)) a.push({k:'ocultar', i:l.oculto?'mostrar':'ocultar', t:l.oculto?'Mostrar':'Ocultar'});
-  if(ehOwner()) a.push({k:'excluir', i:'excluir', t:'Excluir', perigo:true});
+  if(podeMexer(l)) a.push(bloq({k:'ocultar', i:l.oculto?'mostrar':'ocultar', t:l.oculto?'Mostrar':'Ocultar'}, 'mudaria o saldo de uma conta encerrada'));
+  if(ehOwner()) a.push(bloq({k:'excluir', i:'excluir', t:'Excluir', perigo:true}, 'reative o meio em Listas para excluir'));
   return a;
 }
 // Botoes da tabela: so o icone (traco de 2 px, herda a cor), com o nome em title e aria-label. Cada acao tem o seu lugar fixo na coluna de acoes
@@ -2289,7 +2299,7 @@ const LUGAR_ACAO = {confirmar:1, editar:2, copiar:3, prever:4, avisar:4, recorre
 function botaoAcao(k, icone, nome, id, cls){
   return `<button type="button" class="${cls||''}" data-acao="${k}" data-id="${id}" style="grid-column:${LUGAR_ACAO[icone==='estender'?'prever':icone==='mostrar'?'ocultar':icone]||LUGAR_ACAO[k]}" title="${esc(nome)}" aria-label="${esc(nome)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES_ACAO[icone]}</svg></button>`;
 }
-const botoesDoEvento = (l, id)=>acoesDoEvento(l).map(a=>botaoAcao(a.k, a.i, a.t, id, (a.perigo?'perigo':'')+(a.pri?'pri':''))).join('');
+const botoesDoEvento = (l, id)=>acoesDoEvento(l).filter(a=>!a.desab).map(a=>botaoAcao(a.k, a.i, a.t, id, (a.perigo?'perigo':'')+(a.pri?'pri':''))).join('');
 const PONTOS_FUT = '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.7" fill="currentColor"/><circle cx="10" cy="10" r="1.7" fill="currentColor"/><circle cx="16" cy="10" r="1.7" fill="currentColor"/></svg>';
 function htmlEventoFuturo(l){
   const p = prazoFuturo(l), id = esc(l.id);
@@ -2324,7 +2334,9 @@ function abrirAcoesFuturo(id){
   ov.className = 'fut-ov'; ov.id = 'futOv';
   ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Ações de ${esc(l.descricao)}">
     <h3>${esc(l.descricao)}</h3><p class="mm">${fmtMoeda(Math.abs(valorAssinado(l)))} · ${dataBR(l)} · ${esc(l.banco||'-')}</p>
-    ${acoesDoEvento(l).map(a=>`<button type="button" class="fut-ac${a.perigo?' perigo':''}${a.pri?' pri':''}" data-acao="${a.k}" data-id="${esc(l.id)}">${a.t}</button>`).join('')}</div>`;
+    ${acoesDoEvento(l).map(a=>a.desab
+      ? `<button type="button" class="fut-ac com-sub" aria-disabled="true">${a.t}<small>${esc(a.motivo)}</small></button>`
+      : `<button type="button" class="fut-ac${a.perigo?' perigo':''}${a.pri?' pri':''}${a.sub?' com-sub':''}" data-acao="${a.k}" data-id="${esc(l.id)}">${a.t}${a.sub?`<small>${esc(a.sub)}</small>`:''}</button>`).join('')}</div>`;
   ov.addEventListener('click', e=>{
     const b = e.target.closest('button[data-acao]');
     if(b){ fecharAcoesFuturo(); executarAcaoRegistro(b.dataset.acao, b.dataset.id); return; }
@@ -2387,7 +2399,7 @@ function htmlLinhaHist(l, busca){
     <div class="fut-m" ${abrir}>
       <span class="l"><span class="d">${esc(l.descricao)}</span>
         <span class="mt"><span>${busca?dataBR(l):horaBR(l)}</span>${seloStatus(l.status)}${chipRecorrente(l)}${chipPagaFatura(l)}<span class="bk">${esc(l.banco||'-')}${l.oculto?' · oculto':''}${fut}</span>${htmlNotaIcone(l)}</span>
-        ${tags?`<span class="hist-tags">${tags}</span>`:''}</span>
+        ${(tags||meioDesativado(l.banco))?`<span class="hist-tags">${marcaDesativado(l.banco,'sem-margem')}${tags}</span>`:''}</span>
       <span class="r">${htmlValorLinha(l)}</span>
       ${sel ? ck : `<span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>`}
     </div>
@@ -2395,7 +2407,7 @@ function htmlLinhaHist(l, busca){
       ${sel ? `<span class="lote-c">${ck}</span>` : ''}
       <span class="dt">${dataBR(l)}<small>${horaBR(l)}</small></span>
       <span class="dd"><span class="dl"><span class="d" title="${esc(l.descricao)}">${esc(l.descricao)}</span>${chipRecorrente(l)}</span>${(tags||l.nota)?`<span class="sub hist-sub"><span class="hist-tags-t">${tags}</span>${htmlNotaIcone(l)}</span>`:''}</span>
-      <span class="bk" title="${esc(l.banco||'-')}">${esc(l.banco||'-')}${l.oculto?' · oculto':''}</span>
+      <span class="bk" title="${esc(l.banco||'-')}${meioDesativado(l.banco)?' (desativado)':''}">${esc(l.banco||'-')}${l.oculto?' · oculto':''}${marcaDesativado(l.banco)}</span>
       <span class="st">${seloStatus(l.status)}</span>
       <span class="v">${htmlValorLinha(l)}</span>
       <span class="fut-acoes">${botoes}</span>
@@ -2443,7 +2455,7 @@ function renderFiltrosHistCampos(){
   const presentes = new Set([...lancamentosCache, ...lancamentosMes, ...lancamentosBusca].map(l=>l.status).filter(Boolean));
   const opcoes = [...listas.status, ...[...presentes].filter(x=>!listas.status.includes(x)).sort()]; // inclui os antigos que aparecem no periodo (ex.: CREDITO IN)
   st.innerHTML = opcoes.filter(x=>listas.status.includes(x) || presentes.has(x)).map(x=>b('st',x,filStatusSelecionados.has(x))).join('');
-  bk.innerHTML = listas.banco.map(x=>b('bk',x,filBancoSelecionados.has(x))).join('');
+  bk.innerHTML = listas.banco.map(x=>b('bk',x,filBancoSelecionados.has(x)).replace(`>${esc(x)}</button>`, `>${esc(x)}${marcaDesativado(x)}</button>`)).join(''); // o meio desativado continua escolhivel, com a marca (item 58)
 }
 
 function renderHistorico(){
@@ -2548,6 +2560,16 @@ function removerLocal(id){
   renderHistorico();
 }
 
+// Editar um lançamento de meio desativado (item 58, demo .ai/demos/demo-lancar-v7-meio-desativado.html): só descrição, nota e tags mudam. Uma faixa explica,
+// e tipo, valor, data, meio, forma de pagamento e "Mais" ficam apagados e sem toque. É só a vista: quem recusa de verdade qualquer outra mudança é o servidor (409 MEIO_DESATIVADO).
+function travarFormulario(banco){
+  const on = !!banco, card = document.getElementById('formCard');
+  card.classList.toggle('travado', on);
+  const av = document.getElementById('avisoDesat');
+  av.classList.toggle('hidden', !on);
+  av.innerHTML = on ? `<b>${esc(banco)} está desativado</b>Só a descrição, a nota e as tags deste lançamento podem mudar. Para mudar o valor, a data ou a forma de pagamento, reative o meio em Listas.` : '';
+  card.querySelectorAll('#tipoLancar button, #dtAtalhos button, #maisAbrir, #fValor, #fData, #fBanco, #fStatus, #maisDet input, #maisDet select, #maisDet button').forEach(el=>{ el.disabled = on; });
+}
 function iniciarEdicao(id){
   const l = acharLancamento(id);
   if(!l) return;
@@ -2575,6 +2597,7 @@ function iniciarEdicao(id){
   renderTagPicker();
   document.getElementById('btnSalvar').textContent = 'Salvar edição';
   document.getElementById('btnCancelarEdicao').classList.remove('hidden');
+  travarFormulario(meioDesativado(l.banco) ? l.banco : '');
   assinaturaEdicao = assinaturaFormulario();
   irParaAba('lancar');
 }
@@ -2583,6 +2606,7 @@ function iniciarCopia(id){
   const l = acharLancamento(id);
   if(!l) return;
   editandoId = null; assinaturaEdicao = null;
+  travarFormulario('');
   formRec = null; atualizarLinhaRec(); atualizarCampoRec();
   document.getElementById('btnSalvar').textContent = 'Salvar lançamento';
   document.getElementById('btnCancelarEdicao').classList.add('hidden');
@@ -2797,7 +2821,7 @@ function pedirPagamentoFatura(f){
     };
     let lista = await sugerir(agora);
     const opcoes = (itens, atual)=>itens.map(x=>`<option value="${esc(x)}" ${x===atual?'selected':''}>${esc(x)}</option>`).join('');
-    const meios = listas.banco.filter(n=>meioAtivo(n) || n===f.sugestao.pagador);
+    const meios = listas.banco.filter(meioAtivo); // meio desativado nao paga fatura (item 58), nem como sugestao
     const meioInicial = f.sugestao.pagador && meios.includes(f.sugestao.pagador) ? f.sugestao.pagador : meios[0];
     document.getElementById('modalMsg').textContent = 'Já paguei a fatura ' + f.rotulo + ' · ' + f.meio;
     document.getElementById('modalExtra').innerHTML =
@@ -3190,8 +3214,10 @@ function ordemManualEfetiva(){
   nomes.forEach(n=>{ if(!base.includes(n)) base.push(n); });
   return base;
 }
+// o servidor marca encerrado o meio desativado de saldo zero (item 58): a tela o esconde; o desativado com saldo continua, com a marca
+const saldoEncerrado = (b)=>!!(saldosAtuais[b] && saldosAtuais[b].encerrado);
 function indicesOrdenados(){
-  const idx = listas.banco.map((_,i)=>i);
+  const idx = listas.banco.map((_,i)=>i).filter(i=>!saldoEncerrado(listas.banco[i]));
   if(ordemSaldos==='valor'){
     const v = i=>{ const r = saldosAtuais[listas.banco[i]]; return r ? r.saldo : -Infinity; };
     return idx.sort((a,b)=> (v(b)-v(a)) || (a-b));
@@ -3252,13 +3278,13 @@ function renderSaldos(){
   te.style.fontSize = '32px';
   const hora = saldosUltimaCalc ? new Date(saldosUltimaCalc).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
   document.getElementById('saldoSub').textContent = saldosCarregando ? 'Calculando...' :
-    `${listas.banco.length} banco${listas.banco.length>1?'s':''}${tot.fora?` · ${tot.fora} fora do total`:''}${tot.incompleto?' · ⚠ confira':''}${hora?` · atualizado ${hora}`:''}`;
+    `${listas.banco.filter(b=>!saldoEncerrado(b)).length} banco${listas.banco.filter(b=>!saldoEncerrado(b)).length>1?'s':''}${tot.fora?` · ${tot.fora} fora do total`:''}${tot.incompleto?' · ⚠ confira':''}${hora?` · atualizado ${hora}`:''}`;
   let h = '';
   if(layoutSaldos==='tiles'){
     h += '<div class="sd-tiles">' + indicesOrdenados().map(i=>{
       const b = listas.banco[i];
       const cfg = saldosConfig[b], r = saldosAtuais[b];
-      return `<div class="sd-tile ${saldoAberto===i?'aberto':''} ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${esc(b)}${cfg&&cfg.foraDoTotal?' · fora':''}</div><div class="${classeVal(r)}">${textoVal(r)}</div></div>`;
+      return `<div class="sd-tile ${saldoAberto===i?'aberto':''} ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${esc(b)}${marcaDesativado(b)}${cfg&&cfg.foraDoTotal?' · fora':''}</div><div class="${classeVal(r)}">${textoVal(r)}</div></div>`;
     }).join('') + '</div>';
     if(saldoAberto>=0 && listas.banco[saldoAberto]!==undefined) h += painelSaldoHtml(saldoAberto);
   } else {
@@ -3266,7 +3292,7 @@ function renderSaldos(){
       const b = listas.banco[i];
       const cfg = saldosConfig[b], r = saldosAtuais[b];
       const dica = !cfg ? 'defina o saldo inicial' : (cfg.foraDoTotal ? 'fora do total' : '');
-      return `<div class="sd-row ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${esc(b)}${dica?`<div class="sd-sub">${dica}</div>`:''}</div><div class="${classeVal(r)}">${textoVal(r)}</div><span class="muted">${saldoAberto===i?'▴':'▾'}</span></div>` +
+      return `<div class="sd-row ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${esc(b)}${marcaDesativado(b)}${dica?`<div class="sd-sub">${dica}</div>`:''}</div><div class="${classeVal(r)}">${textoVal(r)}</div><span class="muted">${saldoAberto===i?'▴':'▾'}</span></div>` +
         (saldoAberto===i ? painelSaldoHtml(i) : '');
     }).join('');
   }
@@ -3360,7 +3386,7 @@ async function carregarSaldos(forcar){
     saldosTotal = r.total || null;
     const novos = {};
     (r.meios||[]).forEach(m=>{
-      novos[m.meio] = m.erro ? {saldo:0, erro:true} : {saldo:m.saldo, historico:(m.meses||[]).map(x=>({mes:x.mes, valor:x.valor, conf:x.conferido||null, estado:x.estado}))};
+      novos[m.meio] = m.erro ? {saldo:0, erro:true} : {saldo:m.saldo, encerrado:!!m.encerrado, historico:(m.meses||[]).map(x=>({mes:x.mes, valor:x.valor, conf:x.conferido||null, estado:x.estado}))};
     });
     saldosAtuais = novos;
     saldosUltimaCalc = Date.now();
@@ -3626,7 +3652,7 @@ function painelCartaoHtml(){
 function renderCartao(){
   const el = document.getElementById('listaCartoes');
   if(!el) return;
-  const r = cartoesResumo, lista = (r && r.cartoes) || [], n = lista.length;
+  const r = cartoesResumo, lista = ((r && r.cartoes) || []).filter(c=>!c.encerrado), n = lista.length; // o servidor marca encerrado o cartao desativado sem fatura (item 58)
   document.getElementById('cartaoTotal').textContent = (n && r) ? fmtMoeda(r.total) : '···';
   document.getElementById('cartaoSub').textContent = !r ? (cartaoErro || (cartaoCarregando ? 'Calculando...' : '')) :
     (!n ? 'Adicione um cartão abaixo' : (cartaoCarregando ? 'Calculando...' :
@@ -3634,7 +3660,7 @@ function renderCartao(){
   let h = '';
   lista.forEach(c=>{
     const fat = c.fatura, mudou = c.conferidasQueMudaram;
-    h += `<div class="sd-row" data-cartao="${esc(c.meio)}"><div class="sd-nome">${esc(c.meio)}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fat.fechamento)} · ${textoDias(fat.diasAteFechar)}${mudou?` · <span style="color:var(--expense);">⚠ ${mudou} fatura${mudou>1?'s conferidas mudaram':' conferida mudou'}</span>`:''}</div></div><div class="sd-val ${cartaoCarregando?'carr':''}">${fmtMoeda(fat.total)}</div><span class="muted">${cartaoAbertoMeio===c.meio?'▴':'▾'}</span></div>`;
+    h += `<div class="sd-row" data-cartao="${esc(c.meio)}"><div class="sd-nome">${esc(c.meio)}${marcaDesativado(c.meio)}<div class="sd-sub">fatura atual · fecha ${fmtDiaMes(fat.fechamento)} · ${textoDias(fat.diasAteFechar)}${mudou?` · <span style="color:var(--expense);">⚠ ${mudou} fatura${mudou>1?'s conferidas mudaram':' conferida mudou'}</span>`:''}</div></div><div class="sd-val ${cartaoCarregando?'carr':''}">${fmtMoeda(fat.total)}</div><span class="muted">${cartaoAbertoMeio===c.meio?'▴':'▾'}</span></div>`;
     if(cartaoAbertoMeio===c.meio) h += painelCartaoHtml();
   });
   if(!n) h = '<p class="muted" style="padding:6px 4px;">Nenhum cartão cadastrado ainda.</p>';

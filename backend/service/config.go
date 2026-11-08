@@ -169,6 +169,24 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 		} else if antigos, ok := atual["banco"]; ok {
 			body["banco"] = antigos
 		}
+	case "saldos":
+		// item 58: o saldo inicial e a data de inicio de um meio desativado nao mudam (mudariam o saldo sem lancamento e o limite do Importar)
+		listas, err := s.repo.Ler(ctx, sid, "listas")
+		if err != nil {
+			log.Println("put cfg saldos: listas:", err)
+			return nil, ErrInterno
+		}
+		atual, err := s.repo.Ler(ctx, sid, "saldos")
+		if err != nil {
+			log.Println("put cfg saldos: saldos:", err)
+			return nil, ErrInterno
+		}
+		hoje := domain.HojeDe(s.rel.Agora())
+		for meio := range domain.AtivoAteDe(listas) {
+			if domain.MeioDesativado(listas, meio, hoje) && domain.MudaInicioDoMeio(atual, body, meio) {
+				return nil, &domain.ErroMeioDesativado{Meio: meio, Motivo: "o meio " + meio + " esta desativado: reative-o em Listas para mudar o saldo inicial ou a data de inicio"}
+			}
+		}
 	case "combos":
 		// sugeridos e geradoEm sao do servidor (item 57): so a rotina semanal os muda; o corpo e ignorado e o gravado continua
 		delete(body, "rotinaAtiva")
