@@ -30,6 +30,7 @@ pendentes: nenhum.
 - [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
 - [\[Front\] - 54 - **\[Próximo\] App Android com Capacitor:**](#item-54)
 - [\[Infra\] - 11 - **\[Depois\] Backup periódico:**](#item-11)
+- [\[Backend\] - 59 - **\[Depois\] Congelar meio (continua existindo, mas não aceita eventos novos):**](#item-59)
 - [\[Backend\] - 39 - **\[Depois\] Open Finance (visão):**](#item-39)
 - [\[Backend\] - 12 - **\[Depois\] Colaboração, Fase 1:**](#item-12)
 - [\[Backend\] - 13 - **\[Depois\] Colaboração, Fase 2:**](#item-13)
@@ -102,6 +103,30 @@ DynamoDB sem discutir com o dono.**
   **Também entra aqui (lembrado na conversa):** o cache das faturas de Futuros acompanha a versão de `CFG#LISTAS` (já ficou assim na tentativa revertida); os documentos do item 43
   (`.ai/specs/meios-de-pagamento/`, o R9 e os Limites do `intent.md`, `padrao-de-telas.md`) precisam ser corrigidos quando a regra for decidida; o meio `Teste` do dono, que hoje está desativado com um
   lançamento, precisa de um fim (excluir o lançamento e remover, se o item 8 permitir). **Dado novo no DynamoDB:** nenhum previsto (o `ativoAte` basta); se a análise pedir um (por exemplo `desativadoEm`), só entra com a aprovação do dono.
+  **DECIDIDO pelo dono em 2026-11-08 (análise concluída; falta implementar, com a demo do Histórico antes; este item vira o "Encerrar", o "congelar" é o item 59):**
+  - **Desativar = encerrar a conta.** Só vale **a partir de hoje**: some "Fim do mês" e "Outra data", porque a conferência é feita na hora do pedido e quem desativa aceita a análise daquele momento.
+  - **O servidor recusa desativar, explicando o que falta,** se houver: saldo diferente de zero (arredondado a centavos, também para meio sem início e fora do total); lançamento previsto ou
+    com data futura no meio (inclui ponta de transferência futura); recorrência ativa cuja última cópia está no meio (checar à parte: a ponta vencida sem a próxima cópia não é previsto nem futura); cartão com fatura
+    aberta ou fechada, total maior que zero e sem marca de paga; aviso pendente de fatura; meio usado como **pagador** de cartão ou de fatura em aberto (recusa até trocar o pagador). O meio não pode participar de nenhum evento.
+  - **Depois de desativado, nada novo entra no meio:** o servidor recusa criar, Transferir, Confirmar previsto, recorrência, restaurar versão e trocar o banco de um lançamento para ele (código `MEIO_DESATIVADO`).
+    Reverte o R9 do item 43. Três portas a cobrir: `criar`, `CriarCopia` (recorrência) e `Transferir` (que grava por `SalvarLote`).
+  - **Importar é a exceção:** num meio desativado entra só o registro com `dataEvento` **anterior** à `dataInicio` do meio (a partir dela o saldo conta); sem `dataInicio`, recusa o registro. Vale só para desativados
+    (nos ativos, importar segue livre); a recusa é por registro (os bons entram, os ruins voltam em `rejeitados`, com código novo); a trava de mês conferido continua por cima.
+  - **Some de Saldos, Cartão e Futuros** (o saldo é zero e não há evento, então nada se perde); **só aparece no Histórico, com marca "desativado"** (demo antes) e continua escolhível no filtro de meio.
+    Edição de lançamento de meio desativado: só descrição, nota e tags (lógica do `mudaSaldo` do item 38). **Reativar** sempre possível: o meio volta a aparecer com o que tem.
+  - **Remover** aceita o meio cujos lançamentos estão **todos excluídos logicamente** (`UsaMeio` passa a ignorar o `excluidoEm`), o que resolve o `Teste`. **Restaurar versão passa a validar o meio contra a lista:** meio removido ou
+    desativado é recusado ("cadastre o meio de novo para restaurar"), então o histórico não traz um meio removido de volta. `HIST#` continua imutável. Se um meio for recriado com o mesmo nome, os excluídos do antigo passam a apontar para o novo (não entram no saldo; só valem se restaurados): aceito.
+  - **Nenhum dado novo no DynamoDB:** o `ativoAte` basta. Falta, ao implementar: o cache das faturas de Futuros acompanhar a versão de `CFG#LISTAS`; corrigir `padrao-de-telas.md` e o texto de Listas no `index.html`
+    ("Desativar um meio não muda o passado…"). Os documentos do item 43 já ganharam a nota de revisão (R9 e Limites) em 2026-11-08.
+  - **Ainda não lido (confirmar ao implementar):** Prever, Repetir, Estender, Tendências, exportar e conferência; pelo que se viu, todos passam por `criar`/`ValidarTx` ou leem por banco e herdam o mesmo comportamento.
+- 59. [ ] <a id="item-59"></a>**[Depois] Congelar meio (continua existindo, mas não aceita eventos novos; ideia do dono, 2026-11-08; só registrado, nada decidido nem feito):**
+  Surgiu na análise do item 58. O 58 trata do **Encerrar** (a conta acabou: só com saldo zero e sem nenhum evento, inclusive futuro; o meio some de Saldos, Cartão e Futuros e fica só no
+  Histórico, com marca). O **Congelar** é outro conceito: o meio **continua existindo e aparecendo em Saldos e Cartão, com a marca**, mas **não aceita eventos novos** (Lançar, Transferir,
+  Avisos novos, Recorrência). Serve para o meio com saldo que não dá para zerar (o `SODEXO-REF-IBM` ao sair da empresa, o exemplo do item 43) e funciona como rampa para o Encerrar:
+  congela, deixa o que existe se resolver, encerra. **A definir antes de qualquer código:** o nome na tela ("Congelar" ou "Pausar"; não usar "desativar" nem "bloquear" para não confundir
+  com o Encerrar); o que já existe num meio congelado (confirmar previsto, pagar fatura, conferir mês: a sugestão é poder liquidar o que existe e recusar só o novo); recorrência ativa
+  (sugestão: recusar congelar enquanto houver); avisos já existentes continuam. **Dado novo no DynamoDB:** precisa de um segundo estado por meio (hoje só há o `ativoAte` em `CFG#LISTAS`);
+  só entra com a aprovação do dono. Importar no meio congelado segue a mesma regra do desativado (item 58): só registros anteriores à `dataInicio`. **Demo antes** da tela. Depende de o item 58 estar decidido.
 - 31. [x] <a id="item-31"></a>**[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
   edição, ocultação, exclusão e restauração gera uma versão (quem, quando, o registro completo; **criar e importar `id` novo não geram**, ajuste de 2026-10-23), gravada na mesma transação
   do registro atual (`TransactWriteItems`) e com checagem de versão contra edição concorrente. Excluir passa a ser

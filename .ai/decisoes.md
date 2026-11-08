@@ -74,6 +74,9 @@ O de-para já existia para o catálogo de status e para Listas (ver "Status, mei
 - **Onde vale nos documentos:** nos documentos vivos (`guardrails.md`, `padrao-de-telas.md`, `ux.md`, `arquitetura.md`) o termo de tela passa a ser o novo, com o nome de campo entre crases
   quando for o campo. As specs e demos já fechadas ficam como estão, como registro do que foi decidido na época.
 - Não tem relação com o item 58 (meio desativado), que segue em análise à parte.
+- **Meio desativado (item 58), decidido pelo dono em 2026-11-08:** desativar é **encerrar** a conta: só a partir de hoje, com saldo zero e sem nenhum evento (previsto, futuro, recorrência, fatura em aberto, aviso, pagador);
+  depois disso nada novo entra (o R9 do item 43 foi revogado), exceto importar registros anteriores à `dataInicio`; o meio some de Saldos, Cartão e Futuros e fica só no Histórico, com marca. Remover aceita meio com
+  lançamentos todos excluídos; restaurar valida o meio. O meio que continua existindo mas não aceita eventos novos é outro conceito, o **congelar**, no item 59. Detalhe no `BACKLOG.md`, item 58.
 
 ## Outras decisões
 - Descartado: bloquear duplicidade por conteúdo (a mesma compra pode ter outro horário e outra descrição).
