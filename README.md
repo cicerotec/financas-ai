@@ -9,6 +9,8 @@ Duas pessoas usam o mesmo espaço (dono e membro), pelo navegador do computador 
 - **Hospedagem do front:** S3 privado + CloudFront (HTTPS).
 - **Região:** `sa-east-1`. Infra descrita em `template.yaml` (AWS SAM).
 
+**Quem constrói com IA começa por [`AGENTS.md`](AGENTS.md)** (e pelo [`.ai/guardrails.md`](.ai/guardrails.md), lido inteiro).
+
 Roadmap, decisões e o fluxo de versões estão em [`BACKLOG.md`](BACKLOG.md). A proposta de colaboração em tempo real está
 em [`.ai/colaboracao-tempo-real.md`](.ai/colaboracao-tempo-real.md).
 
@@ -31,6 +33,7 @@ traduz para as rotas da Lambda.
 | `template.yaml` | Infra (SAM): tabela, Cognito, Lambda, bucket e distribuição do CloudFront |
 | `scripts/` | Deploy, sessão com MFA, publicação do front, convite de usuários e manutenção (ver abaixo) |
 | `.ai/` | Documentos de projeto e contexto para quem constrói com IA: regras (`guardrails.md`), arquitetura, padrão de telas e demos, deploy, avisos |
+| `AGENTS.md` e `CLAUDE.md` | Instruções de início de sessão para quem constrói com IA: leitura obrigatória do `.ai/guardrails.md`, o que ler por tipo de tarefa e o resumo das regras duras (git, tela, DynamoDB). O `CLAUDE.md` só importa o `AGENTS.md` |
 | `docs/` | Só a coleção do Postman (`docs/postman/`) |
 | `BACKLOG.md` | Roadmap por área, decisões, detalhes e fluxo de branches e versões |
 
@@ -57,7 +60,7 @@ Outros scripts: `seed.sh` (cria usuários no Cognito e o espaço), `definir-nome
 ## Branches e versões
 Trabalho em branches a partir da `develop` (`feature/...`, `docs/...`) com PR para a `develop`. Uma versão sai com PR
 `develop → main`, tag anotada `vX.Y.Z` e release no GitHub. Publicar na AWS é um passo separado, feito a partir da `main`.
-Detalhes e comandos em [`.ai/fluxo-de-versoes.md`](.ai/fluxo-de-versoes.md).
+Detalhes e comandos em [`.ai/fluxo-de-versoes.md`](.ai/fluxo-de-versoes.md). As regras de branch para a IA (mantra, prefixos, quando commitar) estão na seção Git de [`.ai/guardrails.md`](.ai/guardrails.md).
 
 ## Papéis e permissões
 | Ação | owner | member |
