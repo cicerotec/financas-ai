@@ -37,6 +37,14 @@ func cenarioMeios(t *testing.T) *bancoFake {
 	return f
 }
 
+// semearAtivoAte grava o ativoAte direto em CFG#LISTAS: o estado de dados antigos (datas futuras ou passadas), que a rota nova de desativar nao cria mais (item 58, R12).
+func semearAtivoAte(t *testing.T, f *bancoFake, ate map[string]any) {
+	t.Helper()
+	d := f.ler(t, pkEspaco, "CFG#LISTAS")
+	d["ativoAte"] = ate
+	f.colocar(t, d)
+}
+
 func listasDoMeio(t *testing.T, sub string) map[string]doc {
 	t.Helper()
 	c, d := chamar(t, sub, "GET", "spaces/s1/cfg/listas", nil, "")
@@ -52,28 +60,25 @@ func listasDoMeio(t *testing.T, sub string) map[string]doc {
 	return res
 }
 
-// M-T1: PUT /meios/{meio}: data futura, passada, hoje, null e formato invalido.
+// M-T1 e M-T17: PUT /meios/{meio} so desativa a partir de hoje (item 58, R12); null reativa; formato invalido e meio fora da lista.
 func TestMeioDesativarEReativar(t *testing.T) {
 	f := cenarioMeios(t)
-	casos := []struct {
-		corpo     string
-		status    int
-		ativo     bool
-		ativoAte  string
-		descricao string
-	}{
-		{`{"ativoAte":"2026-12-31"}`, 200, true, "2026-12-31", "data futura: ainda ativo"},
-		{`{"ativoAte":"2026-10-31"}`, 200, false, "2026-10-31", "data passada: inativo"},
-		{`{"ativoAte":"2026-11-03"}`, 200, false, "2026-11-03", "hoje: ja deixou de valer"},
-	}
-	for _, c := range casos {
-		st, d := chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, c.corpo)
-		esperar(t, c.descricao, st, c.status)
-		if d["ativo"] != c.ativo || d["ativoAte"] != c.ativoAte || d["meio"] != "SODEXO" {
-			t.Errorf("%s: %v", c.descricao, d)
+	for _, ruim := range []string{`{"ativoAte":"2026-12-31"}`, `{"ativoAte":"2026-11-04"}`, `{"ativoAte":"2026-10-31"}`} {
+		st, d := chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, ruim)
+		esperar(t, "data que nao e hoje "+ruim, st, 400)
+		if !strings.Contains(fmt.Sprint(d["erro"]), "a partir de hoje") {
+			t.Errorf("a mensagem diz que e so a partir de hoje: %v", d)
 		}
 	}
-	st, d := chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":null}`)
+	if _, tem := f.ler(t, pkEspaco, "CFG#LISTAS")["ativoAte"]; tem {
+		t.Error("recusa nao grava nada")
+	}
+	st, d := chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, `{"ativoAte":"2026-11-03"}`)
+	esperar(t, "hoje", st, 200)
+	if d["ativo"] != false || d["ativoAte"] != "2026-11-03" || d["meio"] != "VR-NOVO" {
+		t.Errorf("desativar hoje: %v", d)
+	}
+	st, d = chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, `{"ativoAte":null}`)
 	esperar(t, "reativar", st, 200)
 	if d["ativo"] != true || d["ativoAte"] != nil {
 		t.Errorf("reativar: %v", d)
@@ -82,18 +87,17 @@ func TestMeioDesativarEReativar(t *testing.T) {
 		t.Error("reativar tira a chave: sem mapa vazio gravado")
 	}
 	for _, ruim := range []string{`{"ativoAte":"2026-13-01"}`, `{"ativoAte":"amanha"}`, `{"ativoAte":20261231}`, `{}`} {
-		st, _ = chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, ruim)
+		st, _ = chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, ruim)
 		esperar(t, "corpo invalido "+ruim, st, 400)
 	}
-	st, _ = chamar(t, "own", "PUT", "spaces/s1/meios/NAO-EXISTE", nil, `{"ativoAte":"2026-12-31"}`)
+	st, _ = chamar(t, "own", "PUT", "spaces/s1/meios/NAO-EXISTE", nil, `{"ativoAte":"2026-11-03"}`)
 	esperar(t, "meio fora da lista", st, 404)
 }
 
 // M-T2: a leitura traz ativo e ativoAte por meio; o mapa cru nao aparece.
 func TestMeiosNaLeituraDeListas(t *testing.T) {
-	cenarioMeios(t)
-	chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":"2026-10-31"}`)
-	chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, `{"ativoAte":"2026-12-31"}`)
+	f := cenarioMeios(t)
+	semearAtivoAte(t, f, map[string]any{"SODEXO": "2026-10-31", "VR-NOVO": "2026-12-31"}) // dados antigos: uma data passada e uma futura
 	m := listasDoMeio(t, "own")
 	if m["SODEXO"]["ativo"] != false || m["SODEXO"]["ativoAte"] != "2026-10-31" {
 		t.Errorf("SODEXO: %v", m["SODEXO"])
@@ -118,7 +122,7 @@ var todosOsMeios = []string{"ITAU", "VR-NOVO", "CITIBANK", "SO-EXCLUIDO", "SO-PR
 // M-T3: o PUT de Listas ignora ativoAte do corpo e mantem o gravado.
 func TestPutDeListasIgnoraAtivoAte(t *testing.T) {
 	f := cenarioMeios(t)
-	chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":"2026-10-31"}`)
+	semearAtivoAte(t, f, map[string]any{"SODEXO": "2026-10-31"})
 	c, _ := chamar(t, "own", "PUT", "spaces/s1/cfg/listas", nil, listasCorpo(t, f, todosOsMeios, `,"ativoAte":{"SODEXO":"2099-01-01","ITAU":"2026-01-01"}`))
 	esperar(t, "gravar listas", c, 200)
 	ate, _ := f.ler(t, pkEspaco, "CFG#LISTAS")["ativoAte"].(map[string]any)
@@ -167,10 +171,10 @@ func capturaLog(t *testing.T) *bytes.Buffer {
 	return &buf
 }
 
-// M-T6, M-T7, M-T8, M-T10: o DELETE recusa o meio com lancamento (vivo, excluido ou previsto) e o que e cartao, e responde 404 ao desconhecido.
+// M-T6, M-T7, M-T8, M-T10: o DELETE recusa o meio com lancamento (vivo ou previsto; o so excluido passou a poder sair, M-T27) e o que e cartao, e responde 404 ao desconhecido.
 func TestRemoverMeioRecusas(t *testing.T) {
 	f := cenarioMeios(t)
-	for _, c := range []struct{ meio, codigo string }{{"ITAU", "MEIO_EM_USO"}, {"SO-EXCLUIDO", "MEIO_EM_USO"}, {"SO-PREVISTO", "MEIO_EM_USO"}, {"CITIBANK", "MEIO_E_CARTAO"}} {
+	for _, c := range []struct{ meio, codigo string }{{"ITAU", "MEIO_EM_USO"}, {"SO-PREVISTO", "MEIO_EM_USO"}, {"CITIBANK", "MEIO_E_CARTAO"}} {
 		st, d := chamar(t, "own", "DELETE", "spaces/s1/meios/"+c.meio, nil, "")
 		esperar(t, "remover "+c.meio, st, 409)
 		if d["codigo"] != c.codigo {
@@ -190,8 +194,7 @@ func TestRemoverMeioRecusas(t *testing.T) {
 // M-T9 e M-T16: remover o meio sem uso apaga o nome e o ativoAte, e a leitura mostra a lista nova.
 func TestRemoverMeioSemUso(t *testing.T) {
 	f := cenarioMeios(t)
-	chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, `{"ativoAte":"2026-12-31"}`)
-	chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":"2026-10-31"}`)
+	semearAtivoAte(t, f, map[string]any{"VR-NOVO": "2026-12-31", "SODEXO": "2026-10-31"})
 	st, _ := chamar(t, "own", "DELETE", "spaces/s1/meios/VR-NOVO", nil, "")
 	esperar(t, "remover sem uso", st, 204)
 	listas := f.ler(t, pkEspaco, "CFG#LISTAS")
@@ -261,25 +264,8 @@ func TestMeiosSoDono(t *testing.T) {
 	if b := f.ler(t, pkEspaco, "CFG#LISTAS")["banco"].([]any); len(b) != len(todosOsMeios) {
 		t.Errorf("nada muda: %v", b)
 	}
-	chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":"2026-10-31"}`)
+	semearAtivoAte(t, f, map[string]any{"SODEXO": "2026-10-31"})
 	if m := listasDoMeio(t, "mem")["SODEXO"]; m["ativo"] != false {
 		t.Errorf("o member ve o ativo: %v", m)
-	}
-}
-
-// M-T14: o servidor nao valida lancamento contra o ativoAte: lancar num meio inativo funciona.
-func TestLancarNumMeioInativoContinuaValendo(t *testing.T) {
-	f := cenarioMeios(t)
-	chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":"2026-10-31"}`)
-	c, d := chamar(t, "own", "POST", "spaces/s1/tx", conf, corpoTx("2026-11-02T12:00:00.000Z", "SODEXO", 7))
-	esperar(t, "lancar no inativo", c, 201)
-	if d["banco"] != "SODEXO" {
-		t.Errorf("lancamento: %v", d)
-	}
-	// agora ele tem uso: so desativar
-	st, _ := chamar(t, "own", "DELETE", "spaces/s1/meios/SODEXO", nil, "")
-	esperar(t, "remover depois de usado", st, 409)
-	if ate, _ := f.ler(t, pkEspaco, "CFG#LISTAS")["ativoAte"].(map[string]any); ate["SODEXO"] != "2026-10-31" {
-		t.Errorf("o ativoAte continua: %v", ate)
 	}
 }

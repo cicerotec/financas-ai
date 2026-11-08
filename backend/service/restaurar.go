@@ -56,6 +56,13 @@ func (s *Lancamentos) Restaurar(ctx context.Context, sid, id string, n int, sub 
 	}
 	depois := domain.Registro(escolhida.Registro)
 	delete(depois, "excluidoEm")
+	guarda := s.guardaDeMeio(ctx, sid) // item 58, R17: o meio que volta precisa estar na lista e ativo, e o lancamento vivo nao pode estar num meio encerrado
+	if err := guarda.ExigirNaListaEAtivo(bancoDe(depois)); err != nil {
+		return nil, err
+	}
+	if err := guarda.ExigirAtivo(bancoDe(vivo)); err != nil {
+		return nil, err
+	}
 	if err := domain.ValidarTx(depois); err != nil {
 		return nil, &ErroValidacao{err.Error()}
 	}

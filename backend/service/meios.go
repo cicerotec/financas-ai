@@ -26,10 +26,11 @@ type Meios struct {
 	cfg RepositorioConfig
 	uso UsoDeMeio
 	rel Relogio
+	pend Pendencias // o que ainda impede de desativar (item 58); nil confere nada (testes de unidade)
 }
 
-func NewMeios(cfg RepositorioConfig, uso UsoDeMeio, rel Relogio) *Meios {
-	return &Meios{cfg: cfg, uso: uso, rel: rel}
+func NewMeios(cfg RepositorioConfig, uso UsoDeMeio, rel Relogio, pend Pendencias) *Meios {
+	return &Meios{cfg: cfg, uso: uso, rel: rel, pend: pend}
 }
 
 // nomesDeBanco devolve os nomes da lista banco de CFG#LISTAS.
@@ -85,19 +86,37 @@ func (s *Meios) gravar(ctx context.Context, sid string, corpo domain.Doc, versao
 	return nil
 }
 
-// Definir: PUT /spaces/{sid}/meios/{meio}. Corpo {"ativoAte": "AAAA-MM-DD"} desativa a partir da data; {"ativoAte": null} reativa. Nao toca em lancamento.
+// Definir: PUT /spaces/{sid}/meios/{meio}. Corpo {"ativoAte": "AAAA-MM-DD"} desativa; {"ativoAte": null} reativa. Nao toca em lancamento.
+// Desativar e encerrar a conta (item 58): so a partir de hoje, e so se o meio nao tem saldo nem participa de evento nenhum (409 MEIO_COM_PENDENCIA).
 func (s *Meios) Definir(ctx context.Context, sid, meio string, body domain.Doc) (domain.Doc, error) {
 	v, tem := body["ativoAte"]
 	if !tem {
 		return nil, &ErroValidacao{"informe ativoAte (AAAA-MM-DD) ou null para reativar"}
 	}
 	data, ehTexto := v.(string)
-	if v != nil && (!ehTexto || !domain.DataValida(data)) {
-		return nil, &ErroValidacao{"ativoAte deve ser uma data AAAA-MM-DD ou null"}
+	pedeHoje := ehTexto && data == "hoje" // o app pede "hoje" e quem diz que dia e hoje e o servidor (sem depender do relogio do aparelho)
+	if v != nil && !pedeHoje && (!ehTexto || !domain.DataValida(data)) {
+		return nil, &ErroValidacao{"ativoAte deve ser uma data AAAA-MM-DD, \"hoje\" ou null"}
 	}
 	corpo, versao, err := s.lerListas(ctx, sid, meio)
 	if err != nil {
 		return nil, err
+	}
+	hoje := domain.HojeDe(s.rel.Agora())
+	if pedeHoje {
+		data = hoje
+	}
+	if v != nil && data != hoje {
+		return nil, &ErroValidacao{"o meio so pode ser desativado a partir de hoje (" + hoje + ")"}
+	}
+	if v != nil && s.pend != nil {
+		falta, err := s.pend.De(ctx, sid, meio)
+		if err != nil {
+			return nil, err
+		}
+		if len(falta) > 0 {
+			return nil, &ErroMeioComPendencia{Itens: falta}
+		}
 	}
 	mapa := map[string]any{}
 	if m, ok := corpo["ativoAte"].(map[string]any); ok {
@@ -182,4 +201,11 @@ func (s *Meios) Remover(ctx context.Context, sid, meio string) error {
 		}
 	}
 	return s.gravar(ctx, sid, corpo, versao)
+}
+
+// ErroMeioComPendencia: o meio ainda participa de algum evento e nao pode ser desativado (409 MEIO_COM_PENDENCIA). Itens e a lista de frases do que falta.
+type ErroMeioComPendencia struct{ Itens []string }
+
+func (e *ErroMeioComPendencia) Error() string {
+	return "o meio ainda participa de eventos: resolva as pendencias antes de desativar"
 }

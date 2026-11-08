@@ -504,7 +504,9 @@
   // Meios de pagamento (item 43, so o dono): ativoAte (AAAA-MM-DD) desativa a partir da data, null reativa; remover so vale para o que nunca foi usado
   // (o servidor confere ao clicar: 409 com codigo MEIO_EM_USO ou MEIO_E_CARTAO volta como { status, body }). Depois, a lista e relida.
   const meioUrl = async (meio) => (await base()) + '/meios/' + encodeURIComponent(meio);
-  const meioDefinir = async (meio, ativoAte) => { const r = await api('PUT', await meioUrl(meio), { ativoAte }); atualizarOuvintes('doc', 'listas'); return r.body; };
+  // Desativar (item 58) e "encerrar a conta": o app pede ativoAte "hoje" (o servidor diz que dia e hoje) e o servidor confere antes; o 409 MEIO_COM_PENDENCIA
+  // (com a lista do que falta em pendencias) volta como { status, body }, como o do Remover. null reativa.
+  const meioDefinir = async (meio, ativoAte) => { const r = await api('PUT', await meioUrl(meio), { ativoAte }); if (r.status === 200) atualizarOuvintes('doc', 'listas'); return r; };
   const meioRemover = async (meio) => { const r = await api('DELETE', await meioUrl(meio)); if (r.status === 204 || r.status === 200) atualizarOuvintes('doc', 'listas'); return r; };
   // Rotina semanal dos combos sugeridos (item 57, so o dono): liga ou desliga; o servidor grava e calcula, o navegador so pede. Depois, a configuracao e relida.
   const combosRotina = async (ativa) => { const r = await api('PUT', (await base()) + '/combos/rotina', { ativa: !!ativa }); atualizarOuvintes('doc', 'combos'); return r.body; };
@@ -517,7 +519,7 @@
     api('POST', await cartaoUrl(meio, '/faturas/' + ym + '/conferir'), { aceitarDiferenca: !!aceitarDiferenca });
   const cartaoDesconferir = async (meio, ym) => (await api('DELETE', await cartaoUrl(meio, '/faturas/' + ym + '/conferir'))).body;
   const cartaoDiferenca = async (meio, ym) => {
-    const r = (await api('POST', await cartaoUrl(meio, '/faturas/' + ym + '/diferenca'), {})).body;
+    const r = escrita(await api('POST', await cartaoUrl(meio, '/faturas/' + ym + '/diferenca'), {})).body; // o 409 (meio desativado, mes conferido) vira erro com a mensagem do servidor, nao sucesso
     atualizarOuvintes('col'); // o servidor criou um lancamento
     return r;
   };

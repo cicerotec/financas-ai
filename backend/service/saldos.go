@@ -293,6 +293,10 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 		if c.cfg.Existe {
 			item["inicio"] = domain.Doc{"dataInicio": c.cfg.DataInicio, "saldoInicial": c.cfg.SaldoInicial}
 		}
+		// item 58, R20: meio desativado com saldo zero esta encerrado e a tela o esconde; com saldo (dado antigo) continua visivel: o servidor nunca esconde dinheiro
+		if domain.MeioDesativado(listas, nome, domain.HojeDe(s.rel.Agora())) && domain.Arred(c.calculo.Saldo) == 0 {
+			item["encerrado"] = true
+		}
 		itens = append(itens, item)
 		if c.cfg.ForaDoTotal {
 			fora++

@@ -30,6 +30,12 @@ func (s *Lancamentos) Transferir(ctx context.Context, sid, sub string, body doma
 		}
 		data = d
 	}
+	guarda := s.guardaDeMeio(ctx, sid) // item 58, R14: nenhuma das pontas pode ser um meio desativado
+	for _, m := range []string{origem, destino} {
+		if err := guarda.ExigirAtivo(m); err != nil {
+			return nil, err
+		}
+	}
 	valor = domain.Arred(valor)
 	parID := domain.NovoID()
 	ponta := func(tipo, banco, desc string) domain.Lancamento {
