@@ -9,6 +9,8 @@ Duas pessoas usam o mesmo espaço (dono e membro), pelo navegador do computador 
 - **Hospedagem do front:** S3 privado + CloudFront (HTTPS).
 - **Região:** `sa-east-1`. Infra descrita em `template.yaml` (AWS SAM).
 
+**Quem constrói com IA começa por [`AGENTS.md`](AGENTS.md)** (e pelo [`.ai/guardrails.md`](.ai/guardrails.md), lido inteiro).
+
 Roadmap, decisões e o fluxo de versões estão em [`BACKLOG.md`](BACKLOG.md). A proposta de colaboração em tempo real está
 em [`.ai/colaboracao-tempo-real.md`](.ai/colaboracao-tempo-real.md).
 
@@ -31,6 +33,7 @@ traduz para as rotas da Lambda.
 | `template.yaml` | Infra (SAM): tabela, Cognito, Lambda, bucket e distribuição do CloudFront |
 | `scripts/` | Deploy, sessão com MFA, publicação do front, convite de usuários e manutenção (ver abaixo) |
 | `.ai/` | Documentos de projeto e contexto para quem constrói com IA: regras (`guardrails.md`), arquitetura, padrão de telas e demos, deploy, avisos |
+| `AGENTS.md` e `CLAUDE.md` | Instruções de início de sessão para quem constrói com IA: leitura obrigatória do `.ai/guardrails.md`, o que ler por tipo de tarefa e o resumo das regras duras (git, tela, DynamoDB). O `CLAUDE.md` só importa o `AGENTS.md` |
 | `docs/` | Só a coleção do Postman (`docs/postman/`) |
 | `BACKLOG.md` | Roadmap por área, decisões, detalhes e fluxo de branches e versões |
 
@@ -57,7 +60,7 @@ Outros scripts: `seed.sh` (cria usuários no Cognito e o espaço), `definir-nome
 ## Branches e versões
 Trabalho em branches a partir da `develop` (`feature/...`, `docs/...`) com PR para a `develop`. Uma versão sai com PR
 `develop → main`, tag anotada `vX.Y.Z` e release no GitHub. Publicar na AWS é um passo separado, feito a partir da `main`.
-Detalhes e comandos em [`.ai/fluxo-de-versoes.md`](.ai/fluxo-de-versoes.md).
+Detalhes e comandos em [`.ai/fluxo-de-versoes.md`](.ai/fluxo-de-versoes.md). As regras de branch para a IA (mantra, prefixos, quando commitar) estão na seção Git de [`.ai/guardrails.md`](.ai/guardrails.md).
 
 ## Papéis e permissões
 | Ação | owner | member |
@@ -72,8 +75,14 @@ Detalhes e comandos em [`.ai/fluxo-de-versoes.md`](.ai/fluxo-de-versoes.md).
 | Conferir e reabrir mês de um banco (fechamento mensal) | sim | não (só vê) |
 | Cores, layout e o próprio nome | sim | sim, só os dela |
 | Importar, exportar e limpeza | sim | não |
+| Confirmar um previsto, ver o histórico de versões e restaurar uma versão | todos | só os criados por ela (restaurar um excluído é só do owner) |
+| Faturas do cartão: ver | sim | sim |
+| Faturas do cartão: configurar, conferir e pagador | sim | não |
+| Consultas salvas da Tendências: ver e criar | sim | sim |
+| Consultas salvas: renomear, atualizar, excluir e restaurar | todas | só as dela |
+| Desativar, reativar e remover um meio de pagamento; ligar a rotina dos combos sugeridos | sim | não |
 
-A regra está em `backend/auth/authz.go` e tem testes; o que não está liberado explicitamente é negado.
+A regra está em `backend/auth/authz.go` e tem testes; o que não está liberado explicitamente é negado. A tabela completa, com cada ação, está em [`.ai/security.md`](.ai/security.md).
 
 ## Modelo de dados
 
@@ -86,34 +95,42 @@ A regra está em `backend/auth/authz.go` e tem testes; o que não está liberado
 | Contador de alterações do espaço | `SPACE#<id>` | `SEQ` |
 | Dados do espaço | `SPACE#<id>` | `META` |
 | Vínculo da pessoa com o espaço (papel, apelido, `telegramChatId`) | `USER#<sub>` | `SPACE#<id>` |
-| Aviso ativo de um lançamento (auxiliar da rotina diária) | `AVISOS#ATIVOS` | `<espaço>#<id do lançamento>` |
+| Aviso ativo, aviso de fatura, recorrência e rotina dos combos (auxiliar das rotinas, para não varrer a tabela) | `AVISOS#ATIVOS` | `<espaço>#<id>` |
 | Aparência da pessoa | `SPACE#<id>` | `USER#<sub>#CFG#APARENCIA` |
+| Consulta salva da Tendências | `SPACE#<id>` | `CONSULTA#<id>` |
+| Versão do histórico de um lançamento (só se acrescenta) | `HIST#<id>` | `TX#<id do lançamento>#<versão com 8 dígitos>` |
+
+Todos os exemplos, campo a campo e com dados fictícios, estão em [`.ai/specs/modelo-de-dados/`](.ai/specs/modelo-de-dados/README.md). **Não crie, renomeie nem remova chave ou campo sem discutir com o dono.**
 
 ### Lançamento
 | campo | tipo | observação |
 |---|---|---|
-| `status` | texto | um dos status de `config/listas` (PAGO, PREVISTO, CRÉDITO IN, etc.) |
+| `status` | texto | na tela, **forma de pagamento**. Um da lista que o servidor manda (PIX, DEBITO, CREDITO, DINHEIRO, TED e PAGO); `CONTAS` (transferência) só o servidor grava; `CREDITO IN`, `CREDITO EX` e os antigos `PREVISTO`, `TRANSFERINDO` e `CREDITANDO` só existem em registros antigos |
 | `tipo` | texto | `"saida"` (gasto) ou `"entrada"` (receita) |
 | `valor` | número | sempre positivo; o sinal vem de `tipo` (zero e negativo são aceitos para nota e estorno) |
 | `descricao` | texto | |
 | `nota` | texto | opcional |
 | `dataEvento` | texto ISO 8601 (UTC) | data e hora do evento; ordena a lista |
-| `banco` | texto | um dos bancos de `config/listas` |
+| `banco` | texto | na tela, **meio de pagamento**. Um dos meios de `config/listas` |
 | `tags` | lista de textos | sem hierarquia |
-| `excluirDoTotal` | booleano | verdadeiro para status CONTAS e TRANSFERINDO |
+| `excluirDoTotal` | booleano | calculado pelo servidor a partir do catálogo de status (CONTAS, transferência, e o pagamento de fatura marcado com `pagaFatura`); o valor que vier do cliente é descartado |
+| `previsto` | booleano | só quando verdadeiro, gravado só pelo servidor: lançamento com data futura que ainda não foi confirmado; fica fora do saldo e do Histórico e aparece em Futuros |
 | `oculto` | booleano | some do histórico e não entra em saldos |
 | `criadoEm`, `criadoPor` | texto | quando e por quem (`sub` do Cognito); o servidor preenche |
 | `transferParId` | texto | liga as duas pontas de uma transferência entre bancos |
 | `faturaAjuste` | -1, 0 ou 1 | só em crédito: 1 = fatura seguinte à da data; -1 = anterior; ausente = pela data |
 | `valorEstimado` | booleano | só em crédito: valor ainda estimado (ex.: compra em dólar) |
+| `pagaFatura` | objeto | opcional: `{ meio, ym }`, marca o lançamento como pagamento da fatura `ym` do cartão `meio` |
+| `recorrente` | objeto | opcional: `{ intervalo }` em meses; só o servidor o grava, ao marcar a recorrência, e as cópias o herdam |
+| `excluidoEm` | texto | só nos excluídos (exclusão lógica); a API nunca o devolve nas listas |
 | `serie` | objeto | opcional: `{ id, indice, intervalo }` liga as cópias criadas por Prever ou Repetir ao lançar (`indice` = posição na série, `intervalo` = meses entre ocorrências) |
 | `aviso` | objeto | opcional, em evento futuro: `{ dias: [3,1,0], insistir: true }` avisa no Telegram nos dias combinados antes do vencimento e, com `insistir`, todo dia depois dele (ver [`.ai/avisos.md`](.ai/avisos.md)) |
 
 ### Configurações
-- `listas`: `status` e `banco` (listas de textos); `statusReal` (status → conta como real; só `false` exclui);
-  `afetaSaldoBanco` (só `true` afeta o saldo do banco); `statusFuturo` (status → evento futuro: não conta como real,
-  não mexe no saldo e aparece em Futuros); `statusCor`; `estiloCor`, `layoutSaldos`, `ordemSaldos`, `ordemManual`
-  (aparência).
+- `listas`: `banco` (os meios de pagamento, com `ativoAte` quando o dono desativa um), `statusCor`, `estiloCor`, `layoutSaldos`, `ordemSaldos`, `ordemManual`
+  e `tema` (aparência). **Os status não são mais do app:** a lista, as cores padrão e as regras (conta no saldo, fora do total, crédito) são o catálogo do
+  backend (`backend/domain/catalogo.go`) e o `PUT /cfg/listas` ignora qualquer mudança neles. `meios`, `faturaPadrao` e `statusCorPadrao` são derivados pelo
+  servidor na leitura e nunca gravados.
 - `tags`: `{ usadas: [textos] }`.
 - `combos`: `{ lista: [ { tags: [textos] } ], sugeridos: [ { tags: [textos], contagem } ], geradoEm: "AAAA-MM-DD" }`. `lista` são os combos
   salvos pelo dono; `sugeridos` e `geradoEm` são do servidor (item 57): uma rotina semanal (`{"acao":"combos"}`) conta os conjuntos de tags dos
@@ -127,12 +144,12 @@ Escritas de configuração usam um campo `version` para detectar edição concor
 sobrescrever em silêncio).
 
 ## Regras de negócio
-- **Saldo de um banco** = `saldoInicial` + soma dos lançamentos do banco que não estão ocultos, têm status com
-  `afetaSaldoBanco` e `dataEvento` a partir de `dataInicio`. Entrada soma e saída subtrai.
+- **Saldo de um meio** = `saldoInicial` + soma dos lançamentos do meio que não estão ocultos, não são previstos, têm status que conta no saldo (pelo catálogo)
+  e `dataEvento` a partir de `dataInicio`. Entrada soma e saída subtrai. **Quem calcula é o servidor** (`GET /saldos`); o navegador só exibe.
 - **Fechamento mensal.** O saldo é uma cascata: cada mês abre com o fechamento do anterior, desde `dataInicio`. O
   servidor guarda por banco (`SALDO#<banco>`) o fechamento calculado dos meses encerrados (`caches`, só para não reler
-  o histórico inteiro) e os meses conferidos com o extrato (`conferidos`). Quem calcula é o navegador, porque só ele
-  sabe quais status mexem no saldo; o saldo atual parte do último fechamento válido e lê só os meses seguintes.
+  o histórico inteiro, gravado só por ele) e os meses conferidos com o extrato (`conferidos`). O saldo atual parte do último
+  fechamento válido e lê só os meses seguintes. O cliente nunca envia saldo nem cache: a conferência recebe só o saldo do extrato.
   - Qualquer escrita em lançamento que mexa no saldo (criar, excluir, ou mudar valor, tipo, status, banco, data ou
     ocultar) marca `invalidoDe` e muda a `version` do banco; um cache calculado antes da escrita é recusado (409).
     Editar descrição, nota ou tags não invalida nada.
@@ -142,34 +159,37 @@ sobrescrever em silêncio).
     inclusive na importação. Meses anteriores ao da `dataInicio` do banco são histórico (não entram no saldo): nunca
     travam nem invalidam o cache, então dá para importar anos anteriores com meses já conferidos. **Reabrir** só vale
     para o mês conferido mais recente.
+  - **Mês anterior fecha sozinho:** a partir do dia 8, mexer no mês anterior (e nos mais antigos) em algo que muda o saldo pede uma confirmação explícita
+    (`409 mes_fechado`, reenvio com `confirmaMesFechado=1`); a conferência com o extrato é opcional e continua travando de forma absoluta.
   - Mês é sempre o do fuso de Brasília (`America/Sao_Paulo`). O cache também vale só para o mesmo saldo inicial, data
-    de início e conjunto de status que mexem no saldo (muda um deles, o cache é descartado e refeito).
-- **Transferência entre bancos** cria dois lançamentos `CONTAS` (saída na origem, entrada no destino) com o mesmo
+    de início e catálogo de status (muda um deles, o cache é descartado e refeito).
+- **Transferência entre meios** (`POST /transferencias`) cria dois lançamentos `CONTAS` (saída na origem, entrada no destino) com o mesmo
   `transferParId` e a data escolhida.
-- **Faturas do cartão:** a fatura que fecha no mês M cobre as compras de crédito do dia seguinte ao fechamento da anterior
-  até o fechamento de M, inclusive. `faturaAjuste` empurra a compra para a fatura vizinha. Crédito = status que começam
-  com CRÉDITO, não ocultos e que contam como reais; estorno (`entrada`) subtrai.
-- **Conferência da fatura fechada:** diferença = total calculado − `valorBanco`. O app sugere registros (1 a 3) até 5 dias do
-  corte cuja soma é igual à diferença. A fatura conferida avisa se mudar depois.
-- **Eventos futuros:** status marcados como futuros ficam fora do Histórico e do saldo e aparecem na aba Futuros, com
-  aviso de atrasados.
+- **Faturas do cartão** (calculadas pelo servidor: `GET /cartoes` e `GET /cartoes/{meio}/faturas/{ym}`): a fatura que fecha no mês M cobre as compras de
+  crédito do dia seguinte ao fechamento da anterior até o fechamento de M, inclusive. `faturaAjuste` empurra a compra para a fatura vizinha. Crédito = status
+  marcado como crédito no catálogo, não oculto; estorno (`entrada`) subtrai. O meio pagador e o vencimento são escolhidos por cartão e por fatura, e a fatura aparece
+  em Futuros no meio pagador a partir do vencimento.
+- **Conferência da fatura:** diferença = total calculado − `valorBanco`; o servidor sugere registros (1 a 3) até 5 dias do corte cuja soma é igual à diferença.
+  Uma fatura **conferida é travada** pelo servidor (`409 fatura_conferida`) até ser desconferida.
+- **Eventos futuros:** o lançamento com data depois de hoje nasce com o marcador `previsto` (o servidor liga). Enquanto o marcador existir, ele fica fora do
+  Histórico e do saldo e aparece na aba Futuros; os vencidos ficam em Atrasados. **Confirmar** tira o marcador e o lançamento passa a contar no saldo.
 - **Duplicado ao salvar:** mesma combinação de status, descrição, valor, banco e `dataEvento`.
-- **Remover status ou banco:** status em uso migra os lançamentos para outro status antes de sair; banco em uso não pode
-  ser removido.
+- **Meios de pagamento:** o dono cria, desativa (a partir de uma data, o meio deixa de ser sugerido e o passado continua) e remove; só se remove um meio que
+  nunca foi usado, conferido pelo servidor na hora. Os status não são editáveis pelo app.
 
 ## Backup e importação
-**Exportar dados** (aba Importar, só dono) gera um `.json` versão 2 com `colecoes.lancamentos` e `documentos` das
+**Exportar dados** (aba Configurações, só dono) gera um `.json` versão 2 com `colecoes.lancamentos` e `documentos` das
 configurações; **Importar backup** o lê de volta em lotes. Também importa `.xlsx` (lançamentos, notas e fechamentos de
 fatura). Há ainda um backup do próprio DynamoDB previsto no [`BACKLOG.md`](BACKLOG.md).
 
-**Importação da planilha** (aba Importar): depois da prévia, **Confirmar importação** envia as linhas em lotes de 25 pelo
+**Importação da planilha** (aba Configurações): depois da prévia, **Confirmar importação** envia as linhas em lotes de 25 pelo
 mesmo endpoint de lote do backup (`POST /tx/batch`). Cada linha recebe um id gerado na tela, então reenviar um lote nunca
 duplica. A tela mostra `N/total (%)` e o tempo decorrido, que continuam andando enquanto espera o banco liberar
 capacidade; falha de rede ou erro 5xx é tentada de novo automaticamente. Listas (bancos, status) e tags novas são gravadas
 **antes** das linhas. Se a importação parar no meio, a prévia é descartada e a mensagem diz onde parou: processar o mesmo
 arquivo de novo importa só o que faltou (o que já está no banco é ignorado).
 
-**Verificação arquivo x banco de dados** (aba Importar): depois de importar, e a qualquer momento com o arquivo já
+**Verificação arquivo x banco de dados** (aba Configurações): depois de importar, e a qualquer momento com o arquivo já
 processado (botão *Conferir arquivo com o banco de dados*), o app lê de volta o que está gravado no mesmo período e
 bancos e compara com o arquivo: quantidade, entradas e saídas. A tabela tem uma linha por **ano e banco**, recolhida;
 tocar nela abre os **meses** (mês pela data do lançamento, no fuso de Brasília), e quem tem divergência já vem aberta. O
@@ -191,7 +211,7 @@ importar) soma 1 no item `SEQ` do espaço e devolve o valor novo em `_seq`.
 
 ## Limitações conhecidas
 - O front carrega os 1000 lançamentos mais recentes; meses mais antigos são buscados sob demanda pela navegação do
-  Histórico. O saldo de cada banco parte do último fechamento mensal e lê só os meses seguintes; as faturas do cartão
-  e as tendências ainda são calculadas no navegador, lendo o histórico (mover isso para a Lambda está no backlog).
+  Histórico. O saldo de cada meio e as faturas do cartão são calculados pelo servidor; só as tendências são calculadas no
+  navegador, de propósito: são uma simulação que apenas exibe.
 - A tela só vê o que outra pessoa gravou na checagem periódica (a cada 3 minutos, com a aba visível, e ao voltar para a
   aba); colaboração em tempo real é uma proposta em `.ai/`.
