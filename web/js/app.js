@@ -994,7 +994,7 @@ async function init(){
   }
   if(papelAtual !== 'owner'){
     const dica = document.getElementById('saldoDica');
-    if(dica) dica.textContent = 'Saldos por banco';
+    if(dica) dica.textContent = 'Saldos por meio de pagamento';
   }
   document.getElementById('fData').value = nowLocalInput();
 
@@ -1261,7 +1261,7 @@ function renderListas(){
     return `<div class="fp" style="--cor:${estiloCor==='nenhum' ? 'var(--faint)' : c}">
       <div class="fp-top"><button type="button" class="bol" data-cor-status="${esc(s)}" aria-label="Escolher cor de ${esc(s)}" style="background:${c}"></button><b>${esc(s)}</b><small>${aberta?'escolha uma cor':'toque na bolinha'}</small></div>
       ${aberta?`<div class="pal" role="group" aria-label="Cores de ${esc(s)}">${COR_PALETA.map(p=>`<button type="button" data-cor-pick="${p}" data-cor-st="${esc(s)}" aria-label="Cor ${p}" aria-pressed="${p===c}" style="background:${p}"></button>`).join('')}</div>`:''}
-      <div class="ex"><div class="l"><div class="d">Exemplo de lançamento</div><div class="mt"><span>14:30</span>${seloStatus(s)}<span>Banco</span></div></div><span class="valor saida">-R$ 10,00</span></div>
+      <div class="ex"><div class="l"><div class="d">Exemplo de lançamento</div><div class="mt"><span>14:30</span>${seloStatus(s)}<span>Meio de pagamento</span></div></div><span class="valor saida">-R$ 10,00</span></div>
     </div>`;
   }).join('');
   const swCores = document.getElementById('swCoresLinhas');
@@ -1293,7 +1293,7 @@ function renderAparencia(){
     tema = b.dataset.tema; Tema.escolher(tema);
     salvarListas(); renderAparencia(); toast('Tema: '+NOMES_TEMA[tema]+'.');
   });
-  document.getElementById('layoutSaldosBtns').innerHTML = [['linhas','Uma linha por banco'],['tiles','Quadradinhos']].map(([k,t])=>
+  document.getElementById('layoutSaldosBtns').innerHTML = [['linhas','Uma linha por meio de pagamento'],['tiles','Quadradinhos']].map(([k,t])=>
     `<span class="tag ${layoutSaldos===k?'on':''}" data-layout-saldos="${k}">${t}</span>`).join('');
   document.getElementById('ordemSaldosBtns').innerHTML = [['lista','Ordem da lista'],['valor','Maior saldo'],['manual','Manual']].map(([k,t])=>
     `<span class="tag ${ordemSaldos===k?'on':''}" data-ordem-saldos="${k}">${t}</span>`).join('');
