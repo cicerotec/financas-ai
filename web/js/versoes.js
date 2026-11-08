@@ -7,7 +7,7 @@ let vsPer = '30d', vsTudo = false, vsAsc = false; // periodo ('30d' | '90d' | '1
 let vsAberto = '', vsDados = null, vsErroVersoes = '', vsReqBusca = 0, vsReqVersoes = 0; // contadores separados: uma resposta velha nao pode apagar a outra
 
 // ---------- formatação (só texto) ----------
-const VS_CAMPOS = {descricao:'Descrição', valor:'Valor', tipo:'Tipo', status:'Status', banco:'Banco', dataEvento:'Data', nota:'Nota',
+const VS_CAMPOS = {descricao:'Descrição', valor:'Valor', tipo:'Tipo', status:'Forma de pagamento', banco:'Meio de pagamento', dataEvento:'Data', nota:'Nota',
   tags:'Tags', oculto:'Oculto', excluirDoTotal:'Fora do total', faturaAjuste:'Fatura', excluidoEm:'Excluído em', aviso:'Aviso', serie:'Série'};
 // insert e a versao 1: o estado de antes da primeira alteracao (ou, nas gravadas antes de 2026-10-23, a criacao/importacao).
 const VS_ACAO = {insert:'Original', update:'Alterado', delete:'Excluído', restore:'Restaurado'};

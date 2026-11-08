@@ -50,7 +50,7 @@ function atualizarCampoFatura(){
   w.classList.toggle('hidden', !ehMeioCartao(document.getElementById('fBanco').value));
   atualizarCampoAviso();
   const padrao = ajustePadrao(st);
-  document.getElementById('fFaturaDica').textContent = padrao>0 ? 'Registros com este status já vão para a próxima fatura.' : (padrao<0 ? 'Registros com este status já entram na fatura anterior (a que fecha neste mês).' : '');
+  document.getElementById('fFaturaDica').textContent = padrao>0 ? 'Registros com esta forma de pagamento já vão para a próxima fatura.' : (padrao<0 ? 'Registros com esta forma de pagamento já entram na fatura anterior (a que fecha neste mês).' : '');
 }
 // ---------- aviso (Telegram): controles reutilizados pelo formulario (prefixo f) e pela janela de repeticao (pv) ----------
 function telegramVinculado(){ return !!(window.claude && claude.telegramChatId && claude.telegramChatId()); }
@@ -278,7 +278,7 @@ function pvTelaRecorrente(){
   return tcCabeca('Tornar recorrente','fechar')+
     `<p class="tc-ctx">${esc(l.descricao)} · ${fmtMoeda(valor)} · ${dataBR(l)}</p>`+
     `<div class="tc-card">${tcLinha('rep','Repetir',esc(capitalizar(Recorrencia.rotuloIntervalo(pv.meses))))}${tcLinha('avi','Avisar no Telegram',Recorrencia.fraseAviso(pv.aviso))}</div>`+
-    `<p class="tc-nota">Ao ativar, a próxima cópia nasce agora, em <b>${pvPreviaRec()}</b>, e já aparece em Futuros. Depois, uma nova a cada vez que a última chega. Sem data final.<br>Cada cópia leva valor, banco, tags e nota deste lançamento. O aviso escolhido aqui vai na primeira cópia e as seguintes o herdam; se você mudar o aviso da cópia mais recente em Futuros, as próximas seguem o novo.</p>`+
+    `<p class="tc-nota">Ao ativar, a próxima cópia nasce agora, em <b>${pvPreviaRec()}</b>, e já aparece em Futuros. Depois, uma nova a cada vez que a última chega. Sem data final.<br>Cada cópia leva valor, meio de pagamento, tags e nota deste lançamento. O aviso escolhido aqui vai na primeira cópia e as seguintes o herdam; se você mudar o aviso da cópia mais recente em Futuros, as próximas seguem o novo.</p>`+
     (pv.erro ? `<div class="tc-erro" role="alert">${esc(pv.erro)}</div>` : '');
 }
 function pvTelaRepetirRec(){
@@ -291,7 +291,7 @@ function pvTelaRepetirRec(){
     `<div class="tc-card">${linhas}</div>`+
     '<div class="tc-card"><button type="button" class="tc-li" data-a="janela" data-tipo="int"><span class="t">Outro intervalo</span><span class="go" aria-hidden="true">›</span></button></div>'+
     (form
-      ? `<p class="tc-nota">Ao salvar, a primeira cópia nasce em <b>${pvPreviaRec()}</b> e já aparece em Futuros. Depois, uma nova a cada vez que a última chega. Sem data final.<br>Cada cópia leva valor, banco, tags, nota e aviso deste lançamento.</p>`
+      ? `<p class="tc-nota">Ao salvar, a primeira cópia nasce em <b>${pvPreviaRec()}</b> e já aparece em Futuros. Depois, uma nova a cada vez que a última chega. Sem data final.<br>Cada cópia leva valor, meio de pagamento, tags, nota e aviso deste lançamento.</p>`
       : `<p class="tc-nota">Próxima cópia: <b>${pvPreviaRec()}</b></p>`);
 }
 async function ativarRecorrencia(){
@@ -1300,7 +1300,7 @@ function renderAparencia(){
   const manualEl = document.getElementById('ordemManualLista');
   if(ordemSaldos==='manual'){
     const ef = ordemManualEfetiva();
-    manualEl.innerHTML = '<p class="muted" style="margin:8px 0 2px;">Use as setas para mover cada banco.</p>' + ef.map((n,i)=>
+    manualEl.innerHTML = '<p class="muted" style="margin:8px 0 2px;">Use as setas para mover cada meio de pagamento.</p>' + ef.map((n,i)=>
       `<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:14px;">${esc(n)}</span>` +
       `<button class="ghost" data-ord-up="${i}" aria-label="Subir ${esc(n)}" style="padding:4px 12px;" ${i===0?'disabled':''}>▲</button>` +
       `<button class="ghost" data-ord-dn="${i}" aria-label="Descer ${esc(n)}" style="padding:4px 12px;" ${i===ef.length-1?'disabled':''}>▼</button></div>`).join('');
@@ -1987,11 +1987,11 @@ async function salvarLancamentoInterno(){
       await lerDadosParaDuplicados();
       const existentes = chavesExistentes();
       const iguais = copias.filter(c=>existentes.has(Recorrencia.chaveDuplicado(c))).length;
-      if(iguais && !(await confirmarModal(`${iguais} das repetições já existem (mesmo status, descrição, valor, banco e dia). Criar mesmo assim?`))) return;
+      if(iguais && !(await confirmarModal(`${iguais} das repetições já existem (mesma forma de pagamento, descrição, valor, meio de pagamento e dia). Criar mesmo assim?`))) return;
     }
   }
   const jaExiste = await jaExisteIgual(doc, editandoId);
-  if(jaExiste && !(await confirmarModal("Já existe um lançamento igual (mesmo status, descrição, valor, banco e data). Salvar mesmo assim?"))) return;
+  if(jaExiste && !(await confirmarModal("Já existe um lançamento igual (mesma forma de pagamento, descrição, valor, meio de pagamento e data). Salvar mesmo assim?"))) return;
   if(editandoId){
     const idEditado = editandoId;
     const antes = JSON.parse(JSON.stringify(acharLancamento(idEditado) || {})); // copia: aplicarLocal altera o objeto da lista
@@ -2082,7 +2082,7 @@ async function registrarTransferenciaInterno(){
   const origem = document.getElementById('tBancoOrigem').value;
   const destino = document.getElementById('tBancoDestino').value;
   const valor = parseFloat(document.getElementById('tValor').value);
-  if(!origem || !destino || origem===destino || !valor || valor<=0){ await avisar("Confira os bancos e o valor."); return; }
+  if(!origem || !destino || origem===destino || !valor || valor<=0){ await avisar("Confira os meios de pagamento e o valor."); return; }
   // data e hora escolhidas pela pessoa (datetime-local); vazio vale agora. O servidor cria as duas pontas, numa transacao so.
   const quando = new Date(document.getElementById('tData').value || nowLocalInput()).toISOString();
   await db.transferir(origem, destino, valor, quando);
@@ -2236,7 +2236,7 @@ function renderFuturos(){
   el.innerHTML = (futurosDados.truncado ? '<p class="muted">Mostrando os 1000 primeiros eventos.</p>' : '') +
     (vazio ? '<p class="muted">Nenhum evento futuro. Crie um lançamento na aba Lançar com uma data futura.</p>' : '') +
     '<div class="fut-tabela"><div class="fut-tabela-in">'+
-    (vazio ? '' : '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span><span></span></div>')+
+    (vazio ? '' : '<div class="fut-cab"><span>Data</span><span>Evento</span><span>Meio de pagamento</span><span>Forma de pagamento</span><span style="text-align:right">Valor</span><span></span></div>')+
     grupos.map(g=> g.atrasado
       ? htmlTituloAtrasados() + (semAtrasados ? '' : `<div class="fut-grupo">${g.anos.map(htmlBlocoAtrasados).join('')}</div>`)
       : `<div class="fut-titulo"><span>${esc(g.titulo)}</span></div><div class="fut-grupo">${g.itens.map(l=>l.tipo==='fatura'?htmlFaturaFuturo(l):htmlEventoFuturo(l)).join('')}</div>`).join('')+
@@ -2418,7 +2418,7 @@ function htmlListaHist(lista, busca, asc){
     else if(!tabela) tit = `<div class="fut-titulo"><span>${esc(tituloDiaHist(g.l))}</span></div>`;
     return tit + `<div class="fut-grupo">${g.itens.map(l=>htmlLinhaHist(l,busca)).join('')}</div>`;
   }).join('');
-  const cab = `<div class="fut-cab">${selecaoHist?'<span></span>':''}<span><button type="button" class="hist-th" data-hist-ordem>Data ${asc?'↑':'↓'}</button></span><span>Lançamento</span><span>Banco</span><span>Status</span><span style="text-align:right">Valor</span>${selecaoHist?'':'<span></span>'}</div>`;
+  const cab = `<div class="fut-cab">${selecaoHist?'<span></span>':''}<span><button type="button" class="hist-th" data-hist-ordem>Data ${asc?'↑':'↓'}</button></span><span>Lançamento</span><span>Meio de pagamento</span><span>Forma de pagamento</span><span style="text-align:right">Valor</span>${selecaoHist?'':'<span></span>'}</div>`;
   return `<div class="fut-tabela${selecaoHist?' sel-lote':''}"><div class="fut-tabela-in">${cab}${corpo}</div></div>`;
 }
 function nFiltrosHist(){
@@ -2731,7 +2731,7 @@ async function desfazerEdicao(id, antes, doc){
   }
 }
 function resumoEdicao(antes, doc){
-  const campos = [['valor','Valor',fmtMoeda],['descricao','Descrição',v=>cortar(v,30)],['banco','Banco',v=>v],['status','Status',v=>v],
+  const campos = [['valor','Valor',fmtMoeda],['descricao','Descrição',v=>cortar(v,30)],['banco','Meio de pagamento',v=>v],['status','Forma de pagamento',v=>v],
     ['tipo','Tipo',v=>v],['dataEvento','Data',v=>fmtDataCompleta(diaLocal({dataEvento:v}))]];
   const igual = (k)=> k === 'dataEvento' ? new Date(antes[k]).getTime() === new Date(doc[k]).getTime() : String(antes[k]) === String(doc[k]);
   const m = campos.filter(([k])=>antes[k] !== undefined && !igual(k))
@@ -2803,7 +2803,7 @@ function pedirPagamentoFatura(f){
     document.getElementById('modalExtra').innerHTML =
       `<label>Valor</label><input type="number" step="0.01" id="pfValor" value="${Number(f.sugestao.valor) || ''}">
        <label>Data e hora do pagamento</label><input type="datetime-local" id="pfData" value="${agora}" max="${hoje}T23:59">
-       <label>Status</label><select id="pfStatus">${opcoes(lista, lista[0])}</select>
+       <label>Forma de pagamento</label><select id="pfStatus">${opcoes(lista, lista[0])}</select>
        <label>Meio de saída</label><select id="pfMeio">${opcoes(meios, meioInicial)}</select>
        <p class="muted" style="margin:6px 0 0;">O lançamento sai marcado com <b>Fatura ${esc(f.rotulo)} · ${esc(f.meio)}</b>. Pode ser o total, o mínimo ou qualquer valor.</p>
        <p class="muted" id="pfErro" style="color:var(--danger);margin:6px 0 0;"></p>`;
@@ -2826,7 +2826,7 @@ function pedirPagamentoFatura(f){
       const erro = document.getElementById('pfErro');
       if(!Number.isFinite(valor)){ erro.textContent = 'Informe o valor (pode ser zero).'; return; }
       if(!dia){ erro.textContent = 'Informe a data e a hora.'; return; }
-      if(!status || !meio){ erro.textContent = 'Escolha o status e o meio de saída.'; return; }
+      if(!status || !meio){ erro.textContent = 'Escolha a forma de pagamento e o meio de saída.'; return; }
       fechar({valor, status, banco: meio, dataEvento: new Date(dia).toISOString()});
     };
   });
@@ -2872,7 +2872,7 @@ function pedirConfirmacaoPrevisto(l){
     document.getElementById('modalExtra').innerHTML =
       `<label>Valor</label><input type="number" step="0.01" id="cpValor" value="${Number(l.valor) || ''}">
        <label>Data e hora ${saida ? 'do pagamento' : 'do recebimento'}</label><input type="datetime-local" id="cpData" value="${agora}" max="${hoje}T23:59">
-       <label>Status</label><select id="cpStatus">${opcoes(lista, inicial)}</select>
+       <label>Forma de pagamento</label><select id="cpStatus">${opcoes(lista, inicial)}</select>
        <p class="muted" id="cpErro" style="color:var(--danger);margin:6px 0 0;"></p>`;
     document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Confirmar</button>';
     document.getElementById('modalOverlay').classList.remove('hidden');
@@ -2892,7 +2892,7 @@ function pedirConfirmacaoPrevisto(l){
       const erro = document.getElementById('cpErro');
       if(!Number.isFinite(valor)){ erro.textContent = 'Informe o valor (pode ser zero).'; return; }
       if(!dia){ erro.textContent = 'Informe a data e a hora.'; return; }
-      if(!status){ erro.textContent = 'Escolha o status.'; return; }
+      if(!status){ erro.textContent = 'Escolha a forma de pagamento.'; return; }
       fechar({valor, status, dataEvento: new Date(dia).toISOString()});
     };
   });
@@ -3240,7 +3240,7 @@ function renderSaldos(){
     rascunhoSaldo = {idx:saldoAberto, si:sI.value, di:document.getElementById('sData').value, entra:document.getElementById('sEntra').checked};
   }
   if(!listas.banco.length){
-    el.innerHTML = '<p class="muted">Cadastre bancos na aba Listas primeiro.</p>';
+    el.innerHTML = '<p class="muted">Cadastre meios de pagamento na aba Listas primeiro.</p>';
     document.getElementById('saldoTotal').textContent = '···';
     document.getElementById('saldoSub').textContent = '';
     return;
@@ -3386,7 +3386,7 @@ function blocoFechamentoHtml(banco){
   const alternar = `<span data-fm="alternar" style="cursor:pointer;color:var(--accent);font-size:13px;">${aberto?'Recolher ▴':'Ver meses ▾'}</span>`;
   let h = `<div class="fm"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span><b>Fechamento mensal</b>${resumo}</span>${alternar}</div>`;
   if(!aberto) return h + '</div>';
-  h += '<p class="muted" style="margin:6px 0;">Cada mês fecha sozinho. Confira com o extrato do banco: o mês conferido (e os anteriores) fica travado.</p>';
+  h += '<p class="muted" style="margin:6px 0;">Cada mês fecha sozinho. Confira com o extrato do meio de pagamento: o mês conferido (e os anteriores) fica travado.</p>';
   r.historico.forEach(x=>{
     const extra = x.conf && x.conf.ajuste ? ` · ajuste ${fmtMoeda(x.conf.ajuste)}` : '';
     let acao = '';
@@ -3394,7 +3394,7 @@ function blocoFechamentoHtml(banco){
     else if(x.mes===ult) acao = `<button class="ghost" data-fm="reabrir" data-banco="${esc(banco)}" data-mes="${x.mes}">Reabrir</button>`;
     h += `<div class="fm-lin"><span class="fm-mes">${rotuloMesCurto(x.mes)}</span><span class="fm-pill fm-${x.estado}">${x.estado}</span><span class="fm-val">${fmtMoeda(x.valor)}<span class="muted" style="font-size:11px;">${extra}</span></span>${acao}</div>`;
     if(confRasc && confRasc.banco===banco && confRasc.mes===x.mes){
-      h += `<div class="fm-conf"><label>Saldo no extrato do banco ao fim de ${rotuloMesCurto(x.mes)}</label>
+      h += `<div class="fm-conf"><label>Saldo no extrato do meio de pagamento ao fim de ${rotuloMesCurto(x.mes)}</label>
         <input type="number" step="0.01" id="fmReal" value="${esc(confRasc.val)}" placeholder="0,00">
         <p class="muted" style="margin:4px 0;">O sistema calculou ${fmtMoeda(x.valor)}.</p>
         <p class="muted" style="margin:4px 0;color:var(--expense);">${esc(confRasc.msg||'')}</p>
@@ -3728,7 +3728,7 @@ async function onCartaoClick(e){
         if(resp.status===409 && resp.body && resp.body.codigo==='diferenca'){
           const d = resp.body;
           const txt = d.valorBanco===null ? `Esta fatura não tem o valor do app do cartão para comparar. Marcar como conferida mesmo assim, com o total ${fmtMoeda(d.total)}?`
-            : `O total calculado (${fmtMoeda(d.total)}) difere do valor informado do banco (${fmtMoeda(d.valorBanco)}). Marcar como conferida mesmo assim?`;
+            : `O total calculado (${fmtMoeda(d.total)}) difere do valor informado no extrato (${fmtMoeda(d.valorBanco)}). Marcar como conferida mesmo assim?`;
           if(!(await confirmarModal(txt))) return;
           resp = await db.cartaoConferir(meio, ym, true);
         }
@@ -3812,7 +3812,7 @@ async function adicionarCartaoUI(){
   const banco = document.getElementById('ncBanco').value;
   const dia = parseInt(document.getElementById('ncDia').value,10);
   const msgEl = document.getElementById('ncMsg');
-  if(!banco){ msgEl.textContent = '⚠️ Escolha um banco ou conta.'; return; }
+  if(!banco){ msgEl.textContent = '⚠️ Escolha um meio de pagamento.'; return; }
   if(!dia || dia<1 || dia>31){ msgEl.textContent = '⚠️ Informe o dia do fechamento (1 a 31).'; return; }
   try{
     msgEl.textContent = 'Salvando...';
@@ -4015,9 +4015,9 @@ async function importarFechamentos(){
     if(!todos.length){ st.textContent = 'Não encontrei linhas "FECHAMENTO" (o dia na célula à esquerda e o banco na coluna BANCO).'; return; }
     const bancos = todos.filter(b=>listas.banco.includes(b));
     const ignorados = todos.filter(b=>!listas.banco.includes(b));
-    if(!bancos.length){ st.textContent = 'Os bancos da planilha (' + todos.join(', ') + ') não estão na lista de bancos do app.'; return; }
+    if(!bancos.length){ st.textContent = 'Os meios de pagamento da planilha (' + todos.join(', ') + ') não estão na lista de meios de pagamento do app.'; return; }
     const resumo = bancos.map(b=>`${b} (${Object.keys(achados[b]).length} meses)`).join(', ');
-    if(!(await confirmarModal(`Gravar os dias de fechamento: ${resumo}?` + (ignorados.length ? ` Fora da lista de bancos, serão ignorados: ${ignorados.join(', ')}.` : '')))){ st.textContent = ''; return; }
+    if(!(await confirmarModal(`Gravar os dias de fechamento: ${resumo}?` + (ignorados.length ? ` Fora da lista de meios de pagamento, serão ignorados: ${ignorados.join(', ')}.` : '')))){ st.textContent = ''; return; }
     // cada fechamento vira um comando do servidor (que valida a data); o cartão que ainda não existe é criado com o dia do último mês da planilha
     const atuais = new Set(((await db.cartoes()).cartoes || []).map(c=>c.meio));
     let feitos = 0;
@@ -4252,7 +4252,7 @@ async function lerBancoParaVerificar(itens){
 function compararArquivoBanco(itens, docs, porId){
   const grupos = {};
   const g = l=>{
-    const mes = mesDeISO(l.dataEvento), ano = mes.slice(0,4), banco = l.banco || '(sem banco)';
+    const mes = mesDeISO(l.dataEvento), ano = mes.slice(0,4), banco = l.banco || '(sem meio de pagamento)';
     return grupos[mes+'|'+banco] = grupos[mes+'|'+banco] || {ano, mes, banco, arq:totalVazio(), grav:totalVazio(), faltando:[], diferentes:[], extras:0, repetidas:0};
   };
   if(porId){
@@ -4287,7 +4287,7 @@ function htmlVerificacao(grupos, lote){
   let h = (!faltam && !dif)
     ? `<p style="color:var(--income);font-weight:600;">✓ Tudo certo: os ${total} lançamentos do arquivo estão no banco de dados.</p>`
     : `<p style="color:var(--expense);font-weight:600;">⚠ ${ok} de ${total} lançamentos do arquivo conferem` + (faltam?`; ${faltam} não estão no banco`:'') + (dif?`; ${dif} estão com dados diferentes`:'') + '.</p>';
-  if(rep) h += `<p class="muted">${rep} linha(s) repetida(s) no arquivo (mesmo dia, valor, banco, descrição, status e tipo) contam como o mesmo lançamento: o app não grava duplicados.</p>`;
+  if(rep) h += `<p class="muted">${rep} linha(s) repetida(s) no arquivo (mesmo dia, valor, meio de pagamento, descrição, forma de pagamento e tipo) contam como o mesmo lançamento: o app não grava duplicados.</p>`;
   if(lote.ignoradas) h += `<p class="muted">${lote.ignoradas} linha(s) do arquivo foram ignoradas na leitura (sem data ou sem valor) e não entram nesta conta.</p>`;
   // uma linha por ano e banco (recolhida); clicar nela abre os meses. Quem tem divergência já vem aberto.
   const porAnoBanco = [];
@@ -4306,8 +4306,8 @@ function htmlVerificacao(grupos, lote){
       + (x.repetidas ? ` <span class="muted">(+${x.repetidas} repetida${x.repetidas>1?'s':''} no arquivo)</span>` : '');
   };
   const num = 'text-align:right;';
-  h += '<p class="muted" style="margin:4px 0;">Toque numa linha de ano e banco para ver os meses.</p>';
-  h += `<div style="overflow-x:auto;"><table style="width:100%;font-size:13px;border-collapse:collapse;"><tr class="muted"><td>Ano · mês</td><td>Banco</td><td style="${num}">Arquivo</td><td style="${num}">Entradas</td><td style="${num}">Saídas</td><td style="${num}">No banco</td><td>Situação</td></tr>`;
+  h += '<p class="muted" style="margin:4px 0;">Toque numa linha de ano e meio de pagamento para ver os meses.</p>';
+  h += `<div style="overflow-x:auto;"><table style="width:100%;font-size:13px;border-collapse:collapse;"><tr class="muted"><td>Ano · mês</td><td>Meio de pagamento</td><td style="${num}">Arquivo</td><td style="${num}">Entradas</td><td style="${num}">Saídas</td><td style="${num}">No banco</td><td>Situação</td></tr>`;
   porAnoBanco.forEach((p, i)=>{
     const aberto = p.faltando.length > 0 || p.diferentes.length > 0;
     h += `<tr data-vf="${i}" style="border-top:1px solid var(--border);cursor:pointer;font-weight:600;"><td><span class="vf-seta">${aberto?'▾':'▸'}</span> ${esc(p.ano)}</td><td>${esc(p.banco)}</td><td style="${num}">${p.arq.n}</td><td style="${num}">${fmtMoeda(p.arq.ent)}</td><td style="${num}">${fmtMoeda(p.arq.sai)}</td><td style="${num}">${p.grav.n}</td><td style="font-weight:400;">${situacao(p)}</td></tr>`;
@@ -4323,7 +4323,7 @@ function htmlVerificacao(grupos, lote){
   });
   if(itens.length){
     h += `<div style="max-height:240px;overflow-y:auto;margin-top:8px;">${itens.slice(0,200).join('')}${itens.length>200?`<div class="item-meta">… e mais ${itens.length-200}.</div>`:''}</div>`;
-    if(!lote.porId) h += '<p class="muted">Se alguma linha acima já deveria ter entrado, confira se ela mudou de descrição, valor, banco, data ou tipo no Histórico depois da importação, e importe de novo.</p>';
+    if(!lote.porId) h += '<p class="muted">Se alguma linha acima já deveria ter entrado, confira se ela mudou de descrição, valor, meio de pagamento, data ou tipo no Histórico depois da importação, e importe de novo.</p>';
   }
   return h;
 }

@@ -18,6 +18,8 @@ Referência: [`arquitetura.md`](arquitetura.md) (decisões de 2026-10-10).
   exibe, guarda a escolha da pessoa e a devolve como veio. Nada de nome de status, lista fixa, predicado por nome (`ehFuturo`,
   `afetaSaldo`, `ehCredito`...), cor ou regra escondida em nome, nem `excluirDoTotal` calculado no navegador. Ver
   [`decisoes.md`](decisoes.md).
+- **Nomes na tela (2026-11-07):** o campo `banco` aparece como **"Meio de pagamento"** e o campo `status` como **"Forma de pagamento"**, por extenso, em todo rótulo. Só o texto muda; campo, JSON e
+  Dynamo seguem `banco` e `status`. "Banco de dados" não muda. Ver [`decisoes.md`](decisoes.md).
 - Camadas `controller` → `service` → `domain`, adaptadores atrás de interfaces e dependências por construtor, sem
   globais. Em `backend/` cada camada é uma pasta (`controller/`, `service/`, `repository/`, `auth/`, `domain/`) e o
   teste `arquitetura_test.go` falha se um pacote importar o que não pode (por exemplo, `service` importando a AWS).
