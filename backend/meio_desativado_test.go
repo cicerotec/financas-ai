@@ -281,8 +281,9 @@ func TestSaldosMarcaEncerrado(t *testing.T) {
 		m := x.(map[string]any)
 		enc[m["meio"].(string)], _ = m["encerrado"].(bool)
 	}
-	if !enc["ENCERRADO"] || !enc["SEM-INICIO"] {
-		t.Errorf("desativados e zerados ficam encerrados: %v", enc)
+	// item 60: SEM-INICIO nao e calculado (nao se sabe o saldo), entao nunca vira encerrado
+	if !enc["ENCERRADO"] || enc["SEM-INICIO"] {
+		t.Errorf("desativado e zerado fica encerrado; o nao calculado nao: %v", enc)
 	}
 	if enc["SODEXO"] || enc["ITAU"] {
 		t.Errorf("desativado com saldo e meio ativo continuam visiveis: %v", enc)

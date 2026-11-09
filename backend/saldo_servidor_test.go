@@ -91,12 +91,13 @@ func TestSaldosDevolveMeiosTotalEMeses(t *testing.T) {
 	if !quase(nu["saldo"].(float64), 25) || nu["foraDoTotal"] != true {
 		t.Errorf("NUBANK: %v", nu)
 	}
-	if cartao["semInicio"] != true || !quase(cartao["saldo"].(float64), -7) {
-		t.Errorf("CARTAO sem configuracao: %v", cartao)
+	// item 60: sem configuracao o meio nao e calculado (saldo 0, motivo, fora do total) e o lancamento dele nao e lido
+	if cartao["semInicio"] != true || cartao["naoCalculado"] != true || cartao["motivo"] == "" || !quase(cartao["saldo"].(float64), 0) {
+		t.Errorf("CARTAO sem configuracao nao e calculado: %v", cartao)
 	}
 	tot := d["total"].(map[string]any)
-	if !quase(tot["valor"].(float64), 63) || tot["meios"] != 2.0 || tot["fora"] != 1.0 {
-		t.Errorf("o total soma so os que entram (ITAU 70 e CARTAO -7): %v", tot)
+	if !quase(tot["valor"].(float64), 70) || tot["meios"] != 1.0 || tot["fora"] != 1.0 || tot["naoCalculados"] != 1.0 {
+		t.Errorf("o total soma so ITAU (70); CARTAO nao calculado fica de fora e e contado: %v", tot)
 	}
 	// S-T11: os meses do ITAU, do atual para tras, de outubro a janeiro (o inicio do controle)
 	ms := itau["meses"].([]any)
@@ -160,14 +161,17 @@ func TestSaldosNaoGravaCacheSeOutraEscritaChegouAntes(t *testing.T) {
 	}
 }
 
-// S-T13: sem data de inicio o saldo vai desde o primeiro movimento e nao grava cache.
+// S-T13 (item 60): sem data de inicio o meio nao e calculado: nenhum lancamento e lido por ele e nenhum cache e gravado.
 func TestSaldosSemDataDeInicioNaoGravaCache(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
-	_, d := saldos(t, "own")
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 2.0, "porBanco": map[string]any{}})
+	f.falharQuerySemInicio = errors.New("leu o passado inteiro")
+	c, d := saldos(t, "own")
+	esperar(t, "saldos", c, 200)
 	itau := itemDoMeio(t, d, "ITAU")
-	if !quase(itau["saldo"].(float64), -30) || itau["semInicio"] != true {
-		t.Errorf("saldo desde o primeiro movimento: %v", itau)
+	if itau["naoCalculado"] != true || itau["semInicio"] != true || !quase(itau["saldo"].(float64), 0) {
+		t.Errorf("meio sem inicio nao e calculado: %v", itau)
 	}
 	if st := f.ler(t, pkEspaco, "SALDO#ITAU"); st != nil {
 		t.Errorf("sem dataInicio nao ha cache: %v", st)
@@ -487,42 +491,43 @@ func cargaComHistoricoAntigo(t *testing.T, f *bancoFake) (antigos, recentes int)
 	return antigos, recentes
 }
 
-// Um meio sem inicio do controle precisa ler desde o comeco, mas isso nao pode obrigar os outros a ler: os meios com inicio leem so de la em diante.
+// Item 60: um meio sem inicio do controle nao e calculado e nada e lido por ele; os meios com inicio leem so de la em diante.
 func TestSaldosMeioSemInicioNaoFazOsOutrosLerTudo(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
 	_, recentes := cargaComHistoricoAntigo(t, f)
 	f.lidosPorInicio = map[string]int{}
+	f.falharQuerySemInicio = errors.New("leu o passado inteiro") // qualquer Query desde o inicio dos tempos falha o teste
 	c, d := saldos(t, "own")
 	esperar(t, "saldos", c, 200)
 	if want := 100.0 - 30 - float64(recentes); !quase(itemDoMeio(t, d, "ITAU")["saldo"].(float64), want) {
 		t.Errorf("ITAU = %v, esperado %v", itemDoMeio(t, d, "ITAU")["saldo"], want)
 	}
-	if !quase(itemDoMeio(t, d, "NUBANK")["saldo"].(float64), 100) {
-		t.Errorf("NUBANK (sem inicio, soma tudo) = %v", itemDoMeio(t, d, "NUBANK")["saldo"])
+	nu := itemDoMeio(t, d, "NUBANK")
+	if nu["naoCalculado"] != true || !quase(nu["saldo"].(float64), 0) {
+		t.Errorf("NUBANK (sem inicio) nao e calculado: %v", nu)
+	}
+	tot := d["total"].(map[string]any)
+	if tot["meios"] != 1.0 || tot["naoCalculados"] != 1.0 {
+		t.Errorf("o total conta o nao calculado fora: %v", tot)
 	}
 	if n := f.lidosPorInicio["TX#2026-01-01T03:00:00.000Z"]; n == 0 || n > recentes+3+5 {
 		t.Errorf("os meios com inicio deveriam ler so de 2026 em diante: %d itens (esperado perto de %d); leituras por inicio: %v", n, recentes+3, f.lidosPorInicio)
 	}
+	if n := f.lidosPorInicio["TX#"]; n != 0 {
+		t.Errorf("nada pode ser lido desde o comeco: %d itens", n)
+	}
 }
 
-// Se a leitura do meio sem inicio falhar (por exemplo, a tabela limitar a leitura), os outros meios continuam, e esse volta marcado com erro: nao e um 500.
-func TestSaldosFalhaDeUmMeioNaoDerrubaOsOutros(t *testing.T) {
+// Item 60: a conferencia com o extrato de um meio sem inicio recusa (409 SEM_INICIO) sem ler lancamento algum.
+func TestConferirMeioSemInicioRecusa(t *testing.T) {
 	relogioFixo(t)
 	f := cenario(t)
-	_, recentes := cargaComHistoricoAntigo(t, f)
-	f.falharQuerySemInicio = errors.New("ProvisionedThroughputExceededException")
-	c, d := saldos(t, "own")
-	esperar(t, "saldos com um meio falhando", c, 200)
-	if want := 100.0 - 30 - float64(recentes); !quase(itemDoMeio(t, d, "ITAU")["saldo"].(float64), want) {
-		t.Errorf("ITAU = %v, esperado %v", itemDoMeio(t, d, "ITAU")["saldo"], want)
-	}
-	nu := itemDoMeio(t, d, "NUBANK")
-	if nu["erro"] != true {
-		t.Errorf("o meio que falhou volta com erro: %v", nu)
-	}
-	tot := d["total"].(map[string]any)
-	if tot["meios"] != 1.0 || tot["erros"] != 1.0 {
-		t.Errorf("o total so soma o que foi calculado e conta o erro: %v", tot)
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 2.0, "porBanco": map[string]any{}})
+	f.falharQuerySemInicio = errors.New("leu o passado inteiro")
+	st, d := chamar(t, "own", "POST", "spaces/s1/fechamentos/conferir", nil, `{"meio":"ITAU","mes":"2026-09","real":0}`)
+	esperar(t, "conferir sem inicio", st, 409)
+	if d["codigo"] != "SEM_INICIO" {
+		t.Errorf("codigo = %v", d["codigo"])
 	}
 }
