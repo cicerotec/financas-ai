@@ -22,7 +22,6 @@ Só o que ainda não foi feito, na ordem de prioridade (**[Agora]**, depois **[P
 com o salto para o registro real. **Ao concluir um item, marque `[x]` no registro e tire a linha daqui.** Bugs
 pendentes: nenhum.
 
-- [\[Backend\] - 58 - **\[Agora\] Meio desativado: impacto, quando some e o que deixa de poder mudar (análise):**](#item-58)
 - [\[Backend\] - 60 - **\[Agora\] Saldos: meio novo nasce com início do controle e meio sem início não é calculado:**](#item-60)
 - [\[Infra\] - 49 - **\[Próximo\] App multiusuário (MFA, cadastro com convite, espaço próprio, isolamento):**](#item-49)
 - [\[Backend\] - 34 - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
@@ -79,7 +78,7 @@ pendentes: nenhum.
 Os itens 31 a 34 vêm das decisões de 2026-10-10 (erro grave: uma edição sobrescreveu um registro e o dado se perdeu).
 O documento de referência é [`.ai/arquitetura.md`](.ai/arquitetura.md); leia antes de mexer. **Nenhuma chave nova no
 DynamoDB sem discutir com o dono.**
-- 58. [ ] <a id="item-58"></a>**[Agora] Meio desativado: impacto, quando some e o que deixa de poder mudar (análise, 2026-11-07; primeira tarefa, antes de qualquer código):**
+- 58. [x] <a id="item-58"></a>**[Agora] Meio desativado: impacto, quando some e o que deixa de poder mudar (análise, 2026-11-07; primeira tarefa, antes de qualquer código) (concluído em 2026-11-09: backend e telas mergeados nos PRs 386 e 387 (custo da conferência corrigido) e 388 (log por meio do saldo); testado e aprovado pelo dono em dev; o que sobrou virou o item 60):**
   Veio do teste do dono (2026-11-07): ele criou o banco `Teste`, fez um lançamento, desativou (não dava para remover) e o meio continuou em Saldos. A correção que o escondia de Saldos e Cartão
   foi **revertida** (#370): um meio desativado pode ter saldo, e esconder esse dinheiro está errado. O item 43 entregou só "deixa de ser sugerido"; este item decide o que é, de verdade, desativar.
   **Ideia do dono:** o meio **não pode ser desativado enquanto houver lançamentos futuros para ele**; depois de desativado **não consta em nenhum evento** (Saldos, Cartão, Futuros) e **só aparece no Histórico**,
