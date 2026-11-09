@@ -140,5 +140,5 @@ func FaturaConferida(c Cartao, ym string) bool { return c.Faturas[ym].Conferida 
 type ErroFaturaConferida struct{ Meio, Ym string }
 
 func (e *ErroFaturaConferida) Error() string {
-	return "a fatura " + RotuloMes(e.Ym) + " do cartao " + e.Meio + " esta conferida e travada: desfaca a conferencia na aba Cartao para alterar"
+	return "a fatura " + RotuloMes(e.Ym) + " do cartao " + e.Meio + " esta conferida e travada: desfaca a conferencia na aba Cartao de credito para alterar"
 }
