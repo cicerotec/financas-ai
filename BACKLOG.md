@@ -22,7 +22,6 @@ Só o que ainda não foi feito, na ordem de prioridade (**[Agora]**, depois **[P
 com o salto para o registro real. **Ao concluir um item, marque `[x]` no registro e tire a linha daqui.** Bugs
 pendentes: nenhum.
 
-- [\[Backend\] - 60 - **\[Agora\] Saldos: meio novo nasce com início do controle e meio sem início não é calculado:**](#item-60)
 - [\[Infra\] - 49 - **\[Próximo\] App multiusuário (MFA, cadastro com convite, espaço próprio, isolamento):**](#item-49)
 - [\[Backend\] - 34 - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[Backend\] - 57 - **\[Próximo\] Combos sugeridos calculados pelo servidor:**](#item-57)
@@ -128,7 +127,7 @@ DynamoDB sem discutir com o dono.**
   com o Encerrar); o que já existe num meio congelado (confirmar previsto, pagar fatura, conferir mês: a sugestão é poder liquidar o que existe e recusar só o novo); recorrência ativa
   (sugestão: recusar congelar enquanto houver); avisos já existentes continuam. **Dado novo no DynamoDB:** precisa de um segundo estado por meio (hoje só há o `ativoAte` em `CFG#LISTAS`);
   só entra com a aprovação do dono. Importar no meio congelado segue a mesma regra do desativado (item 58): só registros anteriores à `dataInicio`. **Demo antes** da tela. Depende de o item 58 estar decidido.
-- 60. [ ] <a id="item-60"></a>**[Agora] Saldos: meio novo nasce com início do controle e meio sem início não é calculado (decidido pelo dono em 2026-11-09; vem **depois** do item 58, separado de propósito: são duas coisas ao mesmo tempo e não dá para fazer juntas):**
+- 60. [x] <a id="item-60"></a>**[Agora] Saldos: meio novo nasce com início do controle e meio sem início não é calculado (concluído em 2026-11-09: PR 392, testado e aprovado pelo dono em dev; decidido pelo dono em 2026-11-09; vem **depois** do item 58, separado de propósito: são duas coisas ao mesmo tempo e não dá para fazer juntas):**
   **Origem (provada no log de dev, 2026-11-09):** com 12 meios, o `GET /saldos` levava 15 a 18 s (13 páginas, 12.770 itens) porque dois meios (`Teste` e `T-LIVRE`) não tinham `dataInicio` nem fechamento e o servidor
   somava a história inteira por eles; os outros 10 já liam só do mês seguinte ao último fechamento (o fechamento automático funciona). Com `dataInicio` nos dois, caiu para 0,8 s (1 página, 866 itens). A tabela fica em 5 RCU,
   sem índice (`feedback_performance-consultas`). O `PUT cfg/listas` só acrescenta o nome em `CFG#LISTAS`; nada é criado em `CFG#SALDOS`, então **todo meio novo nasce sem início e reabre esse custo**.
@@ -143,7 +142,7 @@ DynamoDB sem discutir com o dono.**
   (item 58) já está resolvida e mergeada; este item não a reabre.
   **Fechado com o dono em 2026-11-09 (demos [`Listas v7`](.ai/demos/demo-listas-v7-meio-novo.html) e [`Saldos v4`](.ai/demos/demo-saldos-v4-sem-inicio.html) aprovadas):** o início do meio novo é **hoje**; o aviso é o texto da demo (cartão em Listas, aviso rápido na IA do Lançar, resumo no fim da importação);
   o total diz "N sem início do controle (fora do total)"; a importação de planilha também cria o meio com início hoje (o histórico importado só entra no saldo depois de ajustar a data).
-  **Implementado (2026-11-09, aguardando o teste do dono em dev):** `PUT cfg/listas` cria `porBanco[nome] = {saldoInicial: 0, dataInicio: hoje}` para o nome novo e devolve `meiosNovos`; o `/saldos` devolve `naoCalculado` e `motivo` para o meio sem início (nenhum lançamento lido, sem cache, fora do total, `total.naoCalculados`);
+  **Implementado (2026-11-09, PR 392, aprovado pelo dono em dev):** `PUT cfg/listas` cria `porBanco[nome] = {saldoInicial: 0, dataInicio: hoje}` para o nome novo e devolve `meiosNovos`; o `/saldos` devolve `naoCalculado` e `motivo` para o meio sem início (nenhum lançamento lido, sem cache, fora do total, `total.naoCalculados`);
   a conferência recusa com 409 `SEM_INICIO`. Testes: `backend/meio_novo_inicio_test.go`, `saldo_servidor_test.go` (S-T13 e correlatos), `web/meio-sem-inicio.test.js`.
 - 31. [x] <a id="item-31"></a>**[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
   edição, ocultação, exclusão e restauração gera uma versão (quem, quando, o registro completo; **criar e importar `id` novo não geram**, ajuste de 2026-10-23), gravada na mesma transação
