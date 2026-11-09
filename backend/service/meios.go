@@ -18,7 +18,7 @@ type UsoDeMeio interface {
 var (
 	ErrMeioNaoEncontrado = errors.New("meio de pagamento nao encontrado")
 	ErrMeioEmUso         = errors.New("esse meio tem lancamentos: desative o meio em vez de remover")
-	ErrMeioECartao       = errors.New("esse meio e um cartao: remova o cartao na aba Cartao antes")
+	ErrMeioECartao       = errors.New("esse meio e um cartao: remova o cartao na aba Cartao de credito antes")
 )
 
 // Meios desativa, reativa e remove os meios de pagamento (CFG#LISTAS.banco e CFG#LISTAS.ativoAte). Adicionar continua pelo PUT de Listas.

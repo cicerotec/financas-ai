@@ -176,14 +176,14 @@ func (e *Encerramento) De(ctx context.Context, sid, meio string) ([]string, erro
 	sort.Strings(nomes)
 	for _, nome := range nomes {
 		if c, ok := domain.CartaoDe(cfgC, nome); ok && c.Pagador == meio {
-			falta = append(falta, "É o pagador padrão do cartão "+nome+": troque o pagador na aba Cartão.")
+			falta = append(falta, "É o pagador padrão do cartão "+nome+": troque o pagador na aba Cartão de crédito.")
 		}
 	}
 	for _, fa := range faturas {
 		if fa["pagador"] == meio {
 			c, _ := fa["meio"].(string)
 			rot, _ := fa["rotulo"].(string)
-			falta = append(falta, "É o pagador da fatura de "+rot+" do cartão "+c+": troque o pagador na aba Cartão.")
+			falta = append(falta, "É o pagador da fatura de "+rot+" do cartão "+c+": troque o pagador na aba Cartão de crédito.")
 		}
 	}
 	return falta, nil

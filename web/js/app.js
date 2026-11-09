@@ -1447,7 +1447,7 @@ function removerMeio(nome){
     if(r.status===409){
       const cod = r.body && r.body.codigo;
       document.getElementById('meioConf').innerHTML = cod==='MEIO_E_CARTAO'
-        ? `<b>Não dá para remover.</b> ${esc(nome)} está ligado a um cartão. Tire o cartão na aba Cartão e tente de novo.`
+        ? `<b>Não dá para remover.</b> ${esc(nome)} está ligado a um cartão. Tire o cartão na aba Cartão de crédito e tente de novo.`
         : `<b>Não dá para remover.</b> ${esc(nome)} tem lançamentos, e o passado precisa dele. Desative o meio: ele deixa de ser sugerido e o histórico continua igual.`;
       document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="meioFechar">Fechar</button>' + (cod==='MEIO_EM_USO' ? '<button class="primary" id="meioDesativar2">Desativar…</button>' : '');
       document.getElementById('meioFechar').onclick = fecharJanelaMeio;
