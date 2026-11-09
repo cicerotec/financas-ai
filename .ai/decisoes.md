@@ -78,6 +78,14 @@ O de-para já existia para o catálogo de status e para Listas (ver "Status, mei
   depois disso nada novo entra (o R9 do item 43 foi revogado), exceto importar registros anteriores à `dataInicio`; o meio some de Saldos, Cartão e Futuros e fica só no Histórico, com marca. Remover aceita meio com
   lançamentos todos excluídos; restaurar valida o meio. O meio que continua existindo mas não aceita eventos novos é outro conceito, o **congelar**, no item 59. Detalhe no `BACKLOG.md`, item 58.
 
+## A aba "Cartão" passa a se chamar "Cartão de crédito" (2026-11-09)
+Pedido do dono: "Cartão" era genérico e se confundia. Demos aprovadas: `demo-cartao-v3-nome`, `demo-menu-v3-nome` e `demo-configuracoes-v2-nome`.
+- **Onde vale:** o item do menu ⋮, a aba do computador, o título da tela, a seção de Configurações (antes "Cartão", fechamentos da planilha) e toda frase que cita a aba, no app e nas mensagens do servidor.
+- **Só o texto muda.** O id da aba (`data-tab="cartao"`, `#tab-cartao`), o endereço `#cartao`, as rotas `/cartoes` e os nomes no código e no DynamoDB ficam como estão.
+- **Descartado: "Faturas".** Fora do app, fatura também é a conta de luz ou de telefone (que mora em Futuros), e a palavra ficaria ao lado de "Futuros" no menu, com duas letras de diferença.
+- **Custo aceito:** no cabeçalho do celular o título corta com reticências até 390 px de tela ("Cartão de créd…") e cabe inteiro a partir de 412 px; em Configurações, em 320 e 360 px o título da seção quebra em duas linhas e o resumo corta. Um título curto só para o celular foi oferecido e não foi escolhido.
+- As specs, as demos já fechadas e o `BACKLOG.md` continuam dizendo "aba Cartão", como registro da época.
+
 ## Outras decisões
 - Descartado: bloquear duplicidade por conteúdo (a mesma compra pode ter outro horário e outra descrição).
 - Atualização da tela por gatilho (foco da aba, troca de aba, antes de salvar, botão Atualizar, checagem lenta de 3 a
