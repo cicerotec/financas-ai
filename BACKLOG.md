@@ -77,16 +77,16 @@ Os itens 31 a 34 vêm das decisões de 2026-10-10 (erro grave: uma edição sobr
 O documento de referência é [`.ai/arquitetura.md`](.ai/arquitetura.md); leia antes de mexer. **Nenhuma chave nova no
 DynamoDB sem discutir com o dono.**
 - 58. [x] <a id="item-58"></a>**[Agora] Meio desativado: impacto, quando some e o que deixa de poder mudar (análise, 2026-11-07; primeira tarefa, antes de qualquer código) (concluído em 2026-11-09: backend e telas mergeados nos PRs 386 e 387 (custo da conferência corrigido) e 388 (log por meio do saldo); testado e aprovado pelo dono em dev; o que sobrou virou o item 60):**
-  Veio do teste do dono (2026-11-07): ele criou o banco `Teste`, fez um lançamento, desativou (não dava para remover) e o meio continuou em Saldos. A correção que o escondia de Saldos e Cartão
+  Veio do teste do dono (2026-11-07): ele criou o banco `Teste`, fez um lançamento, desativou (não dava para remover) e o meio continuou em Saldos. A correção que o escondia de Saldos e Cartão de crédito
   foi **revertida** (#370): um meio desativado pode ter saldo, e esconder esse dinheiro está errado. O item 43 entregou só "deixa de ser sugerido"; este item decide o que é, de verdade, desativar.
-  **Ideia do dono:** o meio **não pode ser desativado enquanto houver lançamentos futuros para ele**; depois de desativado **não consta em nenhum evento** (Saldos, Cartão, Futuros) e **só aparece no Histórico**,
+  **Ideia do dono:** o meio **não pode ser desativado enquanto houver lançamentos futuros para ele**; depois de desativado **não consta em nenhum evento** (Saldos, Cartão de crédito, Futuros) e **só aparece no Histórico**,
   de preferência com uma **marca de desativado**, **sem permitir edições que alterem chaves** como data e valor. A comparação é com o banco, que manda zerar o saldo para encerrar a conta.
   **O que analisar (nesta ordem, só levantamento e decisão, nada de código):**
-  1. **O impacto de um cartão desativado hoje, tela por tela:** Cartão (lista, total, próximo fechamento, "disponíveis"); Futuros (faturas calculadas, previstos, atrasados, resumo do mês);
+  1. **O impacto de um cartão desativado hoje, tela por tela:** Cartão de crédito (lista, total, próximo fechamento, "disponíveis"); Futuros (faturas calculadas, previstos, atrasados, resumo do mês);
      Saldos; **avisos** (itens `AVISOS#ATIVOS` de fatura e de lançamento continuam disparando); **recorrências ativas** (a rotina diária cria a próxima cópia no meio desativado);
      Prever, Repetir e Estender; Transferência; **pagador** do cartão e das faturas (o pagador pode ser um meio desativado); conferência de mês e de fatura; importar, restaurar versão e Confirmar
      previsto; Tendências; exportar. Para cada um: o que acontece, o que deveria acontecer.
-  2. **Quando um meio pode sair de Saldos, Cartão e Futuros:** as condições para **desativar**. Candidatas: saldo zero (banco) ou faturas abertas e fechadas todas pagas (cartão); nenhum
+  2. **Quando um meio pode sair de Saldos, Cartão de crédito e Futuros:** as condições para **desativar**. Candidatas: saldo zero (banco) ou faturas abertas e fechadas todas pagas (cartão); nenhum
      lançamento futuro ou previsto (de qualquer data); nenhuma recorrência ativa; nenhuma fatura a pagar; nenhum aviso pendente. Definir o que é "saldo zero" para um meio **sem início
      do controle** e para um meio **fora do total**. A recusa explica o que falta, como o Remover faz hoje.
   3. **Desativar bloqueia lançar?** Hoje não (R9 do roteiro do item 43: o servidor não valida lançamento contra o `ativoAte`). Pela ideia do dono, passa a recusar criar, importar, restaurar e
@@ -110,17 +110,17 @@ DynamoDB sem discutir com o dono.**
     Reverte o R9 do item 43. Três portas a cobrir: `criar`, `CriarCopia` (recorrência) e `Transferir` (que grava por `SalvarLote`).
   - **Importar é a exceção:** num meio desativado entra só o registro com `dataEvento` **anterior** à `dataInicio` do meio (a partir dela o saldo conta); sem `dataInicio`, recusa o registro. Vale só para desativados
     (nos ativos, importar segue livre); a recusa é por registro (os bons entram, os ruins voltam em `rejeitados`, com código novo); a trava de mês conferido continua por cima.
-  - **Some de Saldos, Cartão e Futuros** (o saldo é zero e não há evento, então nada se perde); **só aparece no Histórico, com marca "desativado"** (demo antes) e continua escolhível no filtro de meio.
+  - **Some de Saldos, Cartão de crédito e Futuros** (o saldo é zero e não há evento, então nada se perde); **só aparece no Histórico, com marca "desativado"** (demo antes) e continua escolhível no filtro de meio.
     Edição de lançamento de meio desativado: só descrição, nota e tags (lógica do `mudaSaldo` do item 38). **Reativar** sempre possível: o meio volta a aparecer com o que tem.
   - **Remover** aceita o meio cujos lançamentos estão **todos excluídos logicamente** (`UsaMeio` passa a ignorar o `excluidoEm`), o que resolve o `Teste`. **Restaurar versão passa a validar o meio contra a lista:** meio removido ou
     desativado é recusado ("cadastre o meio de novo para restaurar"), então o histórico não traz um meio removido de volta. `HIST#` continua imutável. Se um meio for recriado com o mesmo nome, os excluídos do antigo passam a apontar para o novo (não entram no saldo; só valem se restaurados): aceito.
   - **Nenhum dado novo no DynamoDB:** o `ativoAte` basta. Falta, ao implementar: o cache das faturas de Futuros acompanhar a versão de `CFG#LISTAS`; corrigir `padrao-de-telas.md` e o texto de Listas no `index.html`
     ("Desativar um meio não muda o passado…"). Os documentos do item 43 já ganharam a nota de revisão (R9 e Limites) em 2026-11-08.
   - **Ainda não lido (confirmar ao implementar):** Prever, Repetir, Estender, Tendências, exportar e conferência; pelo que se viu, todos passam por `criar`/`ValidarTx` ou leem por banco e herdam o mesmo comportamento.
-  **ANDAMENTO (2026-11-08, branch `feature/meio-desativado-encerrar`, nada commitado ainda):** o **backend está pronto e testado** (conferência de pendências incluindo as três últimas faturas sem depender de vencimento, `MEIO_DESATIVADO` em todas as portas de escrita, `PUT /cfg/saldos` e `POST /cartoes` recusam meio desativado, `ativoAte: "hoje"`, `encerrado` em `/saldos` e `/cartoes`, Remover só com lançamentos excluídos). As demos de **Listas, Histórico, Saldos e Cartão foram aprovadas** pelo dono (ações apagadas com o motivo) e as telas estão implementadas (`web/meio-desativado.test.js`). A demo e o código do **Lançar editando** também foram aprovados e feitos. Prever, Repetir, Estender, Tendências, exportar e a conferência com o extrato passam pelo servidor (que recusa com mensagem) ou só leem; o `cartaoDiferenca` tratava o 409 como sucesso e foi corrigido. O cache das faturas de Futuros **não precisa** acompanhar `CFG#LISTAS` (meio desativado não tem fatura a pagar). **Correção de custo (2026-11-08, branch `fix/desativar-sem-varrer-passado`):** a conferência lia o espaço inteiro duas vezes e deu 502 em dev; agora meio sem nenhum ponto de partida do saldo (mês conferido, cache ou `dataInicio`) não desativa, o saldo parte do último fechamento e previsto/futuro é só de hoje em diante (R13 do spec). **Falta:** ver as telas no ambiente dev (o app real exige o login do Cognito e não foi aberto).
+  **ANDAMENTO (2026-11-08, branch `feature/meio-desativado-encerrar`, nada commitado ainda):** o **backend está pronto e testado** (conferência de pendências incluindo as três últimas faturas sem depender de vencimento, `MEIO_DESATIVADO` em todas as portas de escrita, `PUT /cfg/saldos` e `POST /cartoes` recusam meio desativado, `ativoAte: "hoje"`, `encerrado` em `/saldos` e `/cartoes`, Remover só com lançamentos excluídos). As demos de **Listas, Histórico, Saldos e Cartão de crédito foram aprovadas** pelo dono (ações apagadas com o motivo) e as telas estão implementadas (`web/meio-desativado.test.js`). A demo e o código do **Lançar editando** também foram aprovados e feitos. Prever, Repetir, Estender, Tendências, exportar e a conferência com o extrato passam pelo servidor (que recusa com mensagem) ou só leem; o `cartaoDiferenca` tratava o 409 como sucesso e foi corrigido. O cache das faturas de Futuros **não precisa** acompanhar `CFG#LISTAS` (meio desativado não tem fatura a pagar). **Correção de custo (2026-11-08, branch `fix/desativar-sem-varrer-passado`):** a conferência lia o espaço inteiro duas vezes e deu 502 em dev; agora meio sem nenhum ponto de partida do saldo (mês conferido, cache ou `dataInicio`) não desativa, o saldo parte do último fechamento e previsto/futuro é só de hoje em diante (R13 do spec). **Falta:** ver as telas no ambiente dev (o app real exige o login do Cognito e não foi aberto).
 - 59. [ ] <a id="item-59"></a>**[Depois] Congelar meio (continua existindo, mas não aceita eventos novos; ideia do dono, 2026-11-08; só registrado, nada decidido nem feito):**
-  Surgiu na análise do item 58. O 58 trata do **Encerrar** (a conta acabou: só com saldo zero e sem nenhum evento, inclusive futuro; o meio some de Saldos, Cartão e Futuros e fica só no
-  Histórico, com marca). O **Congelar** é outro conceito: o meio **continua existindo e aparecendo em Saldos e Cartão, com a marca**, mas **não aceita eventos novos** (Lançar, Transferir,
+  Surgiu na análise do item 58. O 58 trata do **Encerrar** (a conta acabou: só com saldo zero e sem nenhum evento, inclusive futuro; o meio some de Saldos, Cartão de crédito e Futuros e fica só no
+  Histórico, com marca). O **Congelar** é outro conceito: o meio **continua existindo e aparecendo em Saldos e Cartão de crédito, com a marca**, mas **não aceita eventos novos** (Lançar, Transferir,
   Avisos novos, Recorrência). Serve para o meio com saldo que não dá para zerar (o `SODEXO-REF-IBM` ao sair da empresa, o exemplo do item 43) e funciona como rampa para o Encerrar:
   congela, deixa o que existe se resolver, encerra. **A definir antes de qualquer código:** o nome na tela ("Congelar" ou "Pausar"; não usar "desativar" nem "bloquear" para não confundir
   com o Encerrar); o que já existe num meio congelado (confirmar previsto, pagar fatura, conferir mês: a sugestão é poder liquidar o que existe e recusar só o novo); recorrência ativa
@@ -252,10 +252,10 @@ DynamoDB sem discutir com o dono.**
   a discutir antes de criar qualquer campo. Absorve o item 14.
   **Fatiado em 2026-10-24 (vem depois do 40 e antes do 41):** a **fatia a** é a fatura, o total e a conferência no servidor
   (`GET /cartoes`, `GET .../faturas/{ym}`, comandos de cartão, as sugestões de ajuste portadas para Go, `bancos[].cartao` em
-  `GET /cfg/listas`, validação de `faturaAjuste`, `PUT /cfg/cartoes` removida), com a aba Cartão **conferida lado a lado**; a
+  `GET /cfg/listas`, validação de `faturaAjuste`, `PUT /cfg/cartoes` removida), com a aba Cartão de crédito **conferida lado a lado**; a
   **fatia b** (o cartão como entidade própria, a trava da fatura conferida e a migração do `faturaAjuste` explícito) segue a discutir.
   Intent, plan e spec da fatia a (aprovados em 2026-10-24) em [`.ai/specs/fatura-servidor/`](.ai/specs/fatura-servidor/intent.md).
-  **Fatia a concluída em 2026-10-24** (fases A, B e C: a aba Cartão e a linha Fatura do Lançar leem o servidor, conferidas pelo dono em dev e produção; o `PUT /cfg/cartoes` saiu). Sobra a fatia b.
+  **Fatia a concluída em 2026-10-24** (fases A, B e C: a aba Cartão de crédito e a linha Fatura do Lançar leem o servidor, conferidas pelo dono em dev e produção; o `PUT /cfg/cartoes` saiu). Sobra a fatia b.
   - [x] **Fatia a: faturas do cartão no servidor** (concluída em 2026-10-24: fases A, B e C).
   - [x] **Fatia b, com o escopo reduzido (2026-10-25; concluída em 2026-10-25, junto com o item 35):** só a **trava da fatura conferida pelo servidor**, feita junto com o item 35. **Fora, por decisão do dono:** o cartão como entidade própria (ele continua sendo uma entrada de `CFG#CARTOES`, `meios[].cartao`) e a migração do `faturaAjuste` explícito (o passado está correto). Intent, plan e spec (rascunho) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md).
 - 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
@@ -272,7 +272,7 @@ DynamoDB sem discutir com o dono.**
   `CFG#SALDOS.porBanco[meio]`, ausente = ativo; **aprovado pelo dono em 2026-10-24**) e a lista `meios: [{nome, cartao, ativo}]` que o item 33a já entrega com `ativo` sempre verdadeiro.
   Intent, plan e spec depois da conversa sobre o 40, o 33a e o 41. Demo antes de qualquer tela.
   **Fases A (backend, #347) e B (tela, #348) concluídas em 2026-11-03 e conferidas em dev pelo dono. Roteiro (aprovado em 2026-11-03):** [`.ai/specs/meios-de-pagamento/`](.ai/specs/meios-de-pagamento/intent.md), em duas fases (A backend, B tela); o `ativoAte` em `CFG#LISTAS` foi reaprovado pelo dono.
-  **Conversa de 2026-11-03:** o `ativoAte` vai em `CFG#LISTAS` (onde o meio nasce), não em `CFG#SALDOS` (o cartão sem conta não tem saldo); a etiqueta **crédito** vem da aba Cartão
+  **Conversa de 2026-11-03:** o `ativoAte` vai em `CFG#LISTAS` (onde o meio nasce), não em `CFG#SALDOS` (o cartão sem conta não tem saldo); a etiqueta **crédito** vem da aba Cartão de crédito
   (Listas só exibe); **Remover** só confere o uso ao clicar, por varredura (a flag `jaUsado` fica em Ideias, para se a varredura ficar cara). Demo: [`demo-listas-v3-meios`](.ai/demos/demo-listas-v3-meios.html) (aprovada em 2026-11-03).
 - 46. [x] <a id="item-46"></a>**Aviso no Telegram para a fatura do cartão** (concluído em 2026-10-26: fase A do backend no #244 e fase B da tela no #246; conferido em dev pelo dono): hoje só um lançamento tem aviso; a fatura, que é calculada pelo servidor, só tem o botão Já paguei. O aviso passa a ser ligado **na própria fatura** em Futuros (botão Avisar, mesma tela do Prever), só para aquela fatura (o cartão não tem aviso padrão) e só se ela tiver vencimento. Dado novo: `faturas[ym].aviso` (mesmo formato do lançamento) mais o item auxiliar já existente em `AVISOS#ATIVOS`; **desempenho: dias sem aviso não leem nada além da Query dos avisos**. A fatura paga some do resumo sozinha. Intent, plan e spec (rascunho) em [`.ai/specs/aviso-fatura/`](.ai/specs/aviso-fatura/intent.md); demo `.ai/demos/arquivo/demo-aviso-fatura.html`.
 - 45. [x] <a id="item-45"></a>**Futuros: os atrasados antigos são buscados por ano, sob demanda** (concluído em 2026-10-26, em produção; demo `.ai/demos/arquivo/demo-atrasados-por-ano.html`; `GET /futuros` agrupa em `atrasados[{ano,n,valor,meses}]` e devolve `anosAnteriores`; `?ano=AAAA` busca um ano; anotado em 2026-10-25): hoje Futuros olha só **do mês passado em diante**
@@ -321,7 +321,7 @@ DynamoDB sem discutir com o dono.**
   - **Banco ou cartão novo nasce invisível** para quem não é dono, até o dono liberar.
   - **Três níveis de visibilidade por banco ou cartão** (conversa de 2026-10-31; cada dono escolhe a política dele, e
     um mesmo espaço pode misturar níveis):
-    | Nível | Saldos e Cartão | Lançamentos (Histórico, Futuros, Tendências) | Totais e somas |
+    | Nível | Saldos e Cartão de crédito | Lançamentos (Histórico, Futuros, Tendências) | Totais e somas |
     |---|---|---|---|
     | **Visível** | aparece | aparecem | incluem |
     | **Resumido** | não aparece | aparecem | incluem, com aviso "inclui bancos que você não visualiza" |
@@ -367,7 +367,7 @@ DynamoDB sem discutir com o dono.**
   (decisões do dono, 2026-10-24).
   - **Três valores por fatura:** calculado (a soma dos nossos registros de `CREDITO`), o da operadora (`valorBanco`) e o do boleto, que é
     o que se paga. O sistema propõe, o dono confirma ou corrige, e a diferença fica à vista (hoje vira um lançamento de valor zero como nota solta).
-  - **Meio pagador:** escolhido na seção do cartão, na aba Cartão. Vale para o cartão inteiro como padrão e **pode ser trocado em cada fatura**,
+  - **Meio pagador:** escolhido na seção do cartão, na aba Cartão de crédito. Vale para o cartão inteiro como padrão e **pode ser trocado em cada fatura**,
     porque ninguém sabe onde haverá saldo (cartão do SANTANDER pago pelo NUBANK, em débito).
   - **Vencimento:** a data **de cada fatura** (o dia do cartão só sugere, não vale para nenhuma fatura; decisão do dono, 2026-10-25). É a data em que a fatura aparece em Futuros; sem ela, a fatura não aparece.
   - **Em Futuros**, no meio pagador, até duas linhas por cartão, **calculadas pelo servidor** (não são previstos gravados):
@@ -416,7 +416,7 @@ DynamoDB sem discutir com o dono.**
   abrem as telas cheias do Prever (a lógica e os componentes já existem em `web/index.html`, bloco "Prever e Estender").
   Pelo padrão, começa com uma demo do formulário completo para aprovação.
 - 21. [x] <a id="item-21"></a>**Próximos passos de UX** (encerrado em 2026-10-26: o dono considera bom o uso no celular como está; o que sobrou não será feito) (vindos de observar o uso real; detalhes em [`.ai/ux.md`](.ai/ux.md)): barra de navegação
-  inferior no celular, botões pequenos de Cartão e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
+  inferior no celular, botões pequenos de Cartão de crédito e Saldos, "Cancelar edição"/"Limpar formulário" perto do Salvar,
   acessibilidade das abas, unificar o seletor de tags (agora no item 42).
 - 48. [x] <a id="item-48"></a>**Aviso padrão do cartão, copiado para a fatura ao definir o vencimento** (concluído em 2026-10-26 no #249; conferido em dev pelo dono): o cartão ganha `porBanco[meio].aviso` (mesmo formato do aviso da fatura, só um modelo). Quando o dono define o **primeiro vencimento** de uma fatura (o momento em que ela vira registro em Futuros) e a fatura ainda não tem aviso, o servidor **copia** o padrão para `faturas[ym].aviso` na mesma gravação; depois o dono muda pelo botão Avisar. Mudar o padrão não altera faturas já copiadas; nenhuma leitura grava; o passado não é tocado. Dado novo: `porBanco[meio].aviso` (aprovado pelo dono em 2026-10-26). Em Configurar cartão, linha **Aviso (padrão)** que abre a mesma tela de aviso (demo antes). Extensão do item 46, em [`.ai/specs/aviso-fatura/`](.ai/specs/aviso-fatura/intent.md).
 - 47. [ ] <a id="item-47"></a>**[Próximo] Tela "Avisar no Telegram" como componente reutilizável (2026-10-26):** hoje a tela de aviso são funções soltas do Prever (`pvTelaAvisar`, `pvBalao`, o estado `pv`), amarradas a um lançamento. O dono quer que ela seja um **padrão**, reformulado para ser reaproveitado pelas buscas do Histórico, das Tendências e do Futuros (item 42) e pelo aviso da fatura (item 46). Pede um componente com entradas claras (título, vencimento de referência, textos, balão, o que o Salvar faz) e uma demo própria antes de qualquer tela, atualizando `.ai/padrao-de-telas.md`. O item 46 usa a tela como está, só parametrizada, para não esperar este item; este item depois troca os dois pelos mesmo componente. Junto do item 42.
@@ -463,7 +463,7 @@ DynamoDB sem discutir com o dono.**
 
 ### Operação (tarefas de uso e dados, não de código)
 - 6. [x] **Cartão: conferir as faturas** dos 4 cartões (MERCADO PAGO, NUBANK, INTER, SANTANDER) contra o banco e
-  definir o **início do controle** de cada um (usando a aba Cartão).
+  definir o **início do controle** de cada um (usando a aba Cartão de crédito).
 - 1. [x] **Mergear a PR #3** (nome de exibição) e **a #4** (eventos futuros) em `develop`.
 - 4. [x] **Convidar a esposa** (`scripts/seed.sh financas <dono> <email-dela>`) e instalar na tela inicial do celular.
 - 5. [x] **Limpar os PREVISTO e TRANSFERINDO antigos** da importação: aparecem como atrasados em Futuros (Ocultar, ou
