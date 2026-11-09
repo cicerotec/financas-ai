@@ -84,7 +84,7 @@ Pedido do dono: "Cartão" era genérico e se confundia. Demos aprovadas: `demo-c
 - **Só o texto muda.** O id da aba (`data-tab="cartao"`, `#tab-cartao`), o endereço `#cartao`, as rotas `/cartoes` e os nomes no código e no DynamoDB ficam como estão.
 - **Descartado: "Faturas".** Fora do app, fatura também é a conta de luz ou de telefone (que mora em Futuros), e a palavra ficaria ao lado de "Futuros" no menu, com duas letras de diferença.
 - **Custo aceito:** no cabeçalho do celular o título corta com reticências até 390 px de tela ("Cartão de créd…") e cabe inteiro a partir de 412 px; em Configurações, em 320 e 360 px o título da seção quebra em duas linhas e o resumo corta. Um título curto só para o celular foi oferecido e não foi escolhido.
-- As specs, as demos já fechadas e o `BACKLOG.md` continuam dizendo "aba Cartão", como registro da época.
+- **Ajuste de 2026-11-09 (pedido do dono):** o `BACKLOG.md` passou a dizer "Cartão de crédito" onde cita a aba, e cada demo-padrão ganhou a versão seguinte com o assunto `nome` (só o nome da aba; lista em `padrao-de-telas.md`). As specs, as versões anteriores das demos, as explorações e `demos/arquivo/` continuam com "Cartão", como registro da época.
 
 ## Outras decisões
 - Descartado: bloquear duplicidade por conteúdo (a mesma compra pode ter outro horário e outra descrição).
