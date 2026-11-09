@@ -262,6 +262,23 @@ func (s *Saldos) gravarCache(ctx context.Context, sid string, c *calculoBanco, a
 	return true
 }
 
+// logarMeio registra, por meio, de onde o saldo comecou a ler e por que o cache vale ou nao. A leitura e uma passada so, desde o limite mais antigo entre os meios:
+// quem aparece com le_de antigo ou "o comeco" e quem puxa a leitura de todos (diagnostico de custo; nao muda nada).
+func logarMeio(c *calculoBanco, gravou bool) {
+	partida, de := "nenhuma", "o comeco"
+	if c.partida != nil {
+		partida = c.partida.Mes
+	}
+	if l, ok := domain.LimiteAPartirDe(c.cfg, c.partida); ok {
+		de = l.In(domain.FusoApp).Format("2006-01-02")
+	}
+	base, _ := c.item["base"].(string)
+	inv, _ := c.item["invalidoDe"].(string)
+	caches, _ := c.item["caches"].(map[string]any)
+	log.Printf("saldos: meio=%s le_de=%s partida=%s dataInicio=%q cache_meses=%d base_confere=%t invalidoDe=%q gravou=%t",
+		c.nome, de, partida, c.cfg.DataInicio, len(caches), base == c.base, inv, gravou)
+}
+
 // Listar: GET /spaces/{sid}/saldos. O saldo de cada meio da lista, os 12 ultimos meses e o total.
 func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 	listas, err := s.cfg.Ler(ctx, sid, "listas")
@@ -304,9 +321,11 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 			total += c.calculo.Saldo
 			dentro++
 		}
-		if s.gravarCache(ctx, sid, c, atual) {
+		gravou := s.gravarCache(ctx, sid, c, atual)
+		if gravou {
 			cachesGravados++
 		}
+		logarMeio(c, gravou)
 	}
 	log.Printf("saldos: meios=%d paginas=%d itens=%d leitura=%dms calculo=%dms total=%dms caches_gravados=%d",
 		len(nomes), leit.paginas, leit.itens, leit.dur.Milliseconds(), tCalculo.Milliseconds(), time.Since(inicio).Milliseconds(), cachesGravados)
