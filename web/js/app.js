@@ -16,6 +16,7 @@ function seloStatus(status){
   return `<span style="background:color-mix(in srgb,${c} 32%,transparent);padding:1px 7px;border-radius:8px;font-weight:600;color:var(--text);">${esc(status)}</span>`;
 }
 let tagsUsadas = [];
+let listaTagsListas = null, vezExcluirTag = 0; // cartão Tags de Listas (web/lista-tags.js) e a exclusão em andamento
 let saldosConfig = {};
 let layoutSaldos = 'linhas';
 let ordemSaldos = 'lista';
@@ -949,31 +950,77 @@ function pedirNovaTagParaMigrar(tag, qtd, outrasTags){
   });
 }
 
+// Excluir uma tag (demo-listas-v9-tags): a janela abre no toque e mostra cada passo, porque conferir quem usa a tag demora.
+// Sempre pergunta antes de excluir; dá para cancelar enquanto confere, e depois de confirmar não.
+const HTML_GIRA = '<i class="tg-gira" aria-hidden="true"></i>';
+function janelaExcluirTag(titulo, extra, botoes){
+  document.getElementById('modalMsg').textContent = titulo;
+  document.getElementById('modalExtra').innerHTML = extra;
+  document.getElementById('modalBotoes').innerHTML = botoes;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function fecharJanelaTag(){ document.getElementById('modalOverlay').classList.add('hidden'); document.getElementById('modalExtra').innerHTML = ''; }
+const BOTOES_TAG_PARADOS = rot=>`<button class="ghost" disabled>Cancelar</button><button class="primary" disabled>${rot}</button>`; // sem id: o voltar não fecha no meio
 async function excluirTag(tag){
   if(!db) return;
-  const snap = await db.collection("lancamentos").where("tags","array-contains",tag).limit(1000).get();
+  const vez = ++vezExcluirTag;
+  janelaExcluirTag(`Excluir a tag "${tag}"?`,
+    `<p class="muted tg-and">${HTML_GIRA}Conferindo se algum lançamento usa essa tag…</p>`,
+    '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar" disabled>Excluir</button>');
+  document.getElementById('modalCancelar').onclick = ()=>{ vezExcluirTag++; fecharJanelaTag(); };
+  let snap;
+  try{ snap = await db.collection("lancamentos").where("tags","array-contains",tag).limit(1000).get(); }
+  catch(err){
+    console.error(err);
+    if(vez === vezExcluirTag){ fecharJanelaTag(); toast('Não consegui conferir a tag. Tente de novo.', true); }
+    return;
+  }
+  if(vez !== vezExcluirTag) return; // cancelou enquanto conferia
   const qtd = snap.docs.length;
-  let migrada = '';
+  let migrada = '', feitos = 0;
   if(qtd>0){
     const novaTag = await pedirNovaTagParaMigrar(tag, qtd, tagsUsadas.filter(t=>t!==tag));
     if(novaTag===null) return; // cancelou
     migrada = novaTag || '';
+    janelaExcluirTag(`Excluindo a tag "${tag}"`,
+      `<p class="muted tg-and" style="margin:0 0 8px;">${HTML_GIRA}<span id="tgAnd"></span></p><div class="tg-barra"><i id="tgBarra"></i></div>`, BOTOES_TAG_PARADOS('Continuar'));
+  } else {
+    document.getElementById('modalExtra').innerHTML = '<p class="muted" style="margin:0 0 14px;">Nenhum lançamento usa essa tag.</p>';
+    const ok = await new Promise(resolve=>{
+      document.getElementById('modalCancelar').onclick = ()=>resolve(false);
+      const b = document.getElementById('modalConfirmar');
+      b.disabled = false; b.onclick = ()=>resolve(true);
+    });
+    if(!ok){ fecharJanelaTag(); return; }
+    janelaExcluirTag(`Excluir a tag "${tag}"?`, `<p class="muted tg-and">${HTML_GIRA}Excluindo…</p>`, BOTOES_TAG_PARADOS('Excluir'));
+  }
+  try{
     for(const d of snap.docs){
+      document.getElementById('tgAnd').textContent = `Atualizando ${feitos} de ${qtd} lançamentos…`;
+      document.getElementById('tgBarra').style.width = (100*feitos/qtd) + '%';
       const l = d.data();
       const restante = new Set((l.tags||[]).filter(t=>t!==tag));
-      if(novaTag) restante.add(novaTag);
+      if(migrada) restante.add(migrada);
       await db.collection("lancamentos").doc(d.id).update({tags:[...restante]});
+      feitos++;
     }
-    if(novaTag && !tagsUsadas.includes(novaTag)) tagsUsadas.push(novaTag);
+    if(migrada && !tagsUsadas.includes(migrada)) tagsUsadas.push(migrada);
+    tagsUsadas = tagsUsadas.filter(t=>t!==tag);
+    await db.doc("config/tags").set({usadas:tagsUsadas});
+    combosSalvos = combosSalvos
+      .map(c=>({tags:[...new Set(c.tags.map(t=>t===tag ? migrada : t).filter(Boolean))]}))
+      .filter(c=>c.tags.length>=2);
+    await salvarCombos();
+  } catch(err){
+    console.error(err);
+    fecharJanelaTag();
+    toast(qtd ? `Parou depois de ${feitos} de ${qtd} lançamentos. A tag continua na lista: exclua de novo para terminar.` : 'Não consegui excluir a tag. Tente de novo.', true);
+    return;
   }
-  tagsUsadas = tagsUsadas.filter(t=>t!==tag);
-  await db.doc("config/tags").set({usadas:tagsUsadas});
-  combosSalvos = combosSalvos
-    .map(c=>({tags:[...new Set(c.tags.map(t=>t===tag ? migrada : t).filter(Boolean))]}))
-    .filter(c=>c.tags.length>=2);
-  await salvarCombos();
+  fecharJanelaTag();
   renderTagPicker(); renderTagFilter(); renderTagChartSelect();
   renderGerenciarTags(); renderCombosLista();
+  toast(`✓ Tag ${tag} excluída` + (migrada ? `; ${qtd} lançamento(s) passaram para ${migrada}` : ''));
 }
 
 async function init(){
@@ -1694,12 +1741,11 @@ function renderTagFilter(){
 }
 function renderTagChartSelect(){ desenharGrafico(); }
 function renderGerenciarTags(){
-  const el = document.getElementById('pillTags');
+  // Cartão Tags de Listas (demo-listas-v9-tags): o componente de web/lista-tags.js desenha; a tela só diz o que o × faz.
+  const el = document.getElementById('tagsListas');
   if(!el) return;
-  el.innerHTML = tagsUsadas.map(t=>
-    `<span class="pill" style="flex-direction:row;min-width:0;">#${esc(t)} <button data-del-tag="${esc(t)}">✕</button></span>`).join('')
-    || '<p class="muted">Nenhuma tag ainda.</p>';
-  el.querySelectorAll('[data-del-tag]').forEach(b=>b.onclick=()=>excluirTag(b.dataset.delTag));
+  if(listaTagsListas) listaTagsListas.render(); // redesenha sem perder a busca, a ordem nem o "Ver todas" aberto
+  else listaTagsListas = ListaTags.criar(el, {tags:()=>tagsUsadas, aoExcluir:excluirTag, topo:8, pagina:30});
 }
 
 async function garantirTags(novasTags){
