@@ -23,6 +23,7 @@ com o salto para o registro real. **Ao concluir um item, marque `[x]` no registr
 pendentes: nenhum.
 
 - [\[Backend\] - 58 - **\[Agora\] Meio desativado: impacto, quando some e o que deixa de poder mudar (análise):**](#item-58)
+- [\[Backend\] - 60 - **\[Agora\] Saldos: meio novo nasce com início do controle e meio sem início não é calculado:**](#item-60)
 - [\[Infra\] - 49 - **\[Próximo\] App multiusuário (MFA, cadastro com convite, espaço próprio, isolamento):**](#item-49)
 - [\[Backend\] - 34 - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[Backend\] - 57 - **\[Próximo\] Combos sugeridos calculados pelo servidor:**](#item-57)
@@ -128,6 +129,19 @@ DynamoDB sem discutir com o dono.**
   com o Encerrar); o que já existe num meio congelado (confirmar previsto, pagar fatura, conferir mês: a sugestão é poder liquidar o que existe e recusar só o novo); recorrência ativa
   (sugestão: recusar congelar enquanto houver); avisos já existentes continuam. **Dado novo no DynamoDB:** precisa de um segundo estado por meio (hoje só há o `ativoAte` em `CFG#LISTAS`);
   só entra com a aprovação do dono. Importar no meio congelado segue a mesma regra do desativado (item 58): só registros anteriores à `dataInicio`. **Demo antes** da tela. Depende de o item 58 estar decidido.
+- 60. [ ] <a id="item-60"></a>**[Agora] Saldos: meio novo nasce com início do controle e meio sem início não é calculado (decidido pelo dono em 2026-11-09; vem **depois** do item 58, separado de propósito: são duas coisas ao mesmo tempo e não dá para fazer juntas):**
+  **Origem (provada no log de dev, 2026-11-09):** com 12 meios, o `GET /saldos` levava 15 a 18 s (13 páginas, 12.770 itens) porque dois meios (`Teste` e `T-LIVRE`) não tinham `dataInicio` nem fechamento e o servidor
+  somava a história inteira por eles; os outros 10 já liam só do mês seguinte ao último fechamento (o fechamento automático funciona). Com `dataInicio` nos dois, caiu para 0,8 s (1 página, 866 itens). A tabela fica em 5 RCU,
+  sem índice (`feedback_performance-consultas`). O `PUT cfg/listas` só acrescenta o nome em `CFG#LISTAS`; nada é criado em `CFG#SALDOS`, então **todo meio novo nasce sem início e reabre esse custo**.
+  **Decidido (as duas abordagens valem):**
+  1. **Meio novo nasce com `dataInicio` = a data de hoje** (a data de criação; saldo inicial 0), **no servidor**, quando o `PUT cfg/listas` recebe um nome que ainda não existia (a IA do Lançar e a importação da planilha também salvam a lista). Usa a `porBanco` de
+     `CFG#SALDOS` que já existe: nenhum campo novo. **Avisar o usuário** de alguma forma (a definir na demo): "X começa a contar saldo hoje; mude em Saldos". Efeito a dizer: lançamento de data anterior à `dataInicio` não conta no saldo
+     (vira histórico), inclusive o histórico importado de um meio novo, até a data ser ajustada. A variação "1º dia do mês" foi discutida e fica como alternativa.
+  2. **Meio sem `dataInicio` (e sem fechamento) não é calculado** pelo `/saldos`: o servidor não lê lançamento algum por ele e a tela **avisa o motivo** ("sem a data de início o saldo exigiria somar todo o passado; defina a data de início"). Cobre os
+     meios antigos sem início. Muda o item 40 (hoje, sem configuração, o saldo parte do primeiro movimento): os testes de saldo sem início mudam, e o total precisa dizer que não inclui o meio sem início.
+  **Rejeitado:** assumir que a data vazia é "hoje" a cada leitura (a data mudaria todo dia e o saldo nunca seria estável).
+  **Antes de qualquer código:** demo das duas telas (aviso ao criar o meio em Listas; Saldos com o meio não calculado, o motivo e o total), partindo de Listas v6 e Saldos v3, com o que cada uma faz perder. A decisão de escopo do desativar
+  (item 58) já está resolvida e mergeada; este item não a reabre. **Ainda aberto:** hoje ou 1º dia do mês como início; o texto do aviso; o que o total mostra com um meio não calculado.
 - 31. [x] <a id="item-31"></a>**[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
   edição, ocultação, exclusão e restauração gera uma versão (quem, quando, o registro completo; **criar e importar `id` novo não geram**, ajuste de 2026-10-23), gravada na mesma transação
   do registro atual (`TransactWriteItems`) e com checagem de versão contra edição concorrente. Excluir passa a ser
