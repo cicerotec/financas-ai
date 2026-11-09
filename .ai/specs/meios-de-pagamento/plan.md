@@ -42,3 +42,33 @@ Segue o [`intent.md`](intent.md); o roteiro verificável está no [`spec.md`](sp
 ## Documentos a atualizar na entrega
 
 `.ai/specs/modelo-de-dados/` (exemplo de `space-cfg-listas.json` e o README), `.ai/arquitetura.md` (a linha de "meio de pagamento" e o `ativo`), `fatura-servidor/spec.md` (o `ativo` deixa de ser sempre verdadeiro) e `.ai/padrao-de-telas.md`.
+
+## Fase C: encerrar o meio (item 58)
+
+Decidido pelo dono em 2026-11-08 (ver o item 58 do [`BACKLOG.md`](../../../BACKLOG.md#item-58) e as regras R12 a R20 do [`spec.md`](spec.md)). O servidor passa a decidir; o front só exibe (demo antes).
+
+- **Uma guarda só.** `service/` ganha a leitura de `CFG#LISTAS` (+ `ativoAte`) por chamada, usada por `criar`, `editar`, `Excluir`, `Confirmar`, `Restaurar`, `Importar` e `Transferir`. `CriarCopia` (recorrência),
+  o ajuste da conferência e o pagamento de fatura passam por `criar`, então herdam a recusa.
+- **Encerramento** é um service novo que só lê (saldo, lançamentos do meio, recorrências, cartões) e devolve a lista de pendências; `Meios.Definir` chama antes de gravar.
+- **Sem dado novo no DynamoDB.** `encerrado` é derivado na leitura de `/saldos` e `/cartoes`.
+- **Fases:** C1 backend (este plano); C2 telas, **depois da demo**: a marca "desativado" no Histórico e no filtro de meio, a janela Desativar só com "A partir de hoje" e a explicação das pendências, e o Saldos/Cartão
+  escondendo o que o servidor marcou `encerrado`.
+
+### Premissas (preencher com a revisão independente antes da aprovação)
+
+Perguntas que a revisão independente responde por escrito: *"que regra desta fase só funciona por causa de outra, e o que acontece se essa outra deixar de valer?"*
+
+Revisão independente feita em 2026-11-08 por um agente sem o contexto de quem escreveu (lendo o spec e o código). O que ela achou e o que foi feito:
+
+1. **Comparação da edição (R15) dava falso positivo** com o formulário real (`null` onde o gravado não tem o campo, data sem milissegundos). **Corrigido:** comparação por equivalência; testes em `domain/meios_test.go` e `TestEditarLancamentoDeMeioDesativado`.
+2. **Importar era porta de ressurreição e de troca de meio** (sobrescreve o `id` existente, inclusive excluído). **Corrigido:** R16 vale também para o registro gravado (`importavelSobre`); teste M-T25.
+3. **A ponta da recorrência pode estar excluída** (a rotina continua copiando dela) e a recusa deixava a rotina tentando todo dia. **Corrigido:** a conferência conta a ponta excluída; a rotina encerra a recorrência (R14b; `TestRecorrenciaDeMeioDesativadoEncerra`).
+4. **Previsto antigo ou de ano remoto:** a revisão pedia varrer o meio inteiro, mas isso lia todo o espaço duas vezes (≈ 15 s cada em dev, 12.770 itens, 5 RCU) e deu 502 no limite de 29 s do API Gateway (2026-11-08). **Decidido pelo dono:** previsto é só futuro, o passado é só histórico e a conferência **não o lê**; o saldo parte do último fechamento (mês conferido ou cache do fechamento automático; a `dataInicio` é só o piso) e **meio sem nenhum ponto de partida não desativa** (R13 (0)). Previsto, só de hoje em diante (fim da chave). Cada conferência registra páginas e ms no log; os testes M-T35 e M-T36 provam que nada lê o passado.
+5. **Fatura (R13d):** a conferência dependia de Futuros (só cartão com vencimento). **Corrigido por decisão do dono (2026-11-08):** confere direto as três últimas faturas (`Cartoes.EmAberto`), com ou sem vencimento; valor maior que zero sem pagamento registrado bloqueia e a frase diz fatura e valor. Fatura mais antiga que as três é só papel e não conta. Teste M-T31. O `encerrado` do cartão em `GET /cartoes` continua olhando só a fatura atual (só esconde na tela; a desativação já foi conferida).
+6. **O pagador** passa pelas duas rotas (`validarPagador` já é chamada por `PUT /cartoes/{meio}` e por `PUT .../faturas/{ym}`). **Coberto.** Transformar um meio desativado em cartão (`Adicionar`) agora é recusado (R22, M-T33).
+7. **O saldo zero depende de `CFG#SALDOS` e do cache.** `PUT /cfg/saldos` não muda o saldo inicial nem a `dataInicio` de meio desativado (R21, M-T32). O item de Saldos com `erro` nunca vira `encerrado` (o código só marca no ramo sem erro).
+8. **Corrida** entre a conferência e a gravação do `ativoAte` (alguém lança no meio). **Risco aceito**, como no Remover: só o dono desativa e a saída é Reativar.
+9. **Dados antigos com `ativoAte` futuro** passariam a encerrar sozinhos na data, sem a conferência. **Resolvido:** o dono informou (2026-11-08) que não tem meio desativado; nada a conferir.
+10. **O meio `Teste`:** como excluir também é recusado em meio desativado, a ordem é reativar, excluir o lançamento e remover.
+11. **Guarda de meio fora da lista em todas as portas** (criar, importar, transferir): **não adotada nesta fase.** Muitos dados e testes têm `banco` fora de Listas e o backup importa nomes de outros espaços; só o Restaurar confere a lista. **Decidido pelo dono (2026-11-08): fica assim**, sem item no backlog. Backup (item 11) é outro assunto e restaura como foi guardado.
+12. **Front (fase C2, depois da demo):** "A partir de hoje" usa a data do aparelho e o servidor exige a dele (perto da meia-noite dá 400); "Fim do mês" e "Outra data" passam a dar 400 se o C1 for publicado sozinho; `refazer` mantém o meio já escolhido mesmo desativado; Pagar fatura oferece o pagador sugerido desativado; Saldos itera `listas.banco` e conta "N bancos" sem tratar `encerrado`; um meio com `ativoAte` futuro mostra "Reativar". **Fase C2 (2026-11-08, demos aprovadas pelo dono e implementadas):** "A partir de hoje" pede `ativoAte: "hoje"` e o servidor usa o dia dele; "Fim do mês" e "Outra data" saíram; `refazer` só mantém o meio desativado ao editar; Pagar fatura só oferece meio ativo; Saldos e Cartão escondem o `encerrado`; o Lançar editando trava tudo menos descrição, nota e tags. **Futuros:** o cache das faturas não precisa acompanhar `CFG#LISTAS`, porque um meio desativado não tem fatura a pagar (a conferência bloqueia). **Por isso o C1 não vai sozinho para produção.**

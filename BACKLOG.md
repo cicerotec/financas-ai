@@ -23,6 +23,7 @@ com o salto para o registro real. **Ao concluir um item, marque `[x]` no registr
 pendentes: nenhum.
 
 - [\[Backend\] - 58 - **\[Agora\] Meio desativado: impacto, quando some e o que deixa de poder mudar (análise):**](#item-58)
+- [\[Backend\] - 60 - **\[Agora\] Saldos: meio novo nasce com início do controle e meio sem início não é calculado:**](#item-60)
 - [\[Infra\] - 49 - **\[Próximo\] App multiusuário (MFA, cadastro com convite, espaço próprio, isolamento):**](#item-49)
 - [\[Backend\] - 34 - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[Backend\] - 57 - **\[Próximo\] Combos sugeridos calculados pelo servidor:**](#item-57)
@@ -30,6 +31,7 @@ pendentes: nenhum.
 - [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
 - [\[Front\] - 54 - **\[Próximo\] App Android com Capacitor:**](#item-54)
 - [\[Infra\] - 11 - **\[Depois\] Backup periódico:**](#item-11)
+- [\[Backend\] - 59 - **\[Depois\] Congelar meio (continua existindo, mas não aceita eventos novos):**](#item-59)
 - [\[Backend\] - 39 - **\[Depois\] Open Finance (visão):**](#item-39)
 - [\[Backend\] - 12 - **\[Depois\] Colaboração, Fase 1:**](#item-12)
 - [\[Backend\] - 13 - **\[Depois\] Colaboração, Fase 2:**](#item-13)
@@ -102,6 +104,44 @@ DynamoDB sem discutir com o dono.**
   **Também entra aqui (lembrado na conversa):** o cache das faturas de Futuros acompanha a versão de `CFG#LISTAS` (já ficou assim na tentativa revertida); os documentos do item 43
   (`.ai/specs/meios-de-pagamento/`, o R9 e os Limites do `intent.md`, `padrao-de-telas.md`) precisam ser corrigidos quando a regra for decidida; o meio `Teste` do dono, que hoje está desativado com um
   lançamento, precisa de um fim (excluir o lançamento e remover, se o item 8 permitir). **Dado novo no DynamoDB:** nenhum previsto (o `ativoAte` basta); se a análise pedir um (por exemplo `desativadoEm`), só entra com a aprovação do dono.
+  **DECIDIDO pelo dono em 2026-11-08 (análise concluída; falta implementar, com a demo do Histórico antes; este item vira o "Encerrar", o "congelar" é o item 59):**
+  - **Desativar = encerrar a conta.** Só vale **a partir de hoje**: some "Fim do mês" e "Outra data", porque a conferência é feita na hora do pedido e quem desativa aceita a análise daquele momento.
+  - **O servidor recusa desativar, explicando o que falta,** se houver: saldo diferente de zero (arredondado a centavos, também para meio sem início e fora do total); lançamento previsto ou
+    com data futura no meio (inclui ponta de transferência futura); recorrência ativa cuja última cópia está no meio (checar à parte: a ponta vencida sem a próxima cópia não é previsto nem futura); cartão com fatura
+    aberta ou fechada, total maior que zero e sem marca de paga; aviso pendente de fatura; meio usado como **pagador** de cartão ou de fatura em aberto (recusa até trocar o pagador). O meio não pode participar de nenhum evento.
+  - **Depois de desativado, nada novo entra no meio:** o servidor recusa criar, Transferir, Confirmar previsto, recorrência, restaurar versão e trocar o banco de um lançamento para ele (código `MEIO_DESATIVADO`).
+    Reverte o R9 do item 43. Três portas a cobrir: `criar`, `CriarCopia` (recorrência) e `Transferir` (que grava por `SalvarLote`).
+  - **Importar é a exceção:** num meio desativado entra só o registro com `dataEvento` **anterior** à `dataInicio` do meio (a partir dela o saldo conta); sem `dataInicio`, recusa o registro. Vale só para desativados
+    (nos ativos, importar segue livre); a recusa é por registro (os bons entram, os ruins voltam em `rejeitados`, com código novo); a trava de mês conferido continua por cima.
+  - **Some de Saldos, Cartão e Futuros** (o saldo é zero e não há evento, então nada se perde); **só aparece no Histórico, com marca "desativado"** (demo antes) e continua escolhível no filtro de meio.
+    Edição de lançamento de meio desativado: só descrição, nota e tags (lógica do `mudaSaldo` do item 38). **Reativar** sempre possível: o meio volta a aparecer com o que tem.
+  - **Remover** aceita o meio cujos lançamentos estão **todos excluídos logicamente** (`UsaMeio` passa a ignorar o `excluidoEm`), o que resolve o `Teste`. **Restaurar versão passa a validar o meio contra a lista:** meio removido ou
+    desativado é recusado ("cadastre o meio de novo para restaurar"), então o histórico não traz um meio removido de volta. `HIST#` continua imutável. Se um meio for recriado com o mesmo nome, os excluídos do antigo passam a apontar para o novo (não entram no saldo; só valem se restaurados): aceito.
+  - **Nenhum dado novo no DynamoDB:** o `ativoAte` basta. Falta, ao implementar: o cache das faturas de Futuros acompanhar a versão de `CFG#LISTAS`; corrigir `padrao-de-telas.md` e o texto de Listas no `index.html`
+    ("Desativar um meio não muda o passado…"). Os documentos do item 43 já ganharam a nota de revisão (R9 e Limites) em 2026-11-08.
+  - **Ainda não lido (confirmar ao implementar):** Prever, Repetir, Estender, Tendências, exportar e conferência; pelo que se viu, todos passam por `criar`/`ValidarTx` ou leem por banco e herdam o mesmo comportamento.
+  **ANDAMENTO (2026-11-08, branch `feature/meio-desativado-encerrar`, nada commitado ainda):** o **backend está pronto e testado** (conferência de pendências incluindo as três últimas faturas sem depender de vencimento, `MEIO_DESATIVADO` em todas as portas de escrita, `PUT /cfg/saldos` e `POST /cartoes` recusam meio desativado, `ativoAte: "hoje"`, `encerrado` em `/saldos` e `/cartoes`, Remover só com lançamentos excluídos). As demos de **Listas, Histórico, Saldos e Cartão foram aprovadas** pelo dono (ações apagadas com o motivo) e as telas estão implementadas (`web/meio-desativado.test.js`). A demo e o código do **Lançar editando** também foram aprovados e feitos. Prever, Repetir, Estender, Tendências, exportar e a conferência com o extrato passam pelo servidor (que recusa com mensagem) ou só leem; o `cartaoDiferenca` tratava o 409 como sucesso e foi corrigido. O cache das faturas de Futuros **não precisa** acompanhar `CFG#LISTAS` (meio desativado não tem fatura a pagar). **Correção de custo (2026-11-08, branch `fix/desativar-sem-varrer-passado`):** a conferência lia o espaço inteiro duas vezes e deu 502 em dev; agora meio sem nenhum ponto de partida do saldo (mês conferido, cache ou `dataInicio`) não desativa, o saldo parte do último fechamento e previsto/futuro é só de hoje em diante (R13 do spec). **Falta:** ver as telas no ambiente dev (o app real exige o login do Cognito e não foi aberto).
+- 59. [ ] <a id="item-59"></a>**[Depois] Congelar meio (continua existindo, mas não aceita eventos novos; ideia do dono, 2026-11-08; só registrado, nada decidido nem feito):**
+  Surgiu na análise do item 58. O 58 trata do **Encerrar** (a conta acabou: só com saldo zero e sem nenhum evento, inclusive futuro; o meio some de Saldos, Cartão e Futuros e fica só no
+  Histórico, com marca). O **Congelar** é outro conceito: o meio **continua existindo e aparecendo em Saldos e Cartão, com a marca**, mas **não aceita eventos novos** (Lançar, Transferir,
+  Avisos novos, Recorrência). Serve para o meio com saldo que não dá para zerar (o `SODEXO-REF-IBM` ao sair da empresa, o exemplo do item 43) e funciona como rampa para o Encerrar:
+  congela, deixa o que existe se resolver, encerra. **A definir antes de qualquer código:** o nome na tela ("Congelar" ou "Pausar"; não usar "desativar" nem "bloquear" para não confundir
+  com o Encerrar); o que já existe num meio congelado (confirmar previsto, pagar fatura, conferir mês: a sugestão é poder liquidar o que existe e recusar só o novo); recorrência ativa
+  (sugestão: recusar congelar enquanto houver); avisos já existentes continuam. **Dado novo no DynamoDB:** precisa de um segundo estado por meio (hoje só há o `ativoAte` em `CFG#LISTAS`);
+  só entra com a aprovação do dono. Importar no meio congelado segue a mesma regra do desativado (item 58): só registros anteriores à `dataInicio`. **Demo antes** da tela. Depende de o item 58 estar decidido.
+- 60. [ ] <a id="item-60"></a>**[Agora] Saldos: meio novo nasce com início do controle e meio sem início não é calculado (decidido pelo dono em 2026-11-09; vem **depois** do item 58, separado de propósito: são duas coisas ao mesmo tempo e não dá para fazer juntas):**
+  **Origem (provada no log de dev, 2026-11-09):** com 12 meios, o `GET /saldos` levava 15 a 18 s (13 páginas, 12.770 itens) porque dois meios (`Teste` e `T-LIVRE`) não tinham `dataInicio` nem fechamento e o servidor
+  somava a história inteira por eles; os outros 10 já liam só do mês seguinte ao último fechamento (o fechamento automático funciona). Com `dataInicio` nos dois, caiu para 0,8 s (1 página, 866 itens). A tabela fica em 5 RCU,
+  sem índice (`feedback_performance-consultas`). O `PUT cfg/listas` só acrescenta o nome em `CFG#LISTAS`; nada é criado em `CFG#SALDOS`, então **todo meio novo nasce sem início e reabre esse custo**.
+  **Decidido (as duas abordagens valem):**
+  1. **Meio novo nasce com `dataInicio` = a data de hoje** (a data de criação; saldo inicial 0), **no servidor**, quando o `PUT cfg/listas` recebe um nome que ainda não existia (a IA do Lançar e a importação da planilha também salvam a lista). Usa a `porBanco` de
+     `CFG#SALDOS` que já existe: nenhum campo novo. **Avisar o usuário** de alguma forma (a definir na demo): "X começa a contar saldo hoje; mude em Saldos". Efeito a dizer: lançamento de data anterior à `dataInicio` não conta no saldo
+     (vira histórico), inclusive o histórico importado de um meio novo, até a data ser ajustada. A variação "1º dia do mês" foi discutida e fica como alternativa.
+  2. **Meio sem `dataInicio` (e sem fechamento) não é calculado** pelo `/saldos`: o servidor não lê lançamento algum por ele e a tela **avisa o motivo** ("sem a data de início o saldo exigiria somar todo o passado; defina a data de início"). Cobre os
+     meios antigos sem início. Muda o item 40 (hoje, sem configuração, o saldo parte do primeiro movimento): os testes de saldo sem início mudam, e o total precisa dizer que não inclui o meio sem início.
+  **Rejeitado:** assumir que a data vazia é "hoje" a cada leitura (a data mudaria todo dia e o saldo nunca seria estável).
+  **Antes de qualquer código:** demo das duas telas (aviso ao criar o meio em Listas; Saldos com o meio não calculado, o motivo e o total), partindo de Listas v6 e Saldos v3, com o que cada uma faz perder. A decisão de escopo do desativar
+  (item 58) já está resolvida e mergeada; este item não a reabre. **Ainda aberto:** hoje ou 1º dia do mês como início; o texto do aviso; o que o total mostra com um meio não calculado.
 - 31. [x] <a id="item-31"></a>**[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
   edição, ocultação, exclusão e restauração gera uma versão (quem, quando, o registro completo; **criar e importar `id` novo não geram**, ajuste de 2026-10-23), gravada na mesma transação
   do registro atual (`TransactWriteItems`) e com checagem de versão contra edição concorrente. Excluir passa a ser

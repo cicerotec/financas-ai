@@ -91,6 +91,9 @@ func (s *Lancamentos) Confirmar(ctx context.Context, sid, id, de string, body do
 	if !domain.EhPrevisto(antigo) {
 		return nil, ErrNaoPrevisto
 	}
+	if err := s.guardaDeMeio(ctx, sid).ExigirAtivo(bancoDe(antigo)); err != nil { // item 58, R14
+		return nil, err
+	}
 	antes := domain.CopiaRasa(antigo)
 	novo := antigo
 	novo["valor"], novo["dataEvento"], novo["status"] = valor, data, status

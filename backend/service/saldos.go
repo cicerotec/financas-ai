@@ -262,6 +262,23 @@ func (s *Saldos) gravarCache(ctx context.Context, sid string, c *calculoBanco, a
 	return true
 }
 
+// logarMeio registra, por meio, de onde o saldo comecou a ler e por que o cache vale ou nao. A leitura e uma passada so, desde o limite mais antigo entre os meios:
+// quem aparece com le_de antigo ou "o comeco" e quem puxa a leitura de todos (diagnostico de custo; nao muda nada).
+func logarMeio(c *calculoBanco, gravou bool) {
+	partida, de := "nenhuma", "o comeco"
+	if c.partida != nil {
+		partida = c.partida.Mes
+	}
+	if l, ok := domain.LimiteAPartirDe(c.cfg, c.partida); ok {
+		de = l.In(domain.FusoApp).Format("2006-01-02")
+	}
+	base, _ := c.item["base"].(string)
+	inv, _ := c.item["invalidoDe"].(string)
+	caches, _ := c.item["caches"].(map[string]any)
+	log.Printf("saldos: meio=%s le_de=%s partida=%s dataInicio=%q cache_meses=%d base_confere=%t invalidoDe=%q gravou=%t",
+		c.nome, de, partida, c.cfg.DataInicio, len(caches), base == c.base, inv, gravou)
+}
+
 // Listar: GET /spaces/{sid}/saldos. O saldo de cada meio da lista, os 12 ultimos meses e o total.
 func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 	listas, err := s.cfg.Ler(ctx, sid, "listas")
@@ -293,6 +310,10 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 		if c.cfg.Existe {
 			item["inicio"] = domain.Doc{"dataInicio": c.cfg.DataInicio, "saldoInicial": c.cfg.SaldoInicial}
 		}
+		// item 58, R20: meio desativado com saldo zero esta encerrado e a tela o esconde; com saldo (dado antigo) continua visivel: o servidor nunca esconde dinheiro
+		if domain.MeioDesativado(listas, nome, domain.HojeDe(s.rel.Agora())) && domain.Arred(c.calculo.Saldo) == 0 {
+			item["encerrado"] = true
+		}
 		itens = append(itens, item)
 		if c.cfg.ForaDoTotal {
 			fora++
@@ -300,9 +321,11 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 			total += c.calculo.Saldo
 			dentro++
 		}
-		if s.gravarCache(ctx, sid, c, atual) {
+		gravou := s.gravarCache(ctx, sid, c, atual)
+		if gravou {
 			cachesGravados++
 		}
+		logarMeio(c, gravou)
 	}
 	log.Printf("saldos: meios=%d paginas=%d itens=%d leitura=%dms calculo=%dms total=%dms caches_gravados=%d",
 		len(nomes), leit.paginas, leit.itens, leit.dur.Milliseconds(), tCalculo.Milliseconds(), time.Since(inicio).Milliseconds(), cachesGravados)
@@ -324,6 +347,28 @@ func (s *Saldos) Calcular(ctx context.Context, sid, banco string) (ResultadoBanc
 		return ResultadoBanco{}, ErrListar
 	}
 	return ResultadoBanco{Saldo: c.calculo.Saldo, Mapa: c.mapa, Item: c.item, Cfg: c.cfg}, nil
+}
+
+// TemPontoDePartida diz se o saldo do meio tem de onde partir sem somar o passado todo: um mes conferido, um cache valido do fechamento automatico
+// ou o inicio do controle (dataInicio). Le so a configuracao e o item de saldo do meio, nenhum lancamento.
+func (s *Saldos) TemPontoDePartida(ctx context.Context, sid, banco string) (bool, error) {
+	cfgSaldos, err := s.cfg.Ler(ctx, sid, "saldos")
+	if err != nil {
+		log.Println("saldos: cfg saldos:", err)
+		return false, ErrInterno
+	}
+	item, err := s.saldos.Ler(ctx, sid, banco)
+	if err != nil {
+		log.Println("saldos: item:", err)
+		return false, ErrInterno
+	}
+	cfg := domain.ConfigBancoDe(cfgSaldos, banco)
+	var partida *domain.Partida
+	if p, ok := domain.PontoDePartida(item, cfg, domain.BaseCache(cfg), domain.MesAtual(s.rel.Agora())); ok {
+		partida = &p
+	}
+	_, tem := domain.LimiteAPartirDe(cfg, partida)
+	return tem, nil
 }
 
 // Listas devolve CFG#LISTAS (para o status do ajuste).

@@ -439,3 +439,21 @@ func TestRecorrenciaMarcarSemAvisoLimpaDaCopia(t *testing.T) {
 		t.Errorf("a copia deveria sair sem aviso: %v", copia)
 	}
 }
+
+// Item 58, R14: se o meio da recorrencia foi desativado (dado antigo), a rotina nao tenta todo dia: encerra a recorrencia e nao cria a copia.
+func TestRecorrenciaDeMeioDesativadoEncerra(t *testing.T) {
+	f := cenario(t)
+	primeiro := criarColegio(t, "1") // ITAU: 10/02 e a copia de 10/03
+	relogioEm(t, 2026, 3, 10, 15, 0)
+	d := f.ler(t, pkEspaco, "CFG#LISTAS")
+	d["ativoAte"] = map[string]any{"ITAU": "2026-03-01"}
+	f.colocar(t, d)
+	antes := len(copiasDe(t, f, "Colegio", true))
+	rodarRotina(t)
+	if n := len(copiasDe(t, f, "Colegio", true)); n != antes {
+		t.Errorf("nenhuma copia nasce no meio desativado: antes %d, depois %d", antes, n)
+	}
+	if itemRecorrencia(t, f, primeiro) != nil {
+		t.Error("a recorrencia foi encerrada junto")
+	}
+}

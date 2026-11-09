@@ -61,6 +61,7 @@
     </div>
 
     <div id="formCard" class="lan-form">
+      <div class="aviso-desat hidden" id="avisoDesat" role="note"></div>
       <div class="card">
         <select id="fTipo" class="hidden" aria-hidden="true" tabindex="-1"><option value="saida">Saída (gasto)</option><option value="entrada">Entrada (receita)</option></select>
         <div class="seg tipo" id="tipoLancar" role="radiogroup" aria-label="Tipo">
@@ -277,7 +278,7 @@
   </div>
   <div class="card so-owner">
     <b>Meios de pagamento</b>
-    <p class="muted">Contas, carteiras, vales e cartões. Desativar um meio não muda o passado: os lançamentos e os saldos antigos continuam como estão. Ele só deixa de ser sugerido ao lançar, a partir da data escolhida. A etiqueta <b>crédito</b> aparece sozinha quando o meio é ligado a um cartão na aba Cartão.</p>
+    <p class="muted">Contas, carteiras, vales e cartões. Desativar encerra a conta: só vale com o saldo zerado e sem nada pendente, a partir de hoje. O passado continua como está, mas o meio não recebe mais lançamentos. A etiqueta <b>crédito</b> aparece sozinha quando o meio é ligado a um cartão na aba Cartão.</p>
     <div id="pillBanco"></div>
     <label class="fut-sw" style="margin-top:6px;"><input type="checkbox" role="switch" id="swInativos"><span>Mostrar meios inativos</span></label>
     <div class="row" style="margin-top:4px;"><input id="novoBanco" placeholder="novo meio de pagamento"><button class="ghost" id="btnAddBanco">Adicionar</button></div>
