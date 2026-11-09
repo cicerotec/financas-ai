@@ -1094,6 +1094,20 @@ svg.gx-chart{display:block;width:100%;max-width:440px;margin:0 auto;height:auto;
 .tg-pronto:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 .tg-link[hidden]+.tg-pronto{margin-left:auto;}
 @media (min-width:900px){.tg-pronto{display:none;}}
+/* Cartão Tags de Listas (demo-listas-v9-tags, web/lista-tags.js): chip com × para excluir e o andamento na janela */
+#tagsListas .tg-busca{margin-top:8px;}
+.tg-del{display:inline-flex;align-items:center;gap:2px;min-height:44px;max-width:100%;padding:0 4px 0 14px;border:1px solid var(--border);border-radius:999px;background:var(--card);color:var(--text);font-size:14px;}
+.tg-del .nm{min-width:0;overflow-wrap:anywhere;}
+.tg-del mark{background:transparent;color:var(--accent);font-weight:700;}
+.tg-del button{flex:none;width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:50%;background:transparent;color:var(--danger);font:inherit;font-size:18px;line-height:1;cursor:pointer;padding:0;}
+.tg-del button:hover{background:var(--danger-bg);}
+.tg-del button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.tg-and{display:flex;align-items:center;gap:8px;}
+.tg-gira{flex:none;width:16px;height:16px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--accent);animation:tg-gira .8s linear infinite;}
+@keyframes tg-gira{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){.tg-gira{animation:none;}}
+.tg-barra{height:6px;border-radius:999px;background:var(--border);overflow:hidden;margin:0 0 14px;}
+.tg-barra i{display:block;height:100%;width:0;background:var(--accent);}
 
 /* Nota e Tags dentro do primeiro cartao, no mesmo desenho dos campos */
 .opc{font-weight:400;color:var(--faint);font-size:12px;}
