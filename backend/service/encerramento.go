@@ -6,6 +6,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"time"
 
 	"financas/domain"
 )
@@ -21,6 +22,7 @@ type Pendencias interface {
 // CalculadorDeSaldo e o que o encerramento precisa do service de saldos.
 type CalculadorDeSaldo interface {
 	Calcular(ctx context.Context, sid, banco string) (ResultadoBanco, error)
+	TemPontoDePartida(ctx context.Context, sid, banco string) (bool, error)
 }
 
 // LeitorDeCartoes e o que o encerramento precisa do service de cartoes: as tres ultimas faturas de cada cartao sem pagamento registrado (com ou sem vencimento).
@@ -62,8 +64,19 @@ func plural(n int, um, varios string) string {
 }
 
 // De confere as cinco pendencias (saldo, lancamentos previstos ou futuros, recorrencia, fatura do cartao, pagador) e devolve as frases do que falta.
+// Custo (a tabela tem 5 RCU): nada aqui le o passado. O saldo parte do ultimo fechamento (mes conferido ou cache do fechamento automatico), com a dataInicio
+// so como piso; sem nenhum ponto de partida a conferencia recusa antes de ler lancamento algum. Previsto e futuro sao so de hoje em diante (previsto no passado
+// nao existe). Cada leitura de lancamentos vai para o log (paginas e ms).
 func (e *Encerramento) De(ctx context.Context, sid, meio string) ([]string, error) {
 	var falta []string
+	// (0) sem fechamento (mes conferido ou cache) e sem dataInicio o saldo so se acharia somando o passado todo: recusa, sem ler lancamento algum
+	tem, err := e.saldos.TemPontoDePartida(ctx, sid, meio)
+	if err != nil {
+		return nil, err
+	}
+	if !tem {
+		return []string{"Não há de onde partir o saldo de " + meio + ": confira o saldo de um mês ou defina o início do controle em Saldos antes de desativar."}, nil
+	}
 	// (a) saldo diferente de zero, calculado pelo servidor (tambem sem inicio do controle e fora do total)
 	calc, err := e.saldos.Calcular(ctx, sid, meio)
 	if err != nil {
@@ -72,16 +85,22 @@ func (e *Encerramento) De(ctx context.Context, sid, meio string) ([]string, erro
 	if domain.Arred(calc.Saldo) != 0 {
 		falta = append(falta, "O saldo é "+reais(calc.Saldo)+": só dá para desativar com o saldo zerado.")
 	}
-	// (b) lancamento previsto ou com data depois de agora (inclui a ponta futura de uma transferencia)
+	// (b) lancamento previsto ou com data depois de agora (inclui a ponta futura de uma transferencia): so de hoje em diante, o fim da chave
 	agora := e.rel.Agora()
 	prev, fut := 0, 0
 	f := domain.FiltroTx{Banco: meio, Limite: 1000}
+	if ini, ok := domain.InicioDoControle(domain.HojeDe(agora)); ok {
+		f.De = ini.UTC().Format("2006-01-02T15:04:05.000Z")
+	}
+	t0, paginas := time.Now(), 0 // so para o log; a regra usa o Relogio
+	defer func() { log.Printf("encerramento: meio=%s paginas=%d leitura=%dms", meio, paginas, time.Since(t0).Milliseconds()) }()
 	for {
 		itens, proximo, err := e.lanc.Listar(ctx, sid, f)
 		if err != nil {
 			log.Println("encerramento: listar:", err)
 			return nil, ErrListar
 		}
+		paginas++
 		for _, l := range itens {
 			data, _ := l["dataEvento"].(string)
 			switch {

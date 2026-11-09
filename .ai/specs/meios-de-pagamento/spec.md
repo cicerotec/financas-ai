@@ -78,8 +78,8 @@ Substitui o R9 e muda o R5. O texto das decisões está no item 58 do [`BACKLOG.
 - **R12.** `PUT /meios/{meio}` só desativa **a partir de hoje**: `ativoAte` precisa ser a data de hoje do servidor (fuso de São Paulo); outra data, `400`. `null` reativa como antes. Meios que já têm
   `ativoAte` futuro ou passado gravado (dados antigos) continuam valendo pela regra de R2 e podem ser reativados.
 - **R13.** Antes de gravar a desativação o servidor confere, sem alterar nada, se o meio ainda participa de algum evento. Se sim: `409` com `codigo: "MEIO_COM_PENDENCIA"` e `pendencias`, a lista
-  de frases do que falta. Pendências: (a) saldo diferente de zero (calculado pelo servidor, arredondado a centavos, também sem início do controle e fora do total); (b) lançamento previsto ou com data
-  depois de agora no meio (inclui ponta de transferência futura); (c) recorrência ativa cuja última cópia está no meio; (d) meio que é cartão com alguma das **três últimas faturas** (a aberta e as duas fechadas antes dela, as não históricas) com valor maior que zero e **sem pagamento registrado** (a marca `pagaFatura`),
+  de frases do que falta. Pendências: (0) **meio sem nenhum ponto de partida do saldo não desativa**: sem mês conferido, sem cache do fechamento automático e sem `dataInicio` ("Não há de onde partir o saldo de X: confira o saldo de um mês ou defina o início do controle em Saldos antes de desativar."; a recusa vem sem ler lançamento algum); (a) saldo diferente de zero (calculado pelo servidor **a partir do último fechamento**, a `dataInicio` é só o piso; arredondado a centavos, também fora do total); (b) lançamento previsto ou com data
+  de **hoje em diante** no meio (inclui ponta de transferência futura; previsto no passado não existe e a conferência **não lê o passado**: a tabela tem 5 RCU); (c) recorrência ativa cuja última cópia está no meio; (d) meio que é cartão com alguma das **três últimas faturas** (a aberta e as duas fechadas antes dela, as não históricas) com valor maior que zero e **sem pagamento registrado** (a marca `pagaFatura`),
   com ou sem vencimento, sem depender de Futuros (a frase diz a fatura e o valor); fatura mais antiga que essas três não conta; (e) meio que é pagador padrão de algum cartão ou pagador de fatura em aberto. Os avisos pendentes são deste mesmo conjunto (de lançamento: b e c; de fatura: d).
 - **R14.** Meio desativado (`ativo = false`) não recebe nada novo: `409` com `codigo: "MEIO_DESATIVADO"` ao **criar**, **copiar pela recorrência**, **registrar o ajuste da conferência**, **Transferir** (origem ou
   destino), **Confirmar previsto**, **restaurar** uma versão e **trocar o `banco`** de um lançamento para ele; também ao **excluir** um lançamento dele.
@@ -101,7 +101,7 @@ Substitui o R9 e muda o R5. O texto das decisões está no item 58 do [`BACKLOG.
 |---|---|---|
 | M-T17 | Desativar com data de amanhã, passada, `null` | `400`, `400`, reativa |
 | M-T18 | Desativar com saldo diferente de zero | `409 MEIO_COM_PENDENCIA` com a frase do saldo; nada gravado |
-| M-T19 | Desativar com previsto, com lançamento de data futura, com ponta de transferência futura | `409 MEIO_COM_PENDENCIA` nos três |
+| M-T19 | Desativar com lançamento de data futura (previsto) e com ponta de transferência futura; com previsto do passado | `409 MEIO_COM_PENDENCIA` nos dois primeiros; o do passado não impede |
 | M-T20 | Desativar com recorrência ativa cuja ponta é do meio | `409 MEIO_COM_PENDENCIA` |
 | M-T21 | Cartão pagador padrão de outro cartão | `409 MEIO_COM_PENDENCIA` |
 | M-T22 | Desativar meio zerado e sem evento | `200`; `ativo` falso |
@@ -115,4 +115,7 @@ Substitui o R9 e muda o R5. O texto das decisões está no item 58 do [`BACKLOG.
 | M-T30 | Exceção do M-T14 e do M-T1 (datas futuras) | substituídos por M-T17 e M-T23 |
 | M-T31 | Desativar cartão sem vencimento com a fatura atual e uma fechada com valor e sem pagamento registrado; registrar o pagamento de cada uma | `409 MEIO_COM_PENDENCIA` citando as duas e o valor; some uma a uma; com as duas pagas, `200` |
 | M-T32 | `PUT /cfg/saldos` mudando saldo inicial ou `dataInicio` de meio desativado; mudando só outro meio | `409 MEIO_DESATIVADO` e nada gravado; `200` |
+| M-T35 | Desativar meio sem mês conferido, sem cache e sem `dataInicio` | `409 MEIO_COM_PENDENCIA` pedindo o saldo de um mês ou o início do controle, sem ler lançamento algum |
+| M-T37 | Desativar meio sem `dataInicio`, mas com um mês conferido | `200`, sem ler o passado |
+| M-T36 | Desativar com `dataInicio`, com a leitura a partir do início dos tempos proibida no fake | `200` (nada lê o passado) |
 | M-T33 | Transformar em cartão (`POST /cartoes`) um meio desativado; um meio ativo | `409 MEIO_DESATIVADO`; `200` |
