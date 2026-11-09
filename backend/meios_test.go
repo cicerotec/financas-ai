@@ -63,6 +63,7 @@ func listasDoMeio(t *testing.T, sub string) map[string]doc {
 // M-T1 e M-T17: PUT /meios/{meio} so desativa a partir de hoje (item 58, R12); null reativa; formato invalido e meio fora da lista.
 func TestMeioDesativarEReativar(t *testing.T) {
 	f := cenarioMeios(t)
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0, "porBanco": map[string]any{"VR-NOVO": map[string]any{"saldoInicial": 0.0, "dataInicio": "2021-01-01"}}}) // sem inicio do controle a conferencia recusa
 	for _, ruim := range []string{`{"ativoAte":"2026-12-31"}`, `{"ativoAte":"2026-11-04"}`, `{"ativoAte":"2026-10-31"}`} {
 		st, d := chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, ruim)
 		esperar(t, "data que nao e hoje "+ruim, st, 400)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -19,8 +20,12 @@ func cenarioEncerrar(t *testing.T) *bancoFake {
 	d["banco"] = append(d["banco"].([]any), "ENCERRADO", "SEM-INICIO")
 	d["ativoAte"] = map[string]any{"ENCERRADO": "2026-10-31", "SEM-INICIO": "2026-10-31"}
 	f.colocar(t, d)
-	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0,
-		"porBanco": map[string]any{"ENCERRADO": map[string]any{"saldoInicial": 0.0, "dataInicio": "2021-01-01"}}})
+	// todo meio de teste tem inicio do controle (sem ele a conferencia recusa, sem ler nada), menos SEM-INICIO
+	por := map[string]any{}
+	for _, m := range []string{"ENCERRADO", "ITAU", "VR-NOVO", "CITIBANK", "SO-EXCLUIDO", "SO-PREVISTO", "SODEXO"} {
+		por[m] = map[string]any{"saldoInicial": 0.0, "dataInicio": "2021-01-01"}
+	}
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0, "porBanco": por})
 	f.colocar(t, doc{"PK": pkEspaco, "SK": dePrefixoTx + "2020-01-01T12:00:00.000Z#des1", "id": "des1", "dataEvento": "2020-01-01T12:00:00.000Z",
 		"status": "PAGO", "tipo": "saida", "valor": 5.0, "banco": "ENCERRADO", "descricao": "antigo", "nota": "", "tags": []any{}, "criadoPor": "own"})
 	return f
@@ -53,26 +58,24 @@ func TestDesativarComSaldoEPendencia(t *testing.T) {
 	}
 }
 
-// M-T19: previsto (inclusive o antigo, o oculto e o de data futura) impede desativar; so o dono desativa.
+// M-T19: so o futuro impede (previsto no passado nao existe, e a conferencia nao le o passado); so o dono desativa.
 func TestDesativarComPrevistoImpede(t *testing.T) {
 	f := cenarioEncerrar(t)
+	// um previsto de 2019 e um de 2026-09-10 (SO-PREVISTO) ja ficaram para tras: nao impedem
 	f.colocar(t, doc{"PK": pkEspaco, "SK": dePrefixoTx + "2019-05-05T12:00:00.000Z#pv19", "id": "pv19", "dataEvento": "2019-05-05T12:00:00.000Z",
 		"status": "PAGO", "tipo": "saida", "valor": 3.0, "banco": "SODEXO", "descricao": "p", "tags": []any{}, "criadoPor": "own", "previsto": true, "oculto": true})
-	st, d := chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":"2026-11-03"}`)
-	esperar(t, "previsto oculto de 2019", st, 409)
-	if !strings.Contains(pendenciasDe(d), "previsto") {
-		t.Errorf("deveria citar o previsto: %v", d)
-	}
-	st, d = chamar(t, "own", "PUT", "spaces/s1/meios/SO-PREVISTO", nil, `{"ativoAte":"2026-11-03"}`)
-	esperar(t, "previsto atrasado", st, 409)
-	if !strings.Contains(pendenciasDe(d), "previsto") {
-		t.Errorf("SO-PREVISTO: %v", d)
-	}
-	// criar um lancamento de data futura num meio livre vira previsto e tambem impede
+	st, d := chamar(t, "own", "PUT", "spaces/s1/meios/SODEXO", nil, `{"ativoAte":"hoje"}`)
+	esperar(t, "previsto de 2019 nao impede", st, 200)
+	st, _ = chamar(t, "own", "PUT", "spaces/s1/meios/SO-PREVISTO", nil, `{"ativoAte":"hoje"}`)
+	esperar(t, "previsto do passado nao impede", st, 200)
+	// criar um lancamento de data futura num meio livre vira previsto e impede
 	c, _ := chamar(t, "own", "POST", "spaces/s1/tx", nil, corpoTx("2026-12-20T12:00:00.000Z", "VR-NOVO", 7))
 	esperar(t, "lancar no futuro", c, 201)
-	st, _ = chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, `{"ativoAte":"2026-11-03"}`)
+	st, d = chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, `{"ativoAte":"hoje"}`)
 	esperar(t, "data futura", st, 409)
+	if !strings.Contains(pendenciasDe(d), "previsto") && !strings.Contains(pendenciasDe(d), "futura") {
+		t.Errorf("deveria citar o lancamento futuro: %v", d)
+	}
 }
 
 // M-T20: a recorrencia ativa cuja ponta e do meio impede desativar.
@@ -381,4 +384,48 @@ func TestDesativarPedindoHoje(t *testing.T) {
 	esperar(t, "outra palavra", st, 400)
 	st, _ = chamar(t, "own", "PUT", "spaces/s1/meios/ITAU", nil, `{"ativoAte":"hoje"}`)
 	esperar(t, "hoje com pendencia", st, 409)
+}
+
+// M-T35: meio sem nenhum ponto de partida do saldo (sem mes conferido, cache nem dataInicio) nao desativa: a recusa vem sem ler lancamento algum.
+func TestDesativarSemInicioDoControleRecusa(t *testing.T) {
+	f := cenarioEncerrar(t)
+	d := f.ler(t, pkEspaco, "CFG#SALDOS")
+	delete(d["porBanco"].(map[string]any), "VR-NOVO")
+	f.colocar(t, d)
+	f.falharQuerySemInicio = errors.New("leu o passado inteiro") // qualquer Query a partir do inicio dos tempos falha
+	st, resp := chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, `{"ativoAte":"hoje"}`)
+	esperar(t, "sem inicio", st, 409)
+	if p := pendenciasDe(resp); !strings.Contains(p, "início do controle") || !strings.Contains(p, "Saldos") {
+		t.Errorf("deveria pedir o inicio do controle em Saldos: %s", p)
+	}
+	if ate, _ := f.ler(t, pkEspaco, "CFG#LISTAS")["ativoAte"].(map[string]any); ate["VR-NOVO"] != nil {
+		t.Errorf("a recusa nao grava nada: %v", ate)
+	}
+}
+
+// M-T36: custo. Com inicio do controle, desativar nao le o passado: um Query a partir do inicio dos tempos (SK = TX#) falharia, e a desativacao passa.
+func TestDesativarNaoLeOPassado(t *testing.T) {
+	f := cenarioEncerrar(t)
+	f.falharQuerySemInicio = errors.New("leu o passado inteiro")
+	st, resp := chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, `{"ativoAte":"hoje"}`)
+	esperar(t, "desativar sem ler o passado", st, 200)
+	if resp["ativo"] != false {
+		t.Errorf("deveria desativar: %v", resp)
+	}
+}
+
+// M-T37: sem dataInicio, mas com um mes conferido (o ponto de partida do saldo), desativa e nao le o passado.
+func TestDesativarComFechamentoSemDataInicio(t *testing.T) {
+	f := cenarioEncerrar(t)
+	d := f.ler(t, pkEspaco, "CFG#SALDOS")
+	delete(d["porBanco"].(map[string]any), "VR-NOVO")
+	f.colocar(t, d)
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "SALDO#VR-NOVO", "banco": "VR-NOVO", "version": 1.0,
+		"conferidos": map[string]any{"2026-10": map[string]any{"saldo": 0.0, "real": 0.0, "em": "2026-11-01T12:00:00.000Z", "por": "own"}}})
+	f.falharQuerySemInicio = errors.New("leu o passado inteiro")
+	st, resp := chamar(t, "own", "PUT", "spaces/s1/meios/VR-NOVO", nil, `{"ativoAte":"hoje"}`)
+	esperar(t, "com mes conferido", st, 200)
+	if resp["ativo"] != false {
+		t.Errorf("deveria desativar: %v", resp)
+	}
 }

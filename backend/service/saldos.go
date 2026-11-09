@@ -330,6 +330,28 @@ func (s *Saldos) Calcular(ctx context.Context, sid, banco string) (ResultadoBanc
 	return ResultadoBanco{Saldo: c.calculo.Saldo, Mapa: c.mapa, Item: c.item, Cfg: c.cfg}, nil
 }
 
+// TemPontoDePartida diz se o saldo do meio tem de onde partir sem somar o passado todo: um mes conferido, um cache valido do fechamento automatico
+// ou o inicio do controle (dataInicio). Le so a configuracao e o item de saldo do meio, nenhum lancamento.
+func (s *Saldos) TemPontoDePartida(ctx context.Context, sid, banco string) (bool, error) {
+	cfgSaldos, err := s.cfg.Ler(ctx, sid, "saldos")
+	if err != nil {
+		log.Println("saldos: cfg saldos:", err)
+		return false, ErrInterno
+	}
+	item, err := s.saldos.Ler(ctx, sid, banco)
+	if err != nil {
+		log.Println("saldos: item:", err)
+		return false, ErrInterno
+	}
+	cfg := domain.ConfigBancoDe(cfgSaldos, banco)
+	var partida *domain.Partida
+	if p, ok := domain.PontoDePartida(item, cfg, domain.BaseCache(cfg), domain.MesAtual(s.rel.Agora())); ok {
+		partida = &p
+	}
+	_, tem := domain.LimiteAPartirDe(cfg, partida)
+	return tem, nil
+}
+
 // Listas devolve CFG#LISTAS (para o status do ajuste).
 func (s *Saldos) listas(ctx context.Context, sid string) (domain.Doc, error) {
 	l, err := s.cfg.Ler(ctx, sid, "listas")
