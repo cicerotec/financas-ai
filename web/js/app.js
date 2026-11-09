@@ -1329,8 +1329,32 @@ function renderAparencia(){
 }
 
 async function salvarListas(){
-  if(!db) return;
-  await db.doc("config/listas").set({banco: listas.banco, statusCor, tema, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
+  if(!db) return null;
+  const r = await db.doc("config/listas").set({banco: listas.banco, statusCor, tema, estiloCor, layoutSaldos, ordemSaldos, ordemManual});
+  const novos = (r && r.meiosNovos) || [];
+  if(novos.length) saldosUltimaCalc = 0; // o servidor criou o início do controle: o próximo Saldos recalcula (item 60)
+  return novos; // os meios que o servidor iniciou hoje: [{nome, dataInicio}]
+}
+// Meio novo (item 60, demos demo-listas-v7-meio-novo e demo-saldos-v4-sem-inicio): o servidor o cria com início do controle = hoje; aqui só se avisa o que ele devolveu.
+const fmtDataBR = (iso)=>String(iso).split('-').reverse().join('/');
+function avisoMeioNovo(novos){
+  const el = document.getElementById('avisoNovo');
+  if(!el) return;
+  if(!novos.length){ el.classList.add('hidden'); return; }
+  const n = novos[0];
+  el.innerHTML = `<b>${esc(n.nome)} começa a contar saldo hoje (${esc(fmtDataBR(n.dataInicio))})</b>Lançamentos de antes dessa data ficam no histórico e não entram no saldo. Para mudar, defina a data de início em Saldos.<div class="acoes"><button class="ghost" type="button" id="avIr">Ir para Saldos</button><button class="ghost" type="button" id="avOk">Entendi</button></div>`;
+  el.classList.remove('hidden');
+  document.getElementById('avOk').onclick = ()=>el.classList.add('hidden');
+  document.getElementById('avIr').onclick = ()=>{ el.classList.add('hidden'); saldoAberto = listas.banco.indexOf(n.nome); rascunhoSaldo = null; msgSaldo = ''; irParaAba('saldos'); };
+}
+// o aviso de uma importação: os meios novos da planilha começam hoje, então o histórico importado só entra no saldo depois de ajustar a data de cada um
+function avisoMeiosNovosImport(novos){
+  const el = document.getElementById('avisoNovoImport');
+  if(!el) return;
+  if(!novos.length){ el.classList.add('hidden'); return; }
+  const um = novos.length === 1;
+  el.innerHTML = `<b>${um ? '1 meio novo começa' : novos.length + ' meios novos começam'} a contar saldo hoje (${esc(fmtDataBR(novos[0].dataInicio))})</b>${esc(novos.map(n=>n.nome).join(', '))}. A planilha pode ter trazido lançamentos de antes dessa data: eles ficam no histórico, mas só entram no saldo depois que você definir a data de início ${um ? 'do meio' : 'de cada meio'} em Saldos.`;
+  el.classList.remove('hidden');
 }
 // ---------- Meios de pagamento (item 43, demo .ai/demos/demo-listas-v3-meios.html) ----------
 // O servidor diz quais meios estão ativos (GET /cfg/listas: meios[].ativo); aqui só se exibe e se pede (PUT e DELETE /meios/{meio}).
@@ -1886,7 +1910,10 @@ function setupHandlers(){
   document.getElementById('swInativos').onchange = (e)=>{ verMeiosInativos = e.target.checked; renderMeios(); };
   document.getElementById('btnAddBanco').onclick = ()=>{
     const v = document.getElementById('novoBanco').value.trim();
-    if(v && !listas.banco.includes(v)){ listas.banco.push(v); salvarListas(); renderListas(); document.getElementById('novoBanco').value=''; }
+    if(v && !listas.banco.includes(v)){
+      listas.banco.push(v); renderListas(); document.getElementById('novoBanco').value='';
+      salvarListas().then(avisoMeioNovo).catch(err=>{ console.error(err); toast((err && err.message) || 'Não consegui salvar o meio. Tente de novo.', true); });
+    }
   };
 
   document.getElementById('btnIA').onclick = preencherComIA;
@@ -1921,7 +1948,11 @@ Se não souber o banco com certeza, deixe banco como "".`;
     if(res.valor){ poeValorForm(res.valor); }
     if(res.descricao) document.getElementById('fDesc').value = res.descricao;
     if(res.banco){
-      if(!listas.banco.includes(res.banco)){ listas.banco.push(res.banco); salvarListas(); renderListas(); }
+      if(!listas.banco.includes(res.banco)){
+        listas.banco.push(res.banco); renderListas();
+        const novos = await salvarListas(); // aviso rápido, não o cartão de Listas: a tela é o Lançar (item 60)
+        if(novos.length) toast(`Meio ${novos[0].nome} criado. Começa a contar saldo hoje (${fmtDataBR(novos[0].dataInicio)}).`);
+      }
       document.getElementById('fBanco').value = res.banco;
     }
     if(res.dataEvento){
@@ -3219,7 +3250,7 @@ const saldoEncerrado = (b)=>!!(saldosAtuais[b] && saldosAtuais[b].encerrado);
 function indicesOrdenados(){
   const idx = listas.banco.map((_,i)=>i).filter(i=>!saldoEncerrado(listas.banco[i]));
   if(ordemSaldos==='valor'){
-    const v = i=>{ const r = saldosAtuais[listas.banco[i]]; return r ? r.saldo : -Infinity; };
+    const v = i=>{ const r = saldosAtuais[listas.banco[i]]; return r && !r.naoCalculado ? r.saldo : -Infinity; }; // o não calculado vai para o fim (item 60)
     return idx.sort((a,b)=> (v(b)-v(a)) || (a-b));
   }
   if(ordemSaldos==='manual'){
@@ -3234,16 +3265,20 @@ function agendarSalvarOrdem(){
 }
 function totalSaldos(){
   const t = saldosTotal;
-  return t ? {t:t.valor, n:t.meios, fora:t.fora, incompleto:t.erros>0} : {t:0, n:0, fora:0, incompleto:false};
+  return t ? {t:t.valor, n:t.meios, fora:t.fora, nao:t.naoCalculados||0} : {t:0, n:0, fora:0, nao:0};
 }
-function classeVal(r){ return 'sd-val' + (!r ? ' carr' : (saldosCarregando ? ' carr' : (r.saldo<0 ? ' neg' : ''))); }
-function textoVal(r){ return r ? (r.erro ? 'erro' : fmtMoeda(r.saldo)) + (r.incompleto ? ' ⚠' : '') : '···'; }
+function classeVal(r){ return 'sd-val' + (!r ? ' carr' : (saldosCarregando ? ' carr' : (r.naoCalculado ? ' nc' : (r.saldo<0 ? ' neg' : '')))); }
+function textoVal(r){ return r ? (r.naoCalculado ? '—' : fmtMoeda(r.saldo)) : '···'; }
+// meio sem início do controle (e sem mês conferido): o servidor não o calcula (item 60); a marca e o motivo vêm dele
+const marcaSemInicio = (b)=>{ const r = saldosAtuais[b]; return r && r.naoCalculado ? '<span class="semini">sem início</span>' : ''; };
 function painelSaldoHtml(i){
   const b = listas.banco[i];
   const cfg = saldosConfig[b] || {saldoInicial:0, dataInicio:''};
   const d = (rascunhoSaldo && rascunhoSaldo.idx===i) ? rascunhoSaldo : {si:String(cfg.saldoInicial||0), di:cfg.dataInicio||'', entra:!cfg.foraDoTotal};
+  const rb = saldosAtuais[b];
   return `<div class="sd-painel">
     <b>Configurar ${esc(b)}</b>
+    ${rb && rb.naoCalculado ? `<div class="nc-aviso"><b>Saldo não calculado</b>${esc(rb.motivo || '')}</div>` : ''}
     <div class="row" style="margin-top:8px;">
       <div><label>Saldo inicial (o que a conta tinha na data abaixo)</label><input type="number" step="0.01" id="sInicial" value="${esc(d.si)}"></div>
       <div><label>Data de início (AAAA-MM-DD)</label><input type="text" inputmode="numeric" placeholder="2026-09-01" id="sData" value="${esc(d.di)}"></div>
@@ -3278,21 +3313,21 @@ function renderSaldos(){
   te.style.fontSize = '32px';
   const hora = saldosUltimaCalc ? new Date(saldosUltimaCalc).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
   document.getElementById('saldoSub').textContent = saldosCarregando ? 'Calculando...' :
-    `${listas.banco.filter(b=>!saldoEncerrado(b)).length} banco${listas.banco.filter(b=>!saldoEncerrado(b)).length>1?'s':''}${tot.fora?` · ${tot.fora} fora do total`:''}${tot.incompleto?' · ⚠ confira':''}${hora?` · atualizado ${hora}`:''}`;
+    `${listas.banco.filter(b=>!saldoEncerrado(b)).length} banco${listas.banco.filter(b=>!saldoEncerrado(b)).length>1?'s':''}${tot.fora?` · ${tot.fora} fora do total`:''}${tot.nao?` · ${tot.nao} sem início do controle (fora do total)`:''}${hora?` · atualizado ${hora}`:''}`;
   let h = '';
   if(layoutSaldos==='tiles'){
     h += '<div class="sd-tiles">' + indicesOrdenados().map(i=>{
       const b = listas.banco[i];
       const cfg = saldosConfig[b], r = saldosAtuais[b];
-      return `<div class="sd-tile ${saldoAberto===i?'aberto':''} ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${esc(b)}${marcaDesativado(b)}${cfg&&cfg.foraDoTotal?' · fora':''}</div><div class="${classeVal(r)}">${textoVal(r)}</div></div>`;
+      return `<div class="sd-tile ${saldoAberto===i?'aberto':''} ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${esc(b)}${marcaDesativado(b)}${marcaSemInicio(b)}${cfg&&cfg.foraDoTotal?' · fora':''}</div><div class="${classeVal(r)}">${textoVal(r)}</div></div>`;
     }).join('') + '</div>';
     if(saldoAberto>=0 && listas.banco[saldoAberto]!==undefined) h += painelSaldoHtml(saldoAberto);
   } else {
     h += indicesOrdenados().map(i=>{
       const b = listas.banco[i];
       const cfg = saldosConfig[b], r = saldosAtuais[b];
-      const dica = !cfg ? 'defina o saldo inicial' : (cfg.foraDoTotal ? 'fora do total' : '');
-      return `<div class="sd-row ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${esc(b)}${marcaDesativado(b)}${dica?`<div class="sd-sub">${dica}</div>`:''}</div><div class="${classeVal(r)}">${textoVal(r)}</div><span class="muted">${saldoAberto===i?'▴':'▾'}</span></div>` +
+      const dica = (r && r.naoCalculado) ? (cfg&&cfg.foraDoTotal ? 'fora do total' : '') : (!cfg ? 'defina o saldo inicial' : (cfg.foraDoTotal ? 'fora do total' : ''));
+      return `<div class="sd-row ${cfg&&cfg.foraDoTotal?'sd-fora':''}" data-sd="${i}"><div class="sd-nome">${esc(b)}${marcaDesativado(b)}${marcaSemInicio(b)}${dica?`<div class="sd-sub">${dica}</div>`:''}</div><div class="${classeVal(r)}">${textoVal(r)}</div><span class="muted">${saldoAberto===i?'▴':'▾'}</span></div>` +
         (saldoAberto===i ? painelSaldoHtml(i) : '');
     }).join('');
   }
@@ -3386,7 +3421,7 @@ async function carregarSaldos(forcar){
     saldosTotal = r.total || null;
     const novos = {};
     (r.meios||[]).forEach(m=>{
-      novos[m.meio] = m.erro ? {saldo:0, erro:true} : {saldo:m.saldo, encerrado:!!m.encerrado, historico:(m.meses||[]).map(x=>({mes:x.mes, valor:x.valor, conf:x.conferido||null, estado:x.estado}))};
+      novos[m.meio] = m.naoCalculado ? {saldo:0, naoCalculado:true, motivo:m.motivo||''} : {saldo:m.saldo, encerrado:!!m.encerrado, historico:(m.meses||[]).map(x=>({mes:x.mes, valor:x.valor, conf:x.conferido||null, estado:x.estado}))};
     });
     saldosAtuais = novos;
     saldosUltimaCalc = Date.now();
@@ -4137,7 +4172,8 @@ async function confirmarImportacao(){
   desenhar();
   const tique = setInterval(desenhar, 1000); // o tempo corre mesmo quando está esperando o banco
   window.onbeforeunload = e=>{ e.preventDefault(); e.returnValue = ''; };
-  let r = null, erro = null;
+  let r = null, erro = null, meiosNovosImport = [];
+  avisoMeiosNovosImport([]);
   try{
     // listas e tags ANTES: se a importação parar no meio, o que já entrou não fica com banco, status ou tag desconhecidos
     const bancosNovos = new Set(listas.banco), statusNovos = new Set(listas.status), tagsNovas = new Set(tagsUsadas);
@@ -4148,7 +4184,7 @@ async function confirmarImportacao(){
     });
     if(bancosNovos.size!==listas.banco.length || statusNovos.size!==listas.status.length){
       listas.banco = [...bancosNovos]; listas.status = [...statusNovos];
-      await salvarListas();
+      meiosNovosImport = await salvarListas(); // os meios novos nascem com início hoje (item 60)
     }
     if(tagsNovas.size!==tagsUsadas.length) await db.doc("config/tags").set({usadas:[...tagsNovas]});
     const agora = new Date().toISOString();
@@ -4165,6 +4201,7 @@ async function confirmarImportacao(){
     btn.textContent = 'Confirmar importação';
   }
   const dur = fmtDuracao(Math.round((Date.now()-inicio)/1000));
+  avisoMeiosNovosImport(meiosNovosImport); // mesmo se parou no meio: os meios já foram criados
   if(erro){
     const gravados = erro.gravados != null ? erro.gravados : 0;
     statusEl.textContent = `⚠️ A importação parou em ${est.feitos}/${total} (${gravados} gravados): ${(erro && erro.message) || erro}. Nada se perde nem duplica: processe o mesmo arquivo de novo e confirme, que só o que faltou é importado.`;

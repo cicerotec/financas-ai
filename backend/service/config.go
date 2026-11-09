@@ -135,6 +135,7 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 	esperada, _ := body["version"].(float64)
 	delete(body, "version")
 	domain.Protegidos(body)
+	var novosMeios []string // item 60: nomes que entram na lista agora; cada um nasce com inicio do controle hoje
 	switch strings.ToLower(nome) {
 	case "listas":
 		delete(body, "meios") // derivados pelo servidor na leitura, nunca gravados
@@ -161,9 +162,18 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 					presentes[n] = true
 				}
 			}
+			antes := map[string]bool{}
 			for _, n := range nomesDeBanco(atual) {
+				antes[n] = true
 				if !presentes[n] {
 					return nil, &ErroValidacao{"para tirar um meio de pagamento da lista use Remover: o servidor confere se ele ja foi usado"}
+				}
+			}
+			vistos := map[string]bool{}
+			for _, x := range novos {
+				if n, ok := x.(string); ok && n != "" && !antes[n] && !vistos[n] {
+					vistos[n] = true
+					novosMeios = append(novosMeios, n)
 				}
 			}
 		} else if antigos, ok := atual["banco"]; ok {
@@ -210,7 +220,59 @@ func (s *Config) Gravar(ctx context.Context, sid, nome string, body domain.Doc) 
 		log.Println("put cfg:", err)
 		return nil, ErrSalvar
 	}
+	if len(novosMeios) > 0 {
+		res["meiosNovos"] = s.iniciarMeiosNovos(ctx, sid, novosMeios)
+	}
 	return res, nil
+}
+
+// iniciarMeiosNovos grava em CFG#SALDOS o inicio do controle de cada meio recem-criado: saldo inicial 0 e dataInicio = hoje (item 60). Nao cria campo: usa
+// porBanco. Quem ja tem entrada (por exemplo, voltou depois de um Remover) nao e tocado. Devolve [{nome, dataInicio}] dos que o servidor iniciou; se a gravacao
+// falhar o meio fica sem inicio, e o Saldos nao o calcula (nunca soma o passado), entao devolve vazio.
+func (s *Config) iniciarMeiosNovos(ctx context.Context, sid string, nomes []string) []domain.Doc {
+	hoje := domain.HojeDe(s.rel.Agora())
+	for tentativa := 0; tentativa < 2; tentativa++ { // 2a tentativa: alguem gravou Saldos entre a leitura e a gravacao
+		cur, err := s.repo.Ler(ctx, sid, "saldos")
+		if err != nil {
+			log.Println("cfg: meios novos: ler saldos:", err)
+			return []domain.Doc{}
+		}
+		versao, _ := cur["version"].(float64)
+		corpo := domain.Doc{}
+		for k, v := range cur {
+			if k != "version" {
+				corpo[k] = v
+			}
+		}
+		domain.Publico(corpo)
+		por := map[string]any{}
+		if antigo, ok := corpo["porBanco"].(map[string]any); ok {
+			for k, v := range antigo {
+				por[k] = v
+			}
+		}
+		var feitos []domain.Doc
+		for _, n := range nomes {
+			if _, existe := por[n]; existe {
+				continue
+			}
+			por[n] = map[string]any{"saldoInicial": 0.0, "dataInicio": hoje}
+			feitos = append(feitos, domain.Doc{"nome": n, "dataInicio": hoje})
+		}
+		if len(feitos) == 0 {
+			return []domain.Doc{}
+		}
+		corpo["porBanco"] = por
+		if _, err := s.repo.Salvar(ctx, sid, "saldos", corpo, versao); err != nil {
+			if errors.Is(err, domain.ErrConflitoConfig) {
+				continue
+			}
+			log.Println("cfg: meios novos: gravar saldos:", err)
+			return []domain.Doc{}
+		}
+		return feitos
+	}
+	return []domain.Doc{}
 }
 
 // LerAparencia devolve a aparencia da pessoa; sem item, so {"version": 0}.

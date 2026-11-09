@@ -49,9 +49,18 @@ type calculoBanco struct {
 	acc     *domain.Acumulador
 	calculo domain.Calculo
 	mapa    map[string]float64 // fechamento de cada mes conhecido (cache e cascata)
-	erro    bool               // a leitura dos lancamentos deste meio falhou (so acontece para meio sem inicio do controle)
-	semDe   bool               // sem inicio do controle nem ponto de partida: precisa ler desde o comeco
+	semDe   bool               // sem inicio do controle nem ponto de partida (item 60): o meio nao e calculado e nenhum lancamento e lido por ele
 }
+
+// ErroMeioSemInicio: o saldo do meio nao e calculado porque falta de onde partir (nem inicio do controle, nem mes conferido). 409 SEM_INICIO.
+type ErroMeioSemInicio struct{ Meio string }
+
+func (e *ErroMeioSemInicio) Error() string {
+	return "o saldo de " + e.Meio + " nao e calculado: defina a data de inicio do controle em Saldos"
+}
+
+// motivoSemInicio e a frase que a tela mostra no meio nao calculado.
+const motivoSemInicio = "Sem a data de início, o saldo exigiria somar todo o passado deste meio. Defina a data de início (e o saldo inicial) para o servidor calcular a partir dela."
 
 // leitura conta o que um calculo leu da tabela e quanto tempo isso levou. So vai para o log (numeros, nunca dados): serve para saber onde o tempo
 // de um GET /saldos e gasto (a leitura da tabela, o calculo ou a gravacao do cache) sem adivinhar.
@@ -125,8 +134,8 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 	if len(bancos) == 0 {
 		return por, listas, atual, leit, nil
 	}
-	// Duas passadas: os meios com inicio do controle (ou ponto de partida) leem so de la em diante; os sem inicio leem desde o comeco, mas
-	// numa passada a parte, para um meio sem configuracao nao obrigar os outros a ler tudo.
+	// Uma passada so, do limite mais antigo entre os meios que tem de onde partir. O meio sem inicio (semDe) nao e lido: nenhum lancamento
+	// e buscado por ele, nem o passado nem o resto (item 60).
 	base := domain.FiltroTx{Asc: true, Limite: 1000}
 	if len(bancos) == 1 {
 		base.Banco = bancos[0]
@@ -134,27 +143,14 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 	if menor != nil {
 		f := base
 		f.De = menor.UTC().Format("2006-01-02T15:04:05.000Z")
-		if err := s.lerEAcumular(ctx, sid, f, por, false, leit); err != nil {
+		if err := s.lerEAcumular(ctx, sid, f, por, leit); err != nil {
 			log.Println("saldos: listar:", err)
 			return nil, nil, "", nil, ErrListar
 		}
 	}
 	for _, c := range por {
 		if c.semDe {
-			// uma falha aqui (a tabela limitando a leitura, por exemplo) marca so estes meios com erro; os outros seguem
-			if err := s.lerEAcumular(ctx, sid, base, por, true, leit); err != nil {
-				log.Println("saldos: listar (meios sem inicio):", err)
-				for _, x := range por {
-					if x.semDe {
-						x.erro = true
-					}
-				}
-			}
-			break
-		}
-	}
-	for _, c := range por {
-		if c.erro {
+			c.mapa = map[string]float64{}
 			continue
 		}
 		c.calculo = domain.Cascata(c.acc.PorMes(), c.cfg, c.partida, atual)
@@ -169,9 +165,8 @@ func (s *Saldos) calcular(ctx context.Context, sid string, bancos []string) (map
 	return por, listas, atual, leit, nil
 }
 
-// lerEAcumular le, em paginas, os lancamentos do filtro e soma cada um no acumulador do seu banco. soDeSemInicio: so soma nos meios que
-// precisam ler desde o comeco (a passada deles); nas outras passadas esses meios sao ignorados.
-func (s *Saldos) lerEAcumular(ctx context.Context, sid string, filtro domain.FiltroTx, por map[string]*calculoBanco, soDeSemInicio bool, leit *leitura) error {
+// lerEAcumular le, em paginas, os lancamentos do filtro e soma cada um no acumulador do seu banco. Meio sem inicio (semDe) e ignorado.
+func (s *Saldos) lerEAcumular(ctx context.Context, sid string, filtro domain.FiltroTx, por map[string]*calculoBanco, leit *leitura) error {
 	for {
 		t0 := time.Now() // so para medir a leitura (vai para o log); a regra do saldo usa o Relogio
 		itens, proximo, err := s.lanc.Listar(ctx, sid, filtro)
@@ -183,7 +178,7 @@ func (s *Saldos) lerEAcumular(ctx context.Context, sid string, filtro domain.Fil
 		leit.itens += len(itens)
 		for _, l := range itens {
 			b, _ := l["banco"].(string)
-			if c := por[b]; c != nil && c.semDe == soDeSemInicio {
+			if c := por[b]; c != nil && !c.semDe {
 				c.acc.Somar(l)
 			}
 		}
@@ -295,12 +290,14 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 	tCalculo := time.Since(inicio)
 	cachesGravados := 0
 	itens := []domain.Doc{}
-	total, dentro, fora, erros := 0.0, 0, 0, 0
+	total, dentro, fora, naoCalc := 0.0, 0, 0, 0
 	for _, nome := range nomes {
 		c := por[nome]
-		if c.erro {
-			itens = append(itens, domain.Doc{"meio": nome, "erro": true, "saldo": 0.0, "foraDoTotal": c.cfg.ForaDoTotal, "semInicio": !c.cfg.Existe, "meses": []domain.Doc{}})
-			erros++
+		if c.semDe {
+			// item 60: sem inicio do controle e sem mes conferido o meio nao e calculado e nao entra no total; nenhum lancamento foi lido por ele
+			itens = append(itens, domain.Doc{"meio": nome, "naoCalculado": true, "motivo": motivoSemInicio, "saldo": 0.0, "foraDoTotal": c.cfg.ForaDoTotal, "semInicio": true, "meses": []domain.Doc{}})
+			naoCalc++
+			logarMeio(c, false)
 			continue
 		}
 		item := domain.Doc{
@@ -331,7 +328,7 @@ func (s *Saldos) Listar(ctx context.Context, sid string) (domain.Doc, error) {
 		len(nomes), leit.paginas, leit.itens, leit.dur.Milliseconds(), tCalculo.Milliseconds(), time.Since(inicio).Milliseconds(), cachesGravados)
 	return domain.Doc{
 		"mesAtual": atual,
-		"total":    domain.Doc{"valor": domain.Arred(total), "meios": dentro, "fora": fora, "erros": erros},
+		"total":    domain.Doc{"valor": domain.Arred(total), "meios": dentro, "fora": fora, "naoCalculados": naoCalc},
 		"meios":    itens,
 	}, nil
 }
@@ -343,8 +340,8 @@ func (s *Saldos) Calcular(ctx context.Context, sid, banco string) (ResultadoBanc
 		return ResultadoBanco{}, err
 	}
 	c := por[banco]
-	if c.erro {
-		return ResultadoBanco{}, ErrListar
+	if c.semDe {
+		return ResultadoBanco{}, &ErroMeioSemInicio{Meio: banco}
 	}
 	return ResultadoBanco{Saldo: c.calculo.Saldo, Mapa: c.mapa, Item: c.item, Cfg: c.cfg}, nil
 }

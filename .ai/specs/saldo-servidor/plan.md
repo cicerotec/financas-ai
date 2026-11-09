@@ -90,7 +90,7 @@ roteiro verificável é o [`spec.md`](spec.md).
    (uma entrada por nome, sem data de corte); o dono confirmou que não criou status além dos sete padrão, então as duas fontes coincidem.
 2. O **ajuste** da conferência é criado pelo servidor dentro do comando, e vale como a confirmação de mês fechado por data.
 3. `GET /saldos` devolve os **12 últimos meses** (como a tela de hoje) e não tem paginação.
-4. Sem `dataInicio`, o banco não grava cache e mostra o saldo desde o primeiro movimento, como hoje.
+4. Sem `dataInicio` (e sem mês conferido), o banco **não é calculado** (item 60, 2026-11-09): nenhum lançamento é lido por ele, não grava cache e o `/saldos` devolve `naoCalculado` e o `motivo`. O meio que entra na lista nasce com `dataInicio` = hoje e saldo inicial 0, criado pelo servidor no `PUT cfg/listas` (`meiosNovos` na resposta). (Antes do item 60: saldo desde o primeiro movimento.)
 5. O `base` do cache ganha o prefixo `v2`, o que **invalida todos os caches de hoje** de uma vez.
 6. `Conferir` na Fase A ainda aceita o corpo antigo (ignorando o `saldo`); a recusa com `400` só vem na Fase C.
 7. A ação `fechamento.escrever` deixa de existir.

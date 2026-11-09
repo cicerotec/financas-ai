@@ -282,6 +282,7 @@
     <div id="pillBanco"></div>
     <label class="fut-sw" style="margin-top:6px;"><input type="checkbox" role="switch" id="swInativos"><span>Mostrar meios inativos</span></label>
     <div class="row" style="margin-top:4px;"><input id="novoBanco" placeholder="novo meio de pagamento"><button class="ghost" id="btnAddBanco">Adicionar</button></div>
+    <div class="aviso-novo hidden" id="avisoNovo" role="status"></div>
   </div>
   <div class="card so-owner">
     <b>Tags</b>
@@ -371,6 +372,7 @@
     <button class="primary" id="btnProcessar">Processar arquivo</button>
     <button class="ghost hidden" id="btnVerificar" style="width:100%;margin-top:6px;">Conferir arquivo com o banco de dados</button>
     <p class="muted" id="importStatus"></p>
+    <div class="aviso-novo hidden" id="avisoNovoImport" role="status"></div>
     <p class="muted">Se o seletor de arquivo não abrir (comum no app do celular), abra este link no navegador do telefone (Safari/Chrome) em vez de dentro do app da Claude, ou use a opção abaixo.</p>
   </div>
   <div class="card">

@@ -989,6 +989,15 @@ svg.gx-chart{display:block;width:100%;max-width:440px;margin:0 auto;height:auto;
 /* Meio desativado / encerrar a conta (item 58). Demos: .ai/demos/demo-listas-v6-encerrar.html, demo-historico-v3-desativado.html */
 .desat{display:inline-block;font-size:11px;line-height:1.5;padding:0 7px;border-radius:8px;background:var(--border);color:var(--muted);font-weight:600;margin-left:6px;white-space:nowrap;}
 .desat.sem-margem{margin:0 6px 0 0;}
+/* item 60: meio sem inicio do controle (saldo nao calculado) e aviso de meio novo */
+.semini{display:inline-block;font-size:11px;line-height:1.5;padding:0 7px;border-radius:8px;border:1px solid var(--border);color:var(--muted);font-weight:600;margin-left:6px;white-space:nowrap;}
+.sd-val.nc{color:var(--muted);font-weight:400;}
+.nc-aviso{background:var(--accent-bg);border-radius:12px;padding:10px 12px;margin:8px 0 4px;font-size:13px;color:var(--text);}
+.nc-aviso b{display:block;margin-bottom:2px;font-size:14px;}
+.aviso-novo{background:var(--accent-bg);border-radius:14px;padding:10px 14px;margin:10px 0 0;font-size:13px;color:var(--text);}
+.aviso-novo b{display:block;font-size:14px;margin-bottom:2px;}
+.aviso-novo .acoes{display:flex;gap:8px;margin-top:8px;}
+.aviso-novo .acoes button{min-height:40px;}
 .fut-dk .bk .desat{display:block;margin:2px 0 0;width:max-content;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .pend{margin:0 0 14px;padding:10px 12px 10px 28px;border-radius:12px;background:var(--danger-bg);font-size:13px;color:var(--text);}
 .pend li{margin:4px 0;}

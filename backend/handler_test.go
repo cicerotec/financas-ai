@@ -298,6 +298,8 @@ func cenario(t *testing.T) *bancoFake {
 	f.colocar(t, tx(dataLegado, "idlegado", "")) // sem criadoPor
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#TAGS", "usadas": []any{"Lazer"}, "version": 1.0})
 	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#LISTAS", "banco": []any{"ITAU"}, "version": 1.0})
+	// item 60: sem inicio do controle o saldo do meio nao e calculado; o cenario padrao parte de 2020 (antes de todos os lancamentos), saldo inicial 0
+	f.colocar(t, doc{"PK": pkEspaco, "SK": "CFG#SALDOS", "version": 1.0, "porBanco": map[string]any{"ITAU": map[string]any{"saldoInicial": 0.0, "dataInicio": "2020-01-01"}}})
 	return f
 }
 
@@ -465,7 +467,7 @@ func TestMemberNaoMexeEmConfiguracoesCompartilhadas(t *testing.T) {
 		c, _ := chamar(t, "mem", "GET", "spaces/s1/cfg/"+nome, nil, "")
 		esperar(t, "member GET cfg/"+nome, c, 200)
 	}
-	c, _ := chamar(t, "own", "PUT", "spaces/s1/cfg/saldos", nil, `{"porBanco":{}}`)
+	c, _ := chamar(t, "own", "PUT", "spaces/s1/cfg/saldos", nil, `{"version":1,"porBanco":{}}`)
 	esperar(t, "owner PUT cfg/saldos", c, 200)
 }
 

@@ -140,7 +140,11 @@ DynamoDB sem discutir com o dono.**
      meios antigos sem início. Muda o item 40 (hoje, sem configuração, o saldo parte do primeiro movimento): os testes de saldo sem início mudam, e o total precisa dizer que não inclui o meio sem início.
   **Rejeitado:** assumir que a data vazia é "hoje" a cada leitura (a data mudaria todo dia e o saldo nunca seria estável).
   **Antes de qualquer código:** demo das duas telas (aviso ao criar o meio em Listas; Saldos com o meio não calculado, o motivo e o total), partindo de Listas v6 e Saldos v3, com o que cada uma faz perder. A decisão de escopo do desativar
-  (item 58) já está resolvida e mergeada; este item não a reabre. **Ainda aberto:** hoje ou 1º dia do mês como início; o texto do aviso; o que o total mostra com um meio não calculado.
+  (item 58) já está resolvida e mergeada; este item não a reabre.
+  **Fechado com o dono em 2026-11-09 (demos [`Listas v7`](.ai/demos/demo-listas-v7-meio-novo.html) e [`Saldos v4`](.ai/demos/demo-saldos-v4-sem-inicio.html) aprovadas):** o início do meio novo é **hoje**; o aviso é o texto da demo (cartão em Listas, aviso rápido na IA do Lançar, resumo no fim da importação);
+  o total diz "N sem início do controle (fora do total)"; a importação de planilha também cria o meio com início hoje (o histórico importado só entra no saldo depois de ajustar a data).
+  **Implementado (2026-11-09, aguardando o teste do dono em dev):** `PUT cfg/listas` cria `porBanco[nome] = {saldoInicial: 0, dataInicio: hoje}` para o nome novo e devolve `meiosNovos`; o `/saldos` devolve `naoCalculado` e `motivo` para o meio sem início (nenhum lançamento lido, sem cache, fora do total, `total.naoCalculados`);
+  a conferência recusa com 409 `SEM_INICIO`. Testes: `backend/meio_novo_inicio_test.go`, `saldo_servidor_test.go` (S-T13 e correlatos), `web/meio-sem-inicio.test.js`.
 - 31. [x] <a id="item-31"></a>**[Agora] Histórico imutável e versionado:** todo dado que entra vai também para o histórico, inteiro; toda
   edição, ocultação, exclusão e restauração gera uma versão (quem, quando, o registro completo; **criar e importar `id` novo não geram**, ajuste de 2026-10-23), gravada na mesma transação
   do registro atual (`TransactWriteItems`) e com checagem de versão contra edição concorrente. Excluir passa a ser
