@@ -37,7 +37,10 @@ func respostaErro(err error) (Resp, error) {
 	var fatConf *domain.ErroFaturaConferida
 	var desat *domain.ErroMeioDesativado
 	var pend *service.ErroMeioComPendencia
+	var semIni *service.ErroMeioSemInicio
 	switch {
+	case errors.As(err, &semIni): // item 60: o saldo do meio nao e calculado sem a data de inicio
+		return Out(http.StatusConflict, domain.Doc{"erro": semIni.Error(), "codigo": "SEM_INICIO", "meio": semIni.Meio})
 	case errors.As(err, &desat): // o meio foi encerrado (ou removido): nao recebe lancamento
 		return Out(http.StatusConflict, domain.Doc{"erro": desat.Error(), "codigo": "MEIO_DESATIVADO", "meio": desat.Meio})
 	case errors.As(err, &pend): // desativar enquanto o meio ainda participa de algum evento

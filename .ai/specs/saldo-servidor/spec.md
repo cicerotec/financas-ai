@@ -125,7 +125,7 @@ Relógio fixo em 2026-10-24; dados fictícios; a função pura é testada em tab
 | S-T10 | `GET /saldos` com 5 000 lançamentos (várias páginas do `Query`) | todos contam; sem `incompleto` |
 | S-T11 | O estado dos 12 meses: conferido, travado, calculado, aberto | `estado` certo em cada um; sem meses depois do atual |
 | S-T12 | Cache: o `GET /saldos` grava os meses encerrados; uma escrita concorrente muda a `version` no meio | grava na primeira; na segunda não grava e devolve o calculado |
-| S-T13 | Sem `dataInicio` | não grava cache; saldo desde o primeiro movimento |
+| S-T13 | Sem `dataInicio` (item 60) | o meio **não é calculado**: `naoCalculado` e `motivo` no `/saldos`, fora do total, nenhum lançamento lido, sem cache; a conferência recusa com 409 `SEM_INICIO`. (Antes do item 60: saldo desde o primeiro movimento.) |
 | S-T14 | `conferir` com `real` igual ao calculado | `200`; `conferidos[mes].saldo` é o do **servidor** |
 | S-T15 | `conferir` com `saldo` forjado no corpo (igual ao `real` e diferente do calculado) | **ignora o `saldo`**; `409 diferenca` com o valor do servidor |
 | S-T16 | `conferir` com `real` diferente e sem `ajustar` | `409 diferenca` com `calculado`, `real`, `diferenca`; nada gravado |

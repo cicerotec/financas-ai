@@ -181,7 +181,7 @@
       const r = await api('PUT', b + '/cfg/' + nome, Object.assign({}, comum, { version: versoes[nome] || 0 }));
       if (r.status === 409) { versoes[nome] = (r.body.atual && r.body.atual.version) || 0; continue; }
       versoes[nome] = r.body.version;
-      return;
+      return r.body; // em listas, traz meiosNovos: os meios que o servidor iniciou hoje (item 60)
     }
     throw new Error('Nao consegui salvar ' + nome + ' (alterado por outra pessoa).');
   }
@@ -614,7 +614,7 @@
       const snap = (d) => ({ exists: d !== undefined, data: () => d });
       return {
         get: async () => snap(await lerCfg(nome)),
-        set: async (obj) => { await gravarCfg(nome, obj); atualizarOuvintes('doc', nome); }, // so este documento e relido
+        set: async (obj) => { const r = await gravarCfg(nome, obj); atualizarOuvintes('doc', nome); return r; }, // so este documento e relido
         onSnapshot: (cb, err) => {
           const L = { tipo: 'doc', nome, run: async () => snap(await lerCfg(nome)), cb, err };
           ouvintes.add(L); disparar(L);
