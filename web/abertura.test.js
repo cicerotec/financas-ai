@@ -132,6 +132,17 @@ teste('o index.html traz a abertura no comeco do body, antes do cabecalho, com o
   ['abMsg', 'abErroT', 'abErroS', 'abDeNovo', 'abSair'].forEach((id) => assert.ok(html.includes('id="' + id + '"'), 'falta #' + id));
 });
 
+teste('o icone da abertura e o do splash do Android: mesmo recorte, em circulo, no centro; em dev leva a faixa DEV (demo v2)', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, 'css', 'app.css'), 'utf8');
+  assert.ok(html.includes('<svg class="ab-ic" id="abIc" viewBox="51.2 51.2 409.6 409.6"'), 'o recorte e a zona segura do icone (80% do quadro de 512)');
+  assert.ok(/\.ab-ic\{[^}]*224px[^}]*border-radius:50%/.test(css), 'circulo de 224 px');
+  assert.ok(/\.ab\{[^}]*grid-template-rows:1fr auto 1fr/.test(css), 'o icone fica na linha do meio: centro exato da tela');
+  assert.ok(html.indexOf('class="ab-baixo"') > html.indexOf('id="abIc"') && html.indexOf('class="ab-nome"') > html.indexOf('class="ab-baixo"'), 'nome e indicador ficam na metade de baixo, fora do centro');
+  const amb = fs.readFileSync(path.join(__dirname, 'js', 'ambiente.js'), 'utf8');
+  assert.ok(amb.includes("getElementById('abIc')") && amb.includes('>DEV</text>'), 'em dev o icone da abertura leva a faixa DEV');
+});
+
 teste('o init avisa a abertura das tres leituras do Lancar e das falhas', () => {
   const app = fs.readFileSync(path.join(__dirname, 'js', 'app.js'), 'utf8');
   const i = app.indexOf('async function init(){'), init = app.slice(i, app.indexOf('\n}', i));
