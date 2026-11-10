@@ -3642,8 +3642,9 @@ function painelCartaoHtml(){
   const cfg = ((cartoesResumo && cartoesResumo.cartoes) || []).find(c=>c.meio===b) || {};
   let h = '<div class="sd-painel">';
   // 1. o cartao: so para o dono, recolhido
+  // cada secao do painel e um .cc-sec: a linha fina entre elas e do CSS (demo-cartao-v4-separadores); a linha fica fora do trecho que recolhe
   if(dono){
-    h += tituloRecolhivel('cfg', 'Configurar cartão', cartaoCfgAberto);
+    h += '<div class="cc-sec">' + tituloRecolhivel('cfg', 'Configurar cartão', cartaoCfgAberto);
     if(cartaoCfgAberto){
       h += '<div class="cfg-grupo">'
         + linhaCfg('inicio', 'Início do controle', f.inicio || 'sem limite', '')
@@ -3652,17 +3653,18 @@ function painelCartaoHtml(){
         + linhaCfg('avisoPadrao', 'Aviso (padrão)', cfg.aviso ? Recorrencia.fraseAviso({on:true, dias:cfg.aviso.dias, insistir:cfg.aviso.insistir}) : '(nenhum)', '')
         + `<div style="margin-top:8px;"><button class="ghost" data-rm="${esc(b)}" style="font-size:12px;">Remover este cartão</button></div></div>`;
     }
+    h += '</div>';
   }
   // 2. a fatura
-  h += '<div class="tags" style="align-items:center;margin-top:10px;">'
+  h += '<div class="cc-sec"><div class="tags" style="align-items:center;">'
     + `<span class="tag" data-nav="${f.anterior}" aria-label="Faturas mais antigas">‹</span>`
     + f.chips.map(c=>`<span class="tag ${c.ym===ym?'on':''}" data-chip="${c.ym}">${esc(c.rotulo)}</span>`).join('')
     + `<span class="tag" data-nav="${f.proxima}" aria-label="Faturas mais novas">›</span></div>`;
   h += `<p class="muted" style="margin:8px 0 4px;">Período: ${fmtDataCompleta(per.ini)} a ${fmtDataCompleta(per.fim)} · ${f.fechada?'fechada':'aberta'}</p>`;
   if(f.historico) h += `<p class="muted">📁 Histórico: antes do início do controle deste cartão (${esc(f.inicio||'')}). Os lançamentos aparecem, mas a fatura não é conferida.</p>`;
-  h += `<p class="muted" id="cMsg">${esc(msgCartao||'')}</p>`;
+  h += `<p class="muted" id="cMsg">${esc(msgCartao||'')}</p></div>`;
   // 3. as compras (recolhivel)
-  h += tituloRecolhivel('compras', 'Compras', cartaoComprasAberto);
+  h += '<div class="cc-sec">' + tituloRecolhivel('compras', 'Compras', cartaoComprasAberto);
   if(cartaoComprasAberto){
     if(!f.lancamentos.length) h += '<p class="muted">Nenhuma compra nesta fatura.</p>';
     f.lancamentos.forEach(r=>{
@@ -3679,8 +3681,9 @@ function painelCartaoHtml(){
     h += '</div>';
   });
   }
+  h += '</div>';
   // 4. o total e os dados da fatura
-  h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 4px;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(f.total)}</span></div>`;
+  h += `<div class="cc-sec"><div style="display:flex;justify-content:space-between;align-items:baseline;margin:0 0 4px;"><span class="muted">Total da fatura</span><span class="sd-val">${fmtMoeda(f.total)}</span></div>`;
   if(!f.historico){
     const venc = f.vencimento ? fmtDataCompleta(f.vencimento) : '(nenhum)';
     const pag = f.pagador || '(nenhum)';
@@ -3720,13 +3723,15 @@ function painelCartaoHtml(){
   if(est.length && dono){
     h += '<div style="margin:8px 0;"><div class="muted">Valores estimados (corrija com o valor real em reais):</div>' + est.map(r=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(r.dia)}</span><span class="fx-t">${esc(r.descricao)}</span><input type="number" step="0.01" id="est-${esc(r.id)}" value="${Math.abs(r.valor)}" style="flex:0 0 96px;width:96px;"><button class="ghost" data-est="${esc(r.id)}" style="padding:4px 10px;">Corrigir</button></div>`).join('') + '</div>';
   }
+  h += '</div>';
   // 5. os pagamentos marcados (recolhivel)
   if(f.pagamentos && f.pagamentos.length){
-    h += tituloRecolhivel('pag', 'Pagamentos desta fatura', cartaoPagAberto);
+    h += '<div class="cc-sec">' + tituloRecolhivel('pag', 'Pagamentos desta fatura', cartaoPagAberto);
     if(cartaoPagAberto){
       h += '<div style="margin:4px 0 10px;">' + f.pagamentos.map(p=>`<div class="fx-lin" style="padding:4px 0;"><span class="fx-d">${fmtDiaMes(p.dia)}</span><span class="fx-t">${esc(p.meio)} <span class="fx-tag">Fatura ${esc(rotuloMesCurto(ym))}</span></span><span class="fx-v">${fmtMoeda(p.valor)}</span></div>`).join('')
         + `<p class="muted" style="margin:4px 0;">Soma ${fmtMoeda(f.totalPago)}</p></div>`;
     }
+    h += '</div>';
   }
   return h + '</div>';
 }
