@@ -30,7 +30,8 @@ Referência: [`arquitetura.md`](arquitetura.md) (decisões de 2026-10-10).
 - **Cada tela lê só o que é dela, e só quando está aberta (2026-10-27).** A subida (tela Lançar) lê `listas`, `aparencia`,
   `tags` e `combos` e nada mais. Os 1000 lançamentos são do Histórico e da Tendências (`sobDemanda` em `web/api.js`,
   `irParaAba` em `web/js/app.js`); `/futuros` é da aba Futuros e dos gestos que olham a série (Prever, Estender, repetir
-  ao lançar); scripts pesados (`tendencias.js`, `versoes.js`, `xlsx`) vêm na primeira visita. Recarregar é pelo nome
+  ao lançar); as recorrências ativas (`GET /recorrencias`) são do Histórico e de Futuros, onde fica o "Parar recorrência"
+  (`garantirRecorrencias`, item 61; `web/recorrencias-carga.test.js`); scripts pesados (`tendencias.js`, `versoes.js`, `xlsx`) vêm na primeira visita. Recarregar é pelo nome
   (gravar `tags` relê só `tags`), nunca "tudo", e o timer só confere o `seq` se alguma tela já leu lançamentos.
   `web/carga.test.js` falha se a subida voltar a ler o que não é dela. Tela nova declara o que lê em `irParaAba`.
   As consultas salvas da Tendências (`GET /consultas`, item 53) só são lidas **quando a janela "Consultas salvas" abre** ou, desde o item 55, **uma vez, quando a Tendências é mostrada com uma seção de visões que precisa delas aberta** (Comparar ou Ao longo do mês); **nunca na subida do app**. O `carga.test.js` prova isso.
