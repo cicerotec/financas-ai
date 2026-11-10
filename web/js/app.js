@@ -217,16 +217,23 @@ let recAtivas = [];     // as recorrencias ativas (GET /recorrencias): a ponta d
 let formRec = null;     // Lancar: null = sem recorrencia; senao { meses }
 let recTimer;
 const capitalizar = s=>s.charAt(0).toUpperCase() + s.slice(1);
+// As recorrencias ativas sao do Historico e de Futuros (a acao "Parar recorrencia"): a subida e o Lancar nao as leem (item 61).
+// recSujo = ainda nao leu, a ultima leitura falhou ou um lancamento mudou com outra tela aberta: le quando uma das duas abrir (irParaAba).
+let recSujo = true;
+const usaRecorrencias = t=>t==='historico' || t==='futuros';
 async function carregarRecorrencias(){
   if(!db || !db.recorrencias) return;
+  recSujo = false; // antes de ler: uma mudanca que chegue durante a leitura marca de novo
   let lista;
-  try{ lista = await db.recorrencias(); }catch(err){ console.warn('Não consegui ler as recorrências', err); return; }
+  try{ lista = await db.recorrencias(); }catch(err){ recSujo = true; console.warn('Não consegui ler as recorrências', err); return; }
   if(JSON.stringify(lista) === JSON.stringify(recAtivas)) return;
   recAtivas = lista;
   try{ renderHistorico(); }catch(e){}
   try{ renderFuturos(); }catch(e){}
 }
-function agendarRecorrencias(){ clearTimeout(recTimer); recTimer = setTimeout(carregarRecorrencias, 600); }
+function garantirRecorrencias(){ return recSujo ? carregarRecorrencias() : Promise.resolve(); }
+function recorrenciasMudaram(){ if(usaRecorrencias(abaAtual())) agendarRecorrencias(); else recSujo = true; }
+function agendarRecorrencias(){ clearTimeout(recTimer); recTimer = setTimeout(()=>{ recSujo = true; if(usaRecorrencias(abaAtual())) garantirRecorrencias(); }, 600); } // saiu da tela nos 0,6 s: fica para a volta
 function recorrenciaDe(l){ return recAtivas.find(r=>r.ultimoId === l.id) || null; }
 function chipRecorrente(l){
   const m = l.recorrente && l.recorrente.intervalo;
@@ -1095,8 +1102,8 @@ async function init(){
       if(aba==='tendencias'){ try{ desenharGrafico(); }catch(e){} }
     }, ()=>{ document.getElementById('listaLancamentos').innerHTML = '<p class="muted">Sem acesso ao histórico nesta visualização.</p>'; });
     // Futuros muda quando um lancamento muda (confirmar, excluir, editar): se a tela esta aberta le de novo; se nao, so marca.
-    if(db.aoMudarLancamentos) db.aoMudarLancamentos(()=>{ if(abaAtual()==='futuros') agendarFuturos(); else futurosSujo = true; agendarRecorrencias(); });
-    carregarRecorrencias();
+    // As recorrencias ativas seguem a mesma regra (recorrenciasMudaram): nada e lido na subida nem com o Lancar aberto.
+    if(db.aoMudarLancamentos) db.aoMudarLancamentos(()=>{ if(abaAtual()==='futuros') agendarFuturos(); else futurosSujo = true; recorrenciasMudaram(); });
   } else {
     document.getElementById('iaStatus').textContent = "Banco de dados indisponível nesta visualização.";
   }
@@ -1197,6 +1204,7 @@ function irParaAba(t){
   if(t==='saldos') carregarSaldosConfig().then(()=>carregarSaldos(false));
   if(t==='cartao') carregarCartoes(false);
   if(t==='futuros') carregarFuturos();
+  if(usaRecorrencias(t)) garantirRecorrencias(); // "Parar recorrencia" so existe no Historico e em Futuros
   if(t==='versoes') carregarScript('js/versoes.js').then(()=>{ if(abaAtual()==='versoes') abrirVersoes(); });
   if(t==='configuracoes') carregarScript(XLSX_URL).catch(e=>console.error(e)); // a leitura de planilhas (~1 MB) so serve a importacao
   if(t==='historico') entrarHistorico();

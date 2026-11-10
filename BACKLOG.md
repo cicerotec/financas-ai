@@ -16,6 +16,15 @@ Cada item começa com a área correspondente entre colchetes. A numeração segu
   rótulo engana). Causa: `comBotaoOcupado` (`web/index.html`) guarda o texto do botão antes da ação e o restaura no
   `finally`, desfazendo o "Salvar lançamento" que o `cancelarEdicao` acabou de pôr. Já existia antes dos avisos; foi
   achado ao testá-los. Correção provável: restaurar o texto só se ele não mudou durante a ação.
+- 61. [x] **[Front] A subida do app lia `GET /recorrencias`, que não é do Lançar** (achado em 2026-11-10, ao analisar a demora
+  da abertura). O `init` de `web/js/app.js` chamava `carregarRecorrencias()` e cada lançamento gravado relia a lista 0,6 s
+  depois, **em qualquer tela**, contra a regra "cada tela lê só o que é dela" (`.ai/guardrails.md`). A lista só serve à ação
+  "Parar recorrência" do Histórico e de Futuros; a linha "Recorrente" do Lançar não a usa (guarda a escolha em `formRec`).
+  Entrou na fase B do item 51 (commit `3cdcf28`) e o `web/carga.test.js` não acusava porque roda só o `api.js`. Havia um
+  segundo defeito: se a leitura da subida falhasse, ninguém tentava de novo e o "Parar recorrência" sumia até o próximo
+  lançamento mudar. **Correção:** a leitura passa a ser pedida por `irParaAba` ao abrir o Histórico ou Futuros
+  (`garantirRecorrencias`); com outra tela aberta, a mudança só marca `recSujo` e a leitura fica para a volta; falha marca
+  de novo. Teste: `web/recorrencias-carga.test.js`.
 
 ### Seções (índice dos itens pendentes)
 Só o que ainda não foi feito, na ordem de prioridade (**[Agora]**, depois **[Próximo]**, depois **[Depois]**), cada um
