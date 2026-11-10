@@ -12,6 +12,22 @@
 <script src="js/tema.js"></script>
 </head>
 <body>
+<!-- abertura (splash): cobre o app ate o Lancar ter listas, tags e combos; quem a tira e js/abertura.js, avisado pelo init do js/app.js -->
+<div class="ab" id="abertura" role="status" aria-live="polite" aria-label="Abrindo o Finanças">
+  <svg class="ab-ic" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" fill="#14213d"/><rect x="136" y="288" width="64" height="96" rx="12" fill="#4cc9a0"/><rect x="224" y="228" width="64" height="156" rx="12" fill="#4cc9a0"/><rect x="312" y="156" width="64" height="228" rx="12" fill="#ffd166"/></svg>
+  <p class="ab-nome">Finanças</p>
+  <div class="ab-pe">
+    <div class="ab-gira" aria-hidden="true"></div>
+    <p class="ab-msg" id="abMsg"></p>
+    <div class="ab-erro" id="abErro">
+      <b id="abErroT"></b>
+      <span id="abErroS"></span>
+      <button type="button" id="abDeNovo">Tentar de novo</button>
+      <button type="button" class="sec" id="abSair" hidden>Sair da conta</button>
+    </div>
+  </div>
+</div>
+<script src="js/abertura.js"></script>
 <header>
   <!-- janela larga (1160 px ou mais): nome do app e o botao da conta; no celular a conta fica no menu ⋮ -->
   <div class="topo">
