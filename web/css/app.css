@@ -289,6 +289,9 @@ svg text{fill:var(--text);font-size:10px;}
 .sd-tile .sd-nome{font-size:12px;color:var(--muted);flex:none;}
 .sd-painel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin:6px 0 8px;}
 .fm{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;}
+/* secoes do painel do cartao aberto (Cartao de credito): linha fina entre elas, a mesma do .fm de Saldos */
+.cc-sec{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;}
+.cc-sec:first-child{margin-top:0;border-top:0;padding-top:0;}
 .fm-lin{display:flex;align-items:center;gap:8px;min-height:36px;font-size:13px;}
 .fm-mes{width:52px;color:var(--muted);}
 .fm-val{flex:1;text-align:right;font-weight:600;white-space:nowrap;}
