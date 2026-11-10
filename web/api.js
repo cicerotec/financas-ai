@@ -119,7 +119,7 @@
     const lista = body.espacos || [];
     SUB = body.sub || '';
     EMAIL = body.email || '';
-    if (!lista.length) throw new Error('Sua conta ainda nao tem um espaco. Rode scripts/seed.sh.');
+    if (!lista.length) { const e = new Error('Sua conta ainda nao tem um espaco. Rode scripts/seed.sh.'); e.codigo = 'sem_espaco'; throw e; }
     const guardado = localStorage.getItem('financas.space');
     ESPACO = lista.find((e) => e.id === guardado) || lista[0];
     ESPACOS = lista;
@@ -636,7 +636,9 @@
     }
   };
 
+  let erroDeAcesso = null; // por que claude.use("db") devolveu null (conta sem espaco: codigo 'sem_espaco'; o resto e rede ou servidor)
   window.claude = {
+    erroDeAcesso: () => erroDeAcesso,
     papel: () => (ESPACO ? ESPACO.role : null),
     sub: () => SUB,
     apelido: () => (ESPACO && ESPACO.apelido) || '',
@@ -650,7 +652,7 @@
     testarAviso,
     use: async (nome) => {
       if (nome === 'db') {
-        try { await espaco(); } catch (e) { alert(e.message); return null; }
+        try { await espaco(); } catch (e) { erroDeAcesso = e; return null; } // quem mostra o erro e a abertura (js/abertura.js), nao um alerta do navegador
         return dbShim;
       }
       if (nome === 'downloads') return downloads;

@@ -1052,6 +1052,8 @@ async function init(){
   }
   document.getElementById('fData').value = nowLocalInput();
 
+  // A abertura (js/abertura.js) cobre a tela ate as tres leituras do Lancar responderem; se uma falhar, ela mostra o erro com "Tentar de novo".
+  const falhaNaAbertura = parte=>{ console.warn('Abertura: não consegui ler ' + parte); Abertura.falhou('rede'); };
   if(db){
     db.doc("config/listas").onSnapshot(snap=>{
       const d = snap.data();
@@ -1070,7 +1072,8 @@ async function init(){
       renderListas();
       renderSaldos();
       if(abaAtual()==='historico'){ try{ renderHistorico(); }catch(e){} }
-    }, ()=>{ renderListas(); });
+      Abertura.chegou('listas');
+    }, ()=>{ renderListas(); falhaNaAbertura('listas'); });
 
     db.doc("config/tags").onSnapshot(snap=>{
       const d = snap.data();
@@ -1079,7 +1082,8 @@ async function init(){
       renderTagFilter();
       renderTagChartSelect();
       renderGerenciarTags();
-    }, ()=>{});
+      Abertura.chegou('tags');
+    }, ()=>{ falhaNaAbertura('tags'); });
 
     db.doc("config/combos").onSnapshot(snap=>{
       const d = snap.data();
@@ -1089,7 +1093,8 @@ async function init(){
       rotinaCombosAtiva = !!(d && d.rotinaAtiva);
       renderTagPicker();
       renderCombosLista();
-    }, ()=>{});
+      Abertura.chegou('combos');
+    }, ()=>{ falhaNaAbertura('combos'); });
 
     // Cada tela le o que e dela, so quando esta aberta (irParaAba): Lancar usa so as configuracoes acima. Os lancamentos
     // (1000 mais recentes) sao lidos sob demanda por Historico e Tendencias; Futuros le por conta propria (carregarFuturos).
@@ -1106,6 +1111,8 @@ async function init(){
     if(db.aoMudarLancamentos) db.aoMudarLancamentos(()=>{ if(abaAtual()==='futuros') agendarFuturos(); else futurosSujo = true; recorrenciasMudaram(); });
   } else {
     document.getElementById('iaStatus').textContent = "Banco de dados indisponível nesta visualização.";
+    const erroAcesso = window.claude && claude.erroDeAcesso && claude.erroDeAcesso(); // conta sem espaco, rede ou servidor
+    Abertura.falhou(erroAcesso && erroAcesso.codigo === 'sem_espaco' ? 'conta' : 'rede');
   }
   renderListas();
   setupTabs();
