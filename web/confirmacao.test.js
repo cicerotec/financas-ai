@@ -40,7 +40,7 @@ const antigo = { id: ID, dataEvento: '2026-08-10T12:00:00.000Z', descricao: 'Mer
 const zera = () => { pedidos.length = 0; perguntas = []; perguntasLote = []; respostaPergunta = true; };
 
 (async () => {
-  const db = await ctx.claude.use('db');
+  const db = await ctx.financasApi.use('db');
   const col = db.collection('lancamentos');
   zera();
 

@@ -54,7 +54,7 @@ function atualizarCampoFatura(){
   document.getElementById('fFaturaDica').textContent = padrao>0 ? 'Registros com esta forma de pagamento já vão para a próxima fatura.' : (padrao<0 ? 'Registros com esta forma de pagamento já entram na fatura anterior (a que fecha neste mês).' : '');
 }
 // ---------- aviso (Telegram): controles reutilizados pelo formulario (prefixo f) e pela janela de repeticao (pv) ----------
-function telegramVinculado(){ return !!(window.claude && claude.telegramChatId && claude.telegramChatId()); }
+function telegramVinculado(){ return !!(window.financasApi && financasApi.telegramChatId && financasApi.telegramChatId()); }
 const avisoVisivel = { f: ()=>dataFuturaForm(), pv: ()=>true };
 function htmlAviso(p){
   const dias = [[7,'7 dias antes'],[3,'3 dias antes'],[1,'1 dia antes'],[0,'No dia']];
@@ -844,7 +844,7 @@ function htmlValorLinha(l){
   const v = valorAssinado(l);
   return `<span class="valor ${v<0?'saida':'entrada'}">${v<0?'-':'+'}${fmtMoeda(Math.abs(v))}</span>`;
 }
-// Papel do usuário (no ambiente do Claude não existe, então vale 'owner'). A trava de verdade está
+// Papel do usuário (sem papel vindo da API, vale 'owner'). A trava de verdade está
 // na API; aqui só se esconde o que o papel não pode usar.
 function ehOwner(){ return papelAtual === 'owner'; }
 // Escrita recusada porque o mês está conferido: a mensagem do servidor já diz o que fazer.
@@ -1031,19 +1031,19 @@ async function excluirTag(tag){
 }
 
 async function init(){
-  db = await claude.use("db");
-  sample = await claude.use("sample");
-  if(window.claude && claude.papel){
-    papelAtual = claude.papel() || 'owner';
-    meuSub = (claude.sub && claude.sub()) || '';
+  db = await financasApi.use("db");
+  sample = await financasApi.use("sample");
+  if(window.financasApi && financasApi.papel){
+    papelAtual = financasApi.papel() || 'owner';
+    meuSub = (financasApi.sub && financasApi.sub()) || '';
   }
   document.body.classList.toggle('papel-member', papelAtual !== 'owner');
-  if(window.claude && claude.definirApelido){
-    document.getElementById('perfilNome').value = (claude.apelido && claude.apelido()) || '';
+  if(window.financasApi && financasApi.definirApelido){
+    document.getElementById('perfilNome').value = (financasApi.apelido && financasApi.apelido()) || '';
     usAtualizar();
-    document.getElementById('telegramChatId').value = (claude.telegramChatId && claude.telegramChatId()) || '';
+    document.getElementById('telegramChatId').value = (financasApi.telegramChatId && financasApi.telegramChatId()) || '';
   } else {
-    document.getElementById('perfilCard').classList.add('hidden'); // ambiente sem perfil (artifact do Claude)
+    document.getElementById('perfilCard').classList.add('hidden'); // sem perfil nesta versão da API
     document.getElementById('telegramCard').classList.add('hidden');
   }
   if(papelAtual !== 'owner'){
@@ -1111,7 +1111,7 @@ async function init(){
     if(db.aoMudarLancamentos) db.aoMudarLancamentos(()=>{ if(abaAtual()==='futuros') agendarFuturos(); else futurosSujo = true; recorrenciasMudaram(); });
   } else {
     document.getElementById('iaStatus').textContent = "Banco de dados indisponível nesta visualização.";
-    const erroAcesso = window.claude && claude.erroDeAcesso && claude.erroDeAcesso(); // conta sem espaco, rede ou servidor
+    const erroAcesso = window.financasApi && financasApi.erroDeAcesso && financasApi.erroDeAcesso(); // conta sem espaco, rede ou servidor
     Abertura.falhou(erroAcesso && erroAcesso.codigo === 'sem_espaco' ? 'conta' : 'rede');
   }
   renderListas();
@@ -4321,7 +4321,7 @@ async function lerTodosLancamentos(aoProgredir){
 }
 async function exportarDados(){
   const statusEl = document.getElementById('exportStatus');
-  const downloads = await claude.use("downloads");
+  const downloads = await financasApi.use("downloads");
   if(!downloads){ statusEl.textContent = "Exportação indisponível nesta visualização."; return; }
   if(!db){ statusEl.textContent = "Banco de dados indisponível nesta visualização."; return; }
   try{
@@ -4544,10 +4544,10 @@ document.getElementById('btnImportarFech').addEventListener('click', importarFec
 
 async function salvarNomePerfil(){
   const msg = document.getElementById('perfilMsg'), inp = document.getElementById('perfilNome');
-  if(!window.claude || !claude.definirApelido){ msg.textContent = 'Indisponível nesta versão.'; return; }
+  if(!window.financasApi || !financasApi.definirApelido){ msg.textContent = 'Indisponível nesta versão.'; return; }
   msg.textContent = 'Salvando...';
   try{
-    const nome = await claude.definirApelido(inp.value);
+    const nome = await financasApi.definirApelido(inp.value);
     inp.value = nome;
     usAtualizar();
     msg.textContent = nome ? 'Salvo ✓' : 'Nome removido ✓';
@@ -4559,10 +4559,10 @@ document.getElementById('btnSalvarNome').addEventListener('click', salvarNomePer
 
 async function salvarTelegram(){
   const msg = document.getElementById('telegramMsg'), inp = document.getElementById('telegramChatId');
-  if(!window.claude || !claude.definirTelegram){ msg.textContent = 'Indisponível nesta versão.'; return; }
+  if(!window.financasApi || !financasApi.definirTelegram){ msg.textContent = 'Indisponível nesta versão.'; return; }
   msg.textContent = 'Salvando...';
   try{
-    const chat = await claude.definirTelegram(inp.value);
+    const chat = await financasApi.definirTelegram(inp.value);
     inp.value = chat;
     msg.textContent = chat ? 'Salvo ✓ Use "Enviar aviso de teste" para conferir.' : 'Telegram desvinculado ✓';
     atualizarCampoAviso();
@@ -4570,9 +4570,9 @@ async function salvarTelegram(){
 }
 async function testarTelegram(){
   const msg = document.getElementById('telegramMsg');
-  if(!window.claude || !claude.testarAviso){ msg.textContent = 'Indisponível nesta versão.'; return; }
+  if(!window.financasApi || !financasApi.testarAviso){ msg.textContent = 'Indisponível nesta versão.'; return; }
   msg.textContent = 'Enviando...';
-  try{ await claude.testarAviso(); msg.textContent = 'Enviado ✓ Confira o Telegram.'; }
+  try{ await financasApi.testarAviso(); msg.textContent = 'Enviado ✓ Confira o Telegram.'; }
   catch(e){ msg.textContent = '⚠️ ' + ((e && e.message) || e); }
 }
 document.getElementById('btnSalvarTelegram').addEventListener('click', salvarTelegram);

@@ -48,7 +48,7 @@ const teste = async (nome, fn) => {
 };
 
 (async () => {
-  const db = await ctx.claude.use('db');
+  const db = await ctx.financasApi.use('db');
   const ignorar = () => {};
 
   await teste('a subida em Lancar le so listas, aparencia, tags e combos (nada de /tx, /seq nem /futuros)', async () => {
