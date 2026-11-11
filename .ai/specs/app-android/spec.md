@@ -3,7 +3,7 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id (`A-T<n>`), para o PR dizer exatamente o
 que cobriu. Quando este texto e o do intent divergirem, vale o plan. As fases 4 (push), 5 (release) e 6 (produção aberta) ganham spec própria.
 
-**Estado:** rascunho para aprovação (2026-11-01). Nada implementado. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
+**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK ainda **não compilado nem testado em aparelho** (ver "Fase 1: o que foi verificado" no `spec.md`). Fases 2 e 3 sem código. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
 
 Convenção dos testes: os de lógica são `node web/*.test.js` (o CI roda todos sem lista) e **falham antes da mudança**. Os que dependem do aparelho são marcados
 **[aparelho]** e entram como roteiro manual no PR, com o resultado escrito. Diga o que não deu para ver em vez de afirmar que funciona.
@@ -39,6 +39,25 @@ Convenção dos testes: os de lógica são `node web/*.test.js` (o CI roda todos
 
 **Verificações da fase 1, a registrar no PR:** (a) `window.Capacitor.Plugins` expõe `App`, `Browser` e o armazenamento seguro sem `import`; (b) a origem real da WebView é
 a esperada (`location.origin` no console remoto); (c) o que, de `web/`, atrapalha dentro do app (por exemplo `manifest.webmanifest` e o registro de PWA).
+
+### Fase 1: o que foi verificado (2026-11-11)
+
+| Item | Resultado |
+|---|---|
+| A-T1, A-T2, A-T4 (parte do `.gitignore`), R3 (sabores), R4 (sem `server.url`) | **Verde**: `node web/app-android.test.js` |
+| A-T3 | Parte local verde (`AppOrigin` em `AllowOrigins`, demais origens intactas); o `sam validate --lint` roda no CI |
+| R6 (lógica do voltar físico) | **Verde** com plugin de mentira: `node web/nativo.test.js`. Quebrar o código faz o teste falhar |
+| A-T8 | `node web/*.test.js` e `go vet`/`go test` verdes |
+| `cap sync` | Rodou e copiou `www/` e o `capacitor.config.json` (appId e `https`) para o projeto Android |
+| Compilar o APK (`assembleDevDebug`) | **Não rodou**: a sessão onde isto foi feito não tem Android SDK nem PowerShell. Primeira coisa a fazer no computador do dono |
+| A-T5, A-T6, A-T7 e as verificações (a), (b) e (c) | **[aparelho]**: pendentes. Nada disso foi visto funcionando |
+
+### Decisões da fase 1
+
+- `applicationId` base: `br.com.cicerotec.financas` (decidido em 2026-11-11).
+- O botão voltar é `web/js/nativo.js`, carregado depois de `voltar.js`; no navegador e na PWA ele não faz nada.
+- `AppOrigin` tem padrão `https://localhost`, então os dois ambientes o recebem sem mudar os workflows de deploy.
+- Ícone legado em PNG nos dois sabores; o adaptativo fica na fase 3 (R24).
 
 ## Fase 2: login nativo e token seguro
 

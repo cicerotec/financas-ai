@@ -2,7 +2,7 @@
 
 Este documento diz **o quê e por quê**; o como está em [`plan.md`](plan.md) e o roteiro verificável, em [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação (2026-11-01). Nada foi implementado.
+**Estado:** rascunho (2026-11-01). Fase 1 implementada em 2026-11-11 (ver `plan.md` e `spec.md`); `applicationId` decidido: `br.com.cicerotec.financas`.
 
 ## O problema
 
@@ -63,7 +63,7 @@ O app é uma página web (`web/`, JavaScript puro, sem build) que o dono usa no 
 
 ## Para o dono decidir
 
-- **Identificador do app** (`applicationId`, ex.: `br.com.<algo>.financas`). É **permanente** depois do primeiro envio à Play: escolher com cuidado. O `dev` usa o
+- **Identificador do app** (decidido em 2026-11-11: `br.com.cicerotec.financas`; `applicationId`, ex.: `br.com.<algo>.financas`). É **permanente** depois do primeiro envio à Play: escolher com cuidado. O `dev` usa o
   mesmo com sufixo `.dev`.
 - **Conta da Play:** pessoal ou de organização. Contas pessoais novas costumam exigir um teste fechado com um número mínimo de testadores durante algumas semanas
   antes da produção (confirmar a regra vigente); duas pessoas não bastam. Organização exige verificação da empresa.
