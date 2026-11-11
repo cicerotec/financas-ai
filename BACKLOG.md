@@ -396,7 +396,7 @@ DynamoDB sem discutir com o dono.**
   pelo navegador ou como PWA. O dono quer um app Android **fora do navegador**, com **capacidades nativas**, primeiro para duas pessoas e depois pela **Play Store**. Decidido: **Capacitor** com o
   `web/` empacotado dentro do app (sem reescrever telas, sem mudar regra nem backend); TWA e app nativo (Kotlin ou Flutter) foram descartados; `dev` e `prod` coexistem por `applicationId` distinto;
   **APK de debug** no desenvolvimento e **AAB assinado** na Play. Fases (cada uma um PR):
-  - [ ] **Fase 1, a casca:** projeto em `app-android/`, `scripts/app-android.ps1`, CORS com a origem `https://localhost` da WebView e botão voltar físico (spec pronta).
+  - [ ] **Fase 1, a casca** (implementada em 2026-11-11 na branch `feature/app-android-casca`, **falta compilar o APK e testar no aparelho**, itens A-T5 a A-T7 do `spec.md`): projeto em `app-android/` (`applicationId` `br.com.cicerotec.financas`, sabores `dev` e `prod`), `scripts/app-android.ps1`, CORS com a origem `https://localhost` da WebView (`AppOrigin`) e botão voltar físico (`web/js/nativo.js`).
   - [ ] **Fase 2, login nativo e token seguro:** Hosted UI no navegador do sistema (Custom Tabs), PKCE e retorno por esquema próprio, refresh token no Keystore, login extraído de `web/api.js` para `web/js/sessao.js` (spec pronta).
   - [ ] **Fase 3, biometria, ícone e acabamento:** trava opcional guardada só no aparelho; **demo antes** (spec pronta).
   - [ ] **Fase 4, push (FCM) como canal do despachante** (spec própria; o token do aparelho é **dado novo no DynamoDB: discutir antes**).

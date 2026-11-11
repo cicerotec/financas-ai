@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede. Cada fase é um PR pequeno, vai primeiro ao `dev` e deixa o app utilizável. Telas novas pedem demo aprovada
 antes do código. O roteiro verificável das fases 1 a 3 está em [`spec.md`](spec.md); as demais ganham spec própria quando chegar a vez.
 
-**Estado:** rascunho para aprovação (2026-11-01). Nada implementado.
+**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK ainda **não compilado nem testado em aparelho** (ver "Fase 1: o que foi verificado" no `spec.md`). Fases 2 e 3 sem código.
 
 ## Onde estamos hoje
 
@@ -23,14 +23,16 @@ antes do código. O roteiro verificável das fases 1 a 3 está em [`spec.md`](sp
 
 ```
 app-android/                 projeto do Capacitor (código nosso, sem dado real)
-  capacitor.config.ts        appId, appName, webDir "www", androidScheme "https"
+  capacitor.config.json      appId, appName, webDir "www", androidScheme "https" (JSON, para nao precisar de TypeScript)
   package.json               só Capacitor e plugins (o front continua sem build)
   android/                   projeto gerado pelo Capacitor (vai para o git, menos build/ e local.properties)
+  montar-www.js              copia web/ para www/ com o config do ambiente (chamado pelo script e testado em web/app-android.test.js)
   www/                       cópia gerada de web/ + config do ambiente (ignorado pelo git)
-scripts/app-android.ps1      monta www/ para -Ambiente dev|prod, roda cap sync e o Gradle
+scripts/app-android.ps1      chama montar-www.js para -Ambiente dev|prod, roda cap sync e o Gradle (assembleDevDebug ou assembleProdDebug)
 ```
 
 - O `web/` continua sendo a **única fonte das telas**. `www/` nunca é editado à mão.
+- **`applicationId` decidido em 2026-11-11: `br.com.cicerotec.financas`** (o `dev` leva `.dev`). Os dois ambientes são **sabores do Gradle** (`prod` e `dev`, em `android/app/build.gradle`); o nome e o ícone marcado do `dev` ficam em `android/app/src/dev/res/`. Na fase 1 o ícone é o legado em PNG (de `web/icons/` e `web/icons/dev/`); o adaptativo é da fase 3.
 - Dois ambientes = dois `applicationId` (`...financas` e `...financas.dev`, o `dev` com nome "Finanças DEV" e ícone marcado), para os dois ficarem instalados juntos,
   cada um com seus dados e sua sessão. O `config.js` certo entra em `www/` pelo script, não por sabor do Gradle, para o pacote ter um config só.
 - **Assinatura:** o keystore de upload **nunca** vai para o git (o repositório é público). Fica no computador do dono, fora do repositório, com senha lida por
