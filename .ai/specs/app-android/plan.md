@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede. Cada fase é um PR pequeno, vai primeiro ao `dev` e deixa o app utilizável. Telas novas pedem demo aprovada
 antes do código. O roteiro verificável das fases 1 a 3 está em [`spec.md`](spec.md); as demais ganham spec própria quando chegar a vez.
 
-**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK ainda **não compilado nem testado em aparelho** (ver "Fase 1: o que foi verificado" no `spec.md`). Fases 2 e 3 sem código.
+**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado" no `spec.md`). Fases 2 e 3 sem código.
 
 ## Onde estamos hoje
 
@@ -49,6 +49,10 @@ scripts/app-android.ps1      chama montar-www.js para -Ambiente dev|prod, roda c
   (c) o botão voltar físico cai na pilha de `voltar.js` e, na raiz, minimiza o app.
 - Sem login nativo ainda: nesta fase o login pode continuar quebrado no app; o foco é provar a casca, o CORS e o build. Entrega: APK no aparelho abrindo as telas com a
   faixa "AMBIENTE DE TESTE".
+- **O que o aparelho mostrou (2026-11-11):** sem login o app não exibe tela nenhuma, porque a primeira coisa que faz é ir ao Hosted UI, que recusa o retorno `https://localhost/`.
+  A fase 1 fecha com o APK compilando, instalando e abrindo; ver as telas, a faixa, o CORS a partir do app e o botão voltar fica para o fim da fase 2.
+- **Para compilar:** Node 22 ou mais, JDK 21 ou mais e a plataforma Android 36. `scripts/app-android.ps1` confere as versões e aceita `-NodeDir` e `-JavaHome` (ou as variáveis
+  `APP_ANDROID_NODE` e `APP_ANDROID_JAVA_HOME`) quando o padrão da máquina é mais antigo.
 
 ### Fase 2: login nativo e token no armazenamento seguro
 - **Hosted UI no navegador do sistema (Custom Tabs), nunca na WebView.** O app abre a URL de autorização; o Cognito devolve o `code` por um esquema próprio
