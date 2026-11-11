@@ -29,13 +29,13 @@ const ctx = {
     addEventListener(tipo, fn) { escuta.doc[tipo] = fn; }
   },
   window: {},
-  claude: {
+  financasApi: {
     sessao: () => sessao,
     sair: () => chamadas.push(['sair']),
     trocarEspaco: (id) => chamadas.push(['trocarEspaco', id])
   }
 };
-ctx.window.claude = ctx.claude;
+ctx.window.financasApi = ctx.financasApi;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'js', 'usuario.js'), 'utf8') +
   '\nthis.__u = {htmlConta, htmlContaTopo, htmlContaFim, usAtualizar, usAbrir, usFechar, usPreparar};', ctx);

@@ -1,6 +1,6 @@
-// Substitui o ambiente do Claude: login (Cognito Hosted UI + PKCE) e uma camada com a mesma
+// Camada de acesso do app: login (Cognito Hosted UI + PKCE) e uma camada com a mesma
 // API de banco que o app ja usa (collection/doc/where/orderBy/limit/onSnapshot), falando
-// com a Lambda. O app continua chamando claude.use("db") e claude.use("downloads").
+// com a Lambda. O app continua chamando financasApi.use("db") e financasApi.use("downloads").
 (function () {
   const CFG = window.FINANCAS_CONFIG;
   const LS = 'financas.auth';
@@ -636,8 +636,8 @@
     }
   };
 
-  let erroDeAcesso = null; // por que claude.use("db") devolveu null (conta sem espaco: codigo 'sem_espaco'; o resto e rede ou servidor)
-  window.claude = {
+  let erroDeAcesso = null; // por que financasApi.use("db") devolveu null (conta sem espaco: codigo 'sem_espaco'; o resto e rede ou servidor)
+  window.financasApi = {
     erroDeAcesso: () => erroDeAcesso,
     papel: () => (ESPACO ? ESPACO.role : null),
     sub: () => SUB,
@@ -656,7 +656,7 @@
         return dbShim;
       }
       if (nome === 'downloads') return downloads;
-      return null; // "sample" (IA) ainda nao existe fora do Claude
+      return null; // "sample" (IA) ainda nao existe
     }
   };
 })();

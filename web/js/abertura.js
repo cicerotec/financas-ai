@@ -54,5 +54,5 @@ const Abertura = (typeof window !== 'undefined') ? criarAbertura({
   // enquanto a abertura cobre a tela, o que esta atras nao recebe foco nem toque (o cabecalho e o main ainda nao existem quando este script roda)
   fundo: sim=>{ document.documentElement.classList.toggle('abrindo', sim); },
   recarregar: ()=>window.location.reload(),
-  sair: ()=>{ if(window.claude && window.claude.sair) window.claude.sair(); }
+  sair: ()=>{ if(window.financasApi && window.financasApi.sair) window.financasApi.sair(); }
 }) : null;
