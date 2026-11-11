@@ -1,9 +1,9 @@
 // A conta de quem esta logado: nome, espaco e Sair. No celular entram no menu do app (abrirMenuApp, em app.js); na janela larga
 // (1160 px ou mais) ficam num botao no canto direito do cabecalho. Padrao: .ai/padrao-de-telas.md ("Menu do app"), demo
-// .ai/demos/arquivo/demo-menu-usuario.html. So desenha: nome, espaco, papel e lista de espacos vem do api.js (window.claude.sessao()).
+// .ai/demos/arquivo/demo-menu-usuario.html. So desenha: nome, espaco, papel e lista de espacos vem do api.js (window.financasApi.sessao()).
 // Carregado depois do app.js e usa os globais dele (esc, fecharMenuApp, irParaAba).
 
-function usSessao(){ return (window.claude && claude.sessao && claude.sessao()) || null; }
+function usSessao(){ return (window.financasApi && financasApi.sessao && financasApi.sessao()) || null; }
 function usPapel(role){ return role === 'member' ? 'membro' : 'dono'; }
 function usInicial(nome){ return String(nome || '?').trim().charAt(0).toUpperCase() || '?'; }
 
@@ -57,13 +57,13 @@ function usPreparar(){
     const a = e.target.closest && e.target.closest('[data-conta]');
     // Sair nao fecha o menu do app: ele e uma camada do botao voltar, e fecha-lo faz o voltar.js pedir history.go(-1), que cancela a navegacao
     // para o logout (7 ms depois, "cancelado" no inspetor) e a pessoa continua no app. A pagina vai embora sozinha.
-    if(a && a.dataset.conta === 'sair'){ usFechar(false); if(window.claude && claude.sair) claude.sair(); return; }
+    if(a && a.dataset.conta === 'sair'){ usFechar(false); if(window.financasApi && financasApi.sair) financasApi.sair(); return; }
     if(a && a.dataset.conta === 'listas'){ if(typeof fecharMenuApp === 'function') fecharMenuApp(false); usFechar(false); irParaAba('listas'); return; }
     if(!drop.hidden && !(e.target.closest && e.target.closest('#usrDrop'))) usFechar(false); // clique fora
   });
   document.addEventListener('change', e=>{
     const sel = e.target.closest && e.target.closest('[data-conta="espaco"]');
-    if(sel && window.claude && claude.trocarEspaco) claude.trocarEspaco(sel.value);
+    if(sel && window.financasApi && financasApi.trocarEspaco) financasApi.trocarEspaco(sel.value);
   });
   document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !drop.hidden) usFechar(true); });
 }
