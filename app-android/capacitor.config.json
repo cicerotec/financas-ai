@@ -2,5 +2,6 @@
   "appId": "br.com.cicerotec.financas",
   "appName": "Finanças",
   "webDir": "www",
+  "loggingBehavior": "none",
   "server": { "androidScheme": "https" }
 }

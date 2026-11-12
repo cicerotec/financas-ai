@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 ou menos: o arquivo do Cofre (login cifrado pelo Keystore) fica fora do backup. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="cofre.xml" />
+</full-backup-content>
