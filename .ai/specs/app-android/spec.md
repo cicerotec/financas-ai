@@ -205,12 +205,14 @@ Xiaomi 2311DRK48G com o dono fazendo o login; o estado do app foi lido pela insp
 #### Sem rede: o que cada tela mostra (modo avião, 2026-11-12)
 
 Visto pelo dono no aparelho. **Nada disto é da fase 2**: o `web/js/app.js` não mudou nela e o navegador se comporta igual; fica registrado porque o app Android torna o uso sem
-rede mais comum. Corrigir é mudança de tela (pede demo) e não está no escopo do item 54.
+rede mais comum. Corrigir é mudança de tela (pede demo) e não está no escopo do item 54: é o item 63 do `BACKLOG.md`.
 
 | Tela | O que aparece | De onde vem |
 |---|---|---|
 | Histórico e Histórico de versões | "Failed to fetch" | O texto cru do erro do `fetch` (`err.message`) vai para a tela |
-| Saldos, Cartão de crédito e Futuros | Não carrega e não diz nada (esperado 1 minuto) | A falha só vai ao console (`carregarFuturos` e `carregarSaldos` fazem `console.error` e redesenham) |
+| Futuros | Não carrega e não diz nada (esperado 1 minuto) | A falha só vai ao console (`carregarFuturos` faz `console.error` e marca `futurosSujo`) |
+| Saldos | Não carrega e não diz nada (esperado 1 minuto) | `carregarSaldos` marca a falha (`fechFalhou`), mas a frase só aparece dentro do bloco "Fechamento mensal" de um meio aberto |
+| Cartão de crédito | Não carrega e não diz nada (esperado 1 minuto) | `carregarCartoes` guarda "Não consegui ler os cartões…" (`cartaoErro`), mas `renderCartao` só a mostra quando ainda não há resultado anterior |
 | Listas, ao excluir uma tag | "Não consegui conferir a tag. Tente de novo." | Mensagem própria da tela |
 | Lançar, ao salvar | "Não foi possível salvar. Confira a conexão e tente de novo." | Mensagem própria da tela |
 
