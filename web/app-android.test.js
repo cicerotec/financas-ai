@@ -68,7 +68,7 @@ assert.ok(!fs.readdirSync(www).some(f => f.endsWith('.test.js')));
 const t = fs.readFileSync(path.join(aqui, 'template.yaml'), 'utf8').replace(/\r\n/g, '\n'); // no Windows o git entrega CRLF (core.autocrlf)
 assert.match(t, /\n  AppOrigin:\n    Type: String\n    Default: https:\/\/localhost\n/);
 assert.ok(t.includes("AllowOrigins: [!Ref FrontOrigin, !Ref AppOrigin, !Sub 'https://${Distribution.DomainName}']"));
-assert.ok(t.includes("CallbackURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/']"), 'o login do navegador nao muda na fase 1');
+assert.ok(t.includes("CallbackURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/', "), 'os enderecos do navegador continuam em CallbackURLs (o do app, fase 2, e conferido em web/sessao.test.js)');
 
 // R3: dois sabores, dev com sufixo .dev (instalam juntos) e nome proprio; o app carrega o pacote local (sem server.url)
 const g = fs.readFileSync(path.join(aqui, 'app-android', 'android', 'app', 'build.gradle'), 'utf8');

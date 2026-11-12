@@ -3,7 +3,7 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id (`A-T<n>`), para o PR dizer exatamente o
 que cobriu. Quando este texto e o do intent divergirem, vale o plan. As fases 4 (push), 5 (release) e 6 (produção aberta) ganham spec própria.
 
-**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado"). Fases 2 e 3 sem código. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
+**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado"). **Fase 2 com código em 2026-11-12** (branch `feature/app-android-login-nativo`), faltando o deploy do `dev` e o roteiro de aparelho (ver "Fase 2: o que foi verificado"). Fase 3 sem código. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
 
 Convenção dos testes: os de lógica são `node web/*.test.js` (o CI roda todos sem lista) e **falham antes da mudança**. Os que dependem do aparelho são marcados
 **[aparelho]** e entram como roteiro manual no PR, com o resultado escrito. Diga o que não deu para ver em vez de afirmar que funciona.
@@ -53,7 +53,8 @@ a esperada (`location.origin` no console remoto); (c) o que, de `web/`, atrapalh
 | Instalar e abrir no aparelho | **Verde** (2026-11-11, Xiaomi 2311DRK48G): `adb install` do APK do `dev` deu `Success` e o pacote `br.com.cicerotec.financas.dev` aparece em `pm list packages`. Em Xiaomi é preciso ligar "Instalar via USB" nas Opções do desenvolvedor, senão o erro é `INSTALL_FAILED_USER_RESTRICTED` |
 | R5 pelo lado do servidor | **Verde** depois do deploy do `dev`: o preflight `OPTIONS` com `Origin: https://localhost` volta `200` com `Access-Control-Allow-Origin: https://localhost`. Não foi visto a partir do app |
 | A-T5 | **Parcial**: o `dev` está instalado; nome e ícone não foram conferidos por captura e o `prod` não foi compilado nem instalado |
-| A-T6, A-T7 e as verificações (a) e (b) | **Bloqueados pelo login, transferidos para o fim da fase 2** (decisão do dono em 2026-11-11). Sem sessão o app chama `irParaLogin` com `redirect_uri` `https://localhost/` (`location.origin + '/'` em `web/api.js`), que não está em `CallbackURLs`; o Capacitor abre o endereço no Chrome e o Cognito responde "An error was encountered with the requested page". Nenhuma tela do app chega a aparecer |
+| Verificações (a) e (b) | **Verde em 2026-11-12**, no começo da fase 2 (ver "Fase 2: o que foi verificado") |
+| A-T6 e A-T7 | **Bloqueados pelo login, transferidos para o fim da fase 2** (decisão do dono em 2026-11-11). Sem sessão o app chama `irParaLogin` com `redirect_uri` `https://localhost/` (`location.origin + '/'` em `web/api.js`), que não está em `CallbackURLs`; o Capacitor abre o endereço no Chrome e o Cognito responde "An error was encountered with the requested page". Nenhuma tela do app chega a aparecer |
 | Verificação (c) | Pendente, junto com as outras |
 
 ### Decisões da fase 1
@@ -173,6 +174,34 @@ aparelho ganha `adb logcat` durante login, refresh e sair sem token, `code` nem 
 resultado é escrito na tabela "Fase 1: o que foi verificado".
 
 **Quebrar de propósito:** gravar o ID token em `localStorage` tem de fazer o A-T12 falhar; aceitar um `state` vazio tem de fazer o A-T10 falhar.
+
+### Fase 2: o que foi verificado (2026-11-12)
+
+Código na branch `feature/app-android-login-nativo`. **O login completo no aparelho ainda não foi visto**: o Cognito do `dev` só aceita o retorno do app depois do deploy deste
+`template.yaml`. Enquanto isso, "Entrar" abre a aba do sistema e o Cognito responde `redirect_mismatch`.
+
+| Item | Resultado |
+|---|---|
+| A-T9 a A-T18 e A-T22a a A-T22j (lógica) | **Verde**: `node web/sessao.test.js` (15 testes) e `node web/abertura.test.js` (17 testes); os 27 arquivos `web/*.test.js` passam |
+| Quebrar de propósito | Gravar o ID token em `localStorage` derruba o A-T12; aceitar `state` vazio derruba o A-T10 (feito e desfeito em 2026-11-12) |
+| Verificações (a) e (b) da fase 1 (R18o) | **Verde no aparelho** (Xiaomi 2311DRK48G, pela inspeção da WebView): `location.origin` é `https://localhost`; `Capacitor.isNativePlatform()` é `true`; `Capacitor.Plugins` traz `App`, `Browser` e `Cofre` sem bundler; `App.getInfo().id` devolve `br.com.cicerotec.financas.dev` |
+| Compilar e instalar | **Verde**: `scripts/app-android.ps1 -Ambiente dev` compila com o plugin em Java e o `@capacitor/browser` 8.0.5; `adb install -r` deu `Success` |
+| Tela "sem sessão" no aparelho | **Verde pelo DOM** (sem captura, a tela estava apagada): `#abertura` com a classe `sem-sessao`, a frase "Entre com a sua conta para continuar." e o bloco do "Entrar" visível; `Sessao.modo` é `app`; `localStorage` só tem `valoresEscondidos` e `sessionStorage` está vazio |
+| A-T16b (parte) | **Verde**: gravar, matar o app e ler devolve o mesmo valor; o arquivo `shared_prefs/cofre.xml` só tem Base64 cifrado e a busca pelo valor em claro nos arquivos do app (`run-as`) não acha nada; apagar devolve `null`. Não foi visto: sumir ao desinstalar |
+| R18, R18e (log) | **Verde no que deu para ver**: com gravar, ler e apagar feitos, `adb logcat` não traz o valor gravado; do Capacitor só aparece "Starting BridgeActivity". Falta repetir durante um login de verdade |
+| Navegador | A página servida localmente continua indo ao Hosted UI na mesma aba, como antes. Login completo no navegador não foi testado (pede o `dev` publicado) |
+| A-T19, A-T20, A-T21, A-T22, R18j e os herdados A-T6, A-T7 e (c) | **Pendentes**: pedem o deploy do `dev` e o aparelho na mão |
+| A-T18 (`sam validate --lint`) | Roda no CI; aqui só o texto do template foi conferido |
+
+### Decisões da fase 2
+
+- **Login só no toque** (demo aprovada em 2026-11-12). Onde R12 e R18b dizem "reinicia o login", o app **não abre a aba sozinho**: apaga o `verifier` e o `state` e mostra a tela
+  "sem sessão" com "Não consegui concluir o login."; quem reinicia é a pessoa, no "Entrar".
+- O plugin se chama `Cofre` (`CofrePlugin.java`): `ler({nome})`, `gravar({nome, valor})` e `apagar({nome})`. O nome entra como dado autenticado da cifra, então um valor
+  copiado para outro nome não decifra. O arquivo é `shared_prefs/cofre.xml`.
+- A interface do módulo ganhou `recusado(tokenUsado)` (o que o `api.js` chama no `401`) e `entrar()` (o toque no botão), além de `token()`, `sair()` e `limpar()`.
+- Só o status `400` do refresh encerra a sessão; qualquer outra resposta que não seja um token (rede, `5xx`, `200` sem `id_token`) mantém a sessão e vira erro na tela.
+- Quando a sessão termina com o app aberto, a Abertura **volta a cobrir** a tela com o "Entrar"; depois do login a página recarrega.
 
 ## Fase 3: biometria, ícone e acabamento
 

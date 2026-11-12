@@ -28,6 +28,7 @@ const ctx = {
 };
 ctx.window = ctx;
 vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, 'js', 'sessao.js'), 'utf8'), ctx); // o login (window.Sessao) vem antes do api.js, como no index.html
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'api.js'), 'utf8'), ctx);
 
 let perguntas = [], respostaPergunta = true, perguntasLote = [];

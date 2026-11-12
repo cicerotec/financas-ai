@@ -72,8 +72,8 @@ Resources:
       AllowedOAuthFlows: [code]
       AllowedOAuthScopes: [openid, email]
       SupportedIdentityProviders: [COGNITO]
-      CallbackURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/']
-      LogoutURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/']
+      CallbackURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/', !If [EhDev, 'br.com.cicerotec.financas.dev://auth', 'br.com.cicerotec.financas://auth']]
+      LogoutURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/', !If [EhDev, 'br.com.cicerotec.financas.dev://auth', 'br.com.cicerotec.financas://auth']]
       ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
       IdTokenValidity: 60
       AccessTokenValidity: 60

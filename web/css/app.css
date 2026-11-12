@@ -1163,6 +1163,15 @@ svg.gx-chart{display:block;width:100%;max-width:440px;margin:0 auto;height:auto;
 .ab-erro button[hidden]{display:none;}
 .ab.erro .ab-erro{display:flex;}
 .ab.erro .ab-gira,.ab.erro .ab-msg{display:none;}
+/* sem sessao (so no app Android; demo-abertura-v3-sem-sessao): sem indicador, com a frase e o botao Entrar */
+.ab-ent{display:none;flex-direction:column;align-items:center;gap:10px;max-width:320px;}
+.ab-ent b{font-size:15px;}
+.ab-ent b.ruim{color:var(--danger);}
+.ab-ent b:empty{display:none;}
+.ab-ent span{font-size:13px;color:var(--muted);}
+.ab-ent button{min-height:52px;min-width:200px;padding:0 22px;border-radius:14px;border:0;background:var(--accent);color:var(--accent-ink);font:600 15px system-ui,sans-serif;cursor:pointer;}
+.ab.sem-sessao .ab-ent{display:flex;}
+.ab.sem-sessao .ab-gira,.ab.sem-sessao .ab-msg{display:none;}
 html.abrindo header,html.abrindo main{visibility:hidden;} /* atras da abertura nada recebe foco nem leitor de tela */
-@media (max-height:760px){.ab.erro .ab-nome{display:none;}} /* tela baixa: o erro e os botoes precisam do lugar do nome */
+@media (max-height:760px){.ab.erro .ab-nome,.ab.sem-sessao.com-aviso .ab-nome{display:none;}} /* tela baixa: o erro e os botoes precisam do lugar do nome */
 @media (prefers-reduced-motion:reduce){.ab{transition:none;}.ab-baixo{animation:none;}.ab-gira{animation-duration:2.4s;}}

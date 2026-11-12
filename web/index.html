@@ -27,6 +27,12 @@
         <button type="button" id="abDeNovo">Tentar de novo</button>
         <button type="button" class="sec" id="abSair" hidden>Sair da conta</button>
       </div>
+      <!-- sem sessao (so no app Android; demo-abertura-v3-sem-sessao): o login abre no toque em Entrar -->
+      <div class="ab-ent" id="abEnt">
+        <b id="abEntT"></b>
+        <span id="abEntS"></span>
+        <button type="button" id="abEntrar">Entrar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -451,6 +457,7 @@
 
 <script src="config.js"></script>
 <script src="js/ambiente.js"></script>
+<script src="js/sessao.js"></script>
 <script src="api.js"></script>
 <script src="recorrencia.js"></script>
 <script src="consulta-tags.js"></script>

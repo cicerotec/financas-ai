@@ -1,71 +1,34 @@
-// Camada de acesso do app: login (Cognito Hosted UI + PKCE) e uma camada com a mesma
+// Camada de acesso do app: pede o token ao web/js/sessao.js (login) e oferece uma camada com a mesma
 // API de banco que o app ja usa (collection/doc/where/orderBy/limit/onSnapshot), falando
 // com a Lambda. O app continua chamando financasApi.use("db") e financasApi.use("downloads").
 (function () {
   const CFG = window.FINANCAS_CONFIG;
-  const LS = 'financas.auth';
   const API = CFG.apiUrl.replace(/\/$/, '');
 
   // ---------- login ----------
-  const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  const redirectUri = () => location.origin + '/';
-  const lerAuth = () => { try { return JSON.parse(localStorage.getItem(LS)); } catch (e) { return null; } };
-  function salvarAuth(t) {
-    const antigo = lerAuth() || {};
-    const a = { id: t.id_token, refresh: t.refresh_token || antigo.refresh, exp: Date.now() + (t.expires_in - 60) * 1000 };
-    localStorage.setItem(LS, JSON.stringify(a));
-    return a;
-  }
-  function pedirToken(params) {
-    return fetch('https://' + CFG.loginDomain + '/oauth2/token', {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams(params)
-    });
-  }
-  async function irParaLogin() {
-    const v = b64url(crypto.getRandomValues(new Uint8Array(32)));
-    const c = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)));
-    const state = b64url(crypto.getRandomValues(new Uint8Array(16)));
-    sessionStorage.setItem('financas.pkce', JSON.stringify({ v, state }));
-    location.href = 'https://' + CFG.loginDomain + '/oauth2/authorize?' + new URLSearchParams({
-      response_type: 'code', client_id: CFG.clientId, redirect_uri: redirectUri(),
-      scope: 'openid email', code_challenge: c, code_challenge_method: 'S256', state
-    });
-    return new Promise(() => {}); // a pagina vai embora
-  }
-  async function token() {
-    const p = new URLSearchParams(location.search);
-    if (p.get('code')) {
-      const s = JSON.parse(sessionStorage.getItem('financas.pkce') || 'null');
-      history.replaceState({}, '', location.pathname);
-      if (!s || s.state !== p.get('state')) return irParaLogin();
-      const r = await pedirToken({ grant_type: 'authorization_code', client_id: CFG.clientId, code: p.get('code'), redirect_uri: redirectUri(), code_verifier: s.v });
-      if (!r.ok) return irParaLogin();
-      return salvarAuth(await r.json()).id;
-    }
-    const a = lerAuth();
-    if (a && a.exp > Date.now()) return a.id;
-    if (a && a.refresh) {
-      const r = await pedirToken({ grant_type: 'refresh_token', client_id: CFG.clientId, refresh_token: a.refresh });
-      if (r.ok) return salvarAuth(await r.json()).id;
-    }
-    return irParaLogin();
-  }
-  function sair() {
-    localStorage.removeItem(LS);
-    location.href = 'https://' + CFG.loginDomain + '/logout?' + new URLSearchParams({ client_id: CFG.clientId, logout_uri: redirectUri() });
-  }
+  // Quem cuida do login e o web/js/sessao.js (carregado antes deste arquivo): navegador como sempre, app Android com
+  // armazenamento seguro. Aqui so se pede o token e se trata o 401.
+  const Sessao = window.Sessao;
 
   // ---------- chamadas HTTP ----------
   async function api(method, path, body) {
-    const id = await token();
-    const r = await fetch(API + path, {
+    const enviar = (id) => fetch(API + path, {
       method,
       headers: Object.assign({ authorization: 'Bearer ' + id }, body ? { 'content-type': 'application/json' } : {}),
       body: body ? JSON.stringify(body) : undefined
     });
-    if (r.status === 401) { localStorage.removeItem(LS); return irParaLogin(); }
+    const id = await Sessao.token();
+    let r = await enviar(id);
+    if (r.status === 401) {
+      // Navegador: vai ao login e a pagina vai embora (a promessa nao volta). App: um refresh e uma repeticao; um segundo 401
+      // vira erro na tela, sem login e sem terceira tentativa (o 401 tambem sai quando o servidor nao consegue validar o token).
+      r = await enviar(await Sessao.recusado(id));
+      if (r.status === 401) {
+        const e = new Error('O servidor não aceitou o login. Tente de novo em instantes.');
+        e.code = 401;
+        throw e;
+      }
+    }
     const j = await r.json().catch(() => ({}));
     if (!r.ok && r.status !== 409) {
       const e = new Error(j.erro || ('HTTP ' + r.status));
@@ -645,7 +608,8 @@
     // A conta de quem esta logado, para o menu (web/js/usuario.js): nome de exibicao, espaco atual e a lista de espacos.
     sessao: () => (ESPACO ? { nome: nomeExibicao(), email: EMAIL, apelido: ESPACO.apelido || '', espaco: { id: ESPACO.id, nome: ESPACO.nome, role: ESPACO.role }, espacos: ESPACOS.map((e) => ({ id: e.id, nome: e.nome })) } : null),
     trocarEspaco: (id) => { localStorage.setItem('financas.space', id); location.reload(); },
-    sair,
+    sair: () => Promise.resolve().then(() => Sessao.sair()).catch(() => {}), // no app, a falha aparece na Abertura
+    entrar: () => Promise.resolve().then(() => Sessao.entrar()).catch(() => {}),
     definirApelido,
     telegramChatId: () => (ESPACO && ESPACO.telegramChatId) || '',
     definirTelegram,
