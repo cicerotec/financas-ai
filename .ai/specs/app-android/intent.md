@@ -68,7 +68,8 @@ O app é uma página web (`web/`, JavaScript puro, sem build) que o dono usa no 
 - **Conta da Play:** pessoal ou de organização. Contas pessoais novas costumam exigir um teste fechado com um número mínimo de testadores durante algumas semanas
   antes da produção (confirmar a regra vigente); duas pessoas não bastam. Organização exige verificação da empresa.
 - **Retorno do login:** esquema próprio (`br.com.<algo>.financas://auth`, mais simples) ou App Link por `https` no CloudFront (mais difícil de sequestrar, mas
-  exige publicar um arquivo de verificação e mexer no front). O plan propõe o esquema próprio protegido por PKCE e `state`.
+  exige publicar um arquivo de verificação e mexer no front). **Decidido em 2026-11-11:** esquema próprio com PKCE e `state` na fase 2; o App Link volta na fase 5, com a chave de release.
+- **Armazenamento seguro** (decidido em 2026-11-11): plugin nosso em Java sobre o Android Keystore, sem plugin de terceiros.
 - **Se o acesso aos plugins sem bundler não funcionar**, o front ganharia um passo mínimo de build. Hoje o front não tem build; isso só se decide se for preciso.
 - **Biometria:** opcional e ligada pela pessoa (proposta) ou obrigatória.
 - **Distribuição inicial:** APK de release assinado, direto entre as duas pessoas, enquanto a conta da Play não estiver pronta, ou esperar o teste interno. Na Play o
