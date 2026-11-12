@@ -92,7 +92,11 @@ Uma regra para cada premissa da seção "Premissas" do [`plan.md`](plan.md) (P1 
 - **R18a (P1). No app a página não vai embora.** Depois de um login concluído pelo retorno e depois de `sair()`, o app **recarrega a página** (com o refresh token já gravado ou já
   apagado), para zerar o que fica em memória (`ESPACO`, papel, caches, ouvintes). Nenhuma chamada fica presa numa promessa que não termina: quando o app precisa de login e não o
   conclui (a pessoa fechou a aba do sistema, a troca do `code` falhou), ele chega a um estado **"sem sessão"** com saída. **(decidido)** Esse estado é mudança na Abertura e **pede demo
-  aprovada antes do código** (botão "Entrar" e o que mais a demo disser).
+  aprovada antes do código** (botão "Entrar" e o que mais a demo disser). **Demo aprovada em 2026-11-12:**
+  [`demo-abertura-v3-sem-sessao`](../../demos/demo-abertura-v3-sem-sessao.html). O que ela fixa: **o login abre só no toque em "Entrar"** (o app nunca abre a aba do sistema
+  sozinho; a primeira abertura, o Sair e a sessão recusada param na tela "sem sessão"); fechar a aba sem entrar volta a essa tela sem mensagem de erro; a troca do `code` que
+  falha mostra "Não consegui concluir o login." em `--danger`; a sessão recusada pelo servidor mostra "Sua sessão terminou.", sem vermelho; na volta com o `code` aparece
+  "Entrando…"; e o erro do R18d (armazenamento seguro) é um estado de erro com "Tentar de novo" e **sem** "Entrar". No navegador nada disso aparece.
 - **R18b (P2). O retorno é consultado antes de decidir logar, e só vale com login pendente.** Ao subir, o app lê a URL de lançamento (`App.getLaunchUrl()`, partida a frio) e escuta
   `appUrlOpen` (app vivo) **antes** de abrir um login. "Login pendente" é haver `verifier` e `state` guardados. Com login pendente, retorno com `state` diferente ou ausente
   reinicia o login (R12); **sem login pendente, qualquer retorno é ignorado** (R11), inclusive a mesma URL de lançamento entregue de novo a cada recarga e o retorno do logout.
