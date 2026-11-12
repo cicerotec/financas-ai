@@ -3,7 +3,7 @@
 Como construir o que o [`intent.md`](intent.md) pede. Cada fase é um PR pequeno, vai primeiro ao `dev` e deixa o app utilizável. Telas novas pedem demo aprovada
 antes do código. O roteiro verificável das fases 1 a 3 está em [`spec.md`](spec.md); as demais ganham spec própria quando chegar a vez.
 
-**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado" no `spec.md`). **Fase 2 com código em 2026-11-12** (branch `feature/app-android-login-nativo`; falta o deploy do `dev` e o roteiro de aparelho). Fase 3 sem código.
+**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado" no `spec.md`). **Fase 2 implementada em 2026-11-12** (PR 419), com o login completo visto no aparelho; pendências de aparelho no `spec.md`. Fase 3 sem código.
 
 ## Onde estamos hoje
 

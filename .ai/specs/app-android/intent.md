@@ -2,7 +2,7 @@
 
 Este documento diz **o quê e por quê**; o como está em [`plan.md`](plan.md) e o roteiro verificável, em [`spec.md`](spec.md).
 
-**Estado:** rascunho (2026-11-01). Fase 1 implementada em 2026-11-11 (ver `plan.md` e `spec.md`); `applicationId` decidido: `br.com.cicerotec.financas`. Fase 2 com código em 2026-11-12, faltando o roteiro de aparelho.
+**Estado:** rascunho (2026-11-01). Fase 1 implementada em 2026-11-11 (ver `plan.md` e `spec.md`); `applicationId` decidido: `br.com.cicerotec.financas`. Fase 2 implementada em 2026-11-12 (PR 419), com o login visto no aparelho.
 
 ## O problema
 
