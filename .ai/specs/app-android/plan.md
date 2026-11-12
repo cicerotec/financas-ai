@@ -59,12 +59,15 @@ scripts/app-android.ps1      chama montar-www.js para -Ambiente dev|prod, roda c
   (`<applicationId>://auth`); o app recebe pelo evento de URL aberta, fecha a aba e troca o `code` pelo token com o `code_verifier`.
 - **O PKCE sobrevive à morte do processo:** `verifier` e `state` vão para o armazenamento do app (não `sessionStorage`), porque o Android pode matar o app enquanto a
   aba de login está aberta.
+- **Armazenamento do app: plugin nosso, em Java** (decisão do dono em 2026-11-11), sem dependência de terceiros: ler, gravar e apagar pares cifrados com uma chave do Android
+  Keystore. Guarda o refresh token e o `verifier` e o `state` do PKCE. O único plugin oficial novo é o `@capacitor/browser`.
 - **O token sai do `localStorage`:** o refresh token vai para o armazenamento seguro (Keystore) e o ID token fica em memória. Sair limpa os dois e abre o logout do
   Cognito na aba do sistema.
 - **Extrair o login de `api.js`** para um módulo próprio e testável (`web/js/sessao.js`, no molde de `voltar.js`), com duas implementações atrás da mesma interface:
   navegador (como hoje) e app. `api.js` só chama `token()`, `sair()` e trata `401`. A PWA e o navegador não mudam de comportamento.
 - `template.yaml`: `CallbackURLs` e `LogoutURLs` ganham `<applicationId>://auth` (e a versão `.dev`) por ambiente. Atualizar as roles do Actions se faltar permissão.
-- **Rede não é logout:** só `invalid_grant` (refresh token revogado ou vencido) leva ao login; falha de rede mantém a sessão e mostra o erro de sempre.
+- **Retorno por esquema próprio nesta fase** (decisão do dono em 2026-11-11), protegido por PKCE e `state`. O App Link por `https` volta na fase 5.
+- **Rede não é logout (só no app;** o navegador e a PWA seguem como hoje, decisão do dono em 2026-11-11**):** só `invalid_grant` (refresh token revogado ou vencido) leva ao login; falha de rede mantém a sessão e mostra o erro de sempre.
 - Atualizar `security.md` (token fora do `localStorage` no app; esquema de retorno e o risco dele).
 
 ### Fase 3: biometria, ícone e acabamento
@@ -89,6 +92,10 @@ scripts/app-android.ps1      chama montar-www.js para -Ambiente dev|prod, roda c
   de desenvolvimento (fases 1 a 3) e o APK de release assinado, só como opção de distribuição direta enquanto a conta da Play não estiver pronta.
 - Gerar o **AAB assinado** (keystore de upload local; Play App Signing). Versão do app (`versionCode` e `versionName`) subindo a cada envio, ligada às tags de
   [`fluxo-de-versoes.md`](../../fluxo-de-versoes.md).
+- **App Link por `https` no retorno do login** (decisão do dono em 2026-11-11: volta nesta fase). Com a chave de release definida, o retorno deixa de ser o esquema próprio e
+  passa a ser um endereço `https` do CloudFront de cada ambiente, que só o app assinado por essa chave recebe: publicar `/.well-known/assetlinks.json` com a impressão digital
+  da chave (a de upload e a do Play App Signing), reservar o caminho de retorno no front, trocar `CallbackURLs` e `LogoutURLs` e o `intent-filter` (`autoVerify`). Verificar no
+  aparelho que o retorno pelo Custom Tabs abre o app e, se a verificação do domínio falhar, o que a pessoa vê. Entra na spec desta fase.
 - **Teste interno** no Play Console para as duas pessoas. Se a conta for pessoal e a regra de teste fechado valer, abrir o teste fechado cedo, porque o relógio corre.
 - Exigências da loja: política de privacidade pública (a mesma da abertura multiusuário), formulário de Segurança dos Dados, declaração de app financeiro, classificação
   de conteúdo, ícone e capturas de tela, versão mínima e alvo de API vigentes. **Confirmar tudo no Play Console na hora**, porque as regras mudam.
@@ -104,11 +111,44 @@ scripts/app-android.ps1      chama montar-www.js para -Ambiente dev|prod, roda c
 - Segue [`offline-e-sincronizacao.md`](../../offline-e-sincronizacao.md): IndexedDB (agora confiável), projeção do saldo no aparelho, fila e tela de divergências. Tem demo
   e spec próprias e depende do gatilho "muitos usuários querendo offline".
 
+## Premissas (fase 2)
+
+Exigência do `guardrails.md` ("Roteiros"). Em 2026-11-11 um agente independente, sem o contexto de quem escreveu o roteiro, leu o `spec.md`, o `plan.md`, o `intent.md`, o
+`guardrails.md`, o `security.md` e o código (`web/api.js`, `web/index.html`, `abertura.js`, `usuario.js`, `voltar.js`, `nativo.js`, `backend/auth/token.go`, o manifest, o
+`build.gradle`, o Capacitor 8.6.0 instalado, entre outros) e respondeu à pergunta: *"que regra desta feature só funciona por causa de outra, e o que acontece se essa outra
+deixar de valer?"*. A resposta, resumida; cada premissa tem a sua regra no `spec.md` (R18a a R18o).
+
+| # | A regra só funciona porque... | Se deixar de valer | Regra |
+|---|---|---|---|
+| P1 | **A página vai embora no login e no logout** (`web/api.js:35`, "a pagina vai embora"; `web/js/usuario.js`, "A pagina vai embora sozinha"). É isso que zera `ESPACO`, papel, caches e ouvintes | No app a WebView continua viva: chamadas presas para sempre ("Salvando…"), a abertura parada em "Está demorando mais que o normal" sem botão se a pessoa fecha a aba, dados da pessoa anterior na tela depois do Sair | R18a |
+| P2 | **`token()` olha o retorno antes de decidir logar** (`web/api.js:38-46`), e o retorno some da URL. No Capacitor, `appUrlOpen` só dispara com o app vivo; na partida a frio a URL fica em `getLaunchUrl()` e **nunca é limpa** | Partida a frio abre outro login e perde o `code` (A-T20 falha); ou toda recarga reapresenta o retorno já usado e vira laço de login | R18b |
+| P3 | **Chamadas simultâneas a `token()` são inofensivas** porque o `localStorage` é síncrono e o último `location.href` vence. A subida faz três leituras em paralelo, e o timer e o `visibilitychange` rodam justamente quando a pessoa volta da aba de login | No app: vários refreshes, várias abas do sistema e o `state` guardado deixa de bater com a aba aberta | R18c |
+| P4 | **A escolha por `isNativePlatform()` e o plugin registrado.** O molde (`nativo.js`) devolve `false` em silêncio quando falta o plugin, e a `MainActivity` está vazia | O app cai no fluxo do navegador sem erro: token em `localStorage` e retorno `https://localhost/` | R18d |
+| P5 | **O R18 conta com ninguém mais logando.** O padrão do Capacitor (`loggingBehavior` `debug`) liga o log no APK de debug e imprime argumentos e resultados de cada plugin | O refresh token e a URL de retorno com o `code` vão ao logcat, e o teste A-T17 passa verde | R18e |
+| P6 | **O esquema de retorno por sabor.** O manifest só tem o filtro de abertura; `custom_url_scheme` no `dev` vale o do `prod`; o front não sabe o `applicationId` | O `dev` registra o esquema do `prod`; com os dois instalados o retorno cai no app errado. Pôr os dois URLs nos dois clientes tira a barreira que denunciaria a troca | R18f |
+| P7 | **"Só `invalid_grant` leva ao login" conta com sempre haver uma saída.** A tela de erro da abertura só mostra "Sair da conta" para conta sem espaço; para rede só há "Tentar de novo" | Refresh com outro `400`, falha do plugin ao ler, ou troca do `code` que falha por rede (o R12 apaga o `verifier` e o R15 proíbe reabrir): sem sessão e sem login | R18g, R18a |
+| P8 | **`logout_uri` e `redirect_uri` são o mesmo URL** e hoje o retorno do logout reabre o login; apagar e navegar são síncronos | O retorno do logout chega sem `state` (R11 manda ignorar, R12 manda reiniciar). Sem rede o cookie do Hosted UI fica e o próximo "Entrar" volta sem senha | R18h |
+| P9 | **O ganho do Keystore conta com não haver script injetado.** O plugin expõe "ler" ao JavaScript, o app carrega script de terceiro sem `integrity` e não há CSP | Um script na WebView lê o refresh token como leria o `localStorage`. O que muda de fato é o arquivo em disco e o backup | R18i |
+| P10 | **`launchMode="singleTask"` traz o app por cima da aba**, e o navegador aceita redirecionar ao esquema próprio sem toque | O voltar mostra a página do Cognito; login com sessão ativa ou o retorno do logout não voltam ao app. Só se vê no aparelho | R18j |
+| P11 | **`allowBackup="false"` basta e a chave do Keystore não some** | Dado cifrado restaurado em outro aparelho ou chave invalidada: a leitura falha e cai no P7 | R18g |
+| P12 | **O refresh não devolve refresh token novo** (`web/api.js:15` mantém o antigo; o template não liga rotação) | Gravar `undefined` depois de um refresh bom apaga a sessão | R18k |
+| P13 | **`401` é só token vencido.** Qualquer falha de validação vira `401`, inclusive o servidor não conseguir buscar as chaves do Cognito | Refresh bom e `401` de novo: ir ao login desloga a pessoa por falha do servidor | R18l |
+| P14 | **A troca do `code` sai de `https://localhost`.** O R5 só trata do CORS da Function URL | Se o Cognito não devolver o cabeçalho na resposta de erro, um refresh vencido parece falha de rede. Pelo servidor já foi visto que devolve; falta ver do app | R18j |
+| P15 | **O mesmo `UserPoolClient` serve web e app** | Não dá para encerrar só as sessões do app; mudar `CallbackURLs` mexe no login da web e a guarda do deploy é o que impede a substituição | R18m |
+
+Lacunas do próprio spec que a revisão apontou e já foram tratadas: a diferença entre R11 e R12 (R18b), o retorno do logout sem regra (R18h), o R17 contra este plan (R18f), os casos
+que o R15 não cobria (R18g), o `401` repetido (R18l), `limpar()` sem regra e o que o Sair apaga (R18n), o A-T12 e o A-T17 provando menos que a regra, e os testes que carregam só o
+`api.js` (R18n). O revisor leu a `develop` de antes do fecho da fase 1 e por isso registrou o APK como não compilado; ele já compila e instala (ver o `spec.md`).
+
+**Decisões do dono em 2026-11-11** (marcadas **(decidido)** no spec): a tela "sem sessão" na Abertura entra, com demo antes do código (R18a); qualquer `400` do refresh leva ao
+login (R18g); o plugin fica simples e o refresh em Java é endurecimento para depois (R18i); o Sair apaga a sessão e o espaço escolhido (R18n); e `allowBackup="false"` (R9a).
+As regras R18a a R18o foram redigidas por quem escreveu o roteiro a partir das sugestões do revisor; o texto delas não passou por revisão independente.
+
 ## Riscos
 
 | Risco | Resposta |
 |---|---|
-| Esquema próprio de retorno pode ser registrado por outro app instalado | O `code` sozinho não vale: o atacante não tem o `code_verifier` (PKCE) e o `state` é conferido. App Link por `https` fica como endurecimento, decisão do dono |
+| Esquema próprio de retorno pode ser registrado por outro app instalado | O `code` sozinho não vale: o atacante não tem o `code_verifier` (PKCE) e o `state` é conferido. O que sobra é atrapalhar o login ou mostrar uma tela falsa. O App Link por `https` fecha isso e entra na fase 5 (decidido em 2026-11-11) |
 | Android mata o processo durante o login e o PKCE se perde | `verifier` e `state` no armazenamento do app, não em memória nem em `sessionStorage` |
 | CORS aceita `https://localhost` e qualquer página com essa origem poderia chamar a API | CORS não é controle de acesso (`security.md`): a barreira continua sendo o JWT validado na Lambda. A origem só existe dentro do app ou na máquina de quem desenvolve |
 | Plugins não aparecem sem bundler | Verificado na fase 1; se falhar, o menor passo de build possível e a decisão volta ao dono |
