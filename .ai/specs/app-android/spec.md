@@ -3,7 +3,7 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id (`A-T<n>`), para o PR dizer exatamente o
 que cobriu. Quando este texto e o do intent divergirem, vale o plan. As fases 4 (push), 5 (release) e 6 (produção aberta) ganham spec própria.
 
-**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK ainda **não compilado nem testado em aparelho** (ver "Fase 1: o que foi verificado" no `spec.md`). Fases 2 e 3 sem código. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
+**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado"). Fases 2 e 3 sem código. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
 
 Convenção dos testes: os de lógica são `node web/*.test.js` (o CI roda todos sem lista) e **falham antes da mudança**. Os que dependem do aparelho são marcados
 **[aparelho]** e entram como roteiro manual no PR, com o resultado escrito. Diga o que não deu para ver em vez de afirmar que funciona.
@@ -49,8 +49,12 @@ a esperada (`location.origin` no console remoto); (c) o que, de `web/`, atrapalh
 | R6 (lógica do voltar físico) | **Verde** com plugin de mentira: `node web/nativo.test.js`. Quebrar o código faz o teste falhar |
 | A-T8 | `node web/*.test.js` e `go vet`/`go test` verdes |
 | `cap sync` | Rodou e copiou `www/` e o `capacitor.config.json` (appId e `https`) para o projeto Android |
-| Compilar o APK (`assembleDevDebug`) | **Não rodou**: a sessão onde isto foi feito não tem Android SDK nem PowerShell. Primeira coisa a fazer no computador do dono |
-| A-T5, A-T6, A-T7 e as verificações (a), (b) e (c) | **[aparelho]**: pendentes. Nada disso foi visto funcionando |
+| Compilar o APK (`assembleDevDebug`) | **Verde** no computador do dono (2026-11-11): `scripts/app-android.ps1 -Ambiente dev` gera `app-dev-debug.apk` (4,1 MB) com pacote `br.com.cicerotec.financas.dev`, nome "Finanças DEV", `minSdk` 24 e `targetSdk` 36 (lidos do APK com `aapt2 dump badging`). Pede Node 22, JDK 21 e a plataforma Android 36; o script recusa versões mais antigas com mensagem clara e aceita `-NodeDir` e `-JavaHome`. O `prod` não foi compilado |
+| Instalar e abrir no aparelho | **Verde** (2026-11-11, Xiaomi 2311DRK48G): `adb install` do APK do `dev` deu `Success` e o pacote `br.com.cicerotec.financas.dev` aparece em `pm list packages`. Em Xiaomi é preciso ligar "Instalar via USB" nas Opções do desenvolvedor, senão o erro é `INSTALL_FAILED_USER_RESTRICTED` |
+| R5 pelo lado do servidor | **Verde** depois do deploy do `dev`: o preflight `OPTIONS` com `Origin: https://localhost` volta `200` com `Access-Control-Allow-Origin: https://localhost`. Não foi visto a partir do app |
+| A-T5 | **Parcial**: o `dev` está instalado; nome e ícone não foram conferidos por captura e o `prod` não foi compilado nem instalado |
+| A-T6, A-T7 e as verificações (a) e (b) | **Bloqueados pelo login, transferidos para o fim da fase 2** (decisão do dono em 2026-11-11). Sem sessão o app chama `irParaLogin` com `redirect_uri` `https://localhost/` (`location.origin + '/'` em `web/api.js`), que não está em `CallbackURLs`; o Capacitor abre o endereço no Chrome e o Cognito responde "An error was encountered with the requested page". Nenhuma tela do app chega a aparecer |
+| Verificação (c) | Pendente, junto com as outras |
 
 ### Decisões da fase 1
 
@@ -99,6 +103,9 @@ a esperada (`location.origin` no console remoto); (c) o que, de `web/`, atrapalh
 | A-T20 **[aparelho]** | Matar o app (deslizar para fechar) com a aba de login aberta e voltar pelo retorno ainda conclui o login (R12) |
 | A-T21 **[aparelho]** | Sair leva ao logout; abrir de novo pede o login; com o modo avião, o app aberto não é jogado para o login (R14, R15) |
 | A-T22 **[aparelho]** | O token não aparece em `localStorage` ao inspecionar a WebView (R13) |
+
+**Herdados da fase 1 (2026-11-11):** A-T6, A-T7 e as verificações (a), (b) e (c) só podem ser vistos com sessão dentro do app, então entram no roteiro de aparelho desta fase e o
+resultado é escrito na tabela "Fase 1: o que foi verificado".
 
 **Quebrar de propósito:** gravar o ID token em `localStorage` tem de fazer o A-T12 falhar; aceitar um `state` vazio tem de fazer o A-T10 falhar.
 

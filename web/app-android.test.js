@@ -65,7 +65,7 @@ for(const f of ['index.html', 'api.js', 'js/nativo.js', 'js/voltar.js', 'css/app
 assert.ok(!fs.readdirSync(www).some(f => f.endsWith('.test.js')));
 
 // A-T3 (parte local; o `sam validate --lint` roda no CI): AppOrigin entra no CORS da Function URL e as outras origens seguem
-const t = fs.readFileSync(path.join(aqui, 'template.yaml'), 'utf8');
+const t = fs.readFileSync(path.join(aqui, 'template.yaml'), 'utf8').replace(/\r\n/g, '\n'); // no Windows o git entrega CRLF (core.autocrlf)
 assert.match(t, /\n  AppOrigin:\n    Type: String\n    Default: https:\/\/localhost\n/);
 assert.ok(t.includes("AllowOrigins: [!Ref FrontOrigin, !Ref AppOrigin, !Sub 'https://${Distribution.DomainName}']"));
 assert.ok(t.includes("CallbackURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/']"), 'o login do navegador nao muda na fase 1');
