@@ -3,7 +3,7 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id (`A-T<n>`), para o PR dizer exatamente o
 que cobriu. Quando este texto e o do intent divergirem, vale o plan. As fases 4 (push), 5 (release) e 6 (produção aberta) ganham spec própria.
 
-**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado"). **Fase 2 implementada em 2026-11-12** (PR 419), com o login completo visto no aparelho; ficam pendentes o botão voltar físico e o modo avião (ver "Fase 2: o que foi verificado"). Fase 3 sem código. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
+**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado"). **Fase 2 implementada em 2026-11-12** (PR 419), com o login completo visto no aparelho; o roteiro de aparelho da fase 2 está fechado; ficam os herdados A-T5, (c) e o desinstalar (ver "Fase 2: o que foi verificado"). Fase 3 sem código. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
 
 Convenção dos testes: os de lógica são `node web/*.test.js` (o CI roda todos sem lista) e **falham antes da mudança**. Os que dependem do aparelho são marcados
 **[aparelho]** e entram como roteiro manual no PR, com o resultado escrito. Diga o que não deu para ver em vez de afirmar que funciona.
@@ -54,7 +54,7 @@ a esperada (`location.origin` no console remoto); (c) o que, de `web/`, atrapalh
 | R5 pelo lado do servidor | **Verde** depois do deploy do `dev`: o preflight `OPTIONS` com `Origin: https://localhost` volta `200` com `Access-Control-Allow-Origin: https://localhost`. Não foi visto a partir do app |
 | A-T5 | **Parcial**: o `dev` está instalado; nome e ícone não foram conferidos por captura e o `prod` não foi compilado nem instalado |
 | Verificações (a) e (b) | **Verde em 2026-11-12**, no começo da fase 2 (ver "Fase 2: o que foi verificado") |
-| A-T6 e A-T7 | Transferidos para a fase 2 (decisão do dono em 2026-11-11). **A-T6 em parte verde e A-T7 pendente** em 2026-11-12: ver "Fase 2: o que foi verificado" |
+| A-T6 e A-T7 | Transferidos para a fase 2 (decisão do dono em 2026-11-11). **A-T6 em parte verde e A-T7 verde** em 2026-11-12: ver "Fase 2: o que foi verificado" |
 | Verificação (c) | Pendente (ver "Fase 2: o que foi verificado") |
 
 ### Decisões da fase 1
@@ -194,12 +194,25 @@ Xiaomi 2311DRK48G com o dono fazendo o login; o estado do app foi lido pela insp
 | A-T22 e A-T12 no aparelho | **Verde**: com sessão, `localStorage` só tem `valoresEscondidos` e `financas.tema`, `sessionStorage` está vazio e nenhum dos dois contém JWT; `shared_prefs/cofre.xml` só tem o `refresh` cifrado |
 | R16 (refresh) | **Verde**: `Sessao.recusado(token)` devolveu um ID token novo, diferente do anterior, sem abrir login |
 | A-T21 (Sair) | **Verde**: o Sair apaga o `refresh` e `financas.space` (o tema fica), abre o logout na aba do sistema e o retorno traz o app de volta em 0,3 s, sem toque, na tela "sem sessão". Fechar a aba de login sem entrar volta à mesma tela, sem mensagem |
-| A-T21 e R15 (sem rede) | **Verde só dentro da WebView**: com a rede cortada pela inspeção (`Network.emulateNetworkConditions`), o refresh falha com o erro de rede, o `refresh` continua no `Cofre` e a tela "sem sessão" não aparece; com a rede de volta o token sai normalmente. **O modo avião do aparelho não foi usado** |
+| A-T21 e R15 (sem rede) | **Verde** (2026-11-12): com o **modo avião** ligado pelo dono e o app aberto e logado, nenhuma tela foi para o "Entrar"; cada tela mostrou a falha do jeito dela (ver "Sem rede: o que cada tela mostra", abaixo). Antes, com a rede cortada só dentro da WebView, o refresh falhou com erro de rede, o `refresh` continuou no `Cofre` e o token voltou a sair com a rede de volta |
 | A-T6 (herdado) | **Parte verde**: com rede, `/me` e as três leituras do Lançar voltaram de `https://localhost` sem erro de CORS, e a troca do `code` e o refresh no Cognito também (R18j, P14). Abrir o app sem rede no aparelho não foi visto |
 | A-T20 (app morto com a aba aberta) | **Verde** (segunda rodada, 2026-11-12): com a aba de login na frente e o PKCE pendente no `Cofre`, o processo do app foi morto (`run-as ... kill -9`; `pidof` ficou vazio). O dono fez o login; o Android iniciou um processo novo pelo retorno ("Start proc ... for top-activity"), o app leu o URL de lançamento, trocou o `code`, gravou o `refresh`, apagou o PKCE e abriu o Lançar com sessão. Nada de token no `logcat` nem no `localStorage`. Antes disso, um retorno falso em partida a frio já tinha mostrado "Não consegui concluir o login." com o PKCE apagado |
-| R18j (voltar depois do retorno) | **Parcial**: depois do primeiro login o histórico da WebView tinha 1 entrada (a página do Cognito nunca entra nela). O botão voltar físico não foi apertado |
-| A-T7 e a verificação (c) (herdados), A-T5, A-T16b (sumir ao desinstalar) | **Pendentes**: botão voltar físico nos cenários da demo, o que de `web/` atrapalha dentro do app, `dev` e `prod` instalados juntos, e desinstalar |
+| R18j (voltar depois do retorno) | **Verde no que foi visto**: depois do login o histórico da WebView tem 1 entrada (a página do Cognito nunca entra nela) e o voltar físico segue a pilha do app (A-T7) |
+| A-T7 (herdado: botão voltar físico) | **Verde** (2026-11-12, feito pelo dono no aparelho): com a janela de Tags aberta o voltar fecha a janela; do Histórico volta ao Lançar; na edição com texto digitado pergunta "Descartar o que foi digitado?"; na raiz o app minimiza e, reaberto pelo ícone, mantém o valor digitado. O computador não consegue apertar o voltar neste aparelho (`adb shell input` é recusado sem a permissão de segurança da MIUI) |
+| Verificação (c) (herdada), A-T5, A-T16b (sumir ao desinstalar) | **Pendentes**: o que de `web/` atrapalha dentro do app, `dev` e `prod` instalados juntos, e desinstalar |
 | A-T18 (`sam validate --lint`) | Roda no CI; aqui só o texto do template foi conferido |
+
+#### Sem rede: o que cada tela mostra (modo avião, 2026-11-12)
+
+Visto pelo dono no aparelho. **Nada disto é da fase 2**: o `web/js/app.js` não mudou nela e o navegador se comporta igual; fica registrado porque o app Android torna o uso sem
+rede mais comum. Corrigir é mudança de tela (pede demo) e não está no escopo do item 54.
+
+| Tela | O que aparece | De onde vem |
+|---|---|---|
+| Histórico e Histórico de versões | "Failed to fetch" | O texto cru do erro do `fetch` (`err.message`) vai para a tela |
+| Saldos, Cartão de crédito e Futuros | Não carrega e não diz nada (esperado 1 minuto) | A falha só vai ao console (`carregarFuturos` e `carregarSaldos` fazem `console.error` e redesenham) |
+| Listas, ao excluir uma tag | "Não consegui conferir a tag. Tente de novo." | Mensagem própria da tela |
+| Lançar, ao salvar | "Não foi possível salvar. Confira a conexão e tente de novo." | Mensagem própria da tela |
 
 ### Decisões da fase 2
 
