@@ -32,16 +32,20 @@ func (p *Pessoas) Apelido(ctx context.Context, sid, sub string) string {
 	return s
 }
 
-// ChatID devolve o chat id do Telegram do vinculo da pessoa com o espaco; vazio se ela nao cadastrou.
-func (p *Pessoas) ChatID(ctx context.Context, sid, sub string) (string, error) {
+// Destinos devolve para onde enviar os avisos da pessoa neste espaco, por canal: hoje so o "telegram", a partir do chat id do
+// vinculo. Sem destino, o mapa vem vazio (estar assinado e ter destino).
+func (p *Pessoas) Destinos(ctx context.Context, sid, sub string) (map[string][]string, error) {
 	out, err := p.db.GetItem(ctx, &dynamodb.GetItemInput{TableName: &p.table, Key: Key("USER#"+sub, SpacePK(sid))})
 	if err != nil || out.Item == nil {
-		return "", err
+		return nil, err
 	}
 	var d map[string]any
 	if err := attributevalue.UnmarshalMap(out.Item, &d); err != nil {
-		return "", err
+		return nil, err
 	}
-	chat, _ := d["telegramChatId"].(string)
-	return chat, nil
+	destinos := map[string][]string{}
+	if chat, _ := d["telegramChatId"].(string); chat != "" {
+		destinos["telegram"] = []string{chat}
+	}
+	return destinos, nil
 }

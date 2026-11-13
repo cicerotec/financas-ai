@@ -84,8 +84,9 @@ backend/
   perfil, fechamento e a trava de mês, avisos e Telegram estão nas pastas. Não há mais ponte na raiz nem variável global
   de dependência (`db`, `table`, `ssmCli`, `agora`...): o `main` cria os clients uma vez e o `Servidor` liga tudo.
   Histórico das fatias: [`specs/arquitetura-camadas/`](specs/arquitetura-camadas/plan.md).
-- **Despachante de avisos (item 34):** vive no `service`, em cima da interface `Notificador` (o `service.Avisos` de hoje
-  já a usa); cada canal novo é um arquivo em `adapter/notificacao/`. Não há pasta `dispatcher/`.
+- **Despachante de avisos (item 34, feito):** `service.Despachante` (`service/despachante.go`) guarda os canais por nome e entrega um
+  `domain.ResumoAvisos` a um `Destino{Canal, Endereco}`; a interface `service.Canal` é declarada no `service`; cada canal novo é um arquivo em
+  `adapter/notificacao/` que a implementa só com tipos do `domain`. Não há pasta `dispatcher/`.
 - Os testes ficam ao lado do código que testam. Os de comportamento da API ficam na raiz, porque passam por `processar`.
 
 ## Persistência: o repository (fechada)
@@ -115,7 +116,7 @@ main:  config → client DynamoDB → repository (usa o client) → service (rec
 ## Avisos: um despachante, vários canais (fechada)
 
 O service só sabe **o que avisar, para quem e com qual conteúdo**. Ele depende de uma interface `Avisador` e não sabe
-qual canal está por trás.
+qual canal está por trás. *(Implementado no item 34 com os nomes `Canal` e `Despachante`; abaixo, o desenho original.)*
 
 | Pergunta | Quem responde |
 |---|---|
@@ -129,8 +130,9 @@ qual canal está por trás.
   injeta só ele no service; canal novo é um adaptador novo registrado no `main`.
 - O core manda **conteúdo estruturado**, não texto formatado. O limite de 4096 caracteres do Telegram (limitação
   conhecida do item 28) vira problema do adaptador do Telegram.
-- Falha de um canal não derruba os outros. Agrupamento (um resumo por pessoa por dia) e idempotência de entrega ficam no
-  despachante, não no service.
+- Falha de um canal não derruba os outros: `ErrCanalNaoConfigurado` pula o resto dos grupos daquele canal (uma linha de log por rodada). O
+  agrupamento (um resumo por **destino** por dia, juntando os espaços, sem nome de espaço) ficou na rotina, em ordem estável. A idempotência de
+  entrega **não foi feita** (aviso em dobro se o agendamento disparar duas vezes), por decisão do item 34.
 - Sem canal assinado, o despachante simplesmente não entrega; o service não tem caso especial.
 
 ## Histórico imutável e versionado

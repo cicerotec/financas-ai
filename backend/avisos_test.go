@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"financas/domain"
+	"financas/service"
 )
 
 // ---------- validacao ----------
@@ -231,28 +232,33 @@ func TestImportacaoEmLoteSincronizaOAviso(t *testing.T) {
 type envio struct{ chat, texto string }
 
 // trocaEnvio troca o envio real por um que guarda as mensagens.
-// notifFalso e o canal de envio dos testes: guarda as mensagens (ou falha com o erro dado). E o Notificador do Servidor
-// montado em cenario(); nao ha mais variavel global de producao para trocar.
+// notifFalso e o canal "telegram" dos testes: formata o resumo como o Telegram de verdade (domain.PartesDoResumo), guarda as
+// mensagens (ou falha com o erro dado). Fica no despachante do Servidor montado em cenario().
 type notifFalso struct {
 	falhaCom error
 	enviados []envio
 }
 
-func (n *notifFalso) Enviar(_ context.Context, chat, texto string) error {
+func (n *notifFalso) Nome() string { return "telegram" }
+
+func (n *notifFalso) Enviar(_ context.Context, chat string, r domain.ResumoAvisos) error {
 	if n.falhaCom != nil {
 		return n.falhaCom
 	}
-	n.enviados = append(n.enviados, envio{chat, texto})
+	for _, texto := range domain.PartesDoResumo(r, domain.LimiteTelegram) {
+		n.enviados = append(n.enviados, envio{chat, texto})
+	}
 	return nil
 }
 
-var notifTeste = &notifFalso{}
+var canalTeste = &notifFalso{}
+var notifTeste, _ = service.NovoDespachante(canalTeste)
 
 // trocaEnvio zera as mensagens guardadas e, se falhaCom, faz o envio falhar ate o fim do teste.
 func trocaEnvio(t *testing.T, falhaCom error) *[]envio {
-	notifTeste.enviados, notifTeste.falhaCom = nil, falhaCom
-	t.Cleanup(func() { notifTeste.enviados, notifTeste.falhaCom = nil, nil })
-	return &notifTeste.enviados
+	canalTeste.enviados, canalTeste.falhaCom = nil, falhaCom
+	t.Cleanup(func() { canalTeste.enviados, canalTeste.falhaCom = nil, nil })
+	return &canalTeste.enviados
 }
 
 // rodarAvisos roda a rotina diaria como se fosse "quando" (o Servidor le o dia pelo relogio injetado).

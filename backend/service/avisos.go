@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"sort"
 
 	"financas/domain"
 )
@@ -16,20 +17,15 @@ type RepositorioAvisos interface {
 	Ativos(ctx context.Context) ([]domain.Doc, error)
 }
 
-// Notificador envia um texto a um destino (hoje, o chat id do Telegram). Cada canal e um adaptador que o implementa;
-// domain.ErrCanalNaoConfigurado diz que o canal nao tem o que precisa para enviar.
-type Notificador interface {
-	Enviar(ctx context.Context, destino, texto string) error
-}
-
 // LeitorLancamento le um lancamento vivo (inclusive o excluido logicamente), ou nil se nao existe.
 type LeitorLancamento interface {
 	Buscar(ctx context.Context, sid, dataEvento, id string) (domain.Lancamento, error)
 }
 
-// LeitorContatos le para onde enviar: o chat id de uma pessoa e o dono do espaco.
+// LeitorContatos le para onde enviar: os destinos de uma pessoa no espaco, por canal ({"telegram": [chat id]}). Ter destino e
+// estar assinado; nao ha campo de "canais ligados".
 type LeitorContatos interface {
-	ChatID(ctx context.Context, sid, sub string) (string, error)
+	Destinos(ctx context.Context, sid, sub string) (map[string][]string, error)
 }
 
 type LeitorDono interface {
@@ -50,7 +46,7 @@ type Avisos struct {
 	cfg         RepositorioConfig
 	contatos    LeitorContatos
 	dono        LeitorDono
-	notificador Notificador
+	despachante *Despachante
 	rel         Relogio
 	ambiente    string
 	faturas     LeitorFaturaAviso
@@ -94,8 +90,8 @@ func (s *Avisos) RemoverFatura(ctx context.Context, sid, meio, ym string) {
 }
 
 func NewAvisos(repo RepositorioAvisos, lancamentos LeitorLancamento, cfg RepositorioConfig, contatos LeitorContatos,
-	dono LeitorDono, notificador Notificador, rel Relogio, ambiente string) *Avisos {
-	return &Avisos{repo: repo, lancamentos: lancamentos, cfg: cfg, contatos: contatos, dono: dono, notificador: notificador, rel: rel, ambiente: ambiente}
+	dono LeitorDono, despachante *Despachante, rel Relogio, ambiente string) *Avisos {
+	return &Avisos{repo: repo, lancamentos: lancamentos, cfg: cfg, contatos: contatos, dono: dono, despachante: despachante, rel: rel, ambiente: ambiente}
 }
 
 // Sincronizar mantem o item auxiliar de um lancamento: grava se ele tem aviso, apaga se nao tem. Falha aqui nao derruba o
@@ -146,20 +142,26 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 	}
 
 	espacos := map[string]*contextoEspaco{}
-	chats := map[string]string{} // sid|sub -> chat id ("" = sem vinculo)
-	porChat := map[string][]domain.LinhaAviso{}
+	cache := map[string][]Destino{} // sid|sub -> destinos (vazio = sem vinculo ou sem destino)
+	porDestino := map[Destino][]domain.LinhaAviso{}
 
-	chatDe := func(sid, sub string) string {
+	destinosDe := func(sid, sub string) []Destino {
 		k := sid + "|" + sub
-		if c, ok := chats[k]; ok {
-			return c
+		if d, ok := cache[k]; ok {
+			return d
 		}
-		c, err := s.contatos.ChatID(ctx, sid, sub)
-		if err != nil {
-			c = ""
+		var lista []Destino
+		if m, err := s.contatos.Destinos(ctx, sid, sub); err == nil {
+			for canal, enderecos := range m {
+				for _, e := range enderecos {
+					if e != "" {
+						lista = append(lista, Destino{canal, e})
+					}
+				}
+			}
 		}
-		chats[k] = c
-		return c
+		cache[k] = lista
+		return lista
 	}
 
 	var recorrencias []domain.Doc
@@ -199,8 +201,8 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 				}
 				// a fatura nao tem criador: o aviso vai para o dono do espaco
 				if esp.ownerSub != "" {
-					if chat := chatDe(sid, esp.ownerSub); chat != "" {
-						porChat[chat] = append(porChat[chat], linha)
+					for _, d := range destinosDe(sid, esp.ownerSub) {
+						porDestino[d] = append(porDestino[d], linha)
 					}
 				}
 			}
@@ -234,17 +236,18 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 		linha := domain.LinhaAviso{Kind: kind, N: n, Venc: venc, Tipo: tipo, Descricao: desc, Valor: valor, Banco: banco}
 
 		criador, _ := tx["criadoPor"].(string)
-		vistos := map[string]bool{}
+		vistos := map[Destino]bool{} // a mesma linha nao vai duas vezes ao mesmo destino (criador igual ao dono, ou mesmo chat)
 		for _, sub := range []string{criador, esp.ownerSub} {
 			if sub == "" {
 				continue
 			}
-			chat := chatDe(sid, sub)
-			if chat == "" || vistos[chat] {
-				continue
+			for _, d := range destinosDe(sid, sub) {
+				if vistos[d] {
+					continue
+				}
+				vistos[d] = true
+				porDestino[d] = append(porDestino[d], linha)
 			}
-			vistos[chat] = true
-			porChat[chat] = append(porChat[chat], linha)
 		}
 	}
 
@@ -254,18 +257,36 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 		}
 	}
 
+	// os grupos saem em ordem estavel (canal e endereco): a iteracao de mapa e aleatoria
+	destinos := make([]Destino, 0, len(porDestino))
+	for d := range porDestino {
+		destinos = append(destinos, d)
+	}
+	sort.Slice(destinos, func(i, j int) bool {
+		if destinos[i].Canal != destinos[j].Canal {
+			return destinos[i].Canal < destinos[j].Canal
+		}
+		return destinos[i].Endereco < destinos[j].Endereco
+	})
+
 	enviados := 0
+	parados := map[string]bool{} // canais sem configuracao nesta rodada: o resto dos grupos deles e pulado
 	marca := domain.MarcaAmbiente(s.ambiente)
-	for chat, linhas := range porChat {
-		if err := s.notificador.Enviar(ctx, chat, domain.MontarResumo(marca, hoje, linhas)); err != nil {
-			if errors.Is(err, domain.ErrCanalNaoConfigurado) {
-				log.Println("avisos: Telegram nao configurado; nada enviado")
-				return enviados, nil
-			}
-			log.Println("avisos: enviar:", err)
+	for _, d := range destinos {
+		if parados[d.Canal] {
 			continue
 		}
-		enviados++
+		// nenhuma linha de log leva o destino, o texto ou o valor: so o nome do canal
+		err := s.despachante.Entregar(ctx, d, domain.ResumoAvisos{Hoje: hoje, Marca: marca, Linhas: porDestino[d]})
+		switch {
+		case errors.Is(err, domain.ErrCanalNaoConfigurado):
+			parados[d.Canal] = true
+			log.Printf("avisos: canal %s nao configurado; nada enviado por ele", d.Canal)
+		case err != nil:
+			log.Printf("avisos: enviar pelo canal %s: %v", d.Canal, err)
+		default:
+			enviados++
+		}
 	}
 	log.Printf("avisos: %d item(ns) ativos, %d resumo(s) enviado(s)", len(itens), enviados)
 	return enviados, nil
@@ -273,15 +294,19 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 
 // Testar manda uma mensagem de teste para o Telegram de quem fez a chamada.
 func (s *Avisos) Testar(ctx context.Context, sid, sub string) error {
-	chat, err := s.contatos.ChatID(ctx, sid, sub)
+	todos, err := s.contatos.Destinos(ctx, sid, sub)
 	if err != nil {
 		log.Println("aviso teste:", err)
 		return ErrInterno
 	}
+	var chat string
+	if l := todos["telegram"]; len(l) > 0 {
+		chat = l[0]
+	}
 	if chat == "" {
 		return &ErroValidacao{"cadastre o seu chat id do Telegram primeiro"}
 	}
-	err = s.notificador.Enviar(ctx, chat, "🔔 "+domain.MarcaAmbiente(s.ambiente)+"Teste do financas.ai: se você recebeu esta mensagem, os avisos vão chegar aqui.")
+	err = s.despachante.Entregar(ctx, Destino{"telegram", chat}, domain.ResumoAvisos{Marca: domain.MarcaAmbiente(s.ambiente), Teste: true})
 	switch {
 	case errors.Is(err, domain.ErrCanalNaoConfigurado):
 		return ErrTelegramNaoConfigurado

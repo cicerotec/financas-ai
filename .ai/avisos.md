@@ -43,8 +43,9 @@ se marcado, **todo dia** depois dele até o lançamento deixar de ser evento fut
 - O horário é fixo (8h). Sem horário de verão no Brasil, a regra em UTC (`cron(0 11 * * ? *)`) não deriva.
 - Se o token não existir no SSM, a rotina registra no log e encerra sem erro; o resto do app não é afetado.
 - Visibilidade por pessoa (item 27 do BACKLOG): quando existir, os avisos devem respeitá-la.
-- **Mensagem longa (limite conhecido, decidido não tratar agora):** o resumo do dia vai numa única mensagem, e o Telegram
-  recusa mensagens acima de **4096 caracteres**. Cada aviso ocupa cerca de 100 caracteres, então a partir de uns 40
-  avisos no mesmo dia para a mesma pessoa o resumo inteiro seria recusado (erro 400 no log, nenhum aviso chega naquele
-  dia). Se isso passar a acontecer, a correção é dividir o resumo em várias mensagens menores.
+- **Mensagem longa (item 34, resolvido):** o Telegram recusa mensagens acima de **4096 caracteres**. O canal divide o resumo em partes de até
+  **4000 letras**, cada uma com o cabeçalho e ` (i/n)`, sem cortar uma linha e na ordem de sempre; um resumo que cabe sai idêntico ao de antes.
+  Se uma parte falhar, as outras ainda saem e o destino não conta como entregue.
+- **Um resumo por destino:** o mesmo chat id em dois espaços recebe um resumo só, com as linhas dos dois, sem o nome do espaço.
+- **Falha de canal:** um canal sem configuração (ou que falha) não impede os outros; a rotina não devolve erro por falha de envio.
 - As datas das mensagens trazem o ano (`dd/mm/aaaa`).
