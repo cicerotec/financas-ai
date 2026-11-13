@@ -1163,6 +1163,8 @@ svg.gx-chart{display:block;width:100%;max-width:440px;margin:0 auto;height:auto;
 .ab-erro button[hidden]{display:none;}
 .ab.erro .ab-erro{display:flex;}
 .ab.erro .ab-gira,.ab.erro .ab-msg{display:none;}
+/* no app Android o icone fica do tamanho do icone do splash do sistema (192 dp num quadro de 288 dp): a passagem nao da salto (demo-abertura-v4-splash-nativo) */
+.ab.nativo .ab-ic{width:min(192px,34vh);height:min(192px,34vh);}
 /* sem sessao (so no app Android; demo-abertura-v3-sem-sessao): sem indicador, com a frase e o botao Entrar */
 .ab-ent{display:none;flex-direction:column;align-items:center;gap:10px;max-width:320px;}
 .ab-ent b{font-size:15px;}
@@ -1178,7 +1180,7 @@ html.abrindo header,html.abrindo main{visibility:hidden;} /* atras da abertura n
 .bq{position:fixed;inset:0;z-index:210;background:var(--bg);color:var(--text);display:grid;grid-template-rows:1fr auto 1fr;justify-items:center;padding:0 24px;text-align:center;} /* acima da abertura (200) */
 .bq::before{content:"";}
 .bq[hidden]{display:none;}
-.bq-ic{width:min(224px,34vh);height:min(224px,34vh);border-radius:50%;display:block;} /* o mesmo icone, no mesmo lugar, da Abertura */
+.bq-ic{width:min(192px,34vh);height:min(192px,34vh);border-radius:50%;display:block;} /* o mesmo icone, no mesmo lugar e do mesmo tamanho, da Abertura no app (192 px) */
 .bq-baixo{display:flex;flex-direction:column;align-items:center;justify-content:space-between;align-self:stretch;justify-self:stretch;min-height:0;padding:16px 0 calc(env(safe-area-inset-bottom,0px) + 40px);}
 .bq-nome{margin:0;font-size:20px;font-weight:600;letter-spacing:.01em;}
 .bq-pe{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:320px;}

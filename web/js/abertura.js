@@ -1,6 +1,7 @@
 // Abertura (splash): a tela que cobre o app ate o Lancar ter o que precisa para ser usado (listas, tags e combos).
 // Padrao: .ai/padrao-de-telas.md ("Abertura"), demos .ai/demos/demo-abertura-v2-icone.html e demo-abertura-v3-sem-sessao.html
-// (a v3, aprovada em 2026-11-12, e o estado "sem sessao" do app Android).
+// (a v3, aprovada em 2026-11-12, e o estado "sem sessao" do app Android) e demo-abertura-v4-splash-nativo.html (no app, o icone
+// de 192 px, igual ao do splash do Android, para a passagem nao dar salto).
 // Quem diz o que chegou e o init do web/js/app.js (Abertura.chegou e Abertura.falhou); este modulo so decide quando sair:
 // fica no minimo MIN ms (nao pisca), avisa depois de AVISO ms e, se algo falhar, mostra o erro com "Tentar de novo" e nao sai.
 // No app Android, quem cuida do login (web/js/sessao.js) avisa por Abertura.sessao: sem sessao a tela mostra o botao "Entrar"
@@ -87,6 +88,7 @@ function criarAbertura(env){
   }
 
   if(raiz){
+    if(env.nativo) raiz.classList.add('nativo'); // no app Android o icone tem o tamanho do icone do splash do sistema (demo v4)
     env.fundo(true);
     env.el('abDeNovo').onclick = ()=>env.recarregar();
     env.el('abSair').onclick = ()=>env.sair();
@@ -106,5 +108,6 @@ const Abertura = (typeof window !== 'undefined') ? criarAbertura({
   fundo: sim=>{ document.documentElement.classList.toggle('abrindo', sim); },
   recarregar: ()=>window.location.reload(),
   sair: ()=>{ if(window.financasApi && window.financasApi.sair) window.financasApi.sair(); },
-  entrar: ()=>{ if(window.financasApi && window.financasApi.entrar) window.financasApi.entrar(); }
+  entrar: ()=>{ if(window.financasApi && window.financasApi.entrar) window.financasApi.entrar(); },
+  nativo: !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())
 }) : null;

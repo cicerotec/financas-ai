@@ -141,7 +141,7 @@ teste('o icone da abertura e o do splash do Android: mesmo recorte, em circulo, 
   assert.ok(/\.ab\{[^}]*grid-template-rows:1fr auto 1fr/.test(css), 'o icone fica na linha do meio: centro exato da tela');
   assert.ok(html.indexOf('class="ab-baixo"') > html.indexOf('id="abIc"') && html.indexOf('class="ab-nome"') > html.indexOf('class="ab-baixo"'), 'nome e indicador ficam na metade de baixo, fora do centro');
   const amb = fs.readFileSync(path.join(__dirname, 'js', 'ambiente.js'), 'utf8');
-  assert.ok(amb.includes("getElementById('abIc')") && amb.includes('>DEV</text>'), 'em dev o icone da abertura leva a faixa DEV');
+  assert.ok(amb.includes("querySelectorAll('#abIc, #bloqueio .bq-ic')") && amb.includes('>DEV</text>'), 'em dev o icone da abertura (e o do bloqueio) leva a faixa DEV');
 });
 
 teste('o init avisa a abertura das tres leituras do Lancar e das falhas', () => {

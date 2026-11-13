@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- o fundo do app no tema claro (token bg de web/css/app.css) e o azul do icone -->
+    <color name="fundo">#f7f7f5</color>
+    <color name="icone_fundo">#14213d</color>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A janela de abertura para o sistema que nao usa o splash do Android 12: o fundo do app e o mesmo icone no centro. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/fundo" />
+    <item android:drawable="@drawable/splash_icone" android:gravity="center" android:width="288dp" android:height="288dp" />
+</layer-list>

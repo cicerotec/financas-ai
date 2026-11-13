@@ -3,7 +3,7 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id (`A-T<n>`), para o PR dizer exatamente o
 que cobriu. Quando este texto e o do intent divergirem, vale o plan. As fases 4 (push), 5 (release) e 6 (produção aberta) ganham spec própria.
 
-**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado"). **Fase 2 implementada em 2026-11-12** (PR 419), com o login completo visto no aparelho; o roteiro de aparelho da fase 2 está fechado; ficam os herdados A-T5, (c) e o desinstalar (ver "Fase 2: o que foi verificado"). **Fase 3a (a trava por biometria) com código em 2026-11-12** (branch `feature/app-android-biometria`), conferida pelo dono no aparelho; a 3b (ícone, splash e barra de status) sem código. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
+**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado"). **Fase 2 implementada em 2026-11-12** (PR 419), com o login completo visto no aparelho; o roteiro de aparelho da fase 2 está fechado; ficam os herdados A-T5, (c) e o desinstalar (ver "Fase 2: o que foi verificado"). **Fase 3a (a trava por biometria) com código em 2026-11-12** (branch `feature/app-android-biometria`), conferida pelo dono no aparelho; **fase 3b (splash nativo e ícone adaptativo) com código em 2026-11-12** (branch `feature/app-android-icone-splash`), medida no aparelho. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
 
 Convenção dos testes: os de lógica são `node web/*.test.js` (o CI roda todos sem lista) e **falham antes da mudança**. Os que dependem do aparelho são marcados
 **[aparelho]** e entram como roteiro manual no PR, com o resultado escrito. Diga o que não deu para ver em vez de afirmar que funciona.
@@ -247,8 +247,11 @@ o que acontece quando a biometria falha ou não está cadastrada, os dois temas 
   biometria, a pessoa entra por "Sair" (login de novo), nunca por um atalho que pule a trava.
 - **R22.** Ligar a trava exige uma verificação bem-sucedida na hora; desligar também.
 - **R23.** O bloqueio é só interface: o token continua no Keystore (R13). `security.md` diz isso.
-- **R24.** Ícone adaptativo a partir das imagens maskable de `web/icons/`, splash e cor da barra de status seguindo o tema claro e escuro do app. Mudou padrão: a demo, o
-  `padrao-de-telas.md` e o resumo do `guardrails.md` mudam na mesma entrega.
+- **R24.** Ícone adaptativo, splash nativo e barra de status. **O que o aparelho mostrou em 2026-11-12** (antes de mexer): a barra de status **já acompanha o tema** (nada a
+  fazer); o ícone legado já aparece bem no launcher do dono; o splash era cerca de 1 s de tela cinza vazia e um quadro preto. **Feito (demo aprovada em 2026-11-12):** o splash do
+  Android mostra o ícone do app no centro, sobre o fundo do app (claro ou escuro pelo **tema do aparelho**, não o escolhido no app), e **espera a página carregar**; a Abertura e o
+  bloqueio, no app, usam o ícone de **192 px**, o tamanho do ícone no splash; o ícone do app ganha a versão adaptativa. Mudou padrão: a demo, o `padrao-de-telas.md` e o resumo do
+  `guardrails.md` mudaram na mesma entrega.
 
 ### Testes
 
@@ -279,6 +282,30 @@ ainda sem código). Demo aprovada em 2026-11-12: [`demo-bloqueio-v1`](../../demo
 | Plugin no aparelho | **Verde** (Xiaomi 2311DRK48G, pela inspeção da WebView): `Capacitor.Plugins.Trava` existe, `disponivel()` devolve `true`, a subseção "Segurança" aparece em Listas com as duas chaves desligadas e a tela de bloqueio fica escondida com a trava desligada |
 | A-T29 **[aparelho]** | **Verde, pelo relato do dono** (2026-11-12, Xiaomi 2311DRK48G): seguiu o roteiro de seis passos (ligar a trava com a digital, fechar e abrir, cancelar a janela, voltar depois de 1 minuto e antes, esconder nos apps recentes com tentativa de print, desligar a trava) e respondeu "funcionou". Não houve captura nem leitura pela inspeção nesse roteiro, e ele não detalhou passo a passo |
 | A-T30 e A-T31 **[aparelho]** | **Pendentes**: remover a biometria do aparelho com a trava ligada, e a medição de layout (360 e 412 px, tema claro e escuro) |
+
+### Fase 3b (splash nativo e ícone): o que foi verificado (2026-11-12)
+
+Demo aprovada em 2026-11-12: [`demo-abertura-v4-splash-nativo`](../../demos/demo-abertura-v4-splash-nativo.html). Código na branch `feature/app-android-icone-splash`. As medidas
+vêm de vídeos da abertura gravados no Xiaomi 2311DRK48G (`adb shell screenrecord`), lidos quadro a quadro, com o celular em tema escuro.
+
+| Item | Resultado |
+|---|---|
+| Antes | Cerca de 0,9 s de tela cinza-escura vazia (`#1c2024`), um quadro preto e só então a Abertura |
+| Splash com o ícone | **Verde**: o ícone (com a faixa DEV) aparece no centro, sobre o fundo do app, e fica parado por cerca de 1 s. Largura medida: 190 dp, para 192 dp previstos |
+| Passagem para a página | **Verde**: a página entra com o ícone no mesmo lugar (mesma borda esquerda e mesmo topo, na resolução da medição) e da mesma largura; não há quadro vazio nem preto entre os dois. Pela inspeção, o ícone da Abertura e o do bloqueio ocupam o mesmo retângulo (192 × 192 px, centrado na janela de 904 px) |
+| Sem a espera pela página | Na primeira versão o splash saía antes de a página desenhar e sobravam cerca de 0,6 s de tela vazia; por isso a `MainActivity` segura o splash até `onPageLoaded`, com limite de 4 s |
+| Lógica e recursos | **Verde**: `node web/splash-android.test.js`; os 29 arquivos `web/*.test.js` passam |
+| No uso | **Verde, pelo relato do dono** (2026-11-12): abriu o app com a versão final instalada e respondeu que a abertura ficou boa. Sem captura nesse momento |
+| Barra de status | Já acompanhava o tema antes desta fase (visto com o app em tema claro e escuro): nada mudou |
+| Não visto | O celular em **tema claro** (splash claro); a passagem direto para a Abertura sem a trava (a trava estava ligada, então a página que entrou foi a do bloqueio); o ícone adaptativo em outro launcher (no do dono o ícone já era um círculo cheio); Android anterior ao 12; o sabor `prod` |
+
+### Decisões da fase 3b
+
+- O ícone do splash e a frente do ícone adaptativo são **desenhos vetoriais** do Android (`splash_icone.xml`, `icone_frente.xml`), um por sabor; no `dev` levam a faixa DEV, com as
+  letras feitas de traços (desenho vetorial não tem texto), então diferem um pouco das letras da Abertura.
+- O fundo do splash e da janela é o token `--bg` do app, em `values/colors.xml` e `values-night/colors.xml`; o teste confere que são iguais aos do CSS.
+- Em `dev`, o ícone da tela de bloqueio passou a levar a faixa DEV (`ambiente.js`), como o da Abertura, para não mudar na passagem.
+- Os onze `splash.png` padrão do Capacitor foram apagados.
 
 ### Decisões da fase 3a
 
