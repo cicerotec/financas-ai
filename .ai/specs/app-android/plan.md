@@ -87,6 +87,8 @@ scripts/app-android.ps1      chama montar-www.js para -Ambiente dev|prod, roda c
 - Conteúdo da notificação: **sem valor na tela bloqueada** como padrão (decisão a confirmar; ver `privacidade-e-cifragem.md`, "Avisos no Telegram").
 - Credencial do Firebase fica no SSM, nunca no git, como o token do Telegram.
 
+> **No backlog (decisão do dono em 2026-11-13):** as fases 1 a 4 são o item 54, que se conclui com o push; as fases 5, 6 e 7, abaixo, são o item 64. O roteiro continua sendo este arquivo.
+
 ### Fase 5: release e Play Store (spec própria, em parte processo)
 - **Formatos:** o artefato de entrega à Play é o **AAB assinado** (a Play exige AAB para apps novos e gera os APKs de cada aparelho). O APK de debug fica para o ciclo
   de desenvolvimento (fases 1 a 3) e o APK de release assinado, só como opção de distribuição direta enquanto a conta da Play não estiver pronta.
