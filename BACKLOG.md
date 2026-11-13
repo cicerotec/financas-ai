@@ -45,6 +45,7 @@ pendentes: nenhum.
 - [\[Backend\] - 15 - **\[Depois\] IA ("Preencher com IA"):**](#item-15)
 - [\[Backend\] - 18 - **\[Depois\] Segurança e escala:**](#item-18)
 - [\[Backend\] - 27 - **\[Depois\] Tela de permissões por usuário:**](#item-27)
+- [\[Front\] - 64 - **\[Depois\] App Android: Play Store, produção aberta e uso sem internet:**](#item-64)
 - [\[Front\] - 20 - **\[Depois\] Ideias:**](#item-20)
 
 ### Infra (AWS, SAM, ambientes, custo, backup)
@@ -402,11 +403,19 @@ DynamoDB sem discutir com o dono.**
   - [x] **Fase 3a, trava por biometria** (2026-11-12, branch `feature/app-android-biometria`, demo `demo-bloqueio-v1` aprovada; conferida pelo dono no aparelho; ficam por ver o aparelho sem biometria e a medição de layout, ver o `spec.md`): duas chaves em Listas, Aparência, Segurança ("Bloquear com biometria" e "Esconder nos apps recentes"), guardadas só no aparelho; tela de bloqueio ao abrir e depois de 1 minuto fora; plugin `Trava` em Java.
   - [x] **Fase 3b, splash nativo e ícone adaptativo** (2026-11-12, branch `feature/app-android-icone-splash`, demo `demo-abertura-v4-splash-nativo` aprovada; medido no aparelho): o splash do Android mostra o ícone sobre o fundo do app e espera a página; a Abertura usa o ícone de 192 px no app; ícone adaptativo nos dois sabores. A barra de status já acompanhava o tema. Não visto: celular em tema claro e o sabor `prod`.
   - [ ] **Fase 4, push (FCM) como canal do despachante** (spec própria; o token do aparelho é **dado novo no DynamoDB: discutir antes**).
-  - [ ] **Fase 5, release e Play Store** (AAB assinado, teste interno, política de privacidade, Segurança dos Dados; spec própria).
-  - [ ] **Fase 6, produção aberta**, só depois das fases 1 a 5 do item 49.
-  - [ ] **Fase 7, uso sem internet** (futuro; segue `.ai/offline-e-sincronizacao.md`).
-  **A decidir (no `intent.md`):** `applicationId` (permanente depois do primeiro envio), conta da Play (pessoal ou organização), retorno do login (esquema próprio ou App Link), biometria opcional ou obrigatória,
-  distribuição inicial, e o que fazer se os plugins não funcionarem sem bundler. **Fora:** iOS, offline e as mudanças de regra de negócio.
+  - **As fases 5 (release e Play Store), 6 (produção aberta) e 7 (uso sem internet) passaram para o [item 64](#item-64)** (decisão do dono em 2026-11-13): este item se conclui com a fase 4.
+  **Já decidido (no `intent.md` e no `spec.md`):** `applicationId` `br.com.cicerotec.financas`, retorno do login por esquema próprio (o App Link fica para o item 64), biometria opcional, plugins sem
+  bundler. **A decidir antes da fase 4:** onde guardar o token de push de cada aparelho (dado novo no DynamoDB). **Fora:** iOS e as mudanças de regra de negócio.
+- 64. [ ] <a id="item-64"></a>**[Depois] App Android: Play Store, produção aberta e uso sem internet (2026-11-13; continuação do [item 54](#item-54)):** o item 54 entrega o app Android para uso
+  pela família (casca, login nativo, trava e, por fim, push) e se conclui na fase 4. O que vem depois é publicar e abrir o app, e ficou aqui por decisão do dono em 2026-11-13, para o item 54 não
+  ficar aberto à espera de coisas que dependem de outros itens. As fases mantêm os números do roteiro ([`.ai/specs/app-android/plan.md`](.ai/specs/app-android/plan.md)); cada uma ganha spec própria.
+  - [ ] **Fase 5, release e Play Store:** AAB assinado (keystore de upload fora do git, Play App Signing), `versionCode` e `versionName` ligados às tags, teste interno para as duas pessoas, política
+    de privacidade, formulário de Segurança dos Dados e as demais exigências da loja (conferir no Play Console na hora). Inclui o **App Link por `https`** no retorno do login, que troca o esquema
+    próprio da fase 2 (decisão de 2026-11-11), e compilar e instalar o sabor `prod`, que ainda não foi feito. **A decidir antes:** conta da Play (pessoal ou de organização) e a distribuição inicial
+    (APK assinado direto entre as duas pessoas ou esperar o teste interno).
+  - [ ] **Fase 6, produção aberta:** só depois das fases 1 a 5 do [item 49](#item-49) (MFA, limite de taxa, cadastro, espaço próprio, exportar e excluir conta) e da política de privacidade.
+  - [ ] **Fase 7, uso sem internet** (futuro; segue [`.ai/offline-e-sincronizacao.md`](.ai/offline-e-sincronizacao.md)): demo e spec próprias; depende do gatilho "muitos usuários querendo offline".
+  **Herdado do item 54, por ver:** `dev` e `prod` instalados juntos (A-T5), o celular em tema claro no splash, e desinstalar para ver o Cofre sumir (A-T16b).
 - 55. [x] <a id="item-55"></a>**Novas visões dos gastos na Tendências (2026-11-01; concluído em 2026-11-02, fases A a F, roteiro em [`.ai/specs/tendencias-visoes/`](.ai/specs/tendencias-visoes/intent.md)):** a consulta continua
   sendo o filtro e as visões desenham a mesma consulta de outros ângulos, em **seções que recolhem pelo título** abaixo do resultado (Comparar, Ao longo do mês, Para onde foi), com o mês de referência (‹ ›) e o "Comparar com" no topo. Tudo calculado no navegador com os 1000 lançamentos da tela (simulação, nada vai ao servidor),
   menos o limite das Metas. O dono escolheu as visões depois de ver onze gráficos de exemplo. A primeira demo (seletor "Ver como") foi reprovada em 2026-11-01; as demos [`v2`](.ai/demos/demo-tendencias-v2.html) e [`v3`](.ai/demos/demo-tendencias-v3.html) foram **aprovadas em 2026-11-02**. Fases (cada uma um PR):
