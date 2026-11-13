@@ -11,3 +11,17 @@ web/config.dev.js
 *.exe
 # backups com dados reais gerados por scripts/limpar-versoes-iniciais.py
 backup-versoes-*.jsonl
+
+# app Android (item 54): o www/ e gerado a partir de web/ e o que o Gradle e o Android Studio criam fica fora; assinatura nunca entra
+!app-android/package.json
+!app-android/package-lock.json
+!app-android/capacitor.config.json
+app-android/www/
+app-android/node_modules/
+app-android/android/app/build/
+app-android/android/.gradle/
+local.properties
+*.jks
+*.keystore
+*.apk
+*.aab

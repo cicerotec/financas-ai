@@ -2,7 +2,7 @@
 
 Este documento diz **o quê e por quê**; o como está em [`plan.md`](plan.md) e o roteiro verificável, em [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação (2026-11-01). Nada foi implementado.
+**Estado:** rascunho (2026-11-01). Fase 1 implementada em 2026-11-11 (ver `plan.md` e `spec.md`); `applicationId` decidido: `br.com.cicerotec.financas`. Fase 2 implementada em 2026-11-12 (PR 419), com o login visto no aparelho.
 
 ## O problema
 
@@ -63,12 +63,13 @@ O app é uma página web (`web/`, JavaScript puro, sem build) que o dono usa no 
 
 ## Para o dono decidir
 
-- **Identificador do app** (`applicationId`, ex.: `br.com.<algo>.financas`). É **permanente** depois do primeiro envio à Play: escolher com cuidado. O `dev` usa o
+- **Identificador do app** (decidido em 2026-11-11: `br.com.cicerotec.financas`; `applicationId`, ex.: `br.com.<algo>.financas`). É **permanente** depois do primeiro envio à Play: escolher com cuidado. O `dev` usa o
   mesmo com sufixo `.dev`.
 - **Conta da Play:** pessoal ou de organização. Contas pessoais novas costumam exigir um teste fechado com um número mínimo de testadores durante algumas semanas
   antes da produção (confirmar a regra vigente); duas pessoas não bastam. Organização exige verificação da empresa.
 - **Retorno do login:** esquema próprio (`br.com.<algo>.financas://auth`, mais simples) ou App Link por `https` no CloudFront (mais difícil de sequestrar, mas
-  exige publicar um arquivo de verificação e mexer no front). O plan propõe o esquema próprio protegido por PKCE e `state`.
+  exige publicar um arquivo de verificação e mexer no front). **Decidido em 2026-11-11:** esquema próprio com PKCE e `state` na fase 2; o App Link volta na fase 5, com a chave de release.
+- **Armazenamento seguro** (decidido em 2026-11-11): plugin nosso em Java sobre o Android Keystore, sem plugin de terceiros.
 - **Se o acesso aos plugins sem bundler não funcionar**, o front ganharia um passo mínimo de build. Hoje o front não tem build; isso só se decide se for preciso.
 - **Biometria:** opcional e ligada pela pessoa (proposta) ou obrigatória.
 - **Distribuição inicial:** APK de release assinado, direto entre as duas pessoas, enquanto a conta da Play não estiver pronta, ou esperar o teste interno. Na Play o

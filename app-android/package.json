@@ -1,0 +1,15 @@
+{
+  "name": "financas-app-android",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Casca Android (Capacitor) do app Financas. As telas vem de ../web (www/ e gerado por scripts/app-android.ps1).",
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0"
+  }
+}

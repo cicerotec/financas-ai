@@ -12,6 +12,10 @@ Parameters:
     Type: String
     Default: http://localhost:8080
     Description: Origem do front para desenvolvimento local (CORS e callback do login). Sem barra no final. O endereco do CloudFront e acrescentado automaticamente.
+  AppOrigin:
+    Type: String
+    Default: https://localhost
+    Description: Origem da WebView do app Android (Capacitor com androidScheme https). So entra no CORS da Function URL; o JWT continua sendo a barreira. Sem barra no final.
   CognitoDomainPrefix:
     Type: String
     Description: Prefixo unico do dominio do login (ex. financas-seunome-123)
@@ -68,8 +72,8 @@ Resources:
       AllowedOAuthFlows: [code]
       AllowedOAuthScopes: [openid, email]
       SupportedIdentityProviders: [COGNITO]
-      CallbackURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/']
-      LogoutURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/']
+      CallbackURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/', !If [EhDev, 'br.com.cicerotec.financas.dev://auth', 'br.com.cicerotec.financas://auth']]
+      LogoutURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/', !If [EhDev, 'br.com.cicerotec.financas.dev://auth', 'br.com.cicerotec.financas://auth']]
       ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
       IdTokenValidity: 60
       AccessTokenValidity: 60
@@ -142,7 +146,7 @@ Resources:
       FunctionUrlConfig:
         AuthType: NONE               # o JWT do Cognito e validado dentro da Lambda
         Cors:
-          AllowOrigins: [!Ref FrontOrigin, !Sub 'https://${Distribution.DomainName}']
+          AllowOrigins: [!Ref FrontOrigin, !Ref AppOrigin, !Sub 'https://${Distribution.DomainName}']
           AllowMethods: [GET, POST, PUT, DELETE]
           AllowHeaders: [authorization, content-type]
           MaxAge: 3600

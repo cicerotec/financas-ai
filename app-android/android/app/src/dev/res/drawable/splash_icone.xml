@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icone do splash do Android (item 54, fase 3b; demo-abertura-v4-splash-nativo). O circulo de 192 dp no centro e o mesmo desenho,
+     no mesmo recorte, do icone da Abertura (web/index.html, #abIc), para a passagem do splash para a pagina nao dar salto. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp" android:height="288dp" android:viewportWidth="614.4" android:viewportHeight="614.4">
+    <group android:translateX="51.2" android:translateY="51.2">
+        <clip-path android:pathData="M256,51.2a204.8,204.8 0 1 0 0,409.6a204.8,204.8 0 1 0 0,-409.6z" />
+        <path android:fillColor="#14213d" android:pathData="M0,0h512v512h-512z" />
+        <path android:fillColor="#4cc9a0" android:pathData="M148,288h40a12,12 0 0 1 12,12v72a12,12 0 0 1 -12,12h-40a12,12 0 0 1 -12,-12v-72a12,12 0 0 1 12,-12z" />
+        <path android:fillColor="#4cc9a0" android:pathData="M236,228h40a12,12 0 0 1 12,12v132a12,12 0 0 1 -12,12h-40a12,12 0 0 1 -12,-12v-132a12,12 0 0 1 12,-12z" />
+        <path android:fillColor="#ffd166" android:pathData="M324,156h40a12,12 0 0 1 12,12v204a12,12 0 0 1 -12,12h-40a12,12 0 0 1 -12,-12v-204a12,12 0 0 1 12,-12z" />
+        <path android:fillColor="#d97b2f" android:pathData="M192,394h128a34,34 0 0 1 34,34v12a34,34 0 0 1 -34,34h-128a34,34 0 0 1 -34,-34v-12a34,34 0 0 1 34,-34z" />
+        <path android:strokeColor="#ffffff" android:strokeWidth="7" android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M210,417V451H220A17,17 0 0 0 220,417Z M268,417H250V451H268 M250,434H265 M280,417L292,451L304,417" />
+    </group>
+</vector>

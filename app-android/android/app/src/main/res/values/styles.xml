@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+        <!-- a janela nasce com o fundo do app (claro ou escuro, pelo tema do aparelho): sem quadro preto antes de a pagina desenhar -->
+        <item name="android:windowBackground">@color/fundo</item>
+    </style>
+
+
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <!-- Splash (item 54, fase 3b): o icone do app no centro, sobre o fundo do app. Antes era o splash.png padrao do Capacitor. -->
+        <item name="windowSplashScreenBackground">@color/fundo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icone</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:windowBackground">@drawable/splash_janela</item>
+    </style>
+</resources>

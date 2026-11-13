@@ -13,6 +13,25 @@ Dados financeiros de uma família (lançamentos, saldos, cartões, notas) e o ac
   (`scripts/seed.sh`). Login com e-mail, senha de no mínimo 10 caracteres com minúscula, maiúscula e número.
 - **Fluxo `code` com PKCE** (Hosted UI), sem segredo no cliente. Escopos `openid` e `email`.
 - **Tokens:** ID token e access token de 60 minutos; refresh token de 30 dias.
+- **Onde o token fica** (`web/js/sessao.js`, item 54 fase 2). **Navegador e PWA:** em `localStorage` (`financas.auth`), como sempre; é o ponto em aberto do item 18.
+  **App Android:** o login abre na **aba do sistema** (Custom Tabs; a WebView nunca vê a senha) e só no toque em "Entrar"; o **refresh token** fica no plugin
+  `Cofre` (`app-android/.../CofrePlugin.java`), cifrado com AES-GCM por uma chave do **Android Keystore** que nunca sai dele, num arquivo fora do backup
+  (`allowBackup="false"` e regras de extração); o **ID token fica só em memória**; nada vai a `localStorage` nem a `sessionStorage`. O `verifier` e o `state` do PKCE
+  ficam no mesmo `Cofre` durante o login e são apagados ao fim dele. O log do Capacitor fica desligado (`loggingBehavior: "none"`), e nem o módulo nem o plugin escrevem log.
+  - **O que o Keystore não protege:** o plugin responde "ler" ao JavaScript da página, então um script injetado na WebView obtém o refresh token como obteria do
+    `localStorage`. O ganho é o arquivo cifrado em disco e fora do backup. Fazer o refresh em Java, sem o token chegar ao JavaScript, é endurecimento futuro. Aparelho
+    com root também não é coberto.
+  - **Retorno do login por esquema próprio** (`<applicationId>://auth`, um por ambiente): outro app instalado pode registrar o mesmo esquema. O `code` sozinho não vale
+    (falta o `code_verifier` do PKCE) e o `state` é conferido; sobra atrapalhar o login. O App Link por `https` fecha isso na fase 5.
+  - **Sair sem internet:** o app apaga o que guarda, mas o Cognito não é avisado e o navegador do aparelho continua lembrando do login; o próximo "Entrar" pode voltar
+    sem pedir a senha.
+  - **No app, rede não é logout:** só a recusa do refresh pelo Cognito (`400`) encerra a sessão; falha de rede e `5xx` mantêm. Um `401` da API faz um refresh e uma
+    repetição; o segundo `401` vira erro na tela. O mesmo `UserPoolClient` serve o navegador e o app: não dá para encerrar só as sessões do app.
+- **Trava por biometria no app Android** (item 54, fase 3a; `web/js/bloqueio.js` e o plugin `Trava`): opcional, ligada por cada pessoa em Listas, guardada só no aparelho. Protege
+  contra quem pega o **aparelho desbloqueado**: com ela, o app pede a digital, o rosto ou a senha do aparelho ao abrir e depois de 1 minuto fora. **É só da tela:** não cifra os
+  dados nem o refresh token (que continua no `Cofre`), não vale em aparelho com root, e um script injetado na página poderia desligá-la, porque a escolha fica em `localStorage`.
+  Não substitui a senha nem o MFA do Cognito. A chave "Esconder nos apps recentes" marca a janela como protegida (`FLAG_SECURE`): o app some da lista de apps abertos e não aceita
+  captura nem gravação de tela. Sair da conta desliga as duas.
 - **Validação no backend** (`backend/auth/token.go`), em toda requisição: assinatura RS256 com as chaves públicas do pool
   (JWKS), `iss`, `aud` (o `CLIENT_ID`), expiração obrigatória e `token_use == "id"`. Sem `sub`, recusa. Qualquer falha é
   `401`.
@@ -115,7 +134,7 @@ manual.
 ## Pontos em aberto
 | Ponto | Risco | Onde acompanhar |
 |---|---|---|
-| Token do Cognito em `localStorage` | Um XSS no front rouba a sessão | item 18 do backlog |
+| Token do Cognito em `localStorage` (navegador e PWA; no app Android fica no `Cofre`, mas um script injetado ainda consegue lê-lo) | Um XSS no front rouba a sessão | item 18 do backlog; item 54 (refresh em Java) |
 | Sem CSP própria | Reduz a defesa em profundidade contra XSS | item 18 |
 | Sem WAF nem limite de taxa na Function URL | Enxurrada de requisições (custo e disponibilidade) | item 18 |
 | Member lê tudo | Dados de bancos e cartões que não são dela | item 27 |

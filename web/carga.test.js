@@ -38,6 +38,7 @@ ctx.document = { visibilityState: 'visible', addEventListener: (t, f) => { if (t
 ctx.window = ctx;
 ctx.FINANCAS_CONFIG = { apiUrl: 'http://api.test', loginDomain: 'l', clientId: 'c' };
 vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, 'js', 'sessao.js'), 'utf8'), ctx); // o login (window.Sessao) vem antes do api.js, como no index.html
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'api.js'), 'utf8'), ctx);
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 ou mais: o arquivo do Cofre (login cifrado pelo Keystore) nao vai para o backup na nuvem nem para a copia entre aparelhos. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="cofre.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="cofre.xml" />
+    </device-transfer>
+</data-extraction-rules>

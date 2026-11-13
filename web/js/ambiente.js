@@ -11,8 +11,8 @@
   var tc = document.querySelector('meta[name="theme-color"]');
   if(tc) tc.content = '#e8710a';
   // a abertura (js/abertura.js) mostra o mesmo icone do splash do Android: em dev ele leva a faixa DEV, como o icone instalado
-  var ab = document.getElementById('abIc');
-  if(ab) ab.insertAdjacentHTML('beforeend', '<rect x="158" y="394" width="196" height="80" rx="34" fill="#d97b2f"/><text x="256" y="443" text-anchor="middle" fill="#fff" style="font:700 50px system-ui,sans-serif">DEV</text>');
+  // (a tela de bloqueio do app Android usa o mesmo icone e leva a mesma faixa)
+  [].forEach.call(document.querySelectorAll('#abIc, #bloqueio .bq-ic'), function(ab){ ab.insertAdjacentHTML('beforeend', '<rect x="158" y="394" width="196" height="80" rx="34" fill="#d97b2f"/><text x="256" y="443" text-anchor="middle" fill="#fff" style="font:700 50px system-ui,sans-serif">DEV</text>'); });
   var f = document.createElement('div');
   f.className = 'faixa-ambiente';
   f.setAttribute('role', 'status');
