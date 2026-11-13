@@ -1,0 +1,1628 @@
+<!-- demo-bloqueio-v1: trava por biometria do app Android (item 54, fase 3; regras R19 a R23 de .ai/specs/app-android/spec.md). Parte da demo-listas-v9-tags (a tela Listas e a v9, sem mudanca) e acrescenta: a subsecao Seguranca no cartao Aparencia, com dois interruptores, e a tela de bloqueio, que e nova (o desenho segue a Abertura v3). So no app Android; no navegador nada aparece. aprovada pelo dono em 2026-11-12 e implementada (web/js/bloqueio.js e o plugin Trava). A barra preta, a "janela do sistema", a tela de apps recentes e o script do bloqueio sao so da demo. Guia: ../padrao-de-telas.md -->
+<!-- demo-listas-v9-tags: parte da demo-listas-v8-nome; so o cartao Tags muda (busca, 8 criadas recentemente, Ver todas com Ordenar e Mostrar mais 30, chip com x para excluir, com confirmacao). Com script so para o cartao Tags. Aprovada pelo dono em 2026-11-09 e implementada (web/lista-tags.js). Guia: ../padrao-de-telas.md -->
+<!-- demo-listas-v8-nome: parte da demo-listas-v7-meio-novo; a aba Cartao passa a se chamar Cartao de credito (2026-11-09). So o nome muda. Guia: ../padrao-de-telas.md -->
+<!-- demo-listas-v5-nomes: parte da demo-listas-v4-combos; "Uma linha por meio de pagamento" e a linha de exemplo da forma de pagamento. 2026-11-08, aguardando aprovacao. -->
+<!doctype html>
+<!-- demo-listas-v2-novas-cores: parte da demo-listas-v1 (captura da tela Listas como esta no app, 2026-11-02) e muda so o seletor de cor da Forma de pagamento: paleta de 9 para 16 cores e a lista nova de formas (PIX, DEBITO, CREDITO, DINHEIRO, TED, PAGO). Com script so para o seletor. Item 56 do BACKLOG. Original: captura da tela Listas como esta no app (2026-11-02), com dados ficticios. Estatica: sem script; o CSS e o do app (web/css/app.css) embutido.  Guia: ../padrao-de-telas.md -->
+<html lang="pt-BR" style="--hdr-h: 67px;"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bloqueio v1: trava por biometria</title>
+
+<meta name="theme-color" content="#2f6f4f">
+
+
+
+
+<style>:root{
+  --bg:#f7f7f5; --card:#fff; --text:#1a1a1a; --muted:#6b6b6b; --border:#e3e2de;
+  --accent:#2f6f4f; --accent-ink:#fff; --danger:#b3413a; --income:#2f6f4f; --expense:#b3413a;
+  --faint:#8c938d; --ck:#d3d6d2; --accent-bg:#dcefe5; --danger-bg:#f8e6e2;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
+    --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
+    --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e; --danger-bg:#3a1f1a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161615; --card:#211f1e; --text:#eee; --muted:#9a9a9a; --border:#37352f;
+  --accent:#5fb98a; --accent-ink:#0d1f16; --income:#5fb98a; --expense:#e08a83;
+    --faint:#7b827c; --ck:#3b413d; --accent-bg:#1c3a2e; --danger-bg:#3a1f1a;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);color-scheme:light dark;} /* controles nativos (lista, calendario, rolagem) seguem o aparelho */
+:root[data-theme="light"]{color-scheme:light;}
+:root[data-theme="dark"]{color-scheme:dark;}
+*{box-sizing:border-box;}
+/* faixa do ambiente de teste: so aparece quando o config.js do ambiente traz "ambiente": "dev" */
+.faixa-ambiente{position:sticky;top:0;z-index:6;height:26px;line-height:26px;text-align:center;background:#e8710a;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,sans-serif;min-height:100%;}
+header{position:sticky;top:var(--faixa-h,0px);padding:env(safe-area-inset-top,0px) 16px 10px;background:var(--bg);border-bottom:1px solid var(--border);z-index:5;}
+h1{font-size:18px;margin:10px 0 8px;}
+nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+nav button{border:1px solid var(--border);background:var(--card);color:var(--text);padding:7px 12px;border-radius:20px;font-size:13px;white-space:nowrap;cursor:pointer;}
+nav button.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+/* Menu do app (padrao: .ai/padrao-de-telas.md, demos/demo-futuros.html). Celular e janela < 1160 px: nome da tela + menu ⋮.
+   Janela larga: o h1 e as abas em botoes de sempre. */
+header h1,header nav{display:none;}
+.mn-bar{display:flex;align-items:center;gap:2px;min-height:56px;}
+.mn-nome{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15;}
+.mn-tela{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mn-at{width:56px;height:52px;border:0;border-radius:14px;background:transparent;color:var(--text);cursor:pointer;flex:none;padding:0;font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+.mn-at-ic{font-size:20px;line-height:1;}
+.mn-at-lb{font-size:11px;line-height:1.1;color:var(--muted);}
+.mn-at[aria-current="page"]{background:var(--accent-bg);}
+.mn-at[aria-current="page"] .mn-at-lb{color:var(--text);font-weight:600;}
+.mn-at:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+.mn-ib{width:48px;height:48px;border:0;background:transparent;color:var(--text);border-radius:50%;cursor:pointer;display:grid;place-items:center;flex:none;padding:0;}
+.mn-ib[aria-expanded="true"]{background:var(--accent-bg);}
+.mn-ib svg{width:24px;height:24px;}
+.mn-shade{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1;}
+.mn-drop{position:absolute;top:calc(env(safe-area-inset-top,0px) + 54px);right:10px;width:240px;max-width:calc(100vw - 20px);max-height:calc(100vh - 90px);overflow-y:auto;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:6px;z-index:2;}
+.mn-grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px;}
+.mn-grp:first-child{padding-top:6px;}
+.mn-it{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;border:0;background:transparent;color:inherit;font:inherit;font-size:15px;text-align:left;padding:0 10px;border-radius:10px;cursor:pointer;}
+.mn-it:hover,.mn-it.on{background:var(--accent-bg);}
+.mn-it.on{font-weight:600;}
+.mn-ic{width:22px;text-align:center;font-size:17px;flex:none;}
+.mn-ck{margin-left:auto;color:var(--accent);font-weight:700;}
+.mn-sep{border:0;border-top:1px solid var(--border);margin:4px 6px;}
+/* Conta de quem esta logado (nome, espaco e Sair): topo e fim do menu do celular e botao do computador. Demo: .ai/demos/demo-menu-usuario.html */
+.cta-eu{display:flex;gap:10px;align-items:center;padding:8px 10px 6px;}
+.cta-eu b{display:block;font-size:15px;line-height:1.2;overflow-wrap:anywhere;}
+.cta-eu small{display:block;color:var(--muted);font-size:12px;line-height:1.3;}
+.cta-av{width:38px;height:38px;border-radius:50%;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-weight:700;flex:none;}
+.cta-dica{display:block;width:calc(100% - 20px);margin:0 10px 6px;padding:7px 10px;border:0;border-radius:10px;background:var(--accent-bg);color:var(--text);font:inherit;font-size:12px;text-align:left;cursor:pointer;}
+.cta-esp{padding:2px 10px 6px;}
+.cta-esp label{display:block;font-size:11px;color:var(--muted);margin:0 0 3px;}
+.cta-esp select{height:44px;}
+.mn-sair{color:var(--danger);}
+.mn-sair:hover{background:var(--danger-bg);}
+.topo{display:none;position:relative;align-items:center;justify-content:space-between;gap:12px;}
+.usr-btn{display:flex;align-items:center;gap:8px;min-height:44px;padding:4px 12px 4px 4px;border:1px solid var(--border);border-radius:22px;background:var(--card);color:var(--text);font:inherit;cursor:pointer;}
+.usr-btn[hidden],.usr-drop[hidden]{display:none;}
+.usr-btn .cta-av{width:34px;height:34px;font-size:14px;}
+.usr-btn[aria-expanded="true"]{background:var(--accent-bg);}
+.usr-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+.usr-drop{position:absolute;right:0;top:52px;width:272px;max-height:calc(100vh - 90px);overflow-y:auto;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:6px;z-index:3;}
+body.papel-member .mn-it[data-tab="configuracoes"]{display:none;}
+.mn-bar [hidden],.mn-shade[hidden],.mn-drop[hidden]{display:none;}
+@media (min-width:1160px){
+  .topo{display:flex;}
+  header h1{display:block;}
+  header nav{display:flex;}
+  .mn-bar,.mn-shade,.mn-drop{display:none !important;}
+}
+main{max-width:640px;margin:0 auto;padding:14px 16px 40px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;}
+/* Aba Configurações: seções recolhidas (Cartão, Importar, Exportar) */
+.cfg-sec{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;}
+.cfg-sec>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:64px;padding:10px 16px;cursor:pointer;}
+.cfg-sec>summary::-webkit-details-marker{display:none;}
+.cfg-sec>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:12px;}
+.cfg-tit{flex:1;min-width:0;}
+.cfg-tit b{display:block;font-size:16px;}
+.cfg-tit span{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cfg-seta{color:var(--muted);font-size:18px;transition:transform .15s;}
+.cfg-sec[open]>summary .cfg-seta{transform:rotate(90deg);}
+.cfg-corpo{padding:0 10px 2px;}
+.cfg-corpo .card{background:transparent;}
+@media (prefers-reduced-motion:reduce){.cfg-seta{transition:none;}}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;}
+textarea{min-height:60px;resize:vertical;}
+button.primary{background:var(--accent);color:var(--accent-ink);border:none;padding:11px 14px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-top:10px;}
+button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer;}
+.row{display:flex;gap:8px;}
+.row>*{flex:1;}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.tag{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:3px 9px;font-size:12px;cursor:pointer;}
+.tag.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+/* Subsecoes do cartao Aparencia (demos/demo-tema.html): Tema, Status e Saldos, no desenho das de Configuracoes */
+.ap-subs{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+.ap-sub{border:1px solid var(--border);border-radius:14px;padding:12px 14px;}
+.ap-sub .muted{margin:2px 0 6px;}
+.ap-st{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:0 0 4px;}
+/* Tema (demos/demo-tema.html): tres botoes grandes no cartao Aparencia */
+.tema-op{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px;}
+.tema-op button{min-height:64px;margin:0;width:auto;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:14px;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:inherit;cursor:pointer;}
+.tema-op button small{color:var(--muted);font-size:11.5px;text-align:center;}
+.tema-op button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-bg);font-weight:600;}
+.item{border-bottom:1px solid var(--border);padding:10px 0;}
+.excluindo{opacity:.55;pointer-events:none;}
+.excluindo .item-desc::after,.excluindo .fut-m .d::after{content:' · Excluindo…';font-weight:400;}
+.item:last-child{border-bottom:none;}
+.item-top{display:flex;justify-content:space-between;font-size:14px;}
+.item-desc{font-weight:600;}
+.item-meta{font-size:12px;color:var(--muted);margin-top:2px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px;} /* acima da tela cheia (.tc, 70) */
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;max-width:360px;width:100%;}
+.modal-box p{margin:0 0 14px;font-size:14px;}
+.modal-botoes{display:flex;gap:8px;}
+.modal-botoes button{flex:1;}
+.valor.entrada{color:var(--income);font-weight:700;}
+.valor.saida{color:var(--expense);font-weight:700;}
+.muted{color:var(--muted);font-size:12px;}
+.pill-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.pill{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;position:relative;padding-right:26px;min-width:160px;}
+/* Forma de pagamento: um bloco por status, com a bolinha de cor e a linha de exemplo (demo-forma-pagamento.html) */
+.fp{border:1px solid var(--border);border-radius:14px;margin-top:10px;overflow:hidden;background:var(--bg);}
+.fp-top{display:flex;align-items:center;gap:10px;padding:10px 12px;}
+.fp-top b{flex:1;min-width:0;overflow-wrap:anywhere;}
+.fp-top small{color:var(--muted);font-size:12px;}
+.fp .bol{width:32px;height:32px;min-width:32px;border-radius:50%;border:2px solid var(--border);padding:0;cursor:pointer;}
+.fp .pal{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 10px;}
+.fp .pal button{width:32px;height:32px;min-width:32px;border-radius:50%;padding:0;border:1px solid var(--border);cursor:pointer;}
+.fp .pal button[aria-pressed="true"]{border:2px solid var(--text);}
+.fp .bol:focus-visible,.fp .pal button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.fp .ex{display:flex;align-items:center;gap:10px;padding:11px 14px;min-height:62px;background:var(--card);border-top:1px solid var(--border);transition:background .12s;}
+.fp .ex:hover,.fp .ex:active{background:color-mix(in srgb,var(--cor) 16%,var(--card));}
+.fp .ex .l{flex:1;min-width:0;}
+.fp .ex .d{font-weight:600;}
+.fp .ex .mt{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;margin-top:1px;}
+.fp .ex .valor{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+@media (prefers-reduced-motion:reduce){.fp .ex{transition:none;}}
+.pill button[data-del-status],.pill button[data-del-banco]{position:absolute;top:6px;right:8px;}
+.pill button{border:none;background:none;color:var(--danger);cursor:pointer;font-size:13px;padding:0;}
+.hidden{display:none !important;}
+button:disabled{opacity:.6;cursor:wait;}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--accent);color:var(--accent-ink);padding:12px 20px;border-radius:10px;font-size:15px;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.3);z-index:81;transition:opacity .2s,transform .2s;max-width:90vw;text-align:center;}
+#toast.on{opacity:1;transform:translate(-50%,0);}
+#toast.erro{background:var(--danger);color:#fff;}
+#avisoAcao{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);width:min(420px,calc(100vw - 28px));opacity:0;pointer-events:none;background:var(--text);color:var(--bg);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.3);z-index:61;overflow:hidden;transition:opacity .2s,transform .2s;}
+#avisoAcao.on{opacity:1;transform:translate(-50%,0);pointer-events:auto;}
+#avisoAcao.erro{background:var(--danger);color:#fff;}
+#avisoAcao .aa-linha{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 14px;min-height:52px;}
+#avisoAcao .aa-tx{flex:1;min-width:0;font-size:13px;overflow-wrap:anywhere;}
+#avisoAcao .aa-tx small{display:block;opacity:.75;font-size:12px;}
+#avisoAcao button{background:transparent;border:0;color:inherit;font:inherit;font-size:14px;font-weight:700;text-decoration:underline;cursor:pointer;min-height:48px;min-width:48px;padding:0 12px;border-radius:10px;width:auto;margin:0;}
+#avisoAcao .aa-barra{height:3px;background:var(--accent);transform-origin:left;animation:aaBarra linear forwards;}
+#avisoAcao.erro .aa-barra{background:#fff;}
+@keyframes aaBarra{from{transform:scaleX(1);}to{transform:scaleX(0);}}
+@media (prefers-reduced-motion:reduce){#avisoAcao{transition:none;}#avisoAcao .aa-barra{animation:none;}}
+/* Aba Lançar (padrao: .ai/demos/demo-lancar-layout.html). Celular: valor primeiro, linhas-resumo com seletor nativo,
+   Tags em janela de baixo e Salvar fixo embaixo. Computador (>= 900 px): formulario a esquerda, IA e Tags a direita. */
+.seg{display:flex;background:var(--card);border-radius:14px;padding:4px;gap:4px;margin:0 0 10px;}
+.seg button{flex:1;min-height:44px;border:0;border-radius:11px;background:transparent;color:var(--muted);font:inherit;font-size:14px;cursor:pointer;}
+.seg button[aria-pressed="true"],.seg button[aria-checked="true"]{background:var(--accent-bg);color:var(--text);font-weight:600;}
+.seg.tipo{background:var(--bg);}
+.seg.tipo button[data-tipo="saida"][aria-checked="true"]{background:var(--danger-bg);color:var(--danger);}
+.ia-card{padding:0;overflow:hidden;}
+.ia-card>button{width:100%;min-height:56px;border:0;background:transparent;color:var(--text);font:inherit;display:flex;align-items:center;gap:10px;padding:0 16px;text-align:left;cursor:pointer;}
+.ia-card .t{flex:1;min-width:0;}
+.ia-card .t small{display:block;color:var(--muted);font-size:12.5px;}
+.ia-card .seta,.lh .seta{color:var(--faint);}
+.ia-corpo{display:none;padding:0 16px 14px;}
+.ia-card.aberto .ia-corpo{display:block;}
+.ia-card.aberto .seta{transform:rotate(90deg);}
+.valor-grande{display:flex;align-items:baseline;gap:6px;border-bottom:2px solid var(--border);padding:4px 0 6px;margin:0 0 10px;}
+.valor-grande span{font-size:18px;color:var(--muted);}
+.valor-grande input{flex:1;min-width:0;width:auto;border:0;border-radius:0;background:transparent;font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;padding:0;}
+.valor-grande:focus-within{border-color:var(--accent);}
+.valor-grande input:focus-visible{outline:none;}
+#formCard .card,.lan-form .card{margin-bottom:10px;}
+#formCard .card{padding:12px 16px;}
+.linhas{padding:0 !important;overflow:hidden;}
+.lh{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 16px;margin:0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--text);font:inherit;font-size:15px;text-align:left;cursor:pointer;}
+.linhas>.lh:first-child{border-top:0;}
+.lh .r{flex:none;width:72px;font-size:15px;color:var(--text);}
+.lh select,.lh input[type=datetime-local]{font-family:inherit;flex:1;min-width:0;width:auto;height:44px;border:0;background:transparent;padding:0;font-size:15px;color:var(--muted);text-align:right;text-align-last:right;appearance:none;-webkit-appearance:none;cursor:pointer;}
+.lh select option{text-align:left;color:var(--text);background:var(--bg);} /* o select e transparente: sem fundo na opcao, a lista nativa abre branca com texto claro no escuro */
+.lh .v{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;color:var(--muted);font-size:14px;}
+.lh .chip{background:var(--accent-bg);color:var(--text);border-radius:999px;padding:3px 10px;font-size:13px;}
+.mais-det{display:none;padding:4px 16px 14px;border-top:1px solid var(--border);}
+.mais-det.aberto{display:block;}
+.barra{display:flex;gap:8px;position:sticky;bottom:0;z-index:4;padding:10px 0 4px;background:linear-gradient(to top,var(--bg) 75%,transparent);}
+.barra button{margin:0;min-height:52px;border-radius:14px;}
+.barra .primary{flex:1;width:auto;}
+.barra .ghost{flex:none;padding:0 16px;background:var(--ck);border:0;color:var(--text);}
+.transf-campos{display:flex;flex-direction:column;gap:2px;}
+/* Tags: janela de baixo no celular; no computador fica a direita, sempre a vista */
+.tags-veu{display:none;}
+.tags-card{display:none;}
+.tags-card h2{font-size:16px;margin:0 0 2px;}
+.tags-sub{font-size:13px;color:var(--muted);margin:0 0 10px;}
+.tags-busca{margin:0 0 6px;min-height:44px;}
+.tags-lista{overflow:auto;min-height:0;max-height:46vh;padding:4px 0;}
+.tags-cnt{font-size:12.5px;color:var(--muted);margin:6px 0;}
+.tags-ok{width:100%;margin-top:10px;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:15px;cursor:pointer;}
+.tags-card.aberto{display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;z-index:80;max-height:82vh;margin:0;border:0;border-radius:22px 22px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));}
+.tags-card.aberto .tags-lista{flex:1;max-height:none;}
+.tags-veu.aberto{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:79;}
+#tagCombos .muted,.tags-rot{margin:6px 0 2px;}
+.tags-card .tags{gap:8px;margin-top:4px;}
+.tags-card .tag{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:999px;font-size:15px;overflow-wrap:anywhere;background:var(--card);}
+.tags-card .tag.on{background:var(--accent-bg);color:var(--text);border-color:var(--accent);font-weight:600;}
+@media (min-width:900px){
+  main:has(#tab-lancar:not(.hidden)){max-width:1100px;}
+  #modoLancar{max-width:420px;}
+  .lan-grade{display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-areas:"form ia" "form tags";grid-template-rows:auto 1fr;gap:0 16px;align-items:start;}
+  .lan-form{grid-area:form;}
+  .ia-card{grid-area:ia;}
+  .tags-card{display:block;grid-area:tags;position:sticky;top:110px;}
+  .tags-ok{display:none;}
+  .tags-card.aberto{display:block;position:sticky;max-height:none;border:1px solid var(--border);border-radius:12px;padding:14px;margin:0 0 12px;z-index:auto;}
+  .tags-card.aberto .tags-lista{max-height:46vh;}
+  .tags-veu.aberto{display:none;}
+  .lh.lh-mais{display:none;}
+  .lh.lh-tags{display:block;grid-column:1 / -1;cursor:default;}
+  .lh-tags .seta{display:none;}
+  .lh-tags .v{justify-content:flex-start;min-height:40px;align-items:center;}
+  .lh-tags .chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 6px 0 12px;font-size:14px;}
+  .lh-tags .chip::after{content:'×';font-size:18px;line-height:1;width:24px;height:24px;display:grid;place-items:center;color:var(--muted);cursor:pointer;}
+  .linhas{padding:12px 16px !important;display:grid;grid-template-columns:1fr 1fr;gap:12px;overflow:visible;}
+  .lh{display:block;min-height:0;padding:0;border:0;cursor:default;}
+  .lh .r{display:block;width:auto;font-size:12px;color:var(--muted);margin:0 0 4px;}
+  .lh select,.lh input[type=datetime-local]{display:block;width:100%;height:48px;border:1px solid var(--border);background:var(--bg);border-radius:12px;padding:0 12px;text-align:left;text-align-last:left;color:var(--text);}
+  .mais-det{display:block;grid-column:1 / -1;border:0;padding:0;}
+  .barra{position:static;background:none;padding-top:4px;}
+  .barra .primary{flex:none;min-width:260px;}
+  #painelTransf{max-width:560px;}
+  .transf-campos{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
+  .transf-campos .tdata{grid-column:1 / -1;}
+  #painelTransf .barra{justify-content:flex-start;}
+}
+.ai-preview{border:1px dashed var(--accent);border-radius:10px;padding:10px;margin-top:10px;}
+.summary{display:flex;gap:10px;}
+.summary .card{flex:1;text-align:center;}
+.summary .num{font-size:20px;font-weight:700;}
+select[multiple]{min-height:70px;}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.filters select{flex:1;min-width:110px;}
+.dropdown-btn{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dropdown-panel{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-top:4px;padding:8px;z-index:20;max-height:220px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,0.18);}
+.dropdown-panel .dropdown-actions{display:flex;justify-content:space-between;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.dropdown-panel .dropdown-actions button{background:none;border:none;color:var(--accent);cursor:pointer;padding:0;font-size:12px;}
+.dropdown-panel label{display:flex;align-items:center;gap:6px;padding:5px 2px;font-size:13px;cursor:pointer;}
+.dropdown-panel label input{width:auto;}
+svg text{fill:var(--text);font-size:10px;}
+
+.sd-row{display:flex;align-items:center;gap:10px;padding:0 4px;min-height:48px;border-top:1px solid var(--border);cursor:pointer;}
+.sd-nome{flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sd-sub{font-size:11px;color:var(--muted);}
+.sd-val{font-size:17px;font-weight:600;white-space:nowrap;}
+.sd-val.neg{color:var(--expense);}
+.sd-val.carr{color:var(--muted);}
+.sd-fora{opacity:.6;}
+.sd-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.sd-tile{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;cursor:pointer;}
+.sd-tile.aberto{border-color:var(--accent);}
+.sd-tile .sd-nome{font-size:12px;color:var(--muted);flex:none;}
+.sd-painel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin:6px 0 8px;}
+.fm{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;}
+.fm-lin{display:flex;align-items:center;gap:8px;min-height:36px;font-size:13px;}
+.fm-mes{width:52px;color:var(--muted);}
+.fm-val{flex:1;text-align:right;font-weight:600;white-space:nowrap;}
+.fm-lin button{font-size:12px;padding:4px 10px;}
+.fm-pill{font-size:11px;border-radius:8px;padding:1px 8px;border:1px solid var(--border);color:var(--muted);}
+.fm-conferido{border-color:#639922;color:#639922;}
+.fm-calculado{border-color:#BA7517;color:#BA7517;}
+.fm-conf{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px;margin:2px 0 8px;}
+
+.fx-rec{border-top:1px solid var(--border);padding:7px 2px;cursor:pointer;}
+.fx-rec.fora{opacity:.6;}
+.fx-lin{display:flex;gap:8px;align-items:center;}
+.fx-d{font-size:12px;color:var(--muted);width:42px;}
+.fx-t{flex:1;font-size:14px;min-width:0;}
+.fx-v{font-size:14px;font-weight:600;white-space:nowrap;}
+.fx-tag{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;margin:3px 0 0 50px;display:inline-block;}
+.fx-acoes{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px 50px;}
+body.papel-member .so-owner{display:none !important;}
+body.papel-member nav button[data-tab="configuracoes"]{display:none;}
+body.papel-member .sd-row, body.papel-member .sd-tile{cursor:default;}
+/* Telas cheias e rodas (.ai/padrao-de-telas.md): Prever e Estender. Demo: .ai/demos/demo-repeticao-e-aviso.html */
+.tc{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;}
+.tc-scr{flex:1;overflow-y:auto;padding:14px 14px 24px;padding-top:calc(14px + env(safe-area-inset-top,0px));-webkit-overflow-scrolling:touch;}
+.tc-col{max-width:560px;margin:0 auto;}
+.tc-hd{display:flex;align-items:center;gap:6px;margin:0 0 12px;}
+.tc-hd button{border:0;background:transparent;color:var(--text);font-size:24px;line-height:1;padding:6px 10px;border-radius:10px;cursor:pointer;}
+.tc-hd h2{font-size:18px;margin:0;font-weight:600;}
+.tc-ctx{color:var(--muted);font-size:13px;margin:0 0 10px;overflow-wrap:anywhere;}
+.tc-card{background:var(--card);border-radius:16px;margin:0 0 10px;overflow:hidden;}
+.tc-li{display:flex;align-items:center;gap:12px;padding:8px 16px;min-height:58px;width:100%;background:transparent;border:0;border-top:1px solid var(--border);border-radius:0;color:var(--text);font:inherit;text-align:left;cursor:pointer;}
+.tc-li:first-child{border-top:0;}
+div.tc-li{cursor:default;}
+.tc-li .t{flex:1;min-width:0;overflow-wrap:anywhere;}
+.tc-li .t b{font-weight:600;}
+.tc-li .s{display:block;color:var(--muted);font-size:13px;}
+.tc-li .go{color:var(--faint);font-size:22px;}
+.tc-li.cheio{opacity:.75;}
+.tc-li.cheio .s{color:var(--danger);}
+.tc-ck{width:28px;height:28px;border-radius:50%;background:var(--ck);display:flex;align-items:center;justify-content:center;color:var(--accent-ink);font-size:16px;font-weight:700;flex:none;}
+.tc-ck.on{background:var(--accent);}
+.tc-sw{width:52px;height:30px;border-radius:15px;border:0;background:var(--ck);position:relative;flex:none;padding:0;cursor:pointer;}
+.tc-sw i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s;}
+.tc-sw[aria-checked="true"]{background:var(--accent);}
+.tc-sw[aria-checked="true"] i{left:25px;}
+.tc-nota{font-size:13px;color:var(--muted);padding:2px 4px 0;margin:0 0 10px;overflow-wrap:anywhere;}
+.tc-nota b{color:var(--text);font-weight:600;}
+.tc-erro{color:var(--danger);background:var(--danger-bg);border-radius:12px;padding:10px 12px;font-size:13px;margin:0 0 10px;overflow-wrap:anywhere;}
+.tc-barra{padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--border);}
+.tc-criar{display:block;width:100%;max-width:560px;margin:0 auto;padding:14px;border-radius:14px;border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;cursor:pointer;}
+.tc-criar[aria-busy="true"]{opacity:.7;cursor:wait;}
+.tc-barra-dupla{display:flex;gap:8px;}
+.tc-barra-dupla .tc-criar{flex:1;max-width:none;margin:0;}
+.tc-sec{padding:0 16px;border:0;border-radius:14px;background:var(--ck);color:var(--text);font:inherit;cursor:pointer;min-height:52px;}
+/* recorrencia automatica (item 51): marca da linha e a linha do Lancar */
+.rec-chip{display:inline-block;padding:0 7px;border-radius:999px;background:var(--accent-bg);color:var(--text);font-size:11.5px;font-weight:600;white-space:nowrap;}
+.rec-linha{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;border:0;border-top:1px solid var(--border);background:transparent;color:var(--text);text-align:left;margin-top:8px;padding:0;font:inherit;cursor:pointer;}
+.rec-linha .rv{margin-left:auto;color:var(--muted);}
+.rec-linha .seta{color:var(--faint);}
+.tc-ov{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;}
+.tc-sheet{background:var(--card);width:100%;max-width:560px;margin:0 auto;border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px));}
+.tc-sheet h3{text-align:center;margin:0;font-size:17px;font-weight:600;}
+.tc-live{text-align:center;color:var(--muted);font-size:13px;margin:2px 0 4px;min-height:36px;}
+.tc-live.err{color:var(--danger);}
+.tc-wheels{display:flex;gap:8px;}
+.tc-wh{position:relative;height:132px;flex:1;}
+.tc-wh .bar{position:absolute;left:0;right:0;top:44px;height:44px;background:var(--accent-bg);border-radius:10px;pointer-events:none;}
+.tc-wh .sc{position:relative;height:132px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;padding-block:44px;box-sizing:border-box;-webkit-overflow-scrolling:touch;}
+.tc-wh .sc::-webkit-scrollbar{display:none;}
+.tc-wh .it{height:44px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--faint);cursor:pointer;}
+.tc-wh .it.on{color:var(--accent);font-weight:600;font-size:22px;}
+.tc-btns{display:flex;gap:10px;margin-top:12px;}
+.tc-btns button{flex:1;padding:14px;border-radius:14px;border:0;font:inherit;font-weight:600;cursor:pointer;}
+.tc-btns .no{background:var(--ck);color:var(--text);}
+.tc-btns .ok{background:var(--accent);color:var(--accent-ink);}
+@media (prefers-reduced-motion:reduce){.tc-sw i{transition:none;}}
+/* Futuros: padrao de telas (.ai/padrao-de-telas.md). Celular: uma linha por evento e as acoes numa janela de baixo.
+   Janela larga (>= 1160px): tabela de largura total com as acoes na propria linha. */
+body[data-aba="futuros"] main{max-width:1600px;}
+/* Resumo: no celular, "A pagar" e "A receber" lado a lado e "Atrasados" numa faixa embaixo, so quando ha atraso.
+   O valor nunca quebra (nowrap): se faltar espaco, a linha cresce. Janela larga: tres blocos (ver mais abaixo). */
+.fut-metricas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 10px;}
+.fut-metrica{background:var(--card);border-radius:14px;padding:10px 12px;min-width:0;}
+.fut-metrica .muted{font-size:12px;}
+.fut-num{font-size:18px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
+#futMetricaAtras{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+#futMetricaAtras .fut-num{font-size:16px;}
+#futMetricaAtras.alerta{background:var(--danger-bg);}
+.fut-metrica.alerta .fut-num{color:var(--danger);}
+@media (max-width:1159.98px){#futMetricaAtras.sem-atraso{display:none;}}
+.fut-sw{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;font-size:13px;color:var(--muted);cursor:pointer;}
+.fut-sw input{appearance:none;-webkit-appearance:none;width:44px;height:26px;border-radius:13px;background:var(--ck);position:relative;flex:none;margin:0;cursor:pointer;transition:background .15s;}
+.fut-sw input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;}
+.fut-sw input:checked{background:var(--accent);}
+.fut-sw input:checked::after{left:21px;}
+.fut-sw input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.fut-titulo{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;color:var(--muted);margin:12px 4px 6px;}
+.fut-titulo.atras{color:var(--danger);}
+/* Atrasados por ano (item 45, demos/demo-atrasados-por-ano.html): o seletor de anos anteriores na linha do titulo e os blocos Ano > Mes recolhiveis */
+.fut-titulo{flex-wrap:wrap;align-items:center;min-height:36px;}
+.fut-anos{display:flex;align-items:center;gap:6px;font-weight:400;}
+.fut-anos label{font-size:12px;color:var(--muted);}
+.fut-anos select,.fut-anos button{height:36px;border-radius:10px;font:inherit;font-size:14px;}
+.fut-anos select{border:1px solid var(--border);background:var(--card);color:var(--text);padding:0 8px;}
+.fut-anos button{border:0;background:var(--accent);color:var(--accent-ink);padding:0 14px;margin:0;width:auto;font-weight:600;cursor:pointer;}
+.fut-anos button[disabled]{opacity:.6;cursor:default;}
+.fut-bloco{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;box-sizing:border-box;border:0;border-top:1px solid var(--border);border-radius:0;background:color-mix(in srgb,var(--muted) 10%,var(--card));color:var(--danger);font:inherit;font-size:13px;font-weight:600;padding:0 14px;min-height:44px;text-align:left;cursor:pointer;}
+.fut-grupo>.fut-bloco:first-child{border-top:0;}
+.fut-bloco.mes{background:transparent;color:var(--muted);padding-left:26px;}
+.fut-bloco-n{color:var(--muted);font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums;}
+/* Soma de valores (renda menos gasto): saldo do mês em Futuros e total do Histórico. Nunca quebra no meio. */
+.soma-valor{flex:none;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);}
+.soma-valor.pos{color:var(--income);}
+.soma-valor.neg{color:var(--danger);}
+.hist-cont{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:4px 4px 8px;font-size:13px;}
+.hist-cont p{margin:0;min-width:0;}
+.hist-cont .soma-valor{font-weight:600;}
+.fut-grupo{background:var(--card);border-radius:16px;overflow:hidden;margin:0 0 6px;}
+.fut-row{border-top:1px solid var(--border);}
+.fut-row:first-child{border-top:0;}
+.fut-row.oculto{opacity:.5;}
+.fut-m{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;row-gap:2px;width:100%;box-sizing:border-box;text-align:left;background:transparent;border:0;color:var(--text);font:inherit;padding:11px 8px 11px 14px;min-height:62px;cursor:pointer;transition:background .12s;}
+.fut-m:active,.fut-m:focus-visible{background:color-mix(in srgb,var(--cor) 16%,var(--card));}
+.fut-m .l{flex:1 1 120px;min-width:0;}
+/* descricao em ate 2 linhas; o texto inteiro fica na janela de acoes e em Editar */
+.fut-m .d,.fut-dk .dl .d{font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;min-width:0;}
+.fut-m .mt{display:block;color:var(--muted);font-size:12.5px;margin-top:1px;overflow-wrap:anywhere;}
+.fut-m .r{text-align:right;flex:0 0 auto;margin-left:auto;}
+.fut-m .valor{display:block;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.fut-mais{flex:none;width:28px;height:36px;display:grid;place-items:center;color:var(--muted);}
+.fut-mais svg{display:block;}
+.fut-prazo{display:block;font-size:12px;color:var(--muted);}
+.fut-sino{color:var(--accent);font-weight:600;}
+.fut-prazo.atras{color:var(--danger);font-weight:600;}
+.fut-dk,.fut-cab{display:none;}
+.fut-tabela{overflow-x:auto;}
+.fut-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;z-index:60;}
+.fut-sheet{background:var(--card);width:100%;max-width:640px;margin:0 auto;border-radius:22px 22px 0 0;padding:14px 8px calc(10px + env(safe-area-inset-bottom,0px));}
+.fut-sheet h3{margin:0 8px 2px;font-size:16px;font-weight:600;overflow-wrap:anywhere;}
+.fut-sheet .mm{margin:0 8px 8px;color:var(--muted);font-size:13px;}
+.fut-ac{display:flex;align-items:center;width:100%;background:transparent;border:0;border-top:1px solid var(--border);border-radius:0;color:var(--text);font:inherit;padding:0 10px;min-height:52px;text-align:left;cursor:pointer;}
+.fut-ac.perigo{color:var(--danger);}
+.fut-ac.pri{color:var(--accent);font-weight:600;}
+@media (hover:hover){.fut-m:hover{background:color-mix(in srgb,var(--cor) 16%,var(--card));}}
+@media (min-width:1160px){
+  .fut-tabela-in{min-width:1160px;}
+  .fut-m{display:none;}
+  .fut-cab,.fut-dk{display:grid;grid-template-columns:92px minmax(170px,1fr) 90px 140px 128px 304px;align-items:center;gap:12px;padding:10px 14px;}
+  .fut-cab{font-size:12px;color:var(--faint);padding-block:4px;}
+  .fut-dk>span,.fut-cab>span{min-width:0;}
+  .fut-dk .bk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fut-dk .st,.fut-dk .fut-prazo{white-space:nowrap;}
+  .fut-dk .v{text-align:right;}
+  .fut-dk .valor{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .fut-dk{transition:background .12s;}
+  .fut-dk:hover,.fut-dk:focus-within{background:color-mix(in srgb,var(--cor) 16%,var(--card));}
+  .fut-dk .dl{display:flex;align-items:flex-start;gap:6px;}
+  .fut-dk .dl .chip{flex:none;}
+  .fut-dk .sub{display:block;font-size:12.5px;color:var(--muted);}
+  .fut-acoes{display:grid;grid-template-columns:repeat(7,40px);gap:4px;justify-content:end;opacity:.25;transition:opacity .12s;}
+  .fut-dk:hover .fut-acoes,.fut-dk:focus-within .fut-acoes{opacity:1;}
+  .fut-acoes button{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:9px;padding:0;cursor:pointer;}
+  .fut-acoes button svg{width:20px;height:20px;display:block;}
+  .fut-acoes button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .fut-acoes button.perigo{color:var(--danger);}
+  .fut-acoes button.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+  .fut-metricas{grid-template-columns:repeat(3,minmax(0,1fr));max-width:600px;}
+  #futMetricaAtras{grid-column:auto;display:block;}
+  .fut-num{font-size:16px;}
+}
+@media (prefers-reduced-motion:reduce){.fut-sw input,.fut-sw input::after,.fut-acoes,.fut-m,.fut-dk{transition:none;}}
+.chip{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;}
+@media (max-width:480px){#linhaStatusTipoValor{flex-wrap:wrap;}#linhaStatusTipoValor>div{flex:1 1 45%;}#linhaStatusTipoValor>div:first-child{flex-basis:100%;}}
+.nav-mes{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap;}
+.nav-mes input[type=month]{width:auto;flex:0 1 180px;}
+.nav-mes button{padding:7px 12px;font-size:15px;}
+#mesHoje{font-size:13px;}
+/* Historico de versoes (.ai/padrao-de-telas.md). Demo: .ai/demos/demo-historico-versoes.html */
+.vs-mes{display:flex;align-items:center;gap:8px;margin:0 0 8px;}
+.vs-nv{flex:none;width:44px;height:44px;border:0;border-radius:12px;background:var(--card);color:var(--text);font-size:22px;cursor:pointer;}
+.vs-nv:disabled{opacity:.4;cursor:default;}
+.vs-mes input[type=month]{flex:1;min-width:0;height:44px;border:0;border-radius:12px;background:var(--card);color:var(--text);font:inherit;font-weight:600;padding:0 10px;text-align:center;width:auto;}
+.vs-busca{display:flex;gap:8px;margin:0 0 10px;}
+.vs-busca input{flex:1;min-width:0;height:44px;border:0;border-radius:12px;background:var(--card);color:var(--text);font:inherit;padding:0 12px;width:auto;}
+.vs-bt{flex:none;height:44px;padding:0 16px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:600;cursor:pointer;}
+.vs-cont{margin:2px 4px 8px;font-size:13px;color:var(--muted);}
+.vs-aviso{background:var(--danger-bg);color:var(--danger);border-radius:14px;padding:10px 14px;font-size:13px;margin:0 0 10px;overflow-wrap:anywhere;}
+.vs-vazio{padding:28px 16px;text-align:center;color:var(--muted);font-size:13px;}
+.vs-card{padding:0;overflow:hidden;border-radius:16px;border:0;}
+.vs-li{display:flex;align-items:center;gap:12px;padding:8px 16px;min-height:62px;width:100%;background:transparent;border:0;border-top:1px solid var(--border);color:var(--text);font:inherit;text-align:left;cursor:pointer;}
+.vs-li:first-child{border-top:0;}
+.vs-li .t{flex:1;min-width:0;}
+.vs-li .t b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
+.vs-li .s{display:block;color:var(--muted);font-size:13px;}
+.vs-li .r{text-align:right;flex:none;}
+.vs-li .v{display:block;white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums;}
+.vs-li .v.out{color:var(--danger);}.vs-li .v.in{color:var(--income);}
+.vs-li .vs{display:block;color:var(--faint);font-size:12px;}
+.vs-li.sel{background:var(--accent-bg);}
+.vs-pill{display:inline-block;border-radius:10px;padding:1px 8px;font-size:12px;font-weight:600;background:var(--ck);color:var(--text);margin-right:6px;}
+.vs-pill.ex{background:var(--danger-bg);color:var(--danger);}
+.vs-pill.rs{background:var(--accent-bg);color:var(--accent);}
+.vs-per{margin:0 0 8px;}
+.vs-fim{display:flex;gap:6px;margin:12px 0 0;}
+.vs-fim button{flex:1;min-height:48px;border:0;border-radius:12px;background:var(--card);color:var(--text);padding:0 14px;font-size:14px;cursor:pointer;}
+.vs-fim button[data-vs="topo"]{flex:none;color:var(--muted);font-size:13px;}
+.vs-mh td{background:var(--bg);color:var(--muted);font-size:12.5px;font-weight:600;padding:8px 12px;}
+.vs-ctx{padding:6px 4px 8px;font-size:13px;color:var(--muted);overflow-wrap:anywhere;}
+.vs-ctx b{color:var(--text);}
+.vs-ver{background:var(--card);border-radius:16px;margin:0 0 10px;padding:12px 16px 14px;}
+.vs-ver .h{display:flex;justify-content:space-between;gap:10px;align-items:baseline;}
+.vs-ver .q{color:var(--muted);font-size:13px;margin:2px 0 8px;}
+.vs-ver ul{margin:0 0 10px;padding:0;list-style:none;font-size:14px;overflow-wrap:anywhere;}
+.vs-ver li{padding:2px 0;}
+.vs-ver li s{color:var(--faint);}
+.vs-ver li .n{font-weight:600;}
+.vs-rb{width:100%;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;cursor:pointer;}
+.vs-rb:disabled{background:var(--ck);color:var(--muted);cursor:not-allowed;}
+.vs-mt{margin:8px 2px 0;font-size:13px;color:var(--muted);}
+.vs-ver .h .vs-mt{margin:0;}
+@media (min-width:1160px){
+  body[data-aba="versoes"] main{max-width:1180px;}
+  .vs-desk{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:16px;align-items:start;}
+  .vs-tab{width:100%;border-collapse:collapse;background:var(--card);border-radius:16px;overflow:hidden;font-size:14px;}
+  .vs-tab th{background:var(--bg);color:var(--muted);text-align:left;font-weight:600;font-size:12px;padding:8px 12px;}
+  .vs-tab td{padding:10px 12px;border-top:1px solid var(--border);vertical-align:top;}
+  .vs-tab th.num,.vs-tab td.num{text-align:right;white-space:nowrap;}
+  .vs-tab td.num{font-weight:600;font-variant-numeric:tabular-nums;}
+  .vs-tab td.num.out{color:var(--danger);}.vs-tab td.num.in{color:var(--income);}
+  .vs-tab tbody tr{cursor:pointer;}
+  .vs-tab tr.sel td{background:var(--accent-bg);}
+  .vs-tab .d{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
+  .vs-tab .mu{color:var(--muted);font-size:13px;}
+  .vs-painel{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:10px 12px 4px;min-height:300px;position:sticky;top:90px;max-height:calc(100vh - 110px);overflow-y:auto;}
+  .vs-ph{font-weight:600;font-size:16px;padding:4px 4px 8px;}
+  .vs-painel .vs-ver{background:var(--bg);}
+}
+@media (prefers-reduced-motion:reduce){.vs-li{transition:none;}}
+
+/* ---------- Tendências: consulta por tags (grupos e expressão livre). Demo: .ai/demos/demo-tendencias-tags.html ---------- */
+:where(#tendRaiz) button{font:inherit;color:inherit;cursor:pointer;} /* :where = especificidade zero, para as cores de cada botão (td-*) valerem */
+#tendRaiz :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.td-card{background:var(--card);border-radius:16px;padding:12px;margin:0 0 10px;}
+.td-tit{font-size:13px;color:var(--muted);margin:0 0 8px;}
+.td-avanc[hidden]{display:none;}
+.td-btn-tag{width:100%;min-height:52px;margin-top:10px;border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:12px;font-weight:600;font-size:15px;}
+.td-n{font-size:11px;color:var(--faint);}
+.td-frase{font-size:14px;line-height:1.5;overflow-wrap:anywhere;}
+.td-op{font-size:11px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:6px;margin:0 2px;vertical-align:1px;}
+.td-op.e{background:var(--accent-bg);color:var(--accent);}
+.td-op.nao{background:var(--danger-bg);color:var(--danger);}
+.td-op.ou{background:var(--ck);color:var(--text);}
+.td-vazio{color:var(--muted);}
+.td-grupo{background:var(--card);border-radius:16px;padding:12px;margin:0 0 6px;}
+.td-gtop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;}
+.td-gtop b{font-size:14px;}
+.td-gtop .rm{border:0;background:transparent;color:var(--muted);width:44px;height:44px;margin:-8px -8px -8px 0;font-size:18px;border-radius:50%;}
+.td-lin{margin:0 0 8px;}
+.td-lin:last-child{margin-bottom:0;}
+.td-lim{color:var(--danger);font-size:12.5px;align-self:center;}
+.td-lido{font-size:12.5px;color:var(--muted);margin:6px 2px 0;overflow-wrap:anywhere;line-height:1.5;}
+.td-rot{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);margin:0 0 6px;}
+.td-rot .e{font-weight:700;color:var(--accent);}
+.td-rot .n{font-weight:700;color:var(--danger);}
+.td-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.td-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent);background:var(--accent-bg);color:var(--text);border-radius:999px;padding:0 6px 0 12px;min-height:40px;font-size:14px;overflow-wrap:anywhere;}
+.td-chip.nao{border-color:var(--danger);background:var(--danger-bg);}
+.td-chip .x{border:0;background:transparent;color:var(--muted);font-size:16px;width:32px;height:32px;display:grid;place-items:center;}
+.td-add{display:inline-flex;align-items:center;border:1px dashed var(--faint);background:transparent;color:var(--muted);border-radius:999px;padding:0 14px;min-height:40px;font-size:14px;}
+.td-ou{display:flex;align-items:center;gap:10px;margin:0 0 6px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.06em;}
+.td-ou::before,.td-ou::after{content:"";flex:1;border-top:1px solid var(--border);}
+.td-novo,.td-avanc{width:100%;min-height:56px;background:transparent;border-radius:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 16px;margin:0 0 10px;text-align:left;}
+.td-novo{border:1px dashed var(--faint);}
+.td-novo.lim{border-style:solid;border-color:var(--border);cursor:default;}
+.td-novo.lim .td-sub{color:var(--danger);}
+.td-avanc{border:1px solid var(--border);background:var(--card);}
+.td-sub{font-size:12.5px;color:var(--muted);display:block;}
+.td-seta{color:var(--muted);flex:none;transition:transform .15s;}
+.td-avanc[aria-expanded="true"] .td-seta{transform:rotate(90deg);}
+.td-volta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;}
+.td-volta button{border:1px solid var(--border);background:transparent;border-radius:10px;min-height:44px;padding:0 12px;font-size:14px;}
+.td-volta span{font-size:12.5px;color:var(--muted);}
+/* expressão livre */
+.td-expr{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:76px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--bg);}
+.td-expr.erro{border-color:var(--danger);}
+.td-vaz{color:var(--faint);font-size:14px;}
+.td-tk{border:1px solid transparent;border-radius:999px;min-height:40px;padding:0 12px;font-size:14px;background:var(--accent-bg);color:var(--text);display:inline-flex;align-items:center;overflow-wrap:anywhere;}
+.td-tk.op{border-radius:8px;padding:0 10px;font-size:12.5px;font-weight:700;letter-spacing:.04em;}
+.td-tk.e{background:transparent;color:var(--accent);border-color:var(--accent);}
+.td-tk.ou{background:var(--ck);color:var(--text);}
+.td-tk.nao{background:var(--danger-bg);color:var(--danger);border-color:var(--danger);}
+.td-tk.par{background:transparent;font-size:22px;font-weight:300;padding:0 6px;min-width:26px;justify-content:center;color:var(--text);}
+.td-cur{width:3px;height:30px;border-radius:2px;background:var(--accent);animation:td-pisca 1s steps(2,start) infinite;flex:none;}
+@keyframes td-pisca{to{visibility:hidden}}
+.td-msg{font-size:13px;margin:8px 2px 0;line-height:1.4;}
+.td-msg.ok{color:var(--muted);}
+.td-msg.bad{color:var(--danger);}
+.td-teclas{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px;}
+.td-teclas.l2{grid-template-columns:repeat(4,1fr);}
+.td-teclas button{min-height:48px;padding:0 4px;white-space:nowrap;border:1px solid var(--border);border-radius:12px;background:var(--card);font-size:15px;font-weight:600;}
+.td-teclas button:active{background:var(--accent-bg);}
+.td-teclas .k-e{color:var(--accent);}
+.td-teclas .k-nao{color:var(--danger);}
+.td-teclas .k-par{font-size:22px;font-weight:300;}
+.td-teclas .k-x{font-weight:500;color:var(--muted);font-size:13.5px;}
+.td-pe{font-size:12px;color:var(--faint);margin:6px 2px 0;}
+/* resultado: a barra do mês se divide em "só as tags da consulta" e "tem outras tags" */
+.td-rtop{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 10px;}
+.td-rtx{font-size:13px;color:var(--muted);min-width:0;}
+.td-rtot{flex:none;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--danger);}
+.td-graf{overflow-x:auto;border-bottom:1px solid var(--border);}
+.td-graf.velho{opacity:.45;}
+.td-cols{display:flex;align-items:flex-start;gap:6px;padding-top:4px;}
+.td-col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;}
+.td-col .pos{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;width:100%;}
+.td-col .neg{display:flex;flex-direction:column;justify-content:flex-start;align-items:center;width:100%;border-top:1.5px solid var(--border);}
+.td-col .bs,.td-col .bx{width:100%;max-width:44px;flex:none;}
+.td-col .bs{background:var(--c);}
+.td-col .bx{background:repeating-linear-gradient(135deg,var(--c) 0 2px,transparent 2px 5px);border:1.5px solid var(--c);}
+.td-col .pos .bx{border-bottom:0;border-radius:4px 4px 0 0;}
+.td-col .neg .bx{border-top:0;border-radius:0 0 4px 4px;}
+.td-col .v{font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);margin-bottom:3px;}
+.td-col .neg .v{margin:3px 0 0;}
+.td-col .m{font-size:11.5px;color:var(--muted);margin:5px 0 4px;}
+/* topo: Simulação, Gastos | Receitas | Resultado e a consulta. Celular: o seletor ocupa uma linha; computador: tudo numa linha só */
+.td-topo{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;}
+.td-pill{order:1;flex:none;border:1px dashed var(--faint);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:var(--muted);cursor:help;}
+.td-editar{order:2;margin-left:auto;}
+.td-consulta{order:3;flex:1 1 100%;min-width:0;display:flex;align-items:baseline;gap:6px;}
+.td-cons-rot{flex:none;font-size:12.5px;color:var(--muted);}
+.td-consulta .td-frase{flex:1;min-width:0;}
+.td-seg{order:4;flex:1 1 100%;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:12px;background:var(--bg);}
+.td-nota-sim{font-size:12.5px;color:var(--muted);margin:10px 2px 0;line-height:1.45;}
+.td-nota-sim b{color:var(--text);}
+.td-seg button{min-height:44px;border:0;border-radius:9px;background:transparent;font-weight:600;font-size:14px;}
+.td-seg button[aria-checked="true"]{background:var(--accent);color:var(--accent-ink);}
+.td-rtot.pos{color:var(--income);}
+.td-rtot.zero{color:var(--muted);}
+.td-leg{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 2px 0;font-size:12.5px;color:var(--muted);}
+.td-leg span{display:inline-flex;align-items:center;gap:6px;}
+.td-leg i{width:14px;height:14px;border-radius:3px;border:1.5px solid var(--accent);flex:none;}
+.td-leg i.s{background:var(--accent);}
+.td-leg i.x{background:repeating-linear-gradient(135deg,var(--accent) 0 2px,transparent 2px 5px);}
+.td-alerta{margin:10px 0 0;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.4;background:var(--danger-bg);color:var(--text);}
+.td-alerta b{color:var(--danger);}
+.td-alerta.ok{background:var(--accent-bg);}
+.td-alerta.ok b{color:var(--accent);}
+.td-vazio-g{padding:22px 8px;text-align:center;color:var(--muted);font-size:13px;margin:0;}
+/* outras tags */
+.td-expl{font-size:12.5px;color:var(--muted);margin:0 0 4px;line-height:1.4;}
+.td-cot{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 0;border-top:1px solid var(--border);}
+.td-expl + .td-cot{border-top:0;}
+.td-cot .info{flex:1;min-width:0;}
+.td-cot .nm{display:flex;justify-content:space-between;gap:8px;font-size:14px;}
+.td-cot .nm b{overflow-wrap:anywhere;font-weight:600;}
+.td-cot .nm span{flex:none;font-variant-numeric:tabular-nums;color:var(--muted);}
+.td-cot .trilho{height:6px;border-radius:3px;background:var(--ck);margin-top:6px;overflow:hidden;}
+.td-cot .trilho i{display:block;height:100%;background:var(--danger);border-radius:3px;}
+.td-cot button{flex:none;min-height:44px;border:1px solid var(--danger);color:var(--danger);background:transparent;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;}
+.td-aviso{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 0;font-size:13px;color:var(--muted);}
+.td-aviso button{border:0;background:transparent;color:var(--accent);font-weight:600;min-height:44px;padding:0 6px;}
+.td-aviso.bad{color:var(--danger);}
+/* janela de baixo para escolher tags dos grupos */
+.td-veu{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80;display:flex;align-items:flex-end;justify-content:center;}
+.td-veu[hidden]{display:none;}
+.td-jan{background:var(--card);width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));max-height:82vh;display:flex;flex-direction:column;}
+.td-jan h2{font-size:16px;margin:0 0 2px;}
+.td-jsub{font-size:13px;color:var(--muted);margin:0 0 10px;}
+.td-jbusca{margin:0 0 6px;}
+.td-jcnt{font-size:12.5px;color:var(--muted);margin:4px 0 0;}
+.td-jok{margin-top:10px;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:15px;}
+@media (prefers-reduced-motion:reduce){.td-cur{animation:none;}.td-seta{transition:none;}}
+/* ---- layout: computador (>= 1160 px) = resultado à esquerda e escolhas à direita; celular = resultado primeiro, escolhas em tela cheia ---- */
+body.td-trava{overflow:hidden;}
+.td-layout{display:block;}
+.td-res,.td-esc{min-width:0;}
+.td-so-pc{display:none !important;}
+.td-editar{flex:none;min-height:48px;padding:0 16px;border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:12px;font-weight:600;font-size:14px;}
+.td-cab{display:flex;align-items:center;gap:6px;margin:0 0 12px;}
+.td-cab h2{font-size:18px;margin:0;font-weight:600;flex:1;}
+.td-cab button{border:0;background:transparent;color:var(--text);font-size:15px;min-height:48px;padding:0 10px;border-radius:10px;}
+.td-rodape{display:none;position:fixed;left:0;right:0;bottom:0;z-index:78;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--border);}
+.td-rs{font-size:13px;color:var(--muted);min-width:0;line-height:1.35;}
+.td-rs b{color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.td-rodape button{flex:none;min-height:48px;padding:0 22px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:15px;}
+@media (max-width:1159px){
+  .td-esc{display:none;position:fixed;inset:0;z-index:70;background:var(--bg);overflow-y:auto;
+    padding:max(12px,env(safe-area-inset-top,0px)) 16px calc(96px + env(safe-area-inset-bottom,0px));}
+  .td-esc.aberto{display:block;}
+  /* o modo avançado abre por cima, também em tela cheia */
+  #tdExpr:not([hidden]){position:fixed;inset:0;z-index:75;background:var(--bg);overflow-y:auto;
+    padding:max(12px,env(safe-area-inset-top,0px)) 16px calc(96px + env(safe-area-inset-bottom,0px));}
+  body.td-edit .td-rodape{display:flex;}
+}
+@media (min-width:1160px){
+  body[data-aba="tendencias"] main{max-width:1200px;}
+  .td-layout{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:16px;align-items:start;}
+  .td-topo{flex-wrap:wrap;} /* a linha de cima (pílula, seletor e frase) cabe sempre (a frase tem base 0); a origem e os botões das consultas salvas descem */
+  .td-seg{order:2;flex:none;width:auto;grid-template-columns:repeat(3,auto);}
+  .td-seg button{min-height:38px;padding:0 14px;}
+  .td-consulta{order:3;flex:1 1 0;}
+  .td-consulta .td-frase{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .td-res{position:sticky;top:calc(var(--faixa-h,0px) + 12px);}
+  .td-so-cel{display:none !important;}
+  .td-so-pc{display:block !important;}
+  .td-volta.td-so-pc{display:flex !important;}
+  .td-veu{align-items:center;}
+  .td-jan{border-radius:22px;max-width:520px;}
+}
+
+/* tags em botões (janela e modo avançado) */
+.td-tgs{display:flex;flex-wrap:wrap;gap:8px;}
+.td-tgs button{border:1px solid var(--border);background:var(--card);border-radius:999px;min-height:44px;padding:0 16px;font-size:15px;overflow-wrap:anywhere;}
+.td-tgs button:active{background:var(--accent-bg);}
+.td-tgs button.on{background:var(--accent-bg);border-color:var(--accent);font-weight:600;}
+.td-tgs.nao button.on{background:var(--danger-bg);border-color:var(--danger);}
+.td-tgs button.bloq{opacity:.45;}
+.td-jlista{overflow:auto;flex:1;min-height:0;padding:4px 0;}
+.td-jdica{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.4;}
+.td-jdica:empty{display:none;}
+
+/* Historico: padrao de telas (.ai/padrao-de-telas.md). Demo: .ai/demos/demo-historico-layout.html.
+   Reaproveita as classes .fut-* de Futuros (linha, tabela, janela de acoes). */
+body[data-aba="historico"] main{max-width:1600px;}
+.hist-tools{display:flex;flex-direction:column;gap:8px;margin:0 0 8px;}
+.hper{display:flex;flex-direction:column;gap:8px;}
+.perbar{display:flex;gap:6px;align-items:center;}
+.seg2{flex:1;min-width:0;display:flex;background:var(--card);border-radius:12px;padding:3px;gap:3px;}
+.seg2 button,.seg2 label{flex:1 1 0;min-width:0;min-height:42px;border:0;border-radius:10px;background:transparent;font-size:14px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px;position:relative;white-space:nowrap;padding:0 6px;cursor:pointer;}
+.seg2 .on{background:var(--accent-bg);color:var(--text);font-weight:600;}
+.seg2 .cal{flex:1.5 1 0;}
+.seg2 .cal svg{width:18px;height:18px;flex:none;}
+.seg2 .cal input{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;padding:0;border:0;cursor:pointer;}
+.mesrow{display:flex;align-items:center;gap:6px;}
+.escopo{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--card);border-radius:12px;padding:8px 8px 8px 14px;margin:0 0 8px;font-size:13px;}
+.escopo .t{min-width:0;flex:1 1 160px;}
+.escopo button{flex:none;min-height:40px;border:0;border-radius:10px;background:var(--accent-bg);color:var(--text);padding:0 14px;font-size:13px;font-weight:600;cursor:pointer;}
+.hm-amp{flex:1;min-height:48px;border:0;border-radius:12px;background:var(--card);color:var(--text);padding:0 14px;font-size:14px;cursor:pointer;}
+.hm-b{flex:none;width:44px;height:48px;border:0;border-radius:12px;background:var(--card);color:var(--text);font-size:20px;cursor:pointer;padding:0;}
+.hm-m{flex:1;min-width:0;height:48px;border-radius:12px;background:var(--card);position:relative;display:grid;place-items:center;font-weight:600;cursor:pointer;}
+.hm-m input{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;padding:0;border:0;cursor:pointer;}
+.hm-ord{flex:none;min-width:48px;height:48px;border:0;border-radius:12px;background:var(--card);color:var(--muted);font-size:13px;padding:0 10px;cursor:pointer;}
+.hm-busca{display:flex;gap:6px;}
+.hm-campo{flex:1;min-width:0;display:flex;align-items:center;background:var(--card);border-radius:12px;min-height:48px;}
+.hm-campo input{flex:1;min-width:0;border:0;background:transparent;padding:0 0 0 14px;height:48px;font-size:15px;border-radius:12px;}
+.hm-campo input:focus-visible{outline:none;}
+.hm-campo:focus-within{outline:2px solid var(--accent);}
+.hm-campo button{flex:none;width:48px;height:48px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0;}
+.hm-campo svg{width:20px;height:20px;}
+.hm-fil{flex:none;min-height:48px;border:0;border-radius:12px;background:var(--card);color:var(--text);padding:0 14px;display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;}
+.hm-fil.on{background:var(--accent-bg);}
+.hm-fil .n{min-width:20px;height:20px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:700;display:grid;place-items:center;padding:0 5px;}
+.hist-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;}
+.hist-chips:empty{display:none;}
+.hist-chip{display:inline-flex;align-items:center;gap:4px;min-height:36px;border:0;border-radius:999px;background:var(--accent-bg);color:var(--text);padding:0 6px 0 12px;font-size:13px;cursor:pointer;max-width:100%;}
+.hist-chip i{font-style:normal;width:24px;text-align:center;color:var(--muted);font-size:17px;}
+.hist-chip.solta{background:transparent;border:1px dashed var(--border);padding:0 12px;color:var(--muted);}
+.hist-vazio{background:var(--card);border-radius:16px;padding:28px 20px;text-align:center;color:var(--muted);}
+.hist-vazio b{display:block;color:var(--text);margin-bottom:4px;}
+.hist-vazio button{margin-top:12px;min-height:48px;border:0;border-radius:14px;background:var(--ck);color:var(--text);padding:0 18px;cursor:pointer;}
+/* linha do celular: hora, status e banco na mesma linha; tags em uma linha so; nota so como icone */
+.hist-row .fut-m .mt{display:flex;align-items:center;gap:6px;min-width:0;}
+.hist-row .fut-m .mt .bk{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hist-row .fut-m .mt>*{flex:none;}
+.hist-row .fut-m .mt>.bk{flex:0 1 auto;}
+.hist-tags{display:block;margin-top:2px;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hist-nota{display:inline-grid;place-items:center;flex:none;width:28px;height:28px;margin:-4px 0;border-radius:8px;color:var(--muted);cursor:pointer;vertical-align:middle;}
+.hist-nota:hover,.hist-nota:focus-visible{background:var(--ck);}
+.hist-row .fut-m:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;}
+.hist-th{border:0;background:transparent;padding:0;font:inherit;color:inherit;cursor:pointer;}
+/* selecao em lote (tornar previstos). Demo: .ai/demos/demo-previstos-em-lote.html */
+.hist-sel{display:block;min-height:32px;border:0;background:transparent;color:var(--accent);font:inherit;font-size:13px;font-weight:600;text-align:left;padding:0;margin:0 4px 6px;cursor:pointer;}
+body.lote-ativo .hist-sel{color:var(--muted);font-weight:400;pointer-events:none;}
+.hist-sel[hidden]{display:none;}
+.lote-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 4px 8px;font-size:13px;color:var(--muted);}
+.lote-topo:empty{display:none;}
+.lote-topo button{border:0;background:transparent;color:var(--accent);font:inherit;font-size:13px;font-weight:600;min-height:40px;padding:0 8px;cursor:pointer;}
+.lote-ck{flex:none;width:28px;height:28px;border-radius:50%;background:var(--ck);display:grid;place-items:center;color:var(--accent-ink);font-size:16px;font-weight:700;}
+.lote-ck.on{background:var(--accent);}
+.lote-ck.off{background:transparent;border:1px dashed var(--border);}
+.hist-row.marcada{background:var(--accent-bg);}
+.hist-row.fora-lote{opacity:.5;}
+.lote-barra{position:fixed;left:0;right:0;bottom:0;z-index:55;background:var(--bg);border-top:1px solid var(--border);padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));}
+.lote-barra.hidden{display:none;}
+.lote-ir{display:block;width:100%;max-width:560px;margin:0 auto;min-height:52px;padding:14px;border-radius:14px;border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;cursor:pointer;}
+body.lote-ativo #tab-historico{padding-bottom:84px;}
+.tc-dup{padding:10px 16px;font-size:13px;color:var(--danger);overflow-wrap:anywhere;}
+.tc-dup b{color:var(--danger);}
+.hist-row .hist-sub{display:flex;align-items:center;gap:4px;min-width:0;margin-top:2px;color:var(--muted);font-size:12.5px;}
+.hist-tags-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hist-nota-sheet{display:flex;flex-direction:column;max-height:88vh;}
+.hist-nota-sheet h3,.hist-nota-sheet .mm,.hist-nota-sheet .hf-ok{flex:none;}
+.hist-nota-txt{flex:1 1 auto;min-height:0;overflow-y:auto;margin:0 8px 8px;line-height:1.5;overflow-wrap:anywhere;white-space:pre-wrap;}
+.hist-fim{display:flex;align-items:center;gap:6px;margin:12px 0 0;}
+.hm-fimbar{flex:1;min-width:0;display:flex;align-items:center;gap:6px;}
+.hm-topo{flex:none;height:48px;border:0;border-radius:12px;background:var(--card);color:var(--muted);padding:0 14px;font-size:13px;cursor:pointer;}
+/* janela de filtros */
+.hist-jan{background:var(--card);width:100%;max-width:560px;margin:0 auto;border-radius:22px 22px 0 0;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));max-height:88vh;overflow-y:auto;}
+.hist-jan h3{margin:0 0 4px;font-size:16px;font-weight:600;}
+.hist-jan .mm{margin:0 0 6px;color:var(--muted);font-size:12.5px;}
+.hf-sec{font-size:12.5px;color:var(--muted);font-weight:600;margin:14px 0 6px;}
+.hist-jan .tags{gap:8px;margin-top:4px;}
+.hist-jan .tag,.hist-jan .tag.on{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:999px;font-size:15px;overflow-wrap:anywhere;background:var(--card);color:var(--text);border:1px solid var(--border);}
+.hist-jan .tag.on{background:var(--accent-bg);border-color:var(--accent);font-weight:600;}
+.hist-jan .tag.on::before{content:'✓ ';}
+.hist-jan #histTags .muted{font-size:13px;}
+.hist-jan .fut-sw{border-top:1px solid var(--border);margin-top:10px;min-height:56px;padding:8px 4px 0;font-size:14px;color:var(--text);}
+.hist-jan .fut-sw small{display:block;font-size:12.5px;}
+.hf-rod{display:flex;gap:8px;margin-top:10px;}
+.hf-rod button,.hf-ok{min-height:52px;border:0;border-radius:14px;font-size:15px;cursor:pointer;}
+.hf-limpar{flex:none;padding:0 18px;background:var(--ck);color:var(--text);}
+.hf-ok{flex:1;background:var(--accent);color:var(--accent-ink);font-weight:600;}
+.fut-sheet .hf-ok{width:calc(100% - 16px);margin:6px 8px 0;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+@media (min-width:1160px){
+  .fut-ov{align-items:center;}
+  .fut-sheet{border-radius:22px;max-width:520px;}
+  .hist-jan{border-radius:22px;}
+  .hist-tools{flex-direction:row;align-items:center;position:sticky;top:calc(var(--faixa-h,0px) + var(--hdr-h,0px));z-index:4;background:var(--bg);padding:6px 0;margin:0 0 4px;}
+  .hm-busca{order:1;flex:1;max-width:620px;}
+  .hper{order:2;flex:none;flex-direction:row;align-items:center;}
+  .hper .seg2{flex:none;width:340px;}
+  .hper .mesrow .hm-m{width:190px;flex:none;}
+  .hm-ord{display:none;}
+  .hist-fim{display:none;}
+  .hist-row .fut-dk{align-items:start;}
+  .hist-row .fut-dk .dt{font-variant-numeric:tabular-nums;}
+  .hist-row .fut-dk .dt small{display:block;color:var(--muted);font-size:12.5px;}
+  .hist-row .fut-dk .st,.hist-row .fut-dk .v{padding-top:1px;}
+  .fut-cab .hist-th{color:var(--text);font-weight:600;}
+  .fut-tabela.sel-lote .fut-cab,.fut-tabela.sel-lote .fut-dk{grid-template-columns:36px 92px minmax(170px,1fr) 90px 140px 128px;}
+  .hist-row .fut-dk .lote-c{display:flex;align-items:center;cursor:pointer;}
+  .hist-row[data-lote-id] .fut-dk{cursor:pointer;}
+}
+
+/* ---------- Tendências: janela da lista dos lançamentos da consulta (só leitura). Demo: .ai/demos/demo-tendencias-lista.html ---------- */
+.td-ver-lista{border:0;background:transparent;color:var(--accent);font-weight:600;font-size:14px;min-height:44px;padding:0 4px;margin:-8px 0;text-align:left;}
+.td-ver-lista.sem{color:var(--muted);font-weight:400;cursor:default;}
+.td-col[data-mes]{cursor:pointer;border-radius:6px;}
+.td-col[data-mes]:hover,.td-col[data-mes]:focus-visible{background:var(--accent-bg);}
+.td-veu.td-lista{align-items:stretch;z-index:81;}
+.td-ljan{max-width:none;width:100%;height:100dvh;max-height:none;border-radius:0;padding:max(12px,env(safe-area-inset-top,0px)) 16px 0;}
+@media (min-width:1160px){
+  .td-veu.td-lista{align-items:center;}
+  .td-ljan{max-width:700px;height:min(84vh,820px);border-radius:22px;padding:16px 18px 0;}
+}
+.td-lcab{display:flex;align-items:center;gap:6px;}
+.td-lcab h2{flex:1;margin:0;font-size:18px;font-weight:600;}
+.td-lcab button{border:0;background:transparent;color:var(--text);font-size:18px;min-height:48px;min-width:48px;border-radius:10px;}
+.td-lsub{font-size:12.5px;color:var(--muted);line-height:1.45;margin:0 0 6px;}
+.td-lchips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;}
+.td-lchips button{flex:none;border:1px solid var(--border);background:var(--card);border-radius:999px;min-height:40px;padding:0 14px;font-size:14px;}
+.td-lchips button.on{background:var(--accent-bg);border-color:var(--accent);font-weight:600;}
+.td-lcorpo{flex:1;min-height:0;overflow-y:auto;}
+.td-lmes{display:flex;justify-content:space-between;gap:10px;padding:12px 4px 6px;font-size:13px;font-weight:600;color:var(--muted);position:sticky;top:0;background:var(--card);}
+.td-lmes span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap;}
+.td-lrow{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:10px 4px;min-height:56px;border-top:1px solid var(--border);}
+.td-lmes + .td-lrow{border-top:0;}
+.td-lrow .ld{flex:1;min-width:0;}
+.td-lrow .ld b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;overflow-wrap:anywhere;}
+.td-lrow .lm{display:block;font-size:12.5px;color:var(--muted);}
+.td-lrow .ltg{display:block;font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.td-lrow .lv{flex:none;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.td-lrow .lv.neg{color:var(--danger);}
+.td-lrow .lv.pos{color:var(--income);}
+.td-laviso{margin:10px 0;padding:10px 12px;border-radius:12px;background:var(--accent-bg);font-size:13px;line-height:1.4;}
+.td-lrodape{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);font-size:13px;}
+.td-lrodape b{font-variant-numeric:tabular-nums;white-space:nowrap;}
+.td-lrodape .bate{color:var(--accent);font-weight:600;}
+.td-lrodape .nbate{color:var(--danger);font-weight:600;}
+.td-corte{color:var(--danger);}
+
+/* Painel do cartao: linhas que abrem uma janelinha para editar e blocos recolhiveis (demo .ai/demos/demo-pagar-fatura.html) */
+.cfg-grupo{margin:6px 0;}
+.cfg-lin{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:11px 2px;background:transparent;border:0;border-top:1px solid var(--border);border-radius:0;color:var(--text);font:inherit;text-align:left;cursor:pointer;}
+.cfg-lin:first-child{border-top:0;}
+.cfg-lin .v{color:var(--muted);text-align:right;overflow-wrap:anywhere;}
+.cfg-tit{display:flex;justify-content:space-between;width:100%;padding:8px 2px;margin:4px 0 0;background:transparent;border:0;border-radius:0;color:var(--text);font:inherit;font-weight:600;text-align:left;cursor:pointer;}
+
+/* ---- consultas salvas da Tendências (item 53; demo .ai/demos/demo-tendencias-consultas.html) ---- */
+.td-orig{order:3;flex:1 1 100%;font-size:12.5px;color:var(--muted);margin:-2px 0 0;line-height:1.4;overflow-wrap:anywhere;}
+.td-orig b{color:var(--text);}
+.td-cacoes{order:3;flex:1 1 100%;display:flex;gap:6px;flex-wrap:wrap;}
+.td-bt{min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg);font-size:14px;}
+.td-bt.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;}
+.td-bt.perigo{color:var(--danger);border-color:var(--danger);background:transparent;}
+.td-bt:disabled{opacity:.45;cursor:default;}
+.td-veu.td-alto{z-index:90;}
+.td-jan .td-lcab,.td-jan .td-jsub,.td-jan .td-jbusca,.td-jan .td-lchips,.td-jan .td-cs-rod{flex:none;} /* só a lista rola; o resto da janela não encolhe */
+.td-cs-lista{overflow:auto;flex:1;min-height:0;}
+.td-cs-item{border-top:1px solid var(--border);padding:10px 2px;}
+.td-cs-item:first-child{border-top:0;}
+.td-cs-item.em-uso{background:var(--accent-bg);border-radius:12px;padding-inline:10px;border-top-color:transparent;}
+.td-cs-item .nm{display:flex;align-items:center;gap:8px;}
+.td-cs-item .nm b{flex:1;min-width:0;overflow-wrap:anywhere;font-size:15px;}
+.td-cs-item .tagu{flex:none;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--accent-bg);color:var(--accent);}
+.td-cs-item.em-uso .tagu{background:var(--card);}
+.td-cs-item .fr{font-size:13px;color:var(--muted);margin:3px 0 0;overflow-wrap:anywhere;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;} /* a frase de 60 fichas não toma a lista: o texto inteiro fica no title */
+.td-cs-item .por{font-size:12px;color:var(--faint);margin:3px 0 0;}
+.td-cs-item .ac{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0;align-items:center;}
+.td-cs-item .ac .td-bt{min-height:40px;padding:0 12px;font-size:13.5px;}
+.td-cs-item .so{font-size:12px;color:var(--faint);flex:1;min-width:0;}
+.td-cs-rod{font-size:12.5px;color:var(--muted);margin:8px 2px 0;display:flex;justify-content:space-between;gap:10px;}
+.td-cs-lim{color:var(--danger);text-align:right;}
+.td-cs-nome{width:100%;margin:0 0 8px;}
+.td-cs-cnt{font-size:12px;color:var(--muted);text-align:right;margin:-4px 0 6px;}
+.td-cs-sec{margin-top:6px;min-height:48px;border:1px solid var(--border);border-radius:14px;background:transparent;font-size:15px;}
+.td-cs-link{border:0;background:transparent;color:var(--accent);font-weight:600;text-decoration:underline;min-height:44px;padding:0 6px;}
+#avisoAcao.acima{z-index:95;} /* o aviso de Desfazer da exclusão de uma consulta aparece por cima da janela (z 80) */
+
+/* demo-listas-v2-novas-cores: paleta de 16 cores (item 56) */
+.fp .pal{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;padding:0 12px 12px;} /* 8 por linha: duas linhas fixas, frios em cima e quentes embaixo */
+.fp .pal button{width:100%;max-width:36px;min-width:0;height:auto;aspect-ratio:1;justify-self:center;}
+.pal-ref{display:flex;flex-wrap:wrap;gap:6px;}
+.pal-ref i{width:22px;height:22px;border-radius:50%;border:1px solid var(--border);display:inline-block;position:relative;}
+.pal-ref i.nova::after{content:"";position:absolute;right:-2px;top:-2px;width:8px;height:8px;border-radius:50%;background:var(--text);border:1.5px solid var(--card);}
+</style><style>
+.meio{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);min-height:44px;}
+.meio .nm{flex:1;min-width:0;font-size:14px;overflow-wrap:anywhere;}
+.meio .nm small{display:block;font-size:12px;color:var(--muted);}
+.meio .sel{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:1px 6px;margin-left:6px;color:var(--muted);white-space:nowrap;}
+.meio.off .nm{color:var(--muted);}
+.meio{cursor:pointer;}
+.meio .mais{flex:none;color:var(--muted);font-size:18px;padding:0 4px;}
+.meio:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.vz{display:flex;flex-direction:column;gap:8px;margin:0 0 14px;}
+.vz button{min-height:44px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px;cursor:pointer;}
+.vz button.perigo{color:var(--danger);}
+.esc{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;}
+.esc button{flex:1 1 auto;min-height:44px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px;padding:0 14px;cursor:pointer;}
+.esc button[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent);font-weight:600;}
+.esc input[type=date]{flex:1 1 100%;min-height:44px;}
+.demo-nota{margin:8px 0 0;padding:10px 12px;border:1px dashed var(--border);border-radius:10px;font-size:12px;color:var(--muted);}
+</style>
+
+<style>
+.desat{display:inline-block;font-size:11px;line-height:1.5;padding:0 7px;border-radius:8px;background:var(--border);color:var(--muted);font-weight:600;margin-left:6px;white-space:nowrap;}
+.bk .desat{display:block;margin:2px 0 0;width:max-content;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+.demo-bar{position:fixed;left:0;right:0;bottom:0;background:#000d;color:#fff;font:12px/1.45 system-ui,sans-serif;padding:8px 14px;z-index:55;max-height:34vh;overflow:auto;}
+.demo-bar b{color:#9fe3c4;}
+.demo-bar a{color:#9fe3c4;}
+body{padding-bottom:140px;}
+.fut-ov.fechado{display:none;}
+.fut-ac[aria-disabled="true"]{opacity:.45;cursor:not-allowed;}
+.fut-ac.com-sub{flex-direction:column;align-items:flex-start;justify-content:center;padding-top:8px;padding-bottom:8px;}
+.fut-ac small{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-top:2px;}
+.pend{margin:0 0 14px;padding:10px 12px 10px 28px;border-radius:12px;background:var(--danger-bg,rgba(163,50,31,.1));font-size:13px;color:var(--text);}
+.pend li{margin:4px 0;}
+</style>
+
+<style>
+.desat{display:inline-block;font-size:11px;line-height:1.5;padding:0 7px;border-radius:8px;background:var(--border);color:var(--muted);font-weight:600;margin-left:6px;white-space:nowrap;}
+.semini{display:inline-block;font-size:11px;line-height:1.5;padding:0 7px;border-radius:8px;border:1px solid var(--border);color:var(--muted);font-weight:600;margin-left:6px;white-space:nowrap;}
+.sd-val.nc{color:var(--muted);font-weight:400;}
+.nc-aviso{background:var(--accent-bg);border-radius:12px;padding:10px 12px;margin:8px 0 4px;font-size:13px;color:var(--text);}
+.nc-aviso b{display:block;margin-bottom:2px;font-size:14px;}
+.aviso-novo{background:var(--accent-bg);border-radius:14px;padding:10px 14px;margin:10px 0 0;font-size:13px;color:var(--text);}
+.aviso-novo b{display:block;font-size:14px;margin-bottom:2px;}
+.aviso-novo .acoes{display:flex;gap:8px;margin-top:8px;}
+.aviso-novo .acoes button{min-height:40px;}
+.demo-bar{position:fixed;left:0;right:0;bottom:0;background:#000d;color:#fff;font:12px/1.45 system-ui,sans-serif;padding:8px 14px;z-index:55;max-height:36vh;overflow:auto;}
+.demo-bar b{color:#9fe3c4;}
+.demo-bar summary{cursor:pointer;margin-top:4px;text-decoration:underline;}
+.demo-bar details{margin-top:2px;}
+.demo-bar button{font:inherit;padding:2px 10px;margin:2px 0 2px 6px;border-radius:8px;border:1px solid #9fe3c4;background:transparent;color:#fff;cursor:pointer;}
+.demo-bar button[aria-pressed="true"]{background:#9fe3c4;color:#000;}
+body{padding-bottom:170px;}
+</style>
+<style>
+/* demo-listas-v9-tags: o cartão Tags de Listas com a dinâmica das Tags do Lançar (regras .tg-* copiadas de web/css/app.css; .tg-del é nova) */
+.tg-busca{position:relative;margin-top:8px;}
+.tg-busca svg{position:absolute;left:12px;top:50%;width:18px;height:18px;transform:translateY(-50%);color:var(--muted);pointer-events:none;}
+.tg-busca input{min-height:48px;padding-left:38px;border-radius:12px;font-size:15px;}
+.tg-sec{display:flex;align-items:baseline;gap:8px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:12px 2px 6px;}
+.tg-res{display:flex;flex-wrap:wrap;gap:6px;}
+.tg-lista-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 2px 6px;}
+.tg-lista-topo .tg-sec{margin:0;}
+.tg-ord{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);}
+.tg-ord select{width:auto;min-height:44px;padding:0 28px 0 10px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-size:13px;cursor:pointer;}
+.tg-mais{display:block;width:100%;min-height:44px;margin-top:10px;border:1px solid var(--border);border-radius:12px;background:transparent;color:var(--accent);font:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+.tg-mais:hover{background:var(--accent-bg);}
+.tg-mais[hidden]{display:none;}
+.tg-vazio{font-size:13px;color:var(--muted);margin:6px 2px;}
+.tg-del{display:inline-flex;align-items:center;gap:2px;min-height:44px;max-width:100%;padding:0 4px 0 14px;border:1px solid var(--border);border-radius:999px;background:var(--card);color:var(--text);font-size:14px;}
+.tg-del .nm{min-width:0;overflow-wrap:anywhere;}
+.tg-del mark{background:transparent;color:var(--accent);font-weight:700;}
+.tg-del button{flex:none;width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:50%;background:transparent;color:var(--danger);font:inherit;font-size:18px;line-height:1;cursor:pointer;padding:0;}
+.tg-del button:hover{background:var(--danger-bg);}
+.tg-and{display:flex;align-items:center;gap:8px;}
+.tg-gira{flex:none;width:16px;height:16px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--accent);animation:tg-gira .8s linear infinite;}
+@keyframes tg-gira{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){.tg-gira{animation:none;}}
+.tg-barra{height:6px;border-radius:999px;background:var(--border);overflow:hidden;margin:0 0 14px;}
+.tg-barra i{display:block;height:100%;width:0;background:var(--accent);}
+.tg-del button:focus-visible,.tg-mais:focus-visible,.tg-ord select:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+</style>
+<style>
+/* ---------- Bloqueio (trava por biometria; so no app Android): isto vai para o app ---------- */
+.bq{position:fixed;inset:0;z-index:210;background:var(--bg);color:var(--text);display:grid;grid-template-rows:1fr auto 1fr;justify-items:center;padding:0 24px;text-align:center;}
+.bq::before{content:"";}
+.bq[hidden]{display:none;}
+.bq-ic{width:min(224px,34vh);height:min(224px,34vh);border-radius:50%;display:block;} /* o mesmo icone, no mesmo lugar, da Abertura */
+.bq-baixo{display:flex;flex-direction:column;align-items:center;justify-content:space-between;align-self:stretch;justify-self:stretch;min-height:0;padding:16px 0 calc(env(safe-area-inset-bottom,0px) + 40px);}
+.bq-nome{margin:0;font-size:20px;font-weight:600;letter-spacing:.01em;}
+.bq-pe{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:320px;}
+.bq-pe b{font-size:15px;}
+.bq-pe b.ruim{color:var(--danger);}
+.bq-pe b:empty{display:none;}
+.bq-pe span{font-size:13px;color:var(--muted);}
+.bq-pe button{min-height:52px;min-width:200px;padding:0 22px;border-radius:14px;border:0;background:var(--accent);color:var(--accent-ink);font:600 15px system-ui,sans-serif;cursor:pointer;}
+.bq-pe button.sec{background:transparent;color:var(--muted);min-height:44px;font-weight:500;}
+.bq-pe button[hidden]{display:none;}
+@media (max-height:760px){.bq.com-aviso .bq-nome{display:none;}} /* tela baixa: com titulo de aviso, o nome cede o lugar (como na Abertura) */
+/* Seguranca (subsecao do cartao Aparencia): as duas chaves usam .fut-sw, com a frase de apoio embaixo */
+.seg-sw small{display:block;font-size:12.5px;color:var(--muted);}
+.seg-sw span{color:var(--text);font-size:14px;}
+.seg-msg{margin:2px 4px 0;font-size:13px;color:var(--muted);}
+.seg-msg.ruim{color:var(--danger);}
+.seg-msg:empty{display:none;}
+/* ---------- so da demo ---------- */
+.demo-bar{z-index:300;max-height:40vh;}
+.demo-bar .gr{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;align-items:center;}
+.demo-bar button{margin:0;min-height:30px;padding:3px 10px;}
+.demo-bar label{display:inline-flex;align-items:center;gap:6px;margin:0;width:auto;color:#fff;font:inherit;}
+.demo-bar input[type=checkbox]{width:16px;height:16px;min-height:0;margin:0;padding:0;flex:none;}
+body{padding-bottom:280px;}
+.bq,.sis-veu,.rec{bottom:var(--demo-h,0px);} /* na demo as telas terminam onde a barra preta comeca; no app ocupam a tela toda */
+.sis-veu{position:fixed;inset:0;z-index:220;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;}
+.sis-veu[hidden]{display:none;}
+.sis{width:100%;max-width:460px;background:#fff;color:#1a1a1a;border-radius:22px 22px 0 0;padding:16px 18px 18px;font:14px/1.45 system-ui,sans-serif;text-align:center;}
+.sis small{display:block;color:#777;font-size:12px;margin-bottom:8px;}
+.sis b{display:block;font-size:17px;}
+.sis p{margin:4px 0 10px;color:#555;}
+.sis .dedo{width:56px;height:56px;margin:4px auto 12px;border-radius:50%;border:2px solid #2f6f4f;display:grid;place-items:center;font-size:26px;}
+.sis button{display:block;width:100%;min-height:46px;margin-top:8px;border:1px dashed #777;border-radius:12px;background:transparent;color:#1a1a1a;font:inherit;cursor:pointer;}
+.rec{position:fixed;inset:0;z-index:230;background:#2b2b2b;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font:13px/1.4 system-ui,sans-serif;padding:20px;text-align:center;}
+.rec[hidden]{display:none;}
+.rec .cartao{width:min(240px,62vw);aspect-ratio:9/16;border-radius:18px;background:#f7f7f5;color:#1a1a1a;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.5);}
+.rec .cartao .tit{background:#e3e2de;padding:8px 10px;font-weight:600;text-align:left;font-size:12px;}
+.rec .cartao .corpo{flex:1;display:flex;flex-direction:column;gap:8px;padding:12px;text-align:left;font-size:12px;}
+.rec .cartao .corpo i{display:block;height:10px;border-radius:5px;background:#d3d6d2;}
+.rec .cartao .corpo b{font-size:15px;}
+.rec button{min-height:40px;padding:0 16px;border-radius:10px;border:1px solid #9fe3c4;background:transparent;color:#fff;font:inherit;cursor:pointer;}
+</style>
+</head>
+<body data-aba="listas">
+<header>
+  <!-- janela larga (1160 px ou mais): nome do app e o botao da conta; no celular a conta fica no menu ⋮ -->
+  <div class="topo">
+    <h1>Finanças</h1>
+    <button type="button" class="usr-btn" id="usrBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="usrDrop" data-pronto="1"><span class="cta-av" id="usrAv" aria-hidden="true">A</span><span id="usrNome">Ana</span><span aria-hidden="true">▾</span></button>
+    <div class="usr-drop" id="usrDrop" role="menu" aria-label="Conta" hidden=""></div>
+  </div>
+  <!-- celular e janela < 1160 px: menu ⋮ (as abas em botoes e o h1 so aparecem na janela larga) -->
+  <div class="mn-bar">
+    <div class="mn-nome"><span class="mn-tela" id="mnTela">Listas</span></div>
+    <button type="button" class="mn-at" data-atalho="historico" aria-label="Histórico"><span class="mn-at-ic" aria-hidden="true">🕘</span><span class="mn-at-lb">Histórico</span></button>
+    <button type="button" class="mn-at" data-atalho="saldos" aria-label="Saldos"><span class="mn-at-ic" aria-hidden="true">🏦</span><span class="mn-at-lb">Saldos</span></button>
+    <button type="button" class="mn-ib" id="mnBtn" aria-label="Menu" aria-haspopup="menu" aria-expanded="false" aria-controls="mnDrop"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg></button>
+  </div>
+  <div class="mn-shade" id="mnShade" hidden=""></div>
+  <div class="mn-drop" id="mnDrop" role="menu" aria-label="Telas do app" hidden=""></div>
+  <nav>
+    <button data-tab="lancar" class="">Lançar</button>
+    <button data-tab="historico" class="">Histórico</button>
+    <button data-tab="listas" class="active">Listas</button>
+    <button data-tab="tendencias">Tendências</button>
+    <button data-tab="cartao" class="">Cartão de crédito</button>
+    <button data-tab="saldos" class="">Saldos</button>
+    <button data-tab="futuros" class="">Futuros</button>
+    <button data-tab="versoes">Histórico de versões</button>
+    <button data-tab="configuracoes">Configurações</button>
+  </nav>
+</header>
+<div id="notaDemo" style="max-width:720px;margin:12px auto 0;padding:0 16px;">
+  <div class="card" style="margin:0;">
+    <b>Demo: trava por biometria (só no app Android)</b>
+    <p class="muted" style="margin:6px 0 0;">A tela Listas abaixo é a de hoje (v9); muda só o cartão <b>Aparência</b>, que ganha a subseção <b>Segurança</b>. A tela de bloqueio é nova. Use a barra preta para ver cada caso; este quadro, a barra e as telas "do sistema" não existem no app.</p>
+    <div id="palAntes" hidden></div><div id="palDepois" hidden></div>
+  </div>
+</div>
+<main>
+
+
+
+
+
+<div class="fut-ov hidden" id="histFilOv">
+  <div class="hist-jan" role="dialog" aria-modal="true" aria-label="Filtros do Histórico" id="histFilJan">
+    <h3>Filtros</h3>
+    <p class="mm">Dentro de Forma de pagamento e Meio de pagamento vale qualquer uma das escolhidas. Nas tags você escolhe entre todas ou qualquer uma.</p>
+    <div class="hf-sec">Forma de pagamento</div><div class="tags" id="histFilStatus"><button type="button" class="tag " aria-pressed="false" data-hist-f="st" data-v="PAGO">PAGO</button><button type="button" class="tag " aria-pressed="false" data-hist-f="st" data-v="CREDITO">CREDITO</button><button type="button" class="tag " aria-pressed="false" data-hist-f="st" data-v="CONTAS">CONTAS</button><button type="button" class="tag " aria-pressed="false" data-hist-f="st" data-v="CREDITO EX">CREDITO EX</button><button type="button" class="tag " aria-pressed="false" data-hist-f="st" data-v="CREDITO IN">CREDITO IN</button></div>
+    <div class="hf-sec">Meio de pagamento</div><div class="tags" id="histFilBanco"><button type="button" class="tag " aria-pressed="false" data-hist-f="bk" data-v="Nubank">Nubank</button><button type="button" class="tag " aria-pressed="false" data-hist-f="bk" data-v="Itau">Itau</button><button type="button" class="tag " aria-pressed="false" data-hist-f="bk" data-v="Bradesco">Bradesco</button><button type="button" class="tag " aria-pressed="false" data-hist-f="bk" data-v="Inter">Inter</button><button type="button" class="tag " aria-pressed="false" data-hist-f="bk" data-v="C6">C6</button><button type="button" class="tag " aria-pressed="false" data-hist-f="bk" data-v="Carteira">Carteira</button></div>
+    <div class="hf-sec">Tags</div><div id="histTags"><div data-p="combos"><div class="muted">Combos</div><div class="tags"><span class="tag " data-combo="0" style="border-radius:8px;">mercado · mercado-mensal</span><span class="tag " data-combo="1" style="border-radius:8px;">mercado · mercado-extra</span><span class="tag " data-combo="2" style="border-radius:8px;">mercado · mercado-fixo</span><span class="tag " data-combo="3" style="border-radius:8px;">transporte · transporte-mensal</span><span class="tag " data-combo="4" style="border-radius:8px;">transporte · transporte-extra</span><span class="tag " data-combo="5" style="border-radius:8px;">transporte · transporte-fixo</span><span class="tag " data-combo="6" style="border-radius:8px;">casa · casa-mensal <span style="font-size:11px;">2x</span></span><span class="tag " data-combo="7" style="border-radius:8px;">casa · casa-extra</span><span class="tag " data-combo="8" style="border-radius:8px;">casa · casa-fixo</span></div></div><div class="tags" data-p="marcadas"></div><input type="text" data-p="busca" placeholder="Buscar tag..." style="margin-top:8px;" value=""><div class="muted tags-rot" style="margin-top:8px;">Tags</div><div class="tags" data-p="lista"><span data-todas="1" style="cursor:pointer;color:var(--accent);font-size:13px;">Todas as tags (168) ▾</span></div><div class="tags" data-p="modo"></div></div>
+    <label class="fut-sw"><input type="checkbox" id="filMostrarOcultos"><span>Mostrar ocultos<small class="muted"> (entram na lista e no total)</small></span></label>
+    <label class="fut-sw hidden"><input type="checkbox" id="buscaIncluiFuturos"><span>Incluir eventos futuros<small class="muted"> (só na busca por texto)</small></span></label>
+    <div class="hf-rod"><button type="button" class="hf-limpar" id="histFilLimpar">Limpar</button><button type="button" class="hf-ok" id="histFilOk">Ver 39 lançamento(s)</button></div>
+  </div>
+</div>
+
+<section id="tab-listas" class="">
+
+  <div class="card" id="perfilCard">
+    <b>Seu nome</b>
+    <p class="muted">Aparece no topo da tela para a sua família. Só você altera o seu.</p>
+    <div class="row"><input id="perfilNome" maxlength="30" placeholder="ex: Maria" value="Ana"><button class="ghost" id="btnSalvarNome">Salvar</button></div>
+    <p class="muted" id="perfilMsg"></p>
+  </div>
+  <div class="card" id="telegramCard">
+    <b>Avisos no Telegram</b>
+    <p class="muted">Para receber os avisos dos lançamentos futuros: abra o bot do app no Telegram e toque em Iniciar; depois descubra o seu Id conversando com o @userinfobot e cole aqui.</p>
+    <div class="row"><input id="telegramChatId" inputmode="numeric" maxlength="21" placeholder="ex: 123456789" value=""><button class="ghost" id="btnSalvarTelegram">Salvar</button><button class="ghost" id="btnTesteTelegram">Enviar aviso de teste</button></div>
+    <p class="muted" id="telegramMsg"></p>
+  </div>
+  <div class="card">
+    <b>Aparência</b>
+    <div class="ap-subs">
+      <div class="ap-sub">
+        <div class="ap-st">Tema</div>
+        <p class="muted">Vale em qualquer aparelho seu.</p>
+        <div class="tema-op" id="temaBtns" role="group" aria-label="Tema"><button type="button" data-tema="auto" aria-pressed="true"><span>🌗 Automático</span><small>segue o aparelho</small></button><button type="button" data-tema="claro" aria-pressed="false"><span>☀️ Claro</span><small>sempre claro</small></button><button type="button" data-tema="escuro" aria-pressed="false"><span>🌙 Escuro</span><small>sempre escuro</small></button></div>
+      </div>
+      <div class="ap-sub">
+        <div class="ap-st">Saldos</div>
+        <div class="muted">Layout dos saldos</div>
+        <div class="tags" id="layoutSaldosBtns"><span class="tag on" data-layout-saldos="linhas">Uma linha por meio de pagamento</span><span class="tag " data-layout-saldos="tiles">Quadradinhos</span></div>
+        <div class="muted" style="margin-top:14px;">Ordem dos saldos</div>
+        <div class="tags" id="ordemSaldosBtns"><span class="tag on" data-ordem-saldos="lista">Ordem da lista</span><span class="tag " data-ordem-saldos="valor">Maior saldo</span><span class="tag " data-ordem-saldos="manual">Manual</span></div>
+        <div id="ordemManualLista"></div>
+      </div>
+      <!-- bloqueio:inicio (isto vai para o app; a subsecao so aparece no app Android) -->
+      <div class="ap-sub" id="apSeg">
+        <div class="ap-st">Segurança</div>
+        <p class="muted">Vale só neste aparelho.</p>
+        <label class="fut-sw seg-sw"><input type="checkbox" role="switch" id="swTrava"><span>Bloquear com biometria<small>Pede a digital, o rosto ou a senha do aparelho ao abrir o app e depois de 1 minuto fora dele.</small></span></label>
+        <label class="fut-sw seg-sw"><input type="checkbox" role="switch" id="swRecentes"><span>Esconder nos apps recentes<small>O app aparece em branco na lista de apps abertos. Também impede capturas e gravação de tela do app.</small></span></label>
+        <p class="seg-msg" id="segMsg" role="status"></p>
+      </div>
+      <!-- bloqueio:fim -->
+    </div>
+  </div>
+  <div class="card">
+    <b>Forma de pagamento</b>
+    <p class="muted">A lista vem do servidor. Toque na bolinha para escolher a cor; a linha mostra como o lançamento fica no Histórico e em Futuros.</p>
+    <label class="fut-sw"><input type="checkbox" role="switch" id="swCoresLinhas" checked=""><span>Cores nas linhas (Histórico e Futuros)</span></label>
+    <div id="pillStatus"></div>
+  </div>
+  <div class="card so-owner" id="cardMeios">
+    <b>Meios de pagamento</b>
+    <p class="muted">Contas, carteiras, vales e cartões. Desativar encerra a conta: só vale com o saldo zerado e sem nada pendente, a partir de hoje. O passado continua como está, mas o meio não recebe mais lançamentos. A etiqueta <b>crédito</b> aparece sozinha quando o meio é ligado a um cartão na aba Cartão de crédito.</p>
+    <div id="listaMeios"></div>
+    <label class="fut-sw" style="margin-top:6px;"><input type="checkbox" role="switch" id="swInativos"><span>Mostrar meios inativos</span></label>
+    <div class="row" style="margin-top:4px;"><input id="novoBanco" placeholder="novo meio de pagamento" value=""><button class="ghost" id="btnAddBanco">Adicionar</button></div>
+    <div class="aviso-novo hidden" id="avisoNovo" role="status"></div>
+  </div>
+  <div class="card so-owner">
+    <b>Tags</b>
+    <p class="muted">Excluir uma tag em uso avisa quantos lançamentos a usam e deixa você migrar pra outra.</p>
+    <div id="tagsListas"></div>
+  </div>
+  <div class="card so-owner" id="cardCombos">
+    <b>Combos de tags</b>
+    <p class="muted">Conjuntos de tags que você marca de uma vez no Lançar. Para criar, marque as tags no Lançar e toque em "Salvar seleção como combo".</p>
+    <label class="fut-sw" style="margin-top:6px;"><input type="checkbox" role="switch" id="swRotinaCombos" checked><span>Gerar combos sugeridos toda semana<small class="muted" id="rotinaDica" style="display:block;font-size:12.5px;"></small></span></label>
+    <div id="cbSug"></div>
+    <div id="cbSalvos"></div>
+  </div>
+</section>
+
+
+
+
+
+
+
+
+
+
+
+
+
+</main>
+
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal-box">
+    <p id="modalMsg"></p>
+    <div id="modalExtra"></div>
+    <div class="modal-botoes" id="modalBotoes">
+      <button class="ghost" id="modalCancelar">Cancelar</button>
+      <button class="primary" id="modalConfirmar">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="avisoAcao" role="status" aria-live="polite"></div>
+
+
+
+<script>
+(function(){
+  var ANTES=['#639922','#BA7517','#378ADD','#7F77DD','#888780','#D85A30','#1D9E75','#D4537E','#E24B4A'];
+  var NOVAS=['#97C459','#5DCAA5','#85B7EB','#AFA9EC','#EF9F27','#F0997B','#ED93B1'];
+  // ordem de exibicao: frios na primeira linha, quentes e cinza na segunda
+  var PALETA=['#97C459','#639922','#5DCAA5','#1D9E75','#85B7EB','#378ADD','#AFA9EC','#7F77DD','#EF9F27','#BA7517','#F0997B','#D85A30','#E24B4A','#ED93B1','#D4537E','#888780'];
+  var FORMAS=[['PIX','#1D9E75'],['DEBITO','#D4537E'],['CREDITO','#888780'],['DINHEIRO','#EF9F27'],['TED','#5DCAA5'],['PAGO','#639922']];
+  var cor={}, aberta=null;
+  FORMAS.forEach(function(f){cor[f[0]]=f[1];});
+  function ref(id,lista,marca){var el=document.getElementById(id);el.innerHTML=lista.map(function(c){return '<i style="background:'+c+'"'+(marca&&NOVAS.indexOf(c)>=0?' class="nova"':'')+' title="'+c+'"></i>';}).join('');}
+  ref('palAntes',ANTES,false); ref('palDepois',PALETA,true);
+  function card(nome){
+    var c=cor[nome], ab=aberta===nome;
+    var pal=ab?'<div class="pal" role="group" aria-label="Cores de '+nome+'">'+PALETA.map(function(p){return '<button type="button" data-pick="'+p+'" data-st="'+nome+'" aria-label="Cor '+p+'" aria-pressed="'+(p===c)+'" style="background:'+p+'"></button>';}).join('')+'</div>':'';
+    return '<div class="fp" style="--cor:'+c+'"><div class="fp-top"><button type="button" class="bol" data-bol="'+nome+'" aria-label="Escolher cor de '+nome+'" aria-expanded="'+ab+'" style="background:'+c+'"></button><b>'+nome+'</b><small>'+(ab?'escolha uma cor':'toque na bolinha')+'</small></div>'+pal+
+      '<div class="ex"><div class="l"><div class="d">Exemplo de lançamento</div><div class="mt"><span>14:30</span><span style="background:color-mix(in srgb,'+c+' 32%,transparent);padding:1px 7px;border-radius:8px;font-weight:600;color:var(--text);">'+nome+'</span><span>Meio de pagamento</span></div></div><span class="valor saida">-R$ 10,00</span></div></div>';
+  }
+  function desenha(){document.getElementById('pillStatus').innerHTML=FORMAS.map(function(f){return card(f[0]);}).join('');}
+  document.getElementById('pillStatus').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.bol){aberta=aberta===b.dataset.bol?null:b.dataset.bol;desenha();}
+    else if(b.dataset.pick){cor[b.dataset.st]=b.dataset.pick;aberta=null;desenha();}
+  });
+  desenha();
+})();
+</script>
+<script>
+(function(){
+  var HOJE='2026-11-03';
+  // pend: o que o SERVIDOR devolveria em 409 MEIO_COM_PENDENCIA (so a demo sabe); vazio = pode desativar. usado = tem lancamento vivo.
+  var meios=[
+    {n:'Nubank',usado:true,pend:['O saldo é R$ 18.020,74: só dá para desativar com o saldo zerado.']},
+    {n:'Itau',usado:true,pend:['O saldo é R$ 19.163,00: só dá para desativar com o saldo zerado.','2 lançamentos previstos neste meio: confirme ou exclua em Futuros.','1 recorrência ativa neste meio: pare a recorrência antes.']},
+    {n:'Bradesco',usado:true,pend:['O saldo é R$ 11.942,79: só dá para desativar com o saldo zerado.']},
+    {n:'Inter',usado:true,pend:['O saldo é R$ 16.983,34: só dá para desativar com o saldo zerado.']},
+    {n:'C6',usado:true,pend:['O saldo é R$ 20.954,21: só dá para desativar com o saldo zerado.']},
+    {n:'Carteira',usado:true,pend:[]},
+    {n:'SODEXO-REF-IBM',usado:true,pend:[]},
+    {n:'CITIBANK',credito:true,usado:true,pend:['A fatura de out/2026 (R$ 40,00) não tem pagamento registrado: registre que pagou para desativar o cartão.','A fatura de nov/2026 (R$ 100,00) não tem pagamento registrado: registre que pagou para desativar o cartão.','É o pagador padrão do cartão Nubank: troque o pagador na aba Cartão de crédito.']},
+    {n:'SODEXO-REFEICAO',ate:'2026-10-31',usado:true,pend:[]},
+    {n:'VR-NOVO',usado:false,pend:[]}
+  ];
+  var alvo=null;
+  var $=function(id){return document.getElementById(id);};
+  function br(d){var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+  function off(m){return !!m.ate;}
+  function acha(n){return meios.filter(function(m){return m.n===n;})[0];}
+  function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on');},3200);}
+  function desenha(){
+    var ver=$('swInativos').checked;
+    $('listaMeios').innerHTML=meios.filter(function(m){return ver||!off(m);}).map(function(m){
+      var sub=off(m)?'<small>Inativo desde '+br(m.ate)+'</small>':'';
+      var tag=m.credito?'<span class="sel">crédito</span>':'';
+      return '<div class="meio'+(off(m)?' off':'')+'" role="button" tabindex="0" data-meio="'+m.n+'"><div class="nm">'+m.n+tag+sub+'</div><span class="mais" aria-hidden="true">›</span></div>';
+    }).join('');
+  }
+  function janela(msg,extra,botoes){$('modalMsg').textContent=msg;$('modalExtra').innerHTML=extra;$('modalBotoes').innerHTML=botoes;$('modalOverlay').classList.remove('hidden');}
+  function fecha(){$('modalOverlay').classList.add('hidden');}
+  function acoes(n){
+    alvo=n;var m=acha(n);
+    if(off(m)){
+      janela(n,'<div class="vz"><button type="button" data-a="reativar">Reativar</button><button type="button" class="perigo" data-a="remover">Remover</button></div><p class="muted" style="margin:0 0 14px;">Desativado em '+br(m.ate)+': não recebe lançamentos, e os que já tem só aceitam mudar descrição, nota e tags. Reative para voltar a usar. Remover só vale se todos os lançamentos dele estiverem excluídos.</p>','<button class="ghost" data-a="fechar">Fechar</button>');
+    }else{
+      janela(n,'<div class="vz"><button type="button" data-a="desativar">Desativar…</button><button type="button" class="perigo" data-a="remover">Remover</button></div><p class="muted" style="margin:0 0 14px;">Desativar encerra a conta e guarda o passado. Remover só vale para um meio sem lançamentos.</p>','<button class="ghost" data-a="fechar">Fechar</button>');
+    }
+  }
+  function desativar(n){
+    janela('Desativar '+n+'?','<p class="muted" style="margin:0 0 10px;">Vale <b>a partir de hoje</b> ('+br(HOJE)+'). Antes de desativar, o servidor confere se '+n+' ainda participa de algum evento: saldo, lançamentos previstos ou futuros, recorrência, fatura e pagador do cartão.</p><p class="muted" style="margin:0 0 14px;">Depois de desativado, '+n+' não recebe mais lançamentos. O passado continua igual, e dá para reativar quando quiser.</p>','<button class="ghost" data-a="fechar">Cancelar</button><button class="primary" data-a="confirmar-desativar">Desativar</button>');
+  }
+  function conferir(n){
+    var m=acha(n);
+    $('modalExtra').innerHTML='<p class="muted" style="margin:0 0 14px;">Conferindo se '+n+' ainda participa de algum evento…</p>';
+    $('modalBotoes').innerHTML='<button class="ghost" disabled>Cancelar</button><button class="primary" disabled>Desativar</button>';
+    setTimeout(function(){
+      if(m.pend.length){
+        $('modalMsg').textContent='Não dá para desativar '+n+' ainda';
+        $('modalExtra').innerHTML='<p class="muted" style="margin:0 0 8px;">Resolva o que falta e tente de novo:</p><ul class="pend">'+m.pend.map(function(p){return '<li>'+p+'</li>';}).join('')+'</ul>';
+        $('modalBotoes').innerHTML='<button class="ghost" data-a="fechar">Fechar</button>';
+      }else{
+        m.ate=HOJE;fecha();desenha();toast('✓ '+n+' desativado');
+      }
+    },700);
+  }
+  function remover(n){
+    var m=acha(n);
+    janela('Remover '+n+'?','<p class="muted" id="conf" style="margin:0 0 14px;">Conferindo se '+n+' já foi usado em algum lançamento…</p>','<button class="ghost" data-a="fechar">Cancelar</button>');
+    setTimeout(function(){
+      if(m.usado){
+        $('conf').innerHTML='<b>Não dá para remover.</b> '+n+' tem lançamentos, e o passado precisa dele. '+(off(m)?'Ele já está desativado: o histórico continua igual.':'Desative o meio: o histórico continua igual.');
+        $('modalBotoes').innerHTML='<button class="ghost" data-a="fechar">Fechar</button>'+(off(m)?'':'<button class="primary" data-a="desativar">Desativar…</button>');
+      }else{
+        $('conf').textContent=n+' nunca foi usado. Remover apaga o meio da lista.';
+        $('modalBotoes').innerHTML='<button class="ghost" data-a="fechar">Cancelar</button><button class="primary" data-a="confirmar-remover">Remover</button>';
+      }
+    },900);
+  }
+  $('listaMeios').addEventListener('click',function(e){var r=e.target.closest('[data-meio]');if(r)acoes(r.dataset.meio);});
+  $('listaMeios').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){var r=e.target.closest('[data-meio]');if(r){e.preventDefault();acoes(r.dataset.meio);}}});
+  $('modalOverlay').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-a]');if(!b)return;var a=b.dataset.a;
+    if(a==='fechar')fecha();
+    else if(a==='desativar')desativar(alvo);
+    else if(a==='remover')remover(alvo);
+    else if(a==='reativar'){acha(alvo).ate=null;fecha();desenha();toast('✓ '+alvo+' reativado');}
+    else if(a==='confirmar-desativar')conferir(alvo);
+    else if(a==='confirmar-remover'){meios=meios.filter(function(m){return m.n!==alvo;});fecha();desenha();}
+  });
+  $('btnAddBanco').addEventListener('click',function(){
+    var v=$('novoBanco').value.trim();if(!v||acha(v))return;
+    meios.push({n:v,usado:false,pend:[]});$('novoBanco').value='';desenha();
+    var a=$('avisoNovo');a.classList.remove('hidden');
+    a.innerHTML='<b>'+v+' começa a contar saldo hoje (09/11/2026)</b>Lançamentos de antes dessa data ficam no histórico e não entram no saldo. Para mudar, defina a data de início em Saldos.<div class="acoes"><button class="ghost" type="button" id="avIr">Ir para Saldos</button><button class="ghost" type="button" id="avOk">Entendi</button></div>';
+    $('avOk').onclick=function(){a.classList.add('hidden');};
+    $('avIr').onclick=function(){toast('Abre a aba Saldos, no meio '+v+'.');};
+  });
+  $('swInativos').addEventListener('change',desenha);
+  desenha();
+})();
+</script>
+<script>
+(function(){
+  var SUG=[{t:['mercado','mercado-mensal'],n:14},{t:['transporte','transporte-mensal'],n:9},{t:['educacao','educacao-mensal'],n:7},{t:['saude','saude-mensal'],n:5},{t:['lazer','lazer-fixo'],n:4}];
+  var SALVOS=[['mercado','mercado-extra'],['mercado','mercado-fixo']];
+  var $=function(id){return document.getElementById(id);};
+  function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on');},3200);}
+  function desenha(){
+    var on=$('swRotinaCombos').checked;
+    $('rotinaDica').textContent=on?'Todo domingo, de madrugada. Último cálculo: 01/11/2026.':'Desligado. Os sugeridos abaixo são do último cálculo (01/11/2026) e não se atualizam.';
+    $('cbSug').innerHTML='<div class="muted" style="margin:10px 0 4px;font-size:12px;">Sugeridos pelo histórico</div>'+SUG.map(function(c){
+      return '<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13px;'+(on?'':'color:var(--muted);')+'">'+c.t.join(' · ')+'</span><span class="muted" style="font-size:12px;">'+c.n+'x</span></div>';}).join('');
+    $('cbSalvos').innerHTML='<div class="muted" style="margin:12px 0 4px;font-size:12px;">Salvos por você</div>'+SALVOS.map(function(c,i){
+      return '<div class="item" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13px;">'+c.join(' · ')+'</span><button class="ghost" data-del="'+i+'">Excluir</button></div>';}).join('')||'<p class="muted">Nenhum salvo ainda.</p>';
+  }
+  $('swRotinaCombos').addEventListener('change',function(){
+    desenha();
+    toast(this.checked?'✓ Rotina ligada. O próximo cálculo é no domingo.':'✓ Rotina desligada. Os sugeridos atuais continuam.');
+  });
+  $('cbSalvos').addEventListener('click',function(e){var b=e.target.closest('[data-del]');if(!b)return;SALVOS.splice(+b.dataset.del,1);desenha();toast('✓ Combo excluído');});
+  desenha();
+})();
+</script>
+<div hidden><button type="button" id="dmProp" aria-pressed="true">Proposta</button><button type="button" id="dmHoje" aria-pressed="false">Como está hoje</button></div>
+<script>
+(function(){
+  // Dados da demo: a ordem da lista é a ordem de criação (a última é a mais nova). USO imita o que o servidor responderia.
+  var TAGS=["casa","casa-aniversario","casa-carro","casa-casa","casa-criancas","casa-estudo","casa-extra","casa-familia","casa-ferias","casa-festa","casa-fixo","casa-mensal","casa-natal","casa-online","casa-parcelado","casa-pet","casa-reforma","casa-saude","casa-trabalho","casa-urgente","casa-viagem","compras","compras-aniversario","compras-carro","compras-casa","compras-criancas","compras-estudo","compras-extra","compras-familia","compras-ferias","compras-festa","compras-fixo","compras-mensal","compras-natal","compras-online","compras-parcelado","compras-pet","compras-reforma","compras-saude","compras-trabalho","compras-urgente","compras-viagem","educacao","educacao-aniversario","educacao-carro","educacao-casa","educacao-criancas","educacao-estudo","educacao-extra","educacao-familia","educacao-ferias","educacao-festa","educacao-fixo","educacao-mensal","educacao-natal","educacao-online","educacao-parcelado","educacao-pet","educacao-reforma","educacao-saude","educacao-trabalho","educacao-urgente","educacao-viagem","lazer","lazer-aniversario","lazer-carro","lazer-casa","lazer-criancas","lazer-estudo","lazer-extra","lazer-familia","lazer-ferias","lazer-festa","lazer-fixo","lazer-mensal","lazer-natal","lazer-online","lazer-parcelado","lazer-pet","lazer-reforma","lazer-saude","lazer-trabalho","lazer-urgente","lazer-viagem","mercado","mercado-aniversario","mercado-carro","mercado-casa","mercado-criancas","mercado-estudo","mercado-extra","mercado-familia","mercado-ferias","mercado-festa","mercado-fixo","mercado-mensal","mercado-natal","mercado-online","mercado-parcelado","mercado-pet","mercado-reforma","mercado-saude","mercado-trabalho","mercado-urgente","mercado-viagem","renda","renda-aniversario","renda-carro","renda-casa","renda-criancas","renda-estudo","renda-extra","renda-familia","renda-ferias","renda-festa","renda-fixo","renda-mensal","renda-natal","renda-online","renda-parcelado","renda-pet","renda-reforma","renda-saude","renda-trabalho","renda-urgente","renda-viagem","saude","saude-aniversario","saude-carro","saude-casa","saude-criancas","saude-estudo","saude-extra","saude-familia","saude-ferias","saude-festa","saude-fixo","saude-mensal","saude-natal","saude-online","saude-parcelado","saude-pet","saude-reforma","saude-saude","saude-trabalho","saude-urgente","saude-viagem","transporte","transporte-aniversario","transporte-carro","transporte-casa","transporte-criancas","transporte-estudo","transporte-extra","transporte-familia","transporte-ferias","transporte-festa","transporte-fixo","transporte-mensal","transporte-natal","transporte-online","transporte-parcelado","transporte-pet","transporte-reforma","transporte-saude","transporte-trabalho","transporte-urgente","transporte-viagem"];
+  var USO={};
+  TAGS.forEach(function(t,i){ if(t.indexOf('-')<0) USO[t]=40+i; else if(/-mensal$/.test(t)) USO[t]=6+(i%9); });
+  var $=function(id){return document.getElementById(id);};
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function normTxt(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+
+  // O componente: recebe onde desenhar e o que fazer no toque; guarda o próprio estado e não usa id fixo.
+  function criarListaTags(raiz, op){
+    var S={busca:'', abertas:false, ordem:'az', limite:op.pagina};
+    raiz.innerHTML=
+      '<div class="tg-busca"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'+
+      '<input type="search" data-p="busca" placeholder="Buscar tag" aria-label="Buscar tag" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search"></div>'+
+      '<div data-p="topo"></div>'+
+      '<button type="button" class="tg-mais" data-p="todasBtn" aria-expanded="false"></button>'+
+      '<div data-p="corpo" hidden><div class="tg-lista-topo"><h3 class="tg-sec">Todas as tags</h3><label class="tg-ord"><span>Ordenar</span>'+
+      '<select data-p="ordem" aria-label="Ordenar tags"><option value="az">A → Z</option><option value="za">Z → A</option><option value="rec">Criadas recentemente</option></select></label></div>'+
+      '<div class="tg-res" data-p="todas" role="group" aria-label="Todas as tags"></div><button type="button" class="tg-mais" data-p="mais" hidden></button></div>';
+    var p=function(k){return raiz.querySelector('[data-p="'+k+'"]');};
+    function destaca(t,q){var i=q?normTxt(t).indexOf(q):-1; return i<0?esc(t):esc(t.slice(0,i))+'<mark>'+esc(t.slice(i,i+q.length))+'</mark>'+esc(t.slice(i+q.length));}
+    function chip(t,q){return '<span class="tg-del"><span class="nm">'+destaca(t,q)+'</span><button type="button" data-del="'+esc(t)+'" aria-label="Excluir a tag '+esc(t)+'" title="Excluir">×</button></span>';}
+    function ordenadas(){
+      var l=op.tags().slice();
+      if(S.ordem==='rec') return l.reverse();
+      l.sort(function(a,b){return a.localeCompare(b);});
+      return S.ordem==='za'?l.reverse():l;
+    }
+    function render(){
+      var tags=op.tags(), bruto=S.busca.trim().replace(/^#/,''), q=normTxt(bruto);
+      if(!tags.length){ p('topo').innerHTML='<p class="tg-vazio">Nenhuma tag ainda.</p>'; p('todasBtn').hidden=true; p('corpo').hidden=true; return; }
+      if(q){
+        var achou=tags.filter(function(t){return normTxt(t).indexOf(q)>=0;});
+        achou.sort(function(a,b){return (normTxt(a).indexOf(q)===0?0:1)-(normTxt(b).indexOf(q)===0?0:1) || a.length-b.length || a.localeCompare(b);});
+        var mostra=achou.slice(0,40);
+        p('topo').innerHTML=achou.length
+          ? '<div class="tg-sec">'+achou.length+(achou.length===1?' tag achada':' tags achadas')+'</div><div class="tg-res">'+mostra.map(function(t){return chip(t,q);}).join('')+'</div>'+(achou.length>mostra.length?'<p class="tg-vazio">Mostrando 40. Digite mais para refinar.</p>':'')
+          : '<p class="tg-vazio">Nenhuma tag com “'+esc(bruto)+'”.</p>';
+      } else {
+        var rec=tags.slice().reverse().slice(0,op.topo);
+        p('topo').innerHTML='<div class="tg-sec">Criadas recentemente</div><div class="tg-res">'+rec.map(function(t){return chip(t,'');}).join('')+'</div>';
+      }
+      p('todasBtn').hidden=!!q;
+      p('todasBtn').textContent=(S.abertas?'Esconder':'Ver')+' todas as tags ('+tags.length+')';
+      p('todasBtn').setAttribute('aria-expanded',String(S.abertas));
+      p('corpo').hidden=!!q||!S.abertas;
+      if(S.abertas&&!q){
+        var l=ordenadas(), resto=l.length-S.limite;
+        p('todas').innerHTML=l.slice(0,S.limite).map(function(t){return chip(t,'');}).join('');
+        p('mais').hidden=resto<=0;
+        p('mais').textContent=resto>0?'Mostrar mais '+Math.min(op.pagina,resto)+' de '+resto+' restantes':'';
+      }
+    }
+    p('busca').addEventListener('input',function(e){S.busca=e.target.value;render();});
+    p('busca').addEventListener('keydown',function(e){ if(e.key==='Enter'){e.preventDefault();e.target.blur();} });
+    p('ordem').addEventListener('change',function(e){S.ordem=e.target.value;S.limite=op.pagina;render();});
+    raiz.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      if(b.dataset.del!==undefined) return op.aoExcluir(b.dataset.del);
+      if(b.dataset.p==='todasBtn'){S.abertas=!S.abertas;render();}
+      else if(b.dataset.p==='mais'){S.limite+=op.pagina;render();}
+    });
+    render();
+    return {render:render};
+  }
+
+  // A tela: quem exclui é ela; o componente só avisa o toque no ×.
+  var modo='proposta', comp=null;
+  function fechaJanela(){$('modalOverlay').classList.add('hidden');}
+  function tira(tag){TAGS=TAGS.filter(function(t){return t!==tag;}); delete USO[tag]; desenha(true);}
+  var ESPERA=1500, vez=0; // a demo imita a demora do servidor ao conferir quem usa a tag
+  function aviso(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(aviso.h);aviso.h=setTimeout(function(){t.classList.remove('on');},3200);}
+  function migra(tag,qtd){
+    var v=$('modalNovaTag').value.trim().replace(/^#/,'');
+    if(v){ if(TAGS.indexOf(v)<0) TAGS.push(v); USO[v]=(USO[v]||0)+qtd; }
+    return v;
+  }
+  function janelaMigrar(tag,qtd){
+    $('modalMsg').textContent=qtd+' lançamento(s) usam a tag "'+tag+'". Escolha uma tag pra substituir (ou deixe em branco pra só remover essa tag desses lançamentos):';
+    $('modalExtra').innerHTML='<input type="text" id="modalNovaTag" list="modalListaTags" placeholder="nova tag (opcional)" style="margin-bottom:10px;"><datalist id="modalListaTags">'+TAGS.filter(function(t){return t!==tag;}).map(function(t){return '<option value="'+esc(t)+'">';}).join('')+'</datalist>';
+    $('modalBotoes').innerHTML='<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar">Continuar</button>';
+    $('modalOverlay').classList.remove('hidden');
+  }
+  // Como está hoje: o toque não mostra nada até o servidor responder; a tag sem uso some sem pergunta.
+  function excluirHoje(tag){
+    var qtd=USO[tag]||0;
+    setTimeout(function(){
+      if(!qtd) return tira(tag);
+      janelaMigrar(tag,qtd);
+      $('modalCancelar').onclick=fechaJanela;
+      $('modalConfirmar').onclick=function(){migra(tag,qtd); fechaJanela(); tira(tag);};
+    },ESPERA);
+  }
+  // Proposta: a janela abre no toque e mostra cada passo (conferindo, a pergunta, excluindo).
+  function excluir(tag){
+    if(modo==='hoje') return excluirHoje(tag);
+    var qtd=USO[tag]||0, minha=++vez;
+    var cancela=function(){vez++; fechaJanela();};
+    $('modalMsg').textContent='Excluir a tag "'+tag+'"?';
+    $('modalExtra').innerHTML='<p class="muted tg-and" style="margin:0 0 14px;"><i class="tg-gira" aria-hidden="true"></i>Conferindo se algum lançamento usa essa tag…</p>';
+    $('modalBotoes').innerHTML='<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar" disabled>Excluir</button>';
+    $('modalOverlay').classList.remove('hidden');
+    $('modalCancelar').onclick=cancela;
+    setTimeout(function(){
+      if(minha!==vez) return; // cancelou enquanto conferia
+      if(!qtd){
+        $('modalExtra').innerHTML='<p class="muted" style="margin:0 0 14px;">Nenhum lançamento usa essa tag.</p>';
+        $('modalConfirmar').disabled=false;
+        $('modalConfirmar').onclick=function(){
+          $('modalExtra').innerHTML='<p class="muted tg-and" style="margin:0 0 14px;"><i class="tg-gira" aria-hidden="true"></i>Excluindo…</p>';
+          $('modalBotoes').innerHTML='<button class="ghost" disabled>Cancelar</button><button class="primary" disabled>Excluir</button>';
+          setTimeout(function(){fechaJanela(); tira(tag); aviso('✓ Tag '+tag+' excluída');},700);
+        };
+        return;
+      }
+      janelaMigrar(tag,qtd);
+      $('modalCancelar').onclick=cancela;
+      $('modalConfirmar').onclick=function(){
+        var v=migra(tag,qtd), i=0;
+        $('modalMsg').textContent='Excluindo a tag "'+tag+'"';
+        $('modalExtra').innerHTML='<p class="muted tg-and" style="margin:0 0 8px;"><i class="tg-gira" aria-hidden="true"></i><span id="tgAnd"></span></p><div class="tg-barra"><i id="tgBarra"></i></div>';
+        $('modalBotoes').innerHTML='<button class="ghost" disabled>Cancelar</button><button class="primary" disabled>Continuar</button>';
+        (function passo(){
+          $('tgAnd').textContent='Atualizando '+i+' de '+qtd+' lançamentos…';
+          $('tgBarra').style.width=(100*i/qtd)+'%';
+          if(i<qtd){ i++; return setTimeout(passo,Math.min(40,3000/qtd)); }
+          fechaJanela(); tira(tag);
+          aviso('✓ Tag '+tag+' excluída'+(v?'; '+qtd+' lançamento(s) passaram para '+v:''));
+        })();
+      };
+    },ESPERA);
+  }
+  function desenha(soLista){
+    var el=$('tagsListas');
+    if(modo==='hoje'){
+      comp=null;
+      el.innerHTML='<div class="pill-list">'+(TAGS.map(function(t){return '<span class="pill" style="flex-direction:row;min-width:0;">#'+esc(t)+' <button data-del-tag="'+esc(t)+'">✕</button></span>';}).join('')||'<p class="muted">Nenhuma tag ainda.</p>')+'</div>';
+      return;
+    }
+    if(comp&&soLista) return comp.render(); // excluir não perde a busca, a ordem nem o "Ver todas" aberto
+    comp=criarListaTags(el,{tags:function(){return TAGS;}, aoExcluir:excluir, topo:8, pagina:30});
+  }
+  $('tagsListas').addEventListener('click',function(e){var b=e.target.closest('[data-del-tag]'); if(b) excluir(b.dataset.delTag);});
+  function troca(m){modo=m; $('dmProp').setAttribute('aria-pressed',String(m==='proposta')); $('dmHoje').setAttribute('aria-pressed',String(m==='hoje')); desenha(false);}
+  $('dmProp').addEventListener('click',function(){troca('proposta');});
+  $('dmHoje').addEventListener('click',function(){troca('hoje');});
+  desenha(false);
+})();
+</script>
+</body></html>
+
+<!-- bloqueio:inicio (isto vai para o app, no comeco do body, junto da Abertura) -->
+<div class="bq" id="bloqueio" role="dialog" aria-modal="true" aria-label="Finanças bloqueado" hidden>
+  <svg class="bq-ic" viewBox="51.2 51.2 409.6 409.6" aria-hidden="true"><rect width="512" height="512" fill="#14213d"/><rect x="136" y="288" width="64" height="96" rx="12" fill="#4cc9a0"/><rect x="224" y="228" width="64" height="156" rx="12" fill="#4cc9a0"/><rect x="312" y="156" width="64" height="228" rx="12" fill="#ffd166"/></svg>
+  <div class="bq-baixo">
+    <p class="bq-nome">Finanças</p>
+    <div class="bq-pe">
+      <b id="bqT"></b>
+      <span id="bqS"></span>
+      <button type="button" id="bqAbrir">Desbloquear</button>
+      <button type="button" class="sec" id="bqSair">Sair da conta</button>
+    </div>
+  </div>
+</div>
+<!-- bloqueio:fim -->
+
+<!-- so da demo: a janela de biometria do proprio Android (nao e nossa e nao muda) -->
+<div class="sis-veu" id="sisVeu" hidden>
+  <div class="sis">
+    <small>janela do sistema (Android), não muda</small>
+    <b>Finanças</b>
+    <p id="sisTxt">Confirme que é você</p>
+    <div class="dedo" aria-hidden="true">☝</div>
+    <button type="button" data-sis="ok">Digital ou rosto reconhecido</button>
+    <button type="button" data-sis="senha">Usar a senha do aparelho (certa)</button>
+    <button type="button" data-sis="cancelar">Cancelar</button>
+    <button type="button" data-sis="muitas">Errei muitas vezes</button>
+  </div>
+</div>
+
+<!-- so da demo: a tela de apps recentes do Android -->
+<div class="rec" id="rec" hidden>
+  <div>tela de apps recentes (do sistema)</div>
+  <div class="cartao"><div class="tit">Finanças</div><div class="corpo" id="recCorpo"></div></div>
+  <div id="recTxt" style="max-width:300px;"></div>
+  <button type="button" id="recFechar">Fechar</button>
+</div>
+
+<div class="demo-bar"><b>Demo: trava por biometria v1.</b> A barra preta é só da demo.
+<div class="gr"><span>Ver:</span>
+  <button type="button" id="dvListas">O interruptor (Listas, Aparência)</button>
+  <button type="button" id="dvAbrir">Abrir o app</button>
+  <button type="button" id="dvVolta1">Voltar depois de 1 min fora</button>
+  <button type="button" id="dvVolta0">Voltar antes de 1 min</button>
+  <button type="button" id="dvRec">Apps recentes</button>
+</div>
+<div class="gr"><label><input type="checkbox" id="dvSemTela"> O aparelho não tem digital, rosto nem senha de tela</label></div>
+<div class="gr"><span>Tema:</span><button type="button" id="dvClaro" aria-pressed="false">Claro</button><button type="button" id="dvEscuro" aria-pressed="false">Escuro</button><button type="button" id="dvAuto" aria-pressed="true">Do aparelho</button></div>
+<div class="gr" id="dvEstado" style="color:#9fe3c4;"></div>
+<details><summary>O que muda, e o que se perde</summary>
+<b>O que muda:</b> em Listas, o cartão Aparência ganha a subseção <b>Segurança</b>, que dono e membro veem, só no app Android, e que vale só neste aparelho (nada vai ao servidor). São duas chaves, desligadas de início. <b>Bloquear com biometria:</b> ligar e desligar pedem a confirmação do Android na hora; se a pessoa cancela, a chave não muda. Ligada, o app mostra a tela de bloqueio <b>ao abrir</b> e <b>ao voltar depois de 1 minuto fora dele</b>; nada do app é desenhado antes de liberar. A janela de confirmação é a do Android (digital, rosto ou a senha do aparelho) e abre sozinha; se a pessoa a fecha, fica a tela com <b>Desbloquear</b> e <b>Sair da conta</b>. Se o aparelho ficou sem digital, rosto e senha de tela, só resta <b>Sair da conta</b> (entrar de novo pelo login). Sair desliga as duas chaves. <b>Esconder nos apps recentes:</b> o app aparece em branco na lista de apps abertos; liga e desliga na hora, sem confirmação.<br>
+<b>O que se perde:</b> um toque (a digital) a mais para abrir o app e sempre que ficar mais de 1 minuto fora. A trava é só da tela: <b>não cifra</b> os dados nem o login guardado, e não protege em aparelho com root. Quem errar a digital muitas vezes espera o tempo que o Android impõe ou usa a senha do aparelho. Com "Esconder nos apps recentes" ligada, <b>não dá para tirar print nem gravar a tela do app inteiro</b> (o Android só oferece as duas coisas juntas). As chaves ficam a dois toques (menu, Listas). Quem troca de celular liga de novo. Os avisos do Telegram continuam chegando com a trava ligada. Em tela baixa (menos de 760 px de altura) o nome "Finanças" some quando há título de aviso.
+</details></div>
+
+<script>
+/* So da demo: imita a trava. No app, quem pede a biometria e marca a janela e um plugin em Java; a escolha fica no armazenamento do aparelho. */
+(function(){
+  var $=function(i){return document.getElementById(i);};
+  var bq=$('bloqueio'), sis=$('sisVeu'), rec=$('rec'), msg=$('segMsg');
+  var trava=false, recentes=false, aoResponder=null;
+  function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on');},3200);}
+  function estado(){
+    $('dvEstado').textContent='Agora: trava '+(trava?'LIGADA':'desligada')+' · esconder nos recentes '+(recentes?'LIGADO':'desligado');
+    $('swTrava').checked=trava; $('swRecentes').checked=recentes;
+  }
+  function semTela(){return $('dvSemTela').checked;}
+  function pedir(texto,fn){ $('sisTxt').textContent=texto; aoResponder=fn; sis.hidden=false; }
+  sis.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-sis]'); if(!b) return;
+    sis.hidden=true; var f=aoResponder; aoResponder=null; if(f) f(b.dataset.sis);
+  });
+  function aviso(texto,ruim){msg.textContent=texto;msg.classList.toggle('ruim',!!ruim);}
+
+  /* ---- as chaves ---- */
+  $('swTrava').addEventListener('change',function(){
+    var quer=this.checked; this.checked=trava; /* so muda depois da confirmacao */
+    aviso('');
+    if(quer&&semTela()){ aviso('Cadastre uma digital, um rosto ou uma senha de tela no Android para usar a trava.',true); return; }
+    pedir(quer?'Confirme que é você para ligar a trava':'Confirme que é você para desligar a trava',function(r){
+      if(r==='ok'||r==='senha'){ trava=quer; estado(); toast(quer?'✓ Trava ligada':'✓ Trava desligada'); }
+      else if(r==='muitas') aviso('Muitas tentativas. Tente de novo em 30 segundos.',true);
+      else aviso('Não confirmado: a trava continua '+(trava?'ligada':'desligada')+'.');
+    });
+  });
+  $('swRecentes').addEventListener('change',function(){ recentes=this.checked; estado(); aviso(''); toast(recentes?'✓ O app fica em branco nos apps recentes':'✓ O app volta a aparecer nos apps recentes'); });
+
+  /* ---- a tela de bloqueio ---- */
+  function tela(titulo,frase,ruim,soSair){
+    $('bqT').textContent=titulo; $('bqT').classList.toggle('ruim',!!ruim); $('bqS').textContent=frase;
+    bq.classList.toggle('com-aviso',!!titulo); $('bqAbrir').hidden=!!soSair; bq.hidden=false;
+  }
+  function desbloquear(){
+    if(semTela()){ tela('Este aparelho não tem mais digital, rosto nem senha de tela.','Sem isso não dá para confirmar que é você. Saia da conta e entre de novo.',false,true); return; }
+    tela('','Confirme que é você para abrir.');
+    pedir('Confirme que é você',function(r){
+      if(r==='ok'||r==='senha'){ bq.hidden=true; }
+      else if(r==='muitas') tela('Muitas tentativas.','Espere 30 segundos e tente de novo, ou use a senha do aparelho.',true);
+      else tela('','Confirme que é você para abrir.');
+    });
+  }
+  $('bqAbrir').onclick=desbloquear;
+  $('bqSair').onclick=function(){ trava=false; recentes=false; estado(); bq.hidden=true; toast('Saiu da conta: as duas chaves foram desligadas (a tela seguinte é a de "Entrar")'); };
+  function abrir(){
+    sis.hidden=true; rec.hidden=true; window.scrollTo(0,0);
+    if(!trava){ bq.hidden=true; toast('Com a trava desligada o app abre direto, como hoje'); return; }
+    desbloquear();
+  }
+  $('dvAbrir').onclick=abrir; $('dvVolta1').onclick=abrir;
+  $('dvVolta0').onclick=function(){ sis.hidden=true; rec.hidden=true; bq.hidden=true; toast(trava?'Menos de 1 minuto fora: o app volta sem pedir de novo':'Com a trava desligada o app volta direto, como hoje'); };
+  $('dvListas').onclick=function(){ sis.hidden=true; rec.hidden=true; bq.hidden=true; $('apSeg').scrollIntoView({block:'center'}); };
+  $('dvRec').onclick=function(){
+    sis.hidden=true;
+    $('recCorpo').innerHTML=recentes?'':'<b>Lançar</b><i style="width:70%"></i><b>R$ 1.234,56</b><i></i><i style="width:55%"></i><i style="width:80%"></i>';
+    $('recTxt').textContent=recentes?'Com "Esconder nos apps recentes" ligada: o cartão do app fica em branco.':'Com a chave desligada: a miniatura mostra a última tela do app, com valores, mesmo com a trava ligada.';
+    rec.hidden=false;
+  };
+  $('recFechar').onclick=function(){rec.hidden=true;};
+  $('dvSemTela').addEventListener('change',function(){aviso('');});
+  function tema(t){
+    var r=document.documentElement;
+    if(t==='claro')r.setAttribute('data-theme','light');else if(t==='escuro')r.setAttribute('data-theme','dark');else r.removeAttribute('data-theme');
+    $('dvClaro').setAttribute('aria-pressed',t==='claro');$('dvEscuro').setAttribute('aria-pressed',t==='escuro');$('dvAuto').setAttribute('aria-pressed',t==='auto');
+  }
+  $('dvClaro').onclick=function(){tema('claro');};$('dvEscuro').onclick=function(){tema('escuro');};$('dvAuto').onclick=function(){tema('auto');};
+  var barras=document.querySelectorAll('.demo-bar'), barra=barras[barras.length-1];
+  function medir(){document.documentElement.style.setProperty('--demo-h',barra.offsetHeight+'px');}
+  if(window.ResizeObserver)new ResizeObserver(medir).observe(barra);
+  medir(); estado();
+  setTimeout(function(){$('apSeg').scrollIntoView({block:'center'});},50);
+})();
+</script>

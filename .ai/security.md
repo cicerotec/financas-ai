@@ -27,6 +27,11 @@ Dados financeiros de uma família (lançamentos, saldos, cartões, notas) e o ac
     sem pedir a senha.
   - **No app, rede não é logout:** só a recusa do refresh pelo Cognito (`400`) encerra a sessão; falha de rede e `5xx` mantêm. Um `401` da API faz um refresh e uma
     repetição; o segundo `401` vira erro na tela. O mesmo `UserPoolClient` serve o navegador e o app: não dá para encerrar só as sessões do app.
+- **Trava por biometria no app Android** (item 54, fase 3a; `web/js/bloqueio.js` e o plugin `Trava`): opcional, ligada por cada pessoa em Listas, guardada só no aparelho. Protege
+  contra quem pega o **aparelho desbloqueado**: com ela, o app pede a digital, o rosto ou a senha do aparelho ao abrir e depois de 1 minuto fora. **É só da tela:** não cifra os
+  dados nem o refresh token (que continua no `Cofre`), não vale em aparelho com root, e um script injetado na página poderia desligá-la, porque a escolha fica em `localStorage`.
+  Não substitui a senha nem o MFA do Cognito. A chave "Esconder nos apps recentes" marca a janela como protegida (`FLAG_SECURE`): o app some da lista de apps abertos e não aceita
+  captura nem gravação de tela. Sair da conta desliga as duas.
 - **Validação no backend** (`backend/auth/token.go`), em toda requisição: assinatura RS256 com as chaves públicas do pool
   (JWKS), `iss`, `aud` (o `CLIENT_ID`), expiração obrigatória e `token_use == "id"`. Sem `sub`, recusa. Qualquer falha é
   `401`.
