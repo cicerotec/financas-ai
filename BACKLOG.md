@@ -269,7 +269,7 @@ DynamoDB sem discutir com o dono.**
   **Fatia a concluída em 2026-10-24** (fases A, B e C: a aba Cartão de crédito e a linha Fatura do Lançar leem o servidor, conferidas pelo dono em dev e produção; o `PUT /cfg/cartoes` saiu). Sobra a fatia b.
   - [x] **Fatia a: faturas do cartão no servidor** (concluída em 2026-10-24: fases A, B e C).
   - [x] **Fatia b, com o escopo reduzido (2026-10-25; concluída em 2026-10-25, junto com o item 35):** só a **trava da fatura conferida pelo servidor**, feita junto com o item 35. **Fora, por decisão do dono:** o cartão como entidade própria (ele continua sendo uma entrada de `CFG#CARTOES`, `meios[].cartao`) e a migração do `faturaAjuste` explícito (o passado está correto). Intent, plan e spec (rascunho) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md).
-- 34. [ ] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
+- 34. [x] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
   4096 caracteres do item 28. **Ponto de partida (item 32, fatia 4):** o `Avisador` já existe com o nome `service.Notificador`
@@ -277,7 +277,7 @@ DynamoDB sem discutir com o dono.**
   `service.Avisos`; falta o despachante por assinatura e os outros canais.
   **Roteiro em [`.ai/specs/avisos-despachante/`](.ai/specs/avisos-despachante/intent.md) (rascunho de 2026-11-13).** Decidido em 2026-11-13: este item vem **inteiro antes** do push (fase 4 do [item 54](#item-54)); "inteiro" = despachante, divisão da mensagem longa do
   Telegram e isolamento de falha, com o Telegram como único canal real (e-mail e WhatsApp sem código agora); quem assina o quê é deduzido de quem tem destino; nenhum campo novo no DynamoDB.
-  **Código pronto no PR da branch `feature/avisos-despachante` (2026-11-13); falta o item ser marcado depois de conferido no `dev` (D-T14 do spec).**
+  **Feito em 2026-11-13 (PR 429) e conferido no `dev` (D-T14 do spec):** um resumo curto chegou numa mensagem só, no formato de sempre, e um resumo fictício de 60 avisos chegou em partes `(1/n)`, na ordem; os logs da rotina trazem só contagens (sem chat id nem descrição). Pendente de teste real: o `prod` ainda não rodou a rotina nova.
 - 43. [x] <a id="item-43"></a>**Meios de pagamento: o dono cria, desativa e remove (concluído em 2026-11-03: fase A no #347 e fase B no #348; conferido em dev pelo dono; rascunho de 2026-10-24):** o que o dono chama de **meio de pagamento** (conta, carteira, vale, cartão:
   `SODEXO-REF-IBM`, `DINHEIRO`, `CARTEIRA`...) é o `banco` gravado, com um **de-para só de exibição em `domain/`** (o Dynamo não muda, o campo continua `banco`).
   **O dono cria e desativa meios pelo app** (dado do espaço, não do produto); o front nunca conhece os nomes. Um meio desativado (por exemplo, o `SODEXO` quando o dono sair da
