@@ -277,6 +277,7 @@ DynamoDB sem discutir com o dono.**
   `service.Avisos`; falta o despachante por assinatura e os outros canais.
   **Roteiro em [`.ai/specs/avisos-despachante/`](.ai/specs/avisos-despachante/intent.md) (rascunho de 2026-11-13).** Decidido em 2026-11-13: este item vem **inteiro antes** do push (fase 4 do [item 54](#item-54)); "inteiro" = despachante, divisão da mensagem longa do
   Telegram e isolamento de falha, com o Telegram como único canal real (e-mail e WhatsApp sem código agora); quem assina o quê é deduzido de quem tem destino; nenhum campo novo no DynamoDB.
+  **Código pronto no PR da branch `feature/avisos-despachante` (2026-11-13); falta o item ser marcado depois de conferido no `dev` (D-T14 do spec).**
 - 43. [x] <a id="item-43"></a>**Meios de pagamento: o dono cria, desativa e remove (concluído em 2026-11-03: fase A no #347 e fase B no #348; conferido em dev pelo dono; rascunho de 2026-10-24):** o que o dono chama de **meio de pagamento** (conta, carteira, vale, cartão:
   `SODEXO-REF-IBM`, `DINHEIRO`, `CARTEIRA`...) é o `banco` gravado, com um **de-para só de exibição em `domain/`** (o Dynamo não muda, o campo continua `banco`).
   **O dono cria e desativa meios pelo app** (dado do espaço, não do produto); o front nunca conhece os nomes. Um meio desativado (por exemplo, o `SODEXO` quando o dono sair da

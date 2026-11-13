@@ -143,7 +143,7 @@ manual.
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
 | `excluirDoTotal` montado pelo front a partir do nome do status | **Fechada na fase A do item 41 (2026-10-24):** o servidor calcula `excluirDoTotal` pelo catálogo e o valor do corpo é descartado; o front ainda o envia, ignorado | item 41 (fase C tira o envio) |
 | Campos opcionais do lançamento gravados como vêm | Valor inesperado persiste. **`faturaAjuste` já é validado** (só `-1`, `0` ou `+1`, e só em crédito; item 33a, fase A, 2026-10-24); os outros campos opcionais seguem como vêm | itens 33 e 41 |
-| Resumo do Telegram acima de 4096 caracteres | Nenhum aviso chega naquele dia (disponibilidade, não vazamento) | item 28, item 34 |
+| Resumo do Telegram acima de 4096 caracteres | **Fechada no item 34:** o canal divide em partes de até 4000 letras | item 28, item 34 |
 
 ## Regras ao mexer (propostas, a confirmar com o dono)
 - **Rota nova exige ação nova** em `auth/authz.go`, com o que owner e member podem, **e teste** em `auth/authz_test.go`. Nunca

@@ -25,9 +25,9 @@ type Servidor struct {
 	combos    *controller.Combos
 }
 
-// novoServidor liga repository, service e controller. Recebe o que vem de fora (banco, tabela, relogio, canal de envio e o
+// novoServidor liga repository, service e controller. Recebe o que vem de fora (banco, tabela, relogio, despachante de avisos e o
 // ambiente, "dev" ou "prod"). E o unico lugar que faz essa ligacao.
-func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador service.Notificador, ambiente string) *Servidor {
+func novoServidor(db dynamoAPI, table string, rel service.Relogio, despachante *service.Despachante, ambiente string) *Servidor {
 	cfgRepo := repository.NewConfig(db, table)
 	pessoas := repository.NewPessoas(db, table)
 	espacos := repository.NewEspacos(db, table)
@@ -36,7 +36,7 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, notificador s
 	contador := service.NewContador(repository.NewContador(db, table))
 	saldosRepo := repository.NewSaldos(db, table)
 	fech := service.NewFechamento(saldosRepo, cfgRepo, rel)
-	avisos := service.NewAvisos(repository.NewAvisos(db, table), lancRepo, cfgRepo, pessoas, espacos, notificador, rel, ambiente)
+	avisos := service.NewAvisos(repository.NewAvisos(db, table), lancRepo, cfgRepo, pessoas, espacos, despachante, rel, ambiente)
 	efeitos := service.NewEfeitos(fech, tags, avisos, contador)
 	lancSvc := service.NewLancamentos(lancRepo, efeitos, pessoas, rel)
 	saldos := service.NewSaldos(lancRepo, cfgRepo, saldosRepo, rel)
