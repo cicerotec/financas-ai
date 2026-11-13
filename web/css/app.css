@@ -205,7 +205,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .lh .chip{background:var(--accent-bg);color:var(--text);border-radius:999px;padding:3px 10px;font-size:13px;}
 .mais-det{display:none;padding:4px 16px 14px;border-top:1px solid var(--border);}
 .mais-det.aberto{display:block;}
-.barra{display:flex;gap:8px;position:sticky;bottom:0;z-index:4;padding:10px 0 4px;background:linear-gradient(to top,var(--bg) 75%,transparent);}
+/* A barra para acima dos botoes do sistema: no app Android a pagina vai ate a borda de baixo da tela e o Android informa a
+   altura dos botoes dele em env(safe-area-inset-bottom) (48 px no aparelho do dono). A sombra pinta essa faixa com a cor do
+   fundo, para o que rola por tras nao aparecer entre os botoes. No navegador e na PWA a margem e 0 e nada muda. */
+.barra{display:flex;gap:8px;position:sticky;bottom:env(safe-area-inset-bottom,0px);z-index:4;padding:10px 0 4px;background:linear-gradient(to top,var(--bg) 75%,transparent);box-shadow:0 env(safe-area-inset-bottom,0px) 0 var(--bg);}
 .barra button{margin:0;min-height:52px;border-radius:14px;}
 .barra .primary{flex:1;width:auto;}
 .barra .ghost{flex:none;padding:0 16px;background:var(--ck);border:0;color:var(--text);}
