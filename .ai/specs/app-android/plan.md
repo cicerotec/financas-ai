@@ -79,6 +79,7 @@ scripts/app-android.ps1      chama montar-www.js para -Ambiente dev|prod, roda c
 - Cada ajuste visual de padrão atualiza `padrao-de-telas.md` e as demos na mesma entrega (guardrails).
 
 ### Fase 4: push (FCM) como canal de aviso (spec própria)
+- **Roteiro completo em [`../app-android-push/`](../app-android-push/intent.md)** (intent, plan e spec, rascunho de 2026-11-13); o resumo abaixo é o que o dono decidiu.
 - **Depende do item 34 (despachante de avisos), que vem inteiro antes** (decisão do dono em 2026-11-13). O plano original supunha o despachante pronto; ele não existe. Roteiro do item 34: [`../avisos-despachante/`](../avisos-despachante/intent.md).
 - Novo adaptador em `backend/adapter/notificacao/` (`fcm.go`), registrado no despachante ao lado do Telegram. O `service` continua mandando conteúdo estruturado.
 - **Onde guardar o token (decidido pelo dono em 2026-11-13, opção "A"):** um campo novo `pushTokens` (lista de textos, um token por aparelho) no **vínculo** `USER#<sub>` / `SPACE#<id>`, o mesmo item onde já está o `telegramChatId`.
