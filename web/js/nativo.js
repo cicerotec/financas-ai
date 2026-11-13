@@ -9,6 +9,7 @@ function criarNativo(env){
     const App = cap.Plugins && cap.Plugins.App;
     if(!App || typeof App.addListener !== 'function') return false;
     App.addListener('backButton', ev => {
+      if(env.bloqueado && env.bloqueado()){ if(typeof App.minimizeApp === 'function') App.minimizeApp(); return; } // com a tela de bloqueio na frente, o voltar so tira o app da frente
       if(ev && ev.canGoBack) env.history.back();
       else if(typeof App.minimizeApp === 'function') App.minimizeApp();
     });
@@ -18,4 +19,4 @@ function criarNativo(env){
 }
 
 if(typeof module !== 'undefined' && module.exports) module.exports = criarNativo;
-if(typeof window !== 'undefined') criarNativo({Capacitor: window.Capacitor, history: window.history}).iniciar();
+if(typeof window !== 'undefined') criarNativo({Capacitor: window.Capacitor, history: window.history, bloqueado: ()=>typeof Bloqueio !== 'undefined' && !!Bloqueio && Bloqueio.bloqueado()}).iniciar();

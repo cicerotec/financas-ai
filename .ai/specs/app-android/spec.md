@@ -3,7 +3,7 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id (`A-T<n>`), para o PR dizer exatamente o
 que cobriu. Quando este texto e o do intent divergirem, vale o plan. As fases 4 (push), 5 (release) e 6 (produção aberta) ganham spec própria.
 
-**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado"). **Fase 2 implementada em 2026-11-12** (PR 419), com o login completo visto no aparelho; o roteiro de aparelho da fase 2 está fechado; ficam os herdados A-T5, (c) e o desinstalar (ver "Fase 2: o que foi verificado"). Fase 3 sem código. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
+**Estado:** rascunho (2026-11-01). **Fase 1 implementada em 2026-11-11** (branch `feature/app-android-casca`), com o APK do `dev` **compilado, instalado e abrindo no aparelho**; os testes que pedem sessão (A-T6 e A-T7) passaram para o fim da fase 2 (ver "Fase 1: o que foi verificado"). **Fase 2 implementada em 2026-11-12** (PR 419), com o login completo visto no aparelho; o roteiro de aparelho da fase 2 está fechado; ficam os herdados A-T5, (c) e o desinstalar (ver "Fase 2: o que foi verificado"). **Fase 3a (a trava por biometria) com código em 2026-11-12** (branch `feature/app-android-biometria`), conferida pelo dono no aparelho; a 3b (ícone, splash e barra de status) sem código. Onde o texto diz "confirmar", é uma verificação que a fase faz e registra aqui no PR.
 
 Convenção dos testes: os de lógica são `node web/*.test.js` (o CI roda todos sem lista) e **falham antes da mudança**. Os que dependem do aparelho são marcados
 **[aparelho]** e entram como roteiro manual no PR, com o resultado escrito. Diga o que não deu para ver em vez de afirmar que funciona.
@@ -236,10 +236,13 @@ o que acontece quando a biometria falha ou não está cadastrada, os dois temas 
 
 ### Regras
 
-- **R19.** A biometria é **opcional e desligada por padrão**. O interruptor fica em Configurações (ou onde a demo aprovada disser), existe só no app, e a escolha fica **só no
-  aparelho** (armazenamento de preferências). Nenhum campo novo no DynamoDB, nenhuma rota nova.
-- **R20.** Com a trava ligada, o app mostra o bloqueio ao abrir e ao voltar do segundo plano depois de **N minutos** (valor na demo; proposta: 1 minuto). O conteúdo das abas
-  **não é desenhado** enquanto o bloqueio está ativo, nem aparece na visão de apps recentes do Android (janela marcada como protegida).
+- **R19.** A biometria é **opcional e desligada por padrão**. As chaves ficam em **Listas, no cartão Aparência, subseção "Segurança"** (decisão do dono em 2026-11-12: a aba
+  Configurações é só do dono, e a trava é de cada pessoa, inclusive do membro), existem só no app, e a escolha fica **só no aparelho** (`localStorage`: `financas.trava` e
+  `financas.recentes`). Nenhum campo novo no DynamoDB, nenhuma rota nova.
+- **R19a.** São **duas chaves independentes** (decisão do dono em 2026-11-12): "Bloquear com biometria" (a trava) e "Esconder nos apps recentes" (a janela protegida). A segunda
+  liga e desliga na hora, sem confirmação, e **também impede capturas e gravação de tela do app** (o Android só oferece as duas coisas juntas, por `FLAG_SECURE`).
+- **R20.** Com a trava ligada, o app mostra o bloqueio ao abrir e ao voltar do segundo plano depois de **1 minuto** (decisão do dono em 2026-11-12). O conteúdo das abas
+  **não é mostrado** enquanto o bloqueio está ativo. A janela protegida (o app em branco nos apps recentes) é a chave do R19a, não vem junto com a trava.
 - **R21.** A tela libera só com sucesso da biometria ou da credencial do aparelho. Cancelar, falhar ou não ter biometria cadastrada **não libera**. Se o aparelho perdeu a
   biometria, a pessoa entra por "Sair" (login de novo), nunca por um atalho que pule a trava.
 - **R22.** Ligar a trava exige uma verificação bem-sucedida na hora; desligar também.
@@ -262,6 +265,29 @@ o que acontece quando a biometria falha ou não está cadastrada, os dois temas 
 | A-T29 **[aparelho]** | Ligar, bloquear, desbloquear com digital ou rosto e com o PIN do aparelho; a visão de apps recentes mostra a janela protegida (R20, R21) |
 | A-T30 **[aparelho]** | Remover a biometria do aparelho com a trava ligada: o app não abre as abas e oferece "Sair" (R21) |
 | A-T31 **[aparelho]** | Pior caso de layout (nome de banco comprido, tema escuro, 360 px e 412 px de largura) no bloqueio e no interruptor, medido por script e com captura (guardrails) |
+
+### Fase 3a (a trava): o que foi verificado (2026-11-12)
+
+A fase 3 foi dividida (decisão do dono em 2026-11-12): **3a, a trava por biometria** (esta) e **3b, ícone adaptativo, splash nativo e barra de status** (R24, com demo própria,
+ainda sem código). Demo aprovada em 2026-11-12: [`demo-bloqueio-v1`](../../demos/demo-bloqueio-v1.html). Código na branch `feature/app-android-biometria`.
+
+| Item | Resultado |
+|---|---|
+| A-T23 a A-T28 (lógica) | **Verde**: `node web/bloqueio.test.js` (10 testes); os 28 arquivos `web/*.test.js` passam |
+| Quebrar de propósito | Liberar com qualquer resposta derruba A-T24 e A-T25; esticar o tempo derruba A-T24; gravar a chave sem confirmação derruba A-T26 |
+| Compilar e instalar | **Verde**: o APK do `dev` compila com `androidx.biometric:biometric:1.1.0` e o `TravaPlugin`; `adb install -r` deu `Success` |
+| Plugin no aparelho | **Verde** (Xiaomi 2311DRK48G, pela inspeção da WebView): `Capacitor.Plugins.Trava` existe, `disponivel()` devolve `true`, a subseção "Segurança" aparece em Listas com as duas chaves desligadas e a tela de bloqueio fica escondida com a trava desligada |
+| A-T29 **[aparelho]** | **Verde, pelo relato do dono** (2026-11-12, Xiaomi 2311DRK48G): seguiu o roteiro de seis passos (ligar a trava com a digital, fechar e abrir, cancelar a janela, voltar depois de 1 minuto e antes, esconder nos apps recentes com tentativa de print, desligar a trava) e respondeu "funcionou". Não houve captura nem leitura pela inspeção nesse roteiro, e ele não detalhou passo a passo |
+| A-T30 e A-T31 **[aparelho]** | **Pendentes**: remover a biometria do aparelho com a trava ligada, e a medição de layout (360 e 412 px, tema claro e escuro) |
+
+### Decisões da fase 3a
+
+- O plugin se chama `Trava` (`TravaPlugin.java`): `disponivel()`, `confirmar({titulo})` e `protegerJanela({ligar})`. Usa a biblioteca `androidx.biometric` (do próprio Android),
+  aceita digital ou rosto de qualquer classe **ou a credencial do aparelho** (PIN, padrão ou senha) e não escreve log. Nenhum plugin de terceiros.
+- "Sair da conta" desliga as duas chaves (R14, A-T27): `sessao.js` apaga `financas.trava` e `financas.recentes` junto com `financas.space`.
+- Com a tela de bloqueio na frente, o voltar físico só minimiza o app (`nativo.js`); não mexe no que está por baixo.
+- A janela do Android tira o app da frente; isso **não conta** como saída para o relógio de 1 minuto, e só uma pergunta fica aberta por vez.
+- A escolha fica em `localStorage`, como o tema e o "esconder valores". Se o Android apagar os dados da WebView, a trava volta desligada. Aceito: a trava é só da tela (R23).
 
 ## Verificação no `dev`
 

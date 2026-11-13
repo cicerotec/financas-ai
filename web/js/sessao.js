@@ -192,7 +192,7 @@ function criarSessao(env){
         await iniciar();
         await limpar();
       } catch (e) { aviso('cofre'); throw e; }
-      try { env.localStorage.removeItem('financas.space'); } catch (e) {}
+      try { for(const k of ['financas.space', 'financas.trava', 'financas.recentes']) env.localStorage.removeItem(k); } catch (e) {} // o espaco escolhido e a trava (R14); tema e o olho ficam
       try { await Browser.open({url: urlLogout(redirect)}); } catch (e) {} // sem aba do sistema o Cognito nao e avisado; a sessao local ja foi apagada
       env.recarregar();
     }

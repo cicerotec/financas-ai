@@ -37,6 +37,20 @@
   </div>
 </div>
 <script src="js/abertura.js"></script>
+<!-- bloqueio (trava por biometria, so no app Android; demo-bloqueio-v1): cobre tudo ate o Android confirmar quem esta com o aparelho -->
+<div class="bq" id="bloqueio" role="dialog" aria-modal="true" aria-label="Finanças bloqueado" hidden>
+  <svg class="bq-ic" viewBox="51.2 51.2 409.6 409.6" aria-hidden="true"><rect width="512" height="512" fill="#14213d"/><rect x="136" y="288" width="64" height="96" rx="12" fill="#4cc9a0"/><rect x="224" y="228" width="64" height="156" rx="12" fill="#4cc9a0"/><rect x="312" y="156" width="64" height="228" rx="12" fill="#ffd166"/></svg>
+  <div class="bq-baixo">
+    <p class="bq-nome">Finanças</p>
+    <div class="bq-pe">
+      <b id="bqT"></b>
+      <span id="bqS"></span>
+      <button type="button" id="bqAbrir">Desbloquear</button>
+      <button type="button" class="sec" id="bqSair">Sair da conta</button>
+    </div>
+  </div>
+</div>
+<script src="js/bloqueio.js"></script>
 <header>
   <!-- janela larga (1160 px ou mais): nome do app e o botao da conta; no celular a conta fica no menu ⋮ -->
   <div class="topo">
@@ -292,6 +306,14 @@
         <div class="muted" style="margin-top:14px;">Ordem dos saldos</div>
         <div class="tags" id="ordemSaldosBtns"></div>
         <div id="ordemManualLista"></div>
+      </div>
+      <!-- Seguranca (so no app Android; js/bloqueio.js mostra e liga as chaves): vale so neste aparelho -->
+      <div class="ap-sub" id="apSeg" hidden>
+        <div class="ap-st">Segurança</div>
+        <p class="muted">Vale só neste aparelho.</p>
+        <label class="fut-sw seg-sw"><input type="checkbox" role="switch" id="swTrava"><span>Bloquear com biometria<small>Pede a digital, o rosto ou a senha do aparelho ao abrir o app e depois de 1 minuto fora dele.</small></span></label>
+        <label class="fut-sw seg-sw"><input type="checkbox" role="switch" id="swRecentes"><span>Esconder nos apps recentes<small>O app aparece em branco na lista de apps abertos. Também impede capturas e gravação de tela do app.</small></span></label>
+        <p class="seg-msg" id="segMsg" role="status"></p>
       </div>
     </div>
   </div>
