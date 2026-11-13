@@ -79,13 +79,18 @@ scripts/app-android.ps1      chama montar-www.js para -Ambiente dev|prod, roda c
 - Cada ajuste visual de padrão atualiza `padrao-de-telas.md` e as demos na mesma entrega (guardrails).
 
 ### Fase 4: push (FCM) como canal de aviso (spec própria)
+- **Depende do item 34 (despachante de avisos), que vem inteiro antes** (decisão do dono em 2026-11-13). O plano original supunha o despachante pronto; ele não existe. Roteiro do item 34: [`../avisos-despachante/`](../avisos-despachante/intent.md).
 - Novo adaptador em `backend/adapter/notificacao/` (`fcm.go`), registrado no despachante ao lado do Telegram. O `service` continua mandando conteúdo estruturado.
-- **O token do aparelho precisa ser guardado** (por pessoa e por aparelho): isso é **item novo no DynamoDB**, então a forma (campo no vínculo `USER#<sub>/SPACE#<id>`, item novo
-  ou parâmetro) é **decisão do dono antes de qualquer código**. A spec desta fase abre com essa conversa.
-- Android 13 ou superior pede permissão de notificação em tempo de execução; explicar o porquê antes de pedir. Cada pessoa liga ou desliga o canal; sem token, o despachante
-  simplesmente não entrega (já é a regra).
-- Conteúdo da notificação: **sem valor na tela bloqueada** como padrão (decisão a confirmar; ver `privacidade-e-cifragem.md`, "Avisos no Telegram").
-- Credencial do Firebase fica no SSM, nunca no git, como o token do Telegram.
+- **Onde guardar o token (decidido pelo dono em 2026-11-13, opção "A"):** um campo novo `pushTokens` (lista de textos, um token por aparelho) no **vínculo** `USER#<sub>` / `SPACE#<id>`, o mesmo item onde já está o `telegramChatId`.
+  Vale por pessoa **dentro de cada espaço**, como o Telegram: quem quer o aviso dos dois espaços liga a chave nos dois; cada espaço é uma conta separada. Sair da conta remove o aparelho de **todos** os espaços onde ele está
+  registrado (o servidor acha os espaços da pessoa pela consulta que já lista os espaços). Limite de 5 aparelhos por pessoa e espaço; só a própria pessoa registra (o `sub` vem do token); o token nunca vai ao log; o token que o
+  Firebase recusar é apagado pela rotina. **O nome e o tipo do campo (`pushTokens`, conjunto de textos) são confirmados na spec da fase.** Foram descartados o item por aparelho e o item por pessoa (este por juntar os espaços).
+- **Conteúdo da notificação (decidido em 2026-11-13): só a contagem**, por exemplo "2 atrasados, 1 vence hoje", sem descrição, valor nem meio de pagamento. Os detalhes ficam dentro do app, atrás da trava. **Decidido: não mostra o nome do espaço** (apareceria na tela bloqueada). O mesmo aparelho em dois espaços recebe **uma** notificação, com a contagem somada.
+- **Plugin: nosso, em Java** (decidido em 2026-11-13), como o `Cofre` e a `Trava`; sem plugin de terceiros. Android 13 ou superior pede permissão de notificação em tempo de execução; explicar o porquê antes de pedir.
+- **A chave "Receber avisos neste aparelho"** é uma tela nova (demo antes): fica em Listas, junto do cartão do Telegram, dentro de cada espaço, só no app. Sem token, o despachante simplesmente não entrega (já é a regra).
+- **Credencial do Firebase** fica no SSM, nunca no git, como o token do Telegram, guardada por script com `Read-Host -AsSecureString` (nunca no chat nem na linha de comando). O arquivo de configuração do app
+  (`google-services.json`) tem dado do projeto e **fica fora do git**, como o `config.js`. Como a Lambda se autentica no Firebase e o que o app precisa **serão conferidos na documentação** antes da spec da fase.
+- A fase 4 **não** inclui avisar a esposa das contas que o dono cria: quem recebe o aviso continua sendo o criador do lançamento e o dono do espaço.
 
 > **No backlog (decisão do dono em 2026-11-13):** as fases 1 a 4 são o item 54, que se conclui com o push; as fases 5, 6 e 7, abaixo, são o item 64. O roteiro continua sendo este arquivo.
 
