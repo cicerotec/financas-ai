@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"financas/adapter/notificacao"
 	"financas/domain"
 	"financas/service"
 )
@@ -130,7 +131,7 @@ func TestMontarResumoOrdenaAtrasadosPrimeiro(t *testing.T) {
 		{Kind: avisoAtrasado, N: 2, Venc: "2026-10-05", Tipo: "saida", Descricao: "Internet", Valor: 120, Banco: "NUBANK"},
 		{Kind: avisoHoje, Venc: "2026-10-07", Tipo: "entrada", Descricao: "Aluguel", Valor: 2500, Banco: "ITAU"},
 	}
-	r := domain.MontarResumo("", "2026-10-07", linhas)
+	r := notificacao.MontarResumo("", "2026-10-07", linhas)
 	ordem := []string{"Atrasado há 2 dias (05/10/2026): Internet — R$ 120,00 (NUBANK)", "A receber hoje (07/10/2026): Aluguel", "Vence em 3 dias (10/10/2026): Condomínio — R$ 800,00 (ITAU)"}
 	ult := -1
 	for _, trecho := range ordem {
@@ -146,7 +147,7 @@ func TestMontarResumoOrdenaAtrasadosPrimeiro(t *testing.T) {
 	if !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
 		t.Errorf("cabecalho inesperado:\n%s", r)
 	}
-	if !strings.Contains(domain.MontarResumo("", "2026-10-07", []domain.LinhaAviso{{Kind: avisoAntes, N: 1, Venc: "2026-10-08", Descricao: " "}}), "Vence em 1 dia (08/10/2026): (sem descrição)") {
+	if !strings.Contains(notificacao.MontarResumo("", "2026-10-07", []domain.LinhaAviso{{Kind: avisoAntes, N: 1, Venc: "2026-10-08", Descricao: " "}}), "Vence em 1 dia (08/10/2026): (sem descrição)") {
 		t.Error("singular e descricao vazia")
 	}
 }
@@ -232,7 +233,7 @@ func TestImportacaoEmLoteSincronizaOAviso(t *testing.T) {
 type envio struct{ chat, texto string }
 
 // trocaEnvio troca o envio real por um que guarda as mensagens.
-// notifFalso e o canal "telegram" dos testes: formata o resumo como o Telegram de verdade (domain.PartesDoResumo), guarda as
+// notifFalso e o canal "telegram" dos testes: formata o resumo como o Telegram de verdade (notificacao.PartesDoResumo), guarda as
 // mensagens (ou falha com o erro dado). Fica no despachante do Servidor montado em cenario().
 type notifFalso struct {
 	falhaCom error
@@ -245,7 +246,7 @@ func (n *notifFalso) Enviar(_ context.Context, chat string, r domain.ResumoAviso
 	if n.falhaCom != nil {
 		return n.falhaCom
 	}
-	for _, texto := range domain.PartesDoResumo(r, domain.LimiteTelegram) {
+	for _, texto := range notificacao.PartesDoResumo(r, notificacao.LimiteTelegram) {
 		n.enviados = append(n.enviados, envio{chat, texto})
 	}
 	return nil
@@ -511,7 +512,7 @@ func TestGetMeDevolveOChatID(t *testing.T) {
 
 func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 	linhas := []domain.LinhaAviso{{Kind: avisoHoje, Venc: "2026-10-07", Tipo: "saida", Descricao: "Luz", Valor: 10, Banco: "ITAU"}}
-	if r := domain.MontarResumo(domain.MarcaAmbiente("dev"), "2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10/2026\n") {
+	if r := notificacao.MontarResumo(domain.MarcaAmbiente("dev"), "2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10/2026\n") {
 		t.Errorf("resumo do dev sem [DEV]:\n%s", r)
 	}
 	f := cenario(t)
@@ -524,8 +525,31 @@ func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 	}
 
 	for _, amb := range []string{"prod", ""} {
-		if r := domain.MontarResumo(domain.MarcaAmbiente(amb), "2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
+		if r := notificacao.MontarResumo(domain.MarcaAmbiente(amb), "2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
 			t.Errorf("ambiente %q nao deve ter [DEV]:\n%s", amb, r)
 		}
+	}
+}
+
+// AD-2: o teste de aviso serve a qualquer canal; quem escolhe o canal (e o padrao) e o controller, e o service nao conhece nome de canal.
+func TestMensagemDeTestePorCanal(t *testing.T) {
+	f := cenario(t)
+	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member", "telegramChatId": "222222"})
+	env := trocaEnvio(t, nil)
+
+	st, _ := chamar(t, "mem", "POST", "spaces/s1/avisos/teste", nil, `{"canal":"telegram"}`)
+	esperar(t, "canal explicito igual ao padrao", st, 200)
+	if len(*env) != 1 || (*env)[0].chat != "222222" {
+		t.Errorf("enviado = %v", *env)
+	}
+	st, d := chamar(t, "mem", "POST", "spaces/s1/avisos/teste", nil, `{"canal":"zzz"}`)
+	esperar(t, "canal desconhecido", st, 400)
+	if d["erro"] == nil || strings.Contains(d["erro"].(string), "Telegram") {
+		t.Errorf("erro = %v", d)
+	}
+	st, _ = chamar(t, "mem", "POST", "spaces/s1/avisos/teste", nil, `{"canal":7}`)
+	esperar(t, "canal que nao e texto", st, 400)
+	if len(*env) != 1 {
+		t.Errorf("canal invalido nao pode enviar nada: %v", *env)
 	}
 }

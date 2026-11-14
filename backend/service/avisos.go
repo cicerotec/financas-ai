@@ -32,11 +32,8 @@ type LeitorDono interface {
 	Dono(ctx context.Context, sid string) string
 }
 
-// Erros do teste de aviso. O controller traduz cada um na resposta HTTP de sempre.
-var (
-	ErrTelegramNaoConfigurado = errors.New("o envio pelo Telegram ainda nao foi configurado no servidor")
-	ErrTelegramRecusou        = errors.New("o Telegram recusou a mensagem: confira o chat id e se voce ja iniciou a conversa com o bot")
-)
+// ErrSemDestino: a pessoa nao tem destino cadastrado no canal pedido (no teste de aviso). O controller diz a frase de cada canal.
+var ErrSemDestino = errors.New("sem destino cadastrado neste canal")
 
 // Avisos mantem o item auxiliar de cada lancamento com aviso e roda a rotina diaria que manda o resumo do dia. O "hoje" vem
 // do Relogio; a marca [DEV] vem do ambiente.
@@ -292,27 +289,35 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 	return enviados, nil
 }
 
-// Testar manda uma mensagem de teste para o Telegram de quem fez a chamada.
-func (s *Avisos) Testar(ctx context.Context, sid, sub string) error {
+// Testar manda uma mensagem de teste, pelo canal pedido, a todos os destinos de quem fez a chamada naquele espaco (um chat id, ou
+// varios aparelhos). O servico nao conhece os canais: quem escolhe o canal e o controller. Erros que atravessam: ErrCanalDesconhecido,
+// ErrSemDestino, domain.ErrCanalNaoConfigurado e domain.ErrEntregaFalhou (qualquer outra falha do canal).
+func (s *Avisos) Testar(ctx context.Context, sid, sub, canal string) error {
+	if !s.despachante.Conhece(canal) {
+		return ErrCanalDesconhecido
+	}
 	todos, err := s.contatos.Destinos(ctx, sid, sub)
 	if err != nil {
 		log.Println("aviso teste:", err)
 		return ErrInterno
 	}
-	var chat string
-	if l := todos["telegram"]; len(l) > 0 {
-		chat = l[0]
+	enderecos := todos[canal]
+	if len(enderecos) == 0 {
+		return ErrSemDestino
 	}
-	if chat == "" {
-		return &ErroValidacao{"cadastre o seu chat id do Telegram primeiro"}
+	var primeiro error
+	for _, e := range enderecos {
+		err := s.despachante.Entregar(ctx, Destino{canal, e}, domain.ResumoAvisos{Marca: domain.MarcaAmbiente(s.ambiente), Teste: true})
+		if errors.Is(err, domain.ErrCanalNaoConfigurado) {
+			return err
+		}
+		if err != nil && primeiro == nil {
+			primeiro = err
+		}
 	}
-	err = s.despachante.Entregar(ctx, Destino{"telegram", chat}, domain.ResumoAvisos{Marca: domain.MarcaAmbiente(s.ambiente), Teste: true})
-	switch {
-	case errors.Is(err, domain.ErrCanalNaoConfigurado):
-		return ErrTelegramNaoConfigurado
-	case err != nil:
-		log.Println("aviso teste:", err)
-		return ErrTelegramRecusou
+	if primeiro != nil {
+		log.Printf("aviso teste: canal %s: %v", canal, primeiro)
+		return domain.ErrEntregaFalhou
 	}
 	return nil
 }
