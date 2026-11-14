@@ -3,7 +3,7 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id (`P-T<n>`), para o PR dizer exatamente o que cobriu. Quando este texto e o do intent
 divergirem, vale o plan.
 
-**Estado:** rascunho para aprovação (2026-11-13). A revisão independente das premissas foi **dispensada pelo dono** (2026-11-13, sem agente para isso; pedir quando existir); as premissas levantadas por quem
+**Estado:** rascunho para aprovação (2026-11-13). **Emendado em 2026-11-14** pela [spine de arquitetura](../../bmad/arquitetura-avisos-canais.md) (aprovada pelo dono); onde este texto divergir dela, vale a spine. As emendas estão em R6, R11, R12, R13, R18 e P-T7, e o **PR 0** da spine (formato fora do `domain`, `Testar` por canal, teste de nomes) vem **antes** da fase 1. A revisão independente das premissas foi **dispensada pelo dono** (2026-11-13, sem agente para isso; pedir quando existir); as premissas levantadas por quem
 escreveu estão no `plan.md` e cada uma aponta a sua regra aqui. Convenção dos testes: os de lógica são `go test ./...` em `backend/` e `node web/*.test.js`, e **falham antes da mudança**; o que depende do aparelho
 ou do `dev` é marcado **[aparelho]** ou **[dev]** e entra como roteiro manual no PR, com o resultado escrito. Diga o que não deu para ver em vez de afirmar que funciona. **Token, credencial e
 `google-services.json` nunca aparecem no chat, no log nem em captura de tela.**
@@ -22,7 +22,7 @@ ou do `dev` é marcado **[aparelho]** ou **[dev]** e entra como roteiro manual n
   para ligar este."; o token que já está no conjunto continua aceito (idempotência).
 - **R5. Sair.** `POST /push/sair` com `{"token"}` tira o token de **todos** os vínculos da pessoa (os espaços que `GET /me` lista), só os dela. Falha parcial não desfaz o resto e devolve `200` com os que conseguiu apagar;
   falha de leitura dos espaços devolve erro. Resposta `{"removidos": n}`.
-- **R6. Destinos.** `LeitorContatos.Destinos(sid, sub)` devolve também `"push": [tokens]`, do `pushTokens` do mesmo `GetItem` (**nenhuma leitura nova**). Sem token, a chave `push` não aparece. Ordem estável (os tokens são
+- **R6. Destinos.** `LeitorContatos.Destinos(sid, sub)` devolve também `"push": [tokens]`, do `pushTokens` do mesmo `GetItem` (**nenhuma leitura nova**). **O mapa canal ↔ campo do vínculo mora num só lugar, `repository/destinos.go`** (AD-4): `Destinos`, `RemoverDestino` e as gravações de `pushTokens` o usam; nenhum outro arquivo conhece `telegramChatId` ou `pushTokens` para isso. Sem token, a chave `push` não aparece. Ordem estável (os tokens são
   ordenados).
 
 ### Canal
@@ -37,16 +37,16 @@ ou do `dev` é marcado **[aparelho]** ou **[dev]** e entra como roteiro manual n
   (cada token é um destino, R12) e o erro devolvido é o primeiro.
 - **R10. Erros do FCM.** `404` com `errorCode` `UNREGISTERED` devolve `domain.ErrDestinoInvalido`. `400`, `401`, `403`, `429`, `5xx` e erro de rede devolvem um erro com **só o código HTTP e o `errorCode`**; nunca a URL, o corpo
   inteiro, o token do aparelho nem o de acesso. Nenhum erro é repetido na mesma rodada.
-- **R11. Token recusado é apagado.** Quando a entrega devolve `ErrDestinoInvalido`, a rotina chama `RemovedorDeDestinos.RemoverDestino(ctx, sid, sub, "push", token)` **para cada vínculo de onde o token saiu nesta rodada**, e conta
+- **R11. Token recusado é apagado.** Quando a entrega devolve `ErrDestinoInvalido`, a rotina chama `RemovedorDeDestinos.RemoverDestino(ctx, sid, sub, canal, endereco)` (porta declarada no `service`, injetada **pelo construtor**, sem `Usar*` novo; AD-4 e AD-6) **para cada vínculo de onde o token saiu nesta rodada**, e conta
   o grupo como não entregue. Falha ao apagar só vai ao log (nome do canal e contagem). A rotina não devolve erro por isso.
-- **R12. Agrupamento (do item 34, sem mudança).** O destino é o `(push, token)`: o mesmo aparelho em dois espaços recebe **uma** notificação com a contagem das linhas dos dois, sem nome de espaço. Dois aparelhos da mesma
+- **R12. Agrupamento (do item 34; emenda: a rotina passa a lembrar a origem).** Para o R11, a rotina guarda, por `Destino`, a lista dos vínculos `(sid, sub)` de onde ele saiu; o agrupamento em si não muda (AD-4). O destino é o `(push, token)`: o mesmo aparelho em dois espaços recebe **uma** notificação com a contagem das linhas dos dois, sem nome de espaço. Dois aparelhos da mesma
   pessoa recebem uma cada. A mesma linha não conta duas vezes para o mesmo token (criador igual ao dono).
-- **R13. Teste de aviso.** `POST /spaces/{sid}/avisos/teste` aceita `{"canal": "push"}` e envia o texto de teste a **todos os aparelhos da pessoa naquele espaço**, pelo despachante. Sem o campo, é o Telegram de hoje,
-  idêntico. Respostas: `200`; `400` sem aparelho registrado; `503` canal não configurado; `502` o FCM recusou; `403` fora do espaço. `canal` com outro valor: `400`.
+- **R13. Teste de aviso.** `POST /spaces/{sid}/avisos/teste` aceita `{"canal": "push"}` e envia o texto de teste a **todos os aparelhos da pessoa naquele espaço**, pelo despachante. Sem o campo, **o controller** passa o canal do Telegram (o `service` não escolhe padrão; AD-2) e o resultado é o de hoje,
+  idêntico. Respostas: `200`; `400` sem aparelho registrado (texto sem o nome do canal; a frase que o cita vem do controller); `503` canal não configurado; `502` o FCM recusou; `403` fora do espaço. `canal` com outro valor: `400`.
 
 ### Conteúdo
 
-- **R18. Só a contagem.** `domain.TextoDoPush(r)` devolve título e corpo **só com contagens** por situação: `N atrasado(s)`, `N vence(m) hoje`, `N a vencer`, na ordem atrasados, hoje, a vencer, separados por ` · `, omitindo o que for
+- **R18. Só a contagem.** `domain.Contagens(r)` devolve **só inteiros** (`Atrasados`, `Hoje`, `AVencer`) mais a marca e o `Teste`, e é a única coisa do resumo que o `fcm.go` lê; **o texto é montado em `fcm.go`** (AD-1 e AD-3). O corpo tem **só contagens** por situação: `N atrasado(s)`, `N vence(m) hoje`, `N a vencer`, na ordem atrasados, hoje, a vencer, separados por ` · `, omitindo o que for
   zero. O título é `Finanças` (`[DEV] Finanças` no `dev`, pela marca do ambiente). **Nenhuma descrição, valor, meio de pagamento, data, id, nome de espaço ou nome de pessoa** entra no texto, **mesmo que as linhas os tenham**.
   Entradas (a receber) contam na mesma situação do vencimento. O teste de aviso vira "Teste: os avisos vão chegar aqui.".
 
@@ -55,8 +55,8 @@ ou do `dev` é marcado **[aparelho]** ou **[dev]** e entra como roteiro manual n
 - **R14. Plugin `Push` (Java, nosso).** Em `app-android/android/`, registrado na `MainActivity`, exposto em `window.Capacitor.Plugins` sem bundler: `disponivel()`, `permissao()`, `pedirPermissao()`, `token()` e `apagarToken()`.
   Cria o canal de notificação `avisos` (importância padrão) ao carregar. O `FirebaseMessagingService` do app **ignora** mensagem recebida com o app aberto e, em `onNewToken`, só marca que o token mudou; **nada escreve o
   token em log**. O SDK do Firebase Messaging é a única dependência de terceiros nova. O manifest declara a permissão `POST_NOTIFICATIONS` e o serviço.
-- **R15. Registrar de novo a cada abertura.** Com sessão, o app lê o token atual (`token()`) e chama `PUT /spaces/{sid}/push` para **cada espaço ligado** em `financas.push`, no máximo uma vez por abertura; a falha é silenciosa
-  e tenta de novo na abertura seguinte. Isto cobre a troca de token do Firebase sem rotina nova.
+- **R15. Registrar de novo só quando precisa (decidido pelo dono em 2026-11-14, por causa dos 5 WCU da tabela).** Com sessão, o app lê o token atual (`token()`) e chama `PUT /spaces/{sid}/push` para **cada espaço ligado** em `financas.push` **somente** quando (a) o
+  token mudou desde o último registro (`onNewToken` marcou, ou o token lido difere do guardado no aparelho) ou (b) o último registro bem-sucedido daquele espaço tem **7 dias ou mais** (a data fica no aparelho, com `financas.push`). Fora disso a abertura não escreve nada. A falha é silenciosa e tenta de novo na abertura seguinte. Isto cobre a troca de token do Firebase com 1 WCU por espaço, uma vez por semana.
 - **R16. Indisponível não liga.** Sem Google Play Services, sem `google-services.json` no build (o plugin `google-services` não foi aplicado), ou com `disponivel()` falso, a chave aparece **desligada, desabilitada**, com a
   frase da demo ("Este aparelho não recebe avisos do app."); nada é gravado no aparelho nem chamado na API.
 - **R17. Permissão negada.** Android 13 ou superior: a chave **explica o motivo antes** de pedir; se a pessoa negar (ou o sistema já tiver bloqueado), a chave volta a desligada com a frase da demo e o caminho para a
@@ -88,7 +88,7 @@ ou do `dev` é marcado **[aparelho]** ou **[dev]** e entra como roteiro manual n
 | P-T4 | `POST /spaces/{sid}/push/remover` tira o token; token ausente não é erro; o conjunto vazio faz o atributo sumir do item (R1, R3) |
 | P-T5 | `POST /push/sair` tira o token de **todos** os espaços da pessoa e de nenhum de outra pessoa; falha parcial devolve `200` com a contagem (R5) |
 | P-T6 | `Destinos` devolve `"push"` ordenado e o `GetItem` continua sendo **um só** por pessoa e espaço (contador do banco falso) (R6) |
-| P-T7 | `TextoDoPush` com linhas cheias de descrição, valor, banco e data não contém nenhum deles; zero some; `[DEV]` só no `dev`; singular e plural; entradas contam (R18) |
+| P-T7 | O **adaptador** `fcm.go` (não o `domain`) com linhas cheias de descrição, valor, banco e data não contém nenhum deles; zero some; `[DEV]` só no `dev`; singular e plural; entradas contam (R18) |
 | P-T8 | Canal `push` com o servidor falso do FCM e do endpoint de token: o JWT tem `iss`, `scope`, `aud` e `exp` certos e é assinado com a chave do teste; o token de acesso é pedido **uma vez** para dois envios e de novo depois de vencer; o corpo do envio é o do R9 (R8, R9) |
 | P-T9 | Sem parâmetro, sem valor ou JSON incompleto: `ErrCanalNaoConfigurado` e nenhuma chamada de rede; erro do SSM e do endpoint de token **não** viram "não configurado" (R8) |
 | P-T10 | `404 UNREGISTERED` devolve `ErrDestinoInvalido`; `400`, `401`, `429`, `503` e erro de rede devolvem erro **sem** a URL, o token nem o corpo; nenhum é repetido (R10) |
@@ -100,7 +100,7 @@ ou do `dev` é marcado **[aparelho]** ou **[dev]** e entra como roteiro manual n
 | P-T16 | `arquitetura_test.go` verde; `fcm.go` não importa o `service`; `golang.org/x/oauth2` e `firebase.google.com/go` **não** entram no `go.mod` (R7, R8) |
 | P-T17 | `.gitignore` cobre `google-services.json` e `*-adminsdk-*.json`, e nenhum está rastreado; `scripts/guardar-fcm.ps1` não imprime o conteúdo, não aceita o JSON como parâmetro e recusa ambiente que não seja `dev` ou `prod` (R21) |
 | P-T18 | `template.yaml`: `FCM_CREDENCIAL_PARAM` por ambiente e a política de leitura só desse parâmetro; o resto do template idêntico (R21) |
-| P-T19 | `web/push.test.js`, com plugin e `fetch` falsos: ligar chama a permissão, o token e o `PUT`, e só então grava `financas.push`; permissão negada deixa tudo desligado e **não** pede de novo; plugin indisponível não grava nem chama a API; a cada abertura com sessão registra de novo os espaços ligados, uma vez; falha de rede na abertura não apaga a chave (R14 a R17) |
+| P-T19 | `web/push.test.js`, com plugin e `fetch` falsos: ligar chama a permissão, o token e o `PUT`, e só então grava `financas.push`; permissão negada deixa tudo desligado e **não** pede de novo; plugin indisponível não grava nem chama a API; com sessão, registra de novo os espaços ligados **só** com token mudado ou com 7 dias desde o último registro, e **não** escreve nas outras aberturas; falha de rede na abertura não apaga a chave (R14 a R17) |
 | P-T20 | `web/sessao.test.js`: o Sair chama `/push/sair` e `apagarToken()` **antes** de apagar a sessão; falha de rede no `/push/sair` e no `apagarToken()` não impede o Sair; `financas.push` some (R19) |
 | P-T21 | O front não tem texto de aviso nem regra de quem recebe: `web/sem-status.test.js` e `web/carga.test.js` continuam verdes, e a chave só existe no app (R24) |
 | P-T22 **[aparelho]** | Ligar a chave no `dev`: a explicação, o pedido de permissão do Android e o aparelho registrado (a contagem do servidor sobe); recusar a permissão deixa a chave desligada sem pedir de novo (R15, R17) |
