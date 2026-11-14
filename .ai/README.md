@@ -10,6 +10,7 @@ feito e ideias).
 | [`security.md`](security.md) | Autenticação, papéis e permissões, dados, segredos, infraestrutura e pontos em aberto |
 | [`privacidade-e-cifragem.md`](privacidade-e-cifragem.md) | Ideia para o futuro: cifrar os valores no DynamoDB (envelope encryption com KMS) para que nenhuma pessoa os veja ao consultar o banco; o service continua decifrando e calculando (nada decidido) |
 | [`decisoes.md`](decisoes.md) | Decisões de produto fechadas e descartadas |
+| [`bmad/`](bmad/README.md) | Documentos aprovados que os agentes do metodo-ai (BMad) produziram para este projeto, como as premissas de arquitetura; `guardrails.md`, `arquitetura.md` e `decisoes.md` prevalecem |
 | [`padrao-de-telas.md`](padrao-de-telas.md) e [`demos/`](demos/) | Padrão de telas aprovado e as demos versionadas por tela (`demo-<tela>-v1`; as antigas, de assunto, em `demos/arquivo/`) |
 | [`ux.md`](ux.md) | Observações de uso real e próximos passos de UX |
 | [`eventos-futuros.md`](eventos-futuros.md) | Conceito e regras de Prever, Repetir e Estender |
