@@ -2,7 +2,7 @@
 
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id (`D-T<n>`), para o PR dizer exatamente o que cobriu. Quando este texto e o do intent divergirem, vale o plan.
 
-**Estado:** rascunho para aprovação (2026-11-13). A revisão independente das premissas foi **dispensada pelo dono** (2026-11-13, sem agente para isso; pedir quando existir); as premissas levantadas por quem escreveu estão no `plan.md` e cada uma aponta a sua regra aqui. Convenção dos testes: os de lógica são `go test ./...` em `backend/` e **falham antes da mudança**; o que
+**Estado:** feito (PR 429, 2026-11-13) e **emendado pelo PR 0 da [spine de arquitetura](../../bmad/arquitetura-avisos-canais.md) (2026-11-14):** texto, limite e divisão do Telegram (`MontarResumo`, `PartesDoResumo`, `TextoDeTeste`, `LimiteTelegram`, `Moeda`) saíram do `domain/` para `adapter/notificacao/telegram_texto.go`; o `domain` guarda só o conteúdo e a ordem (`OrdenarLinhas`); `Testar` recebe o canal e o `service` não nomeia canal. Onde este texto diz "funções puras de `domain/`", leia "do canal". A revisão independente das premissas foi **dispensada pelo dono** (2026-11-13, sem agente para isso; pedir quando existir); as premissas levantadas por quem escreveu estão no `plan.md` e cada uma aponta a sua regra aqui. Convenção dos testes: os de lógica são `go test ./...` em `backend/` e **falham antes da mudança**; o que
 depende do `dev` é marcado **[dev]** e entra como roteiro manual no PR, com o resultado escrito. Diga o que não deu para ver em vez de afirmar que funciona.
 
 ## Regras

@@ -192,7 +192,7 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 	case auth.AcaoEditarPerfil:
 		return s.perfil.PutPerfil(ctx, sid, u.Sub, body)
 	case auth.AcaoTestarAviso:
-		return s.avisos.PostAvisoTeste(ctx, sid, u.Sub)
+		return s.avisos.PostAvisoTeste(ctx, sid, u.Sub, body)
 	case auth.AcaoEscreverAparenc:
 		return s.cfg.PutAparencia(ctx, sid, u.Sub, body)
 	case auth.AcaoEscreverMeio:

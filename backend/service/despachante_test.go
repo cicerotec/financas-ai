@@ -43,9 +43,12 @@ type relogioFalso struct{ t time.Time }
 
 func (r relogioFalso) Agora() time.Time { return r.t }
 
-type entregaFalsa struct{ destino, texto string }
+type entregaFalsa struct {
+	destino string
+	resumo  domain.ResumoAvisos
+}
 
-// canalFalso guarda o que recebeu (formatado como o Telegram) ou falha com o erro dado.
+// canalFalso guarda o resumo que recebeu (o conteudo, sem formato) ou falha com o erro dado.
 type canalFalso struct {
 	nome     string
 	falhaCom error
@@ -59,9 +62,7 @@ func (c *canalFalso) Enviar(_ context.Context, destino string, r domain.ResumoAv
 	if c.falhaCom != nil {
 		return c.falhaCom
 	}
-	for _, p := range domain.PartesDoResumo(r, domain.LimiteTelegram) {
-		c.entregas = append(c.entregas, entregaFalsa{destino, p})
-	}
+	c.entregas = append(c.entregas, entregaFalsa{destino, r})
 	return nil
 }
 
@@ -141,10 +142,13 @@ func TestRotinaAgrupaPorDestinoSemRepetirLinha(t *testing.T) {
 	if err != nil || n != 1 || len(tg.entregas) != 1 {
 		t.Fatalf("Rodar = (%d, %v); entregas=%v (esperado um resumo so, com o mesmo destino juntando os espacos)", n, err, tg.entregas)
 	}
-	texto := tg.entregas[0].texto
+	contagem := map[string]int{}
+	for _, l := range tg.entregas[0].resumo.Linhas {
+		contagem[l.Descricao]++
+	}
 	for _, d := range []string{"Luz", "Agua", "Gas"} {
-		if c := strings.Count(texto, d); c != 1 {
-			t.Errorf("%s aparece %d vezes (esperado 1):\n%s", d, c, texto)
+		if contagem[d] != 1 {
+			t.Errorf("%s aparece %d vezes (esperado 1): %v", d, contagem[d], contagem)
 		}
 	}
 }
