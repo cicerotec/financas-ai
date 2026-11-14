@@ -29,7 +29,7 @@ levantou e **não a substitui**. O que o Firebase exige foi lido na documentaç�
   atributo quando o conjunto esvazia. Limite de 5 por pessoa e espaço, por condição na própria gravação (`attribute_not_exists(pushTokens) OR contains(pushTokens, :t) OR size(pushTokens) < :max`), sem leitura antes.
 - **Rotas** (todas do próprio chamador; o `sub` vem do token, nunca do corpo):
   `PUT /spaces/{sid}/push` registra `{"token"}`; `POST /spaces/{sid}/push/remover` tira `{"token"}` daquele espaço; `POST /push/sair` tira `{"token"}` de **todos** os espaços da pessoa. Nenhuma devolve token.
-- **Canal `push` (`adapter/notificacao/fcm.go`).** `Nome()` é `"push"`. Formata **só a contagem** por função pura de `domain/` (`TextoDoPush`): título `Finanças` (com `[DEV] ` no `dev`), corpo
+- **Canal `push` (`adapter/notificacao/fcm.go`).** `Nome()` é `"push"`. Formata **só a contagem**, no próprio `fcm.go`, a partir de `domain.Contagens` (**só inteiros**; AD-1 e AD-3): título `Finanças` (com `[DEV] ` no `dev`), corpo
   `2 atrasados · 1 vence hoje · 3 a vencer` (some o que for zero). `ResumoAvisos{Teste: true}` vira "Teste: os avisos vão chegar aqui.".
 - **Autenticação no Firebase, sem biblioteca nova.** A credencial é o JSON da conta de serviço, no SSM (`FCM_CREDENCIAL_PARAM`, SecureString). O canal monta o JWT (RS256, `iss` = e-mail da conta, escopo
   `https://www.googleapis.com/auth/firebase.messaging`, `aud` = `https://oauth2.googleapis.com/token`, validade de até 1 h), troca por um token de acesso no endpoint de token (`grant_type` do tipo `jwt-bearer`) e o
@@ -42,7 +42,7 @@ levantou e **não a substitui**. O que o Firebase exige foi lido na documentaç�
   carregar. O SDK do Firebase Messaging (do Google) entra como dependência do app: **é o que obtém o token e é obrigatório**, e é o único código de terceiros novo.
   Um `FirebaseMessagingService` mínimo existe porque o SDK pede; `onNewToken` só marca "o token mudou" no armazenamento do app, e **não escreve o token em log**.
 - **Front (`web/`).** A chave "Receber avisos neste aparelho" fica em Listas, ao lado do cartão do Telegram, **só no app**. Ligar: explica o porquê, pede a permissão, pega o token, chama `PUT /spaces/{sid}/push`.
-  O estado por espaço fica no aparelho (`financas.push`, lista de espaços, como a trava), é apagado no Sair, e a cada abertura com sessão o app **registra de novo** o token atual nos espaços ligados (cobre a troca de token).
+  O estado por espaço fica no aparelho (`financas.push`, lista de espaços, como a trava), é apagado no Sair, e, com sessão, o app **registra de novo** o token atual nos espaços ligados **só quando o token muda ou a cada 7 dias** (cobre a troca de token sem estourar os 5 WCU da tabela; decisão do dono em 2026-11-14).
   O front **não decide quem recebe nem o que dizer**: só guarda a escolha e chama a API.
 - **Sair.** Antes de apagar a sessão: `POST /push/sair` (se falhar por rede, o Sair segue) e `apagarToken()`, que invalida o token no FCM; assim, mesmo sem rede, o servidor apaga o token na próxima rotina (R11 e R19 do `spec.md`).
 - **Teste de aviso.** `POST /spaces/{sid}/avisos/teste` aceita `{"canal": "push"}` e manda o teste aos aparelhos da pessoa naquele espaço; sem o campo, é o Telegram de hoje. É também como se confere no `dev`.
@@ -56,7 +56,9 @@ levantou e **não a substitui**. O que o Firebase exige foi lido na documentaç�
 
 ## Fases (cada uma é um PR)
 
-1. **Backend** (sem tela): `domain` (`TextoDoPush`, `ErrDestinoInvalido`), `fcm.go`, `Destinos` com `push`, rotas e ações, remoção do token recusado, `template.yaml` (parâmetro e política), `scripts/guardar-fcm.ps1`, testes. Conferido no `dev` com um
+0. **PR 0 (da spine de arquitetura, sem dado novo):** tirar do `domain` e do `service` o que é do Telegram (`LimiteTelegram`, `PartesDoResumo`, `TextoDeTeste`, `MontarResumo` e o texto da linha vão para `adapter/notificacao/telegram.go`; `ErrTelegram*` e `todos["telegram"]` saem do `service`), `Testar(ctx, sid, sub, canal)` por canal, `ErrEntregaFalhou`, `ErrCanalDesconhecido` virando `400`, e o teste de arquitetura passando a olhar nomes (AD-1, AD-2 e AD-8). O `avisos_test.go` continua sem mudar asserção. Antes dele, um chore à parte atualiza `golang-jwt/jwt/v5` para a 5.2.2 ou mais nova.
+
+1. **Backend** (sem tela): `domain` (`Contagens`, `ErrDestinoInvalido`), `repository/destinos.go`, `service/aparelhos.go` e `controller/aparelhos.go`, `fcm.go` e `fcm_auth.go`, `Destinos` com `push`, rotas e ações, remoção do token recusado, `template.yaml` (parâmetro e política), `scripts/guardar-fcm.ps1`, testes. Conferido no `dev` com um
    token **fictício** (a rotina deve apagá-lo) e, com o app da fase 2, com o token real.
 2. **Plugin e app** (sem tela nova): `PushPlugin.java`, o serviço, o `build.gradle` (BoM do Firebase e o plugin `google-services`), o canal, o manifest (permissão e serviço), testes de lógica do que couber no JS, e o teste no aparelho
    com o token impresso **só no aparelho** (nunca no chat).
@@ -95,11 +97,11 @@ Levantadas por quem escreveu o roteiro, lendo o código e a documentação. **N�
 
 | Risco | Resposta |
 |---|---|
-| Notificação revelar o que a pessoa deve | O texto sai de `TextoDoPush`, que só conta; teste com linhas cheias de descrição, valor e meio de pagamento prova que nada disso entra (R18) |
+| Notificação revelar o que a pessoa deve | O `fcm.go` só lê `domain.Contagens`, que só conta; teste com linhas cheias de descrição, valor e meio de pagamento prova que nada disso entra (R18) |
 | Credencial do Firebase vazar | Só no SSM; o script lê de arquivo e não imprime; nenhum log leva o JSON, o token de acesso nem o token do aparelho; o arquivo baixado é apagado; se vazar, gerar outra chave e revogar a antiga |
 | `google-services.json` ir para o git | `.gitignore` e um teste que falha se o arquivo estiver rastreado (R21) |
 | Rotina de avisos demorar mais com dois canais | O envio é em série dentro dos 30 s da Lambda (risco aceito no item 34); cada chamada ao FCM tem tempo limite de 10 s, como o Telegram. O token de acesso é reaproveitado entre os envios |
-| Token novo do Firebase e servidor com o antigo | A cada abertura o app registra o token atual nos espaços ligados (R15); o antigo vira `UNREGISTERED` e é apagado |
+| Token novo do Firebase e servidor com o antigo | O app registra o token atual nos espaços ligados quando o token muda ou a cada 7 dias (R15); o antigo vira `UNREGISTERED` e é apagado |
 | Aparelho Xiaomi/MIUI matar o app e atrasar a notificação | Notificação de mensagem é entregue pelo sistema, mas a economia de bateria da MIUI pode atrasar; **conferir no aparelho do dono** e registrar o que for visto (o spec não promete horário) |
 | Mudar a rotina de avisos e deixar de avisar pelo Telegram | Os testes do item 34 continuam passando sem mudar asserção; o push é só mais um canal |
 | Mudar regra do Firebase (campo, escopo, endpoint) | Conferir a documentação e o console na hora de montar (fontes abaixo) |
