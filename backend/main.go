@@ -12,6 +12,7 @@ import (
 
 	"financas/adapter/notificacao"
 	"financas/adapter/relogio"
+	"financas/service"
 )
 
 // main so liga e parte: le o ambiente, cria os clients da AWS uma vez, monta o Servidor e o entrega a Lambda (ou ao modo
@@ -23,7 +24,11 @@ func main() {
 	}
 	table := os.Getenv("TABLE_NAME")
 	telegram := notificacao.NovoTelegram(ssm.NewFromConfig(cfg), os.Getenv("TELEGRAM_TOKEN_PARAM"))
-	s := novoServidor(dynamodb.NewFromConfig(cfg), table, relogio.Real{}, telegram, os.Getenv("AMBIENTE"))
+	despachante, err := service.NovoDespachante(telegram) // canal novo (push, e-mail) e registrado aqui
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := novoServidor(dynamodb.NewFromConfig(cfg), table, relogio.Real{}, despachante, os.Getenv("AMBIENTE"))
 	if porta := os.Getenv("LOCAL_PORT"); porta != "" { // so no computador do desenvolvedor (local.go)
 		rodarLocal(porta, s, table)
 		return

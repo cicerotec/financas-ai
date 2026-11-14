@@ -10,6 +10,7 @@ feito e ideias).
 | [`security.md`](security.md) | Autenticação, papéis e permissões, dados, segredos, infraestrutura e pontos em aberto |
 | [`privacidade-e-cifragem.md`](privacidade-e-cifragem.md) | Ideia para o futuro: cifrar os valores no DynamoDB (envelope encryption com KMS) para que nenhuma pessoa os veja ao consultar o banco; o service continua decifrando e calculando (nada decidido) |
 | [`decisoes.md`](decisoes.md) | Decisões de produto fechadas e descartadas |
+| [`bmad/`](bmad/README.md) | Documentos aprovados que os agentes do metodo-ai (BMad) produziram para este projeto, como as premissas de arquitetura; `guardrails.md`, `arquitetura.md` e `decisoes.md` prevalecem |
 | [`padrao-de-telas.md`](padrao-de-telas.md) e [`demos/`](demos/) | Padrão de telas aprovado e as demos versionadas por tela (`demo-<tela>-v1`; as antigas, de assunto, em `demos/arquivo/`) |
 | [`ux.md`](ux.md) | Observações de uso real e próximos passos de UX |
 | [`eventos-futuros.md`](eventos-futuros.md) | Conceito e regras de Prever, Repetir e Estender |
@@ -55,6 +56,8 @@ feito e ideias).
 | [`demos/arquivo/demo-atrasados-por-ano.html`](demos/arquivo/demo-atrasados-por-ano.html) | Demo aprovada e implementada em 2026-10-26 (item 45): Atrasados em blocos Ano › Mês recolhíveis e seletor de anos anteriores na linha do título |
 | [`demos/arquivo/demo-tema.html`](demos/arquivo/demo-tema.html) | Demo do tema Automático, Claro ou Escuro, como primeiro item do cartão Aparência de Listas, guardado na conta (aprovada e implementada em 2026-10-26) |
 | [`specs/recorrencia/`](specs/recorrencia/intent.md) | Intent, plan e spec do item 51: o lançamento marcado como recorrente é copiado sozinho pela rotina diária dos avisos, até o dono desligar (implementado) |
+| [`specs/app-android-push/`](specs/app-android-push/intent.md) | Intent, plan e spec da fase 4 do item 54: o push (FCM) como canal do despachante de avisos, com o token no campo `pushTokens` do vínculo, notificação só com a contagem, plugin nosso em Java e a chave "Receber avisos neste aparelho" |
+| [`specs/avisos-despachante/`](specs/avisos-despachante/intent.md) | Intent, plan e spec do item 34: a rotina diária de avisos passa a mandar conteúdo estruturado a um despachante com vários canais (Telegram hoje; push na fase 4 do item 54), divide o resumo longo do Telegram e isola a falha de cada canal |
 | [`specs/log-de-requisicoes/`](specs/log-de-requisicoes/intent.md) | Intent, plan e spec do item 50: uma linha de log por requisição (ação, status e duração, sem conteúdo nem ids), para achar as leituras repetidas e decidir o índice do Histórico (implementado) |
 | [`specs/tendencias-consultas/`](specs/tendencias-consultas/intent.md) | Intent, plan e spec do item 53: consultas salvas da Tendências, compartilhadas no espaço (cada pessoa altera só as suas, o dono modera), um item `CONSULTA#<id>` por consulta, exclusão lógica (implementado) |
 | [`specs/app-android/`](specs/app-android/intent.md) | Intent, plan e spec (fases 1 a 3) do app Android com Capacitor: o `web/` empacotado, login pelo navegador do sistema com token no Keystore, biometria opcional, push e Play Store nas fases seguintes (rascunho; fase 1, a casca, implementada em 2026-11-11: o APK do `dev` compila, instala e abre no aparelho; os testes que pedem sessão ficaram para a fase 2) |

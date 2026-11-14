@@ -69,7 +69,7 @@ func TestEnviaPelaAPIDoBotELeOTokenUmaVez(t *testing.T) {
 	fake := &ssmFalso{valor: texto("  123:ABC  ")}
 	tg := novo(fake, "/financas/dev/telegram-token", srv.URL)
 	for i := 0; i < 2; i++ {
-		if err := tg.Enviar(context.Background(), "111111", "olá"); err != nil {
+		if err := tg.EnviarTexto(context.Background(), "111111", "olá"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -95,7 +95,7 @@ func TestSemTokenOCanalNaoEstaConfigurado(t *testing.T) {
 		"sem client SSM":  novo(nil, "/p", srv.URL),
 	}
 	for nome, tg := range casos {
-		if err := tg.Enviar(context.Background(), "1", "x"); !errors.Is(err, domain.ErrCanalNaoConfigurado) {
+		if err := tg.EnviarTexto(context.Background(), "1", "x"); !errors.Is(err, domain.ErrCanalNaoConfigurado) {
 			t.Errorf("%s: erro = %v, esperado ErrCanalNaoConfigurado", nome, err)
 		}
 	}
@@ -106,7 +106,7 @@ func TestSemTokenOCanalNaoEstaConfigurado(t *testing.T) {
 
 func TestErroDoSSMNaoViraNaoConfigurado(t *testing.T) {
 	tg := novo(&ssmFalso{err: errors.New("acesso negado")}, "/p", "http://invalido")
-	err := tg.Enviar(context.Background(), "1", "x")
+	err := tg.EnviarTexto(context.Background(), "1", "x")
 	if err == nil || errors.Is(err, domain.ErrCanalNaoConfigurado) || !strings.Contains(err.Error(), "ler token no SSM") {
 		t.Errorf("erro = %v", err)
 	}
@@ -116,7 +116,7 @@ func TestErroDoSSMNaoViraNaoConfigurado(t *testing.T) {
 func TestRespostaRuimDoTelegramNaoVazaOToken(t *testing.T) {
 	srv, _, _ := servidorTelegram(t, 400)
 	tg := novo(&ssmFalso{valor: texto("123:SEGREDO")}, "/p", srv.URL)
-	err := tg.Enviar(context.Background(), "1", "x")
+	err := tg.EnviarTexto(context.Background(), "1", "x")
 	if err == nil || !strings.Contains(err.Error(), "telegram respondeu 400") || strings.Contains(err.Error(), "SEGREDO") {
 		t.Errorf("erro = %v", err)
 	}
@@ -125,8 +125,58 @@ func TestRespostaRuimDoTelegramNaoVazaOToken(t *testing.T) {
 // Erro de rede: a mensagem do http inclui a URL (e o token), entao o adaptador devolve um texto proprio.
 func TestErroDeRedeNaoVazaOToken(t *testing.T) {
 	tg := novo(&ssmFalso{valor: texto("123:SEGREDO")}, "/p", "http://127.0.0.1:1")
-	err := tg.Enviar(context.Background(), "1", "x")
+	err := tg.EnviarTexto(context.Background(), "1", "x")
 	if err == nil || strings.Contains(err.Error(), "SEGREDO") || err.Error() != "falha de rede ao chamar o Telegram" {
 		t.Errorf("erro = %v", err)
+	}
+}
+
+// D-T7: um resumo grande sai em partes, em ordem, pela API do bot; a 2a falha e a 3a ainda sai; o erro e o da 2a.
+func TestResumoGrandeSaiEmPartesEFalhaDeUmaNaoImpedeAsOutras(t *testing.T) {
+	var corpos []map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		var m map[string]any
+		_ = json.Unmarshal(b, &m)
+		corpos = append(corpos, m)
+		if len(corpos) == 2 {
+			w.WriteHeader(400)
+			_, _ = io.WriteString(w, `{"ok":false,"description":"segunda recusada"}`)
+			return
+		}
+		w.WriteHeader(200)
+	}))
+	defer srv.Close()
+	tg := novo(&ssmFalso{valor: texto("123:ABC")}, "/p", srv.URL)
+
+	var linhas []domain.LinhaAviso
+	for i := 0; i < 100; i++ {
+		linhas = append(linhas, domain.LinhaAviso{Kind: domain.AvisoAntes, N: 3, Venc: "2026-10-10", Tipo: "saida", Descricao: "Conta de teste numero " + strings.Repeat("x", 40), Valor: 10, Banco: "ITAU"})
+	}
+	err := tg.Enviar(context.Background(), "111111", domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhas})
+	if len(corpos) < 3 {
+		t.Fatalf("esperadas 3 partes ou mais, saiu %d", len(corpos))
+	}
+	if err == nil || !strings.Contains(err.Error(), "telegram respondeu 400") || !strings.Contains(err.Error(), "segunda recusada") {
+		t.Errorf("erro = %v, esperado o da 2a parte", err)
+	}
+	for i, c := range corpos {
+		if c["chat_id"] != "111111" || !strings.HasPrefix(c["text"].(string), "🔔 Avisos de 07/10/2026 ("+string(rune('1'+i))+"/") {
+			t.Errorf("parte %d fora de ordem ou sem cabecalho: %.60q", i+1, c["text"])
+		}
+	}
+}
+
+// D-T8: sem token, a 1a parte devolve ErrCanalNaoConfigurado e nenhuma outra e tentada.
+func TestSemTokenNenhumaParteETentada(t *testing.T) {
+	srv, caminhos, _ := servidorTelegram(t, 200)
+	tg := novo(&ssmFalso{}, "/p", srv.URL)
+	var linhas []domain.LinhaAviso
+	for i := 0; i < 100; i++ {
+		linhas = append(linhas, domain.LinhaAviso{Kind: domain.AvisoAntes, N: 3, Venc: "2026-10-10", Tipo: "saida", Descricao: strings.Repeat("y", 60), Valor: 10, Banco: "ITAU"})
+	}
+	err := tg.Enviar(context.Background(), "1", domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhas})
+	if !errors.Is(err, domain.ErrCanalNaoConfigurado) || len(*caminhos) != 0 {
+		t.Errorf("erro = %v, chamadas = %v", err, *caminhos)
 	}
 }

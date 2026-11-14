@@ -1,5 +1,5 @@
 // Package notificacao tem os canais de envio de aviso: um arquivo por canal (hoje o Telegram; e-mail e WhatsApp quando
-// existirem). Cada um implementa service.Notificador e devolve domain.ErrCanalNaoConfigurado quando falta o que precisa.
+// existirem). Cada um implementa service.Canal (sem importar o service: so tipos do domain) e devolve domain.ErrCanalNaoConfigurado quando falta o que precisa.
 package notificacao
 
 import (
@@ -63,8 +63,29 @@ func (t *Telegram) tokenDoBot(ctx context.Context) (string, error) {
 	return t.token, nil
 }
 
-// Enviar manda o texto para o chat id.
-func (t *Telegram) Enviar(ctx context.Context, chatID, texto string) error {
+// Nome e o nome do canal no despachante.
+func (t *Telegram) Nome() string { return "telegram" }
+
+// Enviar entrega o resumo ao chat id, em uma ou mais mensagens (domain.PartesDoResumo). As partes saem em ordem; a falha de
+// uma nao impede as seguintes, e o erro devolvido e o da primeira que falhou. Sem token, a primeira parte ja devolve
+// ErrCanalNaoConfigurado e nenhuma outra e tentada.
+func (t *Telegram) Enviar(ctx context.Context, chatID string, r domain.ResumoAvisos) error {
+	var primeiro error
+	for _, texto := range domain.PartesDoResumo(r, domain.LimiteTelegram) {
+		if err := t.EnviarTexto(ctx, chatID, texto); err != nil {
+			if errors.Is(err, domain.ErrCanalNaoConfigurado) {
+				return err
+			}
+			if primeiro == nil {
+				primeiro = err
+			}
+		}
+	}
+	return primeiro
+}
+
+// EnviarTexto manda um texto para o chat id, numa mensagem so.
+func (t *Telegram) EnviarTexto(ctx context.Context, chatID, texto string) error {
 	token, err := t.tokenDoBot(ctx)
 	if err != nil {
 		return err
