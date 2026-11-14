@@ -67,10 +67,6 @@ func respostaErro(err error) (Resp, error) {
 		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "MEIO_E_CARTAO"})
 	case errors.Is(err, service.ErrCartaoNaoEncontrado), errors.Is(err, service.ErrFaturaNaoConferida), errors.Is(err, service.ErrMeioNaoEncontrado):
 		return Erro(http.StatusNotFound, err.Error())
-	case errors.Is(err, service.ErrTelegramNaoConfigurado):
-		return Erro(http.StatusServiceUnavailable, err.Error())
-	case errors.Is(err, service.ErrTelegramRecusou):
-		return Erro(http.StatusBadGateway, err.Error())
 	case errors.Is(err, service.ErrMesNaoConferido):
 		return Erro(http.StatusNotFound, err.Error())
 	case errors.Is(err, domain.ErrVinculoNaoEncontrado):

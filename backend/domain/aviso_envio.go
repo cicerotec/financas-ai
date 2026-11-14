@@ -2,11 +2,8 @@ package domain
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -24,6 +21,10 @@ const MaxAtrasoAviso = 60
 
 // ErrCanalNaoConfigurado: o canal de envio (Telegram, e-mail...) nao tem o que precisa para enviar (token, parametro).
 var ErrCanalNaoConfigurado = errors.New("canal de aviso nao configurado")
+
+// ErrEntregaFalhou: o canal tentou entregar e falhou (recusa, rede, resposta ruim). O service embrulha nele o erro de qualquer canal que
+// nao seja um dos erros conhecidos, para o controller traduzir em 502 sem conhecer o canal.
+var ErrEntregaFalhou = errors.New("a entrega do aviso falhou")
 
 // FusoBR: o Brasil nao tem horario de verao desde 2019, entao um fuso fixo basta (e dispensa o banco de fusos na Lambda).
 var FusoBR = time.FixedZone("BRT", -3*3600)
@@ -106,40 +107,7 @@ func contem(l []int, n int) bool {
 	return false
 }
 
-// ---------- texto ----------
-
-// Moeda formata em reais (R$ 1.234,56).
-func Moeda(v float64) string {
-	s := strconv.FormatFloat(math.Abs(v), 'f', 2, 64)
-	inteiro, frac, _ := strings.Cut(s, ".")
-	var partes []string
-	for len(inteiro) > 3 {
-		partes = append([]string{inteiro[len(inteiro)-3:]}, partes...)
-		inteiro = inteiro[:len(inteiro)-3]
-	}
-	partes = append([]string{inteiro}, partes...)
-	r := "R$ " + strings.Join(partes, ".") + "," + frac
-	if v < 0 {
-		r = "-" + r
-	}
-	return r
-}
-
-func plural(n int, um, varios string) string {
-	if n == 1 {
-		return "1 " + um
-	}
-	return fmt.Sprintf("%d %s", n, varios)
-}
-
-// DataBR mostra a data com o ano (dd/mm/aaaa): um aviso de "10/01" nao diz de que ano e.
-func DataBR(dia string) string {
-	t, err := DiaParaTempo(dia)
-	if err != nil {
-		return dia
-	}
-	return t.Format("02/01/2006")
-}
+// ---------- conteudo (sem formato: cada canal monta o seu texto) ----------
 
 // LinhaAviso e um lancamento a avisar, ja com a situacao do vencimento.
 type LinhaAviso struct {
@@ -152,50 +120,16 @@ type LinhaAviso struct {
 	Banco     string
 }
 
-// Texto e a linha do resumo ("• Vence em 3 dias (13/10/2026): Condominio - R$ 480,00 (ITAU)").
-func (l LinhaAviso) Texto() string {
-	saida := l.Tipo != "entrada"
-	var quando string
-	switch l.Kind {
-	case AvisoAtrasado:
-		if saida {
-			quando = "Atrasado há " + plural(l.N, "dia", "dias")
-		} else {
-			quando = "Recebimento atrasado há " + plural(l.N, "dia", "dias")
-		}
-	case AvisoHoje:
-		if saida {
-			quando = "Vence hoje"
-		} else {
-			quando = "A receber hoje"
-		}
-	default:
-		if saida {
-			quando = "Vence em " + plural(l.N, "dia", "dias")
-		} else {
-			quando = "A receber em " + plural(l.N, "dia", "dias")
-		}
-	}
-	desc := strings.TrimSpace(l.Descricao)
-	if desc == "" {
-		desc = "(sem descrição)"
-	}
-	return fmt.Sprintf("• %s (%s): %s — %s (%s)", quando, DataBR(l.Venc), desc, Moeda(l.Valor), l.Banco)
-}
-
-// MontarResumo junta as linhas de uma pessoa: atrasados primeiro, depois hoje, depois os que ainda vao vencer. marca e a
-// MarcaAmbiente do servidor.
-func MontarResumo(marca, hoje string, linhas []LinhaAviso) string {
-	sort.SliceStable(linhas, func(i, j int) bool {
-		a, b := linhas[i], linhas[j]
+// OrdenarLinhas devolve uma COPIA das linhas na ordem do resumo: atrasados primeiro, depois hoje, depois os que ainda vao
+// vencer; dentro de cada grupo, do vencimento mais antigo ao mais novo. A lista de quem chamou nao e alterada.
+func OrdenarLinhas(linhas []LinhaAviso) []LinhaAviso {
+	r := append([]LinhaAviso(nil), linhas...)
+	sort.SliceStable(r, func(i, j int) bool {
+		a, b := r[i], r[j]
 		if a.Kind != b.Kind {
 			return a.Kind > b.Kind // atrasado > hoje > antes
 		}
 		return a.Venc < b.Venc
 	})
-	partes := []string{"🔔 " + marca + "Avisos de " + DataBR(hoje)}
-	for _, l := range linhas {
-		partes = append(partes, l.Texto())
-	}
-	return strings.Join(partes, "\n")
+	return r
 }

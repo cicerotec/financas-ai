@@ -41,6 +41,9 @@ func NovoDespachante(canais ...Canal) (*Despachante, error) {
 	return d, nil
 }
 
+// Conhece diz se o canal esta registrado.
+func (d *Despachante) Conhece(canal string) bool { _, ok := d.canais[canal]; return ok }
+
 // Entregar manda o resumo ao destino pelo canal dele.
 func (d *Despachante) Entregar(ctx context.Context, dest Destino, r domain.ResumoAvisos) error {
 	c, ok := d.canais[dest.Canal]
