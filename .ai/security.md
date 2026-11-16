@@ -68,7 +68,8 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `aparencia.ler` / `.escrever` | sim | sim, **só a dela** |
 | `perfil.editar` (o próprio nome e chat id do Telegram) | sim | sim |
 | `seq.ler` | sim | sim |
-| `avisos.testar` (mensagem de teste para o próprio Telegram) | sim | sim |
+| `avisos.testar` (mensagem de teste para o próprio Telegram ou, com `{"canal":"push"}`, para os próprios aparelhos) | sim | sim |
+| `push.registrar`, `push.remover` (o aparelho do app no próprio vínculo) e `push.sair` (tira o aparelho de todos os espaços da pessoa) | sim | sim |
 
 Dois detalhes que contam:
 - **Registro sem `criadoPor` não é de ninguém:** só o owner mexe nele (`ehDono`).
@@ -101,6 +102,7 @@ só existe no front não protege nada (veja [`arquitetura.md`](arquitetura.md)).
   manter assim (veja "Regras ao mexer").
 
 ## Segredos
+- A **credencial do Firebase** (JSON da conta de serviço do push) fica no SSM como `SecureString`, em `/financas/<ambiente>/fcm-credencial` (um por ambiente), gravada por `scripts/guardar-fcm.ps1`, que não imprime o conteúdo. A Lambda só lê esse parâmetro. O `google-services.json` do app e qualquer `*-adminsdk-*.json` estão no `.gitignore`. O **token do aparelho** (`pushTokens`) nunca vai ao log nem a uma resposta da API; só a própria pessoa o grava, no próprio vínculo.
 - O **token do bot do Telegram** fica no SSM Parameter Store como `SecureString`, em `/financas/<ambiente>/telegram-token`.
   A Lambda só lê esse parâmetro (`SSMParameterReadPolicy` do nome exato) e só decifra pela chave via SSM (`kms:ViaService`).
 - **Nenhuma chave de acesso AWS no CI:** o GitHub Actions troca o token OIDC por credenciais temporárias.

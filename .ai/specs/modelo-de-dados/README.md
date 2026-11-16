@@ -17,7 +17,7 @@ justamente porque o conteúdo é inventado.
 
 | `PK` | `SK` | O que é | Onde está no código |
 |---|---|---|---|
-| `USER#<sub>` | `SPACE#<sid>` | Vínculo da pessoa com o espaço: `role` (`owner` ou `member`), `apelido` e `telegramChatId` | `store.go` (`papel`), `perfil.go` |
+| `USER#<sub>` | `SPACE#<sid>` | Vínculo da pessoa com o espaço: `role` (`owner` ou `member`), `apelido`, `telegramChatId` e `pushTokens` (conjunto de textos: um token de aparelho por item, até 5, para o aviso pelo app; fase 4 do item 54, aprovado em 2026-11-13) | `store.go` (`papel`), `perfil.go` |
 | `SPACE#<sid>` | `META` | Dados do espaço: `nome` e `ownerSub` | `main.go`, `avisos.go` |
 | `SPACE#<sid>` | `SEQ` | Contador de alterações (`seq`), somado a cada escrita de lançamento | `seq.go` |
 | `SPACE#<sid>` | `CFG#LISTAS` | Listas de status e bancos, cores e as caixas (`statusReal`, `statusFuturo`, `afetaSaldoBanco`) | `auth/authz.go` (`cfgNomes`) |

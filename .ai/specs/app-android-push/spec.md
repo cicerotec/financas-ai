@@ -3,7 +3,7 @@
 O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id (`P-T<n>`), para o PR dizer exatamente o que cobriu. Quando este texto e o do intent
 divergirem, vale o plan.
 
-**Estado:** rascunho para aprovação (2026-11-13). **Emendado em 2026-11-14** pela [spine de arquitetura](../../bmad/arquitetura-avisos-canais.md) (aprovada pelo dono); onde este texto divergir dela, vale a spine. As emendas estão em R6, R11, R12, R13, R18 e P-T7, e o **PR 0** da spine (formato fora do `domain`, `Testar` por canal, teste de nomes) vem **antes** da fase 1. A revisão independente das premissas foi **dispensada pelo dono** (2026-11-13, sem agente para isso; pedir quando existir); as premissas levantadas por quem
+**Estado:** **fase 1 (backend) com código em 2026-11-14** (branch `feature/push-backend`); fases 2 e 3 (plugin, app e tela) pendentes. Rascunho aprovado em 2026-11-13. **Emendado em 2026-11-14** pela [spine de arquitetura](../../bmad/arquitetura-avisos-canais.md) (aprovada pelo dono); onde este texto divergir dela, vale a spine. As emendas estão em R6, R11, R12, R13, R18 e P-T7, e o **PR 0** da spine (formato fora do `domain`, `Testar` por canal, teste de nomes) vem **antes** da fase 1. A revisão independente das premissas foi **dispensada pelo dono** (2026-11-13, sem agente para isso; pedir quando existir); as premissas levantadas por quem
 escreveu estão no `plan.md` e cada uma aponta a sua regra aqui. Convenção dos testes: os de lógica são `go test ./...` em `backend/` e `node web/*.test.js`, e **falham antes da mudança**; o que depende do aparelho
 ou do `dev` é marcado **[aparelho]** ou **[dev]** e entra como roteiro manual no PR, com o resultado escrito. Diga o que não deu para ver em vez de afirmar que funciona. **Token, credencial e
 `google-services.json` nunca aparecem no chat, no log nem em captura de tela.**
@@ -15,12 +15,12 @@ ou do `dev` é marcado **[aparelho]** ou **[dev]** e entra como roteiro manual n
 - **R1. Campo `pushTokens`.** Conjunto de textos (`SS` do DynamoDB) no vínculo `USER#<sub>` / `SPACE#<sid>`, ao lado do `telegramChatId`. Nenhum item, chave ou índice novo. O atributo some quando o conjunto esvazia.
   **Decidido pelo dono em 2026-11-13** (opção "A"); nome e tipo confirmados neste roteiro.
 - **R2. Registrar.** `PUT /spaces/{sid}/push` com `{"token": "<texto>"}` acrescenta o token ao conjunto do vínculo **de quem fez a chamada** (o `sub` vem do JWT, nunca do corpo). Idempotente: registrar o mesmo token de
-  novo não muda nada. Valida: texto, sem espaços, só letras, números e `_ - : .`, entre 20 e 1024 caracteres; `400` se não bater. `404` se a pessoa não tem vínculo com o espaço (nada é criado). Resposta: `{"aparelhos": n}`;
+  novo não muda nada. Valida: texto, sem espaços, só letras, números e `_ - : .`, entre 20 e 1024 caracteres; `400` se não bater. Sem vínculo com o espaço a resposta é `403` (a rota confere o papel antes) e **nada é criado** (a gravação tem a condição de o vínculo existir). Resposta: `{"aparelhos": n}`;
   **nunca** devolve token. Vale para `owner` e `member`, cada um só no próprio vínculo.
 - **R3. Remover do espaço.** `POST /spaces/{sid}/push/remover` com `{"token"}` tira o token do vínculo daquele espaço; token que não está lá não é erro. Resposta `{"aparelhos": n}`.
 - **R4. Limite de 5 aparelhos** por pessoa e espaço, decidido **na própria gravação** (condição, sem leitura antes): um sexto token **diferente** é recusado com `409` e a frase "Você já tem 5 aparelhos neste espaço. Desligue um deles
   para ligar este."; o token que já está no conjunto continua aceito (idempotência).
-- **R5. Sair.** `POST /push/sair` com `{"token"}` tira o token de **todos** os vínculos da pessoa (os espaços que `GET /me` lista), só os dela. Falha parcial não desfaz o resto e devolve `200` com os que conseguiu apagar;
+- **R5. Sair.** `POST /push/sair` com `{"token"}` tira o token de **todos** os vínculos da pessoa (os espaços que `GET /me` lista), só os dela. Falha parcial não desfaz o resto e devolve `200` com os espaços em que o token foi de fato tirado;
   falha de leitura dos espaços devolve erro. Resposta `{"removidos": n}`.
 - **R6. Destinos.** `LeitorContatos.Destinos(sid, sub)` devolve também `"push": [tokens]`, do `pushTokens` do mesmo `GetItem` (**nenhuma leitura nova**). **O mapa canal ↔ campo do vínculo mora num só lugar, `repository/destinos.go`** (AD-4): `Destinos`, `RemoverDestino` e as gravações de `pushTokens` o usam; nenhum outro arquivo conhece `telegramChatId` ou `pushTokens` para isso. Sem token, a chave `push` não aparece. Ordem estável (os tokens são
   ordenados).

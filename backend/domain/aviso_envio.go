@@ -133,3 +133,11 @@ func OrdenarLinhas(linhas []LinhaAviso) []LinhaAviso {
 	})
 	return r
 }
+
+// ErrDestinoInvalido: o canal diz que o destino nao existe mais (por exemplo, o aparelho desinstalou o app). So este erro faz a
+// rotina apagar o destino do vinculo da pessoa; nenhum outro apaga nada.
+var ErrDestinoInvalido = errors.New("destino de aviso invalido")
+
+// ErrCredencialRecusada: o canal foi recusado por causa da credencial do servidor (vencida, revogada ou sem permissao). Nao e culpa do
+// destino, nao apaga nada e tem texto de log proprio, para uma consulta achar.
+var ErrCredencialRecusada = errors.New("a credencial do canal de aviso foi recusada")

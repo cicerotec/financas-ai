@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -39,6 +40,16 @@ type donoFalso map[string]string
 
 func (d donoFalso) Dono(_ context.Context, sid string) string { return d[sid] }
 
+// removedorFalso guarda o que a rotina mandou apagar (canal, endereco e de qual vinculo).
+type removedorFalso struct{ apagados []string }
+
+func (r *removedorFalso) RemoverDestino(_ context.Context, sid, sub, canal, endereco string) error {
+	r.apagados = append(r.apagados, sid+"|"+sub+"|"+canal+"|"+endereco)
+	return nil
+}
+
+var removedorDaRodada *removedorFalso // o da ultima rotina montada por montarRotina
+
 type relogioFalso struct{ t time.Time }
 
 func (r relogioFalso) Agora() time.Time { return r.t }
@@ -50,8 +61,9 @@ type entregaFalsa struct {
 
 // canalFalso guarda o resumo que recebeu (o conteudo, sem formato) ou falha com o erro dado.
 type canalFalso struct {
-	nome     string
-	falhaCom error
+	nome      string
+	falhaCom  error
+	falhaPara map[string]error // falha so para este destino (vence falhaCom)
 	chamadas []string
 	entregas []entregaFalsa
 }
@@ -59,6 +71,9 @@ type canalFalso struct {
 func (c *canalFalso) Nome() string { return c.nome }
 func (c *canalFalso) Enviar(_ context.Context, destino string, r domain.ResumoAvisos) error {
 	c.chamadas = append(c.chamadas, destino)
+	if err := c.falhaPara[destino]; err != nil {
+		return err
+	}
 	if c.falhaCom != nil {
 		return c.falhaCom
 	}
@@ -82,7 +97,8 @@ func montarRotina(t *testing.T, itens []itemRotina, contatos map[string]map[stri
 		t.Fatal(err)
 	}
 	hoje, _ := time.ParseInLocation("2006-01-02 15:04", "2026-10-10 08:00", domain.FusoBR)
-	return NewAvisos(repo, lanc, nil, &contatosFalso{contatos}, donoFalso(dono), d, relogioFalso{hoje}, "")
+	removedorDaRodada = &removedorFalso{}
+	return NewAvisos(repo, lanc, nil, &contatosFalso{contatos}, donoFalso(dono), d, removedorDaRodada, relogioFalso{hoje}, "")
 }
 
 func capturarLog(t *testing.T) *bytes.Buffer {
@@ -208,5 +224,73 @@ func TestLogDaRotinaNaoVazaDestinoTextoNemValor(t *testing.T) {
 	}
 	if !strings.Contains(fmt.Sprint(logs), "canal a") {
 		t.Errorf("o log deveria nomear o canal:\n%s", logs)
+	}
+}
+
+// P-T11: o destino que o canal diz ser invalido e apagado de CADA vinculo de onde saiu, nao conta como entregue e nao derruba a rotina.
+func TestRotinaApagaODestinoRecusadoDeCadaVinculo(t *testing.T) {
+	a := &canalFalso{nome: "a", falhaPara: map[string]error{"morto": domain.ErrDestinoInvalido}}
+	contatos := map[string]map[string][]string{
+		"s1|own": {"a": {"morto", "vivo"}}, "s2|own": {"a": {"morto"}}, "s1|mem": {"a": {"morto"}},
+	}
+	r := montarRotina(t, []itemRotina{{"s1", "x1", "mem", "Luz"}, {"s2", "x2", "", "Agua"}},
+		contatos, map[string]string{"s1": "own", "s2": "own"}, a)
+	n, err := r.Rodar(context.Background())
+	if err != nil || n != 1 {
+		t.Fatalf("Rodar = (%d, %v): so o destino vivo conta", n, err)
+	}
+	apagados := append([]string(nil), removedorDaRodada.apagados...)
+	sort.Strings(apagados)
+	quer := []string{"s1|mem|a|morto", "s1|own|a|morto", "s2|own|a|morto"}
+	if !reflect.DeepEqual(apagados, quer) {
+		t.Errorf("apagados = %v, esperado %v (um por vinculo de onde o destino saiu; o vivo fica)", apagados, quer)
+	}
+}
+
+// Outros erros (rede, recusa, credencial) nunca apagam nada.
+func TestRotinaSoApagaComErrDestinoInvalido(t *testing.T) {
+	a := &canalFalso{nome: "a", falhaCom: errors.New("5xx")}
+	r := montarRotina(t, []itemRotina{{"s1", "x1", "", "Luz"}},
+		map[string]map[string][]string{"s1|own": {"a": {"t1"}}}, map[string]string{"s1": "own"}, a)
+	r.Rodar(context.Background())
+	if len(removedorDaRodada.apagados) != 0 {
+		t.Errorf("falha comum nao apaga nada: %v", removedorDaRodada.apagados)
+	}
+}
+
+// AD-10: credencial recusada para o resto do canal, nao apaga nada e tem texto de log proprio, uma vez por rodada.
+func TestRotinaCredencialRecusadaTemLogProprio(t *testing.T) {
+	logs := capturarLog(t)
+	a := &canalFalso{nome: "a", falhaCom: fmt.Errorf("401: %w", domain.ErrCredencialRecusada)}
+	b := &canalFalso{nome: "b"}
+	r := montarRotina(t, []itemRotina{{"s1", "x1", "", "Luz"}},
+		map[string]map[string][]string{"s1|own": {"a": {"t1", "t2"}, "b": {"eb"}}}, map[string]string{"s1": "own"}, a, b)
+	n, err := r.Rodar(context.Background())
+	if err != nil || n != 1 || len(a.chamadas) != 1 || len(removedorDaRodada.apagados) != 0 {
+		t.Fatalf("Rodar = (%d, %v); a=%v apagados=%v", n, err, a.chamadas, removedorDaRodada.apagados)
+	}
+	if c := strings.Count(logs.String(), "CREDENCIAL RECUSADA"); c != 1 {
+		t.Errorf("esperada 1 linha propria da credencial, houve %d: %s", c, logs)
+	}
+}
+
+// P-T12 (push): o mesmo aparelho em dois espacos recebe UMA notificacao com a contagem somada; dois aparelhos, duas.
+func TestRotinaMesmoAparelhoEmDoisEspacosRecebeUmaSo(t *testing.T) {
+	p := &canalFalso{nome: "push"}
+	contatos := map[string]map[string][]string{
+		"s1|own": {"push": {"tokA", "tokB"}}, "s2|own": {"push": {"tokA"}},
+	}
+	r := montarRotina(t, []itemRotina{{"s1", "x1", "", "Luz"}, {"s2", "x2", "", "Agua"}},
+		contatos, map[string]string{"s1": "own", "s2": "own"}, p)
+	n, err := r.Rodar(context.Background())
+	if err != nil || n != 2 || len(p.entregas) != 2 {
+		t.Fatalf("Rodar = (%d, %v); entregas=%d (um aparelho em dois espacos e um so; dois aparelhos, dois)", n, err, len(p.entregas))
+	}
+	soma := map[string]int{}
+	for _, e := range p.entregas {
+		soma[e.destino] = domain.Contagens(e.resumo).Hoje
+	}
+	if soma["tokA"] != 2 || soma["tokB"] != 1 {
+		t.Errorf("contagem por aparelho = %v, esperado tokA=2 (dois espacos) e tokB=1", soma)
 	}
 }
