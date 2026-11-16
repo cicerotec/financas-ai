@@ -236,11 +236,12 @@ type envio struct{ chat, texto string }
 // notifFalso e o canal "telegram" dos testes: formata o resumo como o Telegram de verdade (notificacao.PartesDoResumo), guarda as
 // mensagens (ou falha com o erro dado). Fica no despachante do Servidor montado em cenario().
 type notifFalso struct {
+	nome     string
 	falhaCom error
 	enviados []envio
 }
 
-func (n *notifFalso) Nome() string { return "telegram" }
+func (n *notifFalso) Nome() string { return n.nome }
 
 func (n *notifFalso) Enviar(_ context.Context, chat string, r domain.ResumoAvisos) error {
 	if n.falhaCom != nil {
@@ -252,13 +253,18 @@ func (n *notifFalso) Enviar(_ context.Context, chat string, r domain.ResumoAviso
 	return nil
 }
 
-var canalTeste = &notifFalso{}
-var notifTeste, _ = service.NovoDespachante(canalTeste)
+var canalTeste = &notifFalso{nome: "telegram"}
+var canalPushTeste = &notifFalso{nome: "push"} // o outro canal do despachante dos testes (o texto e o do Telegram: aqui so importa quem recebeu)
+var notifTeste, _ = service.NovoDespachante(canalTeste, canalPushTeste)
 
 // trocaEnvio zera as mensagens guardadas e, se falhaCom, faz o envio falhar ate o fim do teste.
 func trocaEnvio(t *testing.T, falhaCom error) *[]envio {
 	canalTeste.enviados, canalTeste.falhaCom = nil, falhaCom
-	t.Cleanup(func() { canalTeste.enviados, canalTeste.falhaCom = nil, nil })
+	canalPushTeste.enviados, canalPushTeste.falhaCom = nil, nil
+	t.Cleanup(func() {
+		canalTeste.enviados, canalTeste.falhaCom = nil, nil
+		canalPushTeste.enviados, canalPushTeste.falhaCom = nil, nil
+	})
 	return &canalTeste.enviados
 }
 

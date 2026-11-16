@@ -63,6 +63,9 @@ func rotular(m string, p []string) rotulo {
 	if len(p) == 1 && p[0] == "me" && m == "GET" {
 		return rotulo{acaoMe, "me"}
 	}
+	if a, ok := auth.RotaSemEspaco(m, p); ok {
+		return rotulo{string(a), p[0]}
+	}
 	if len(p) < 3 || p[0] != "spaces" {
 		return rotulo{acaoDesconhecida, "-"}
 	}
@@ -102,6 +105,13 @@ func registrar(rid, m string, rt rotulo, res resp, err error, d time.Duration) {
 func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []string, qs map[string]string, rawBody string) (resp, error) {
 	if len(p) == 1 && p[0] == "me" && m == "GET" {
 		return s.esp.GetMe(ctx, u.Sub, u.Email)
+	}
+	if a, ok := auth.RotaSemEspaco(m, p); ok && a == auth.AcaoSairPush { // sem espaco no caminho: so o sub do token
+		var body domain.Doc
+		if err := json.Unmarshal([]byte(rawBody), &body); err != nil || body == nil {
+			return erro(http.StatusBadRequest, "json invalido")
+		}
+		return s.aparelhos.PostPushSair(ctx, u.Sub, body)
 	}
 	if len(p) < 3 || p[0] != "spaces" {
 		return erro(http.StatusNotFound, "rota inexistente")
@@ -191,6 +201,10 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 		return s.cfg.GetAparencia(ctx, sid, u.Sub)
 	case auth.AcaoEditarPerfil:
 		return s.perfil.PutPerfil(ctx, sid, u.Sub, body)
+	case auth.AcaoRegistrarPush:
+		return s.aparelhos.PutPush(ctx, sid, u.Sub, body)
+	case auth.AcaoRemoverPush:
+		return s.aparelhos.PostPushRemover(ctx, sid, u.Sub, body)
 	case auth.AcaoTestarAviso:
 		return s.avisos.PostAvisoTeste(ctx, sid, u.Sub, body)
 	case auth.AcaoEscreverAparenc:

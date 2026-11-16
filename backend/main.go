@@ -24,7 +24,8 @@ func main() {
 	}
 	table := os.Getenv("TABLE_NAME")
 	telegram := notificacao.NovoTelegram(ssm.NewFromConfig(cfg), os.Getenv("TELEGRAM_TOKEN_PARAM"))
-	despachante, err := service.NovoDespachante(telegram) // canal novo (push, e-mail) e registrado aqui
+	fcm := notificacao.NovoFCM(ssm.NewFromConfig(cfg), os.Getenv("FCM_CREDENCIAL_PARAM"))
+	despachante, err := service.NovoDespachante(telegram, fcm) // canal novo (e-mail...) e registrado aqui
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -18,6 +18,7 @@ type Servidor struct {
 	perfil    *controller.Perfil
 	fech      *controller.Fechamento
 	avisos    *controller.Avisos
+	aparelhos *controller.Aparelhos
 	rec       *controller.Recorrencias
 	consultas *controller.Consultas
 	cartoes   *rotasCartao
@@ -36,7 +37,7 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, despachante *
 	contador := service.NewContador(repository.NewContador(db, table))
 	saldosRepo := repository.NewSaldos(db, table)
 	fech := service.NewFechamento(saldosRepo, cfgRepo, rel)
-	avisos := service.NewAvisos(repository.NewAvisos(db, table), lancRepo, cfgRepo, pessoas, espacos, despachante, rel, ambiente)
+	avisos := service.NewAvisos(repository.NewAvisos(db, table), lancRepo, cfgRepo, pessoas, espacos, despachante, pessoas, rel, ambiente)
 	efeitos := service.NewEfeitos(fech, tags, avisos, contador)
 	lancSvc := service.NewLancamentos(lancRepo, efeitos, pessoas, rel)
 	saldos := service.NewSaldos(lancRepo, cfgRepo, saldosRepo, rel)
@@ -58,6 +59,7 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, despachante *
 		perfil:    controller.NewPerfil(service.NewPerfil(pessoas)),
 		fech:      controller.NewFechamento(fech, saldos, service.NewConferencia(saldos, fech, lancSvc)),
 		avisos:    controller.NewAvisos(avisos),
+		aparelhos: controller.NewAparelhos(service.NewAparelhos(pessoas, espacos)),
 		rec:       controller.NewRecorrencias(recorrencias),
 		consultas: controller.NewConsultas(service.NewConsultas(repository.NewConsultas(db, table), pessoas, rel)),
 		cartoes:   &rotasCartao{c: controller.NewCartoes(cartoes)},

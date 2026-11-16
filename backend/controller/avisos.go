@@ -22,6 +22,11 @@ var frasesDoCanal = map[string]struct{ semDestino, naoConfigurado, recusou strin
 		naoConfigurado: "o envio pelo Telegram ainda nao foi configurado no servidor",
 		recusou:        "o Telegram recusou a mensagem: confira o chat id e se voce ja iniciou a conversa com o bot",
 	},
+	"push": {
+		semDestino:     "nenhum aparelho registrado neste espaco: ligue 'Receber avisos neste aparelho' primeiro",
+		naoConfigurado: "o envio de notificacoes ainda nao foi configurado no servidor",
+		recusou:        "o servico de notificacoes recusou a mensagem: tente de novo",
+	},
 }
 
 // canalPadraoDoTeste e o canal do teste de aviso quando o corpo nao diz qual (compativel com o que a rota sempre fez).

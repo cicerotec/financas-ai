@@ -69,6 +69,8 @@ func respostaErro(err error) (Resp, error) {
 		return Erro(http.StatusNotFound, err.Error())
 	case errors.Is(err, service.ErrMesNaoConferido):
 		return Erro(http.StatusNotFound, err.Error())
+	case errors.Is(err, domain.ErrLimiteAparelhos): // a pessoa ja tem 5 aparelhos neste espaco
+		return Out(http.StatusConflict, domain.Doc{"erro": err.Error(), "codigo": "limite_aparelhos"})
 	case errors.Is(err, domain.ErrVinculoNaoEncontrado):
 		return Erro(http.StatusNotFound, err.Error())
 	case errors.Is(err, domain.ErrConflitoVersao): // outra escrita chegou antes: nada foi gravado

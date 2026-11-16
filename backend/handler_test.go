@@ -160,6 +160,9 @@ func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, 
 		it["seq"] = &types.AttributeValueMemberN{Value: strconv.FormatFloat(n, 'f', -1, 64)}
 		return &dynamodb.UpdateItemOutput{Attributes: map[string]types.AttributeValue{"seq": it["seq"]}}, nil
 	}
+	if expr := aws.ToString(in.UpdateExpression); strings.HasSuffix(expr, " pushTokens :t") { // aparelhos do push: ADD / DELETE no conjunto pushTokens
+		return f.updateAparelho(in, k, expr)
+	}
 	it, ok := f.itens[k]
 	if !ok {
 		return nil, &types.ConditionalCheckFailedException{}
@@ -183,6 +186,55 @@ func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, 
 		}
 	}
 	return &dynamodb.UpdateItemOutput{}, nil
+}
+
+// updateAparelho simula o UpdateItem dos aparelhos (repository/destinos.go): "ADD pushTokens :t" com o limite como condicao da gravacao
+// e "DELETE pushTokens :t". O DynamoDB de verdade e conferido no dev (P-T25); aqui vale a logica: vinculo que nao existe, limite,
+// idempotencia, e o atributo que some quando o conjunto esvazia.
+func (f *bancoFake) updateAparelho(in *dynamodb.UpdateItemInput, k, expr string) (*dynamodb.UpdateItemOutput, error) {
+	it, ok := f.itens[k]
+	if !ok {
+		return nil, &types.ConditionalCheckFailedException{}
+	}
+	token := in.ExpressionAttributeValues[":t"].(*types.AttributeValueMemberSS).Value[0]
+	var atual []string
+	if ss, ok := it["pushTokens"].(*types.AttributeValueMemberSS); ok {
+		atual = append(atual, ss.Value...)
+	}
+	tem := false
+	for _, t := range atual {
+		tem = tem || t == token
+	}
+	guardar := func(l []string) {
+		if len(l) == 0 {
+			delete(it, "pushTokens")
+			return
+		}
+		it["pushTokens"] = &types.AttributeValueMemberSS{Value: l}
+	}
+	if strings.HasPrefix(expr, "ADD ") {
+		if !tem && len(atual) >= 5 {
+			return nil, &types.ConditionalCheckFailedException{Item: it}
+		}
+		if !tem {
+			atual = append(atual, token)
+		}
+		guardar(atual)
+		return &dynamodb.UpdateItemOutput{Attributes: map[string]types.AttributeValue{"pushTokens": &types.AttributeValueMemberSS{Value: atual}}}, nil
+	}
+	antigo := &types.AttributeValueMemberSS{Value: append([]string(nil), atual...)}
+	var resto []string
+	for _, t := range atual {
+		if t != token {
+			resto = append(resto, t)
+		}
+	}
+	guardar(resto)
+	out := &dynamodb.UpdateItemOutput{}
+	if len(atual) > 0 {
+		out.Attributes = map[string]types.AttributeValue{"pushTokens": antigo}
+	}
+	return out, nil
 }
 
 // Query: entende "PK = :pk AND SK BETWEEN :a AND :b" e "PK = :pk AND begins_with(SK, :s)".
