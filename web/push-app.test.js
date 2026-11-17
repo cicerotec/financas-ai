@@ -39,7 +39,7 @@ assert.match(fcm, /canalDeNotificacao = "avisos"/);
 const main = java('MainActivity.java');
 assert.ok(main.indexOf('registerPlugin(PushPlugin.class)') > 0 && main.indexOf('registerPlugin(PushPlugin.class)') < main.indexOf('super.onCreate'));
 assert.match(plugin, /@CapacitorPlugin\(\s*name = "Push"/);
-for (const op of ['disponivel', 'permissao', 'pedirPermissao', 'token', 'apagarToken', 'mudou', 'marcarRegistrado']) {
+for (const op of ['disponivel', 'permissao', 'pedirPermissao', 'token', 'apagarToken', 'abrirConfiguracoes', 'mudou', 'marcarRegistrado']) {
   assert.match(plugin, new RegExp('@PluginMethod\\s+public void ' + op + '\\(', 'm'), 'falta a operacao ' + op);
 }
 

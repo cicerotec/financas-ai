@@ -3,7 +3,9 @@ package br.com.cicerotec.financas;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Build;
+import android.provider.Settings;
 
 import androidx.core.app.NotificationManagerCompat;
 
@@ -152,6 +154,20 @@ public class PushPlugin extends Plugin {
             });
         } catch (Exception e) {
             call.reject("Push: não consegui apagar o token.");
+        }
+    }
+
+    /** abrirConfiguracoes() abre as configuracoes de notificacao deste app no Android (o caminho de quem bloqueou o aviso, R17). */
+    @PluginMethod
+    public void abrirConfiguracoes(PluginCall call) {
+        try {
+            Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName())
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Push: não consegui abrir as configurações.");
         }
     }
 
