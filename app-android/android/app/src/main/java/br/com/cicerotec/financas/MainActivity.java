@@ -25,6 +25,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(CofrePlugin.class);
         // A Trava (biometria e janela protegida) tambem e nossa.
         registerPlugin(TravaPlugin.class);
+        // O Push (token do aparelho e permissao de notificar) tambem e nosso.
+        registerPlugin(PushPlugin.class);
         super.onCreate(savedInstanceState);
         // A pagina leva um instante para desenhar: ate la a WebView mostra o fundo do app, e nao um quadro preto.
         getBridge().getWebView().setBackgroundColor(ContextCompat.getColor(this, R.color.fundo));

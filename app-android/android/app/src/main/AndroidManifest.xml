@@ -44,9 +44,29 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Push (item 54, fase 4): o servico que o SDK do Firebase Messaging exige; nao e aberto a outros apps. -->
+        <service
+            android:name=".FinancasMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <!-- O canal em que o servidor pede para a notificacao aparecer (PushPlugin.CANAL_AVISOS). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="avisos" />
     </application>
+
+    <!-- Android 11 ou mais esconde os outros pacotes do app: o PushPlugin confere se os Google Play Services existem. -->
+    <queries>
+        <package android:name="com.google.android.gms" />
+    </queries>
 
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13 ou mais pede esta permissao em tempo de uso; antes dele ela ja vale. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>
