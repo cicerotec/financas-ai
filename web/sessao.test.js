@@ -174,6 +174,23 @@ teste('A-T13, A-T22h: sair apaga o Cofre e o espaco escolhido, espera, e so enta
   assert.deepStrictEqual([q.abertas.length, q.recargas, q.avisos], [0, 0, ['cofre']]);
 });
 
+// Push, P-T20 (spec app-android-push, R19): o aparelho sai do servidor ANTES de a sessao ser apagada; falhar nao impede o Sair
+teste('P-T20: sair chama aoSair antes de apagar a sessao, e falha ou demora de aoSair nao impede o Sair', async () => {
+  const d = aparelho({ cofre: new Map([['refresh', 'R0']]) });
+  d.ls.m.set('financas.push', '{"s1":{}}');
+  d.env.aoSair = async () => { d.ordem.push('aoSair'); assert.strictEqual(d.cofre.size, 1, 'a sessao ainda existe quando o aparelho sai do servidor'); };
+  await d.sessao().sair();
+  assert.deepStrictEqual(d.ordem, ['aoSair', 'apagar refresh', 'apagar pkce', 'abrir'], 'o aparelho sai antes de apagar a sessao');
+  assert.strictEqual(d.ls.m.has('financas.push'), false, 'financas.push some no Sair');
+  assert.strictEqual(d.recargas, 1);
+  const q = aparelho({ cofre: new Map([['refresh', 'R0']]) });
+  q.env.aoSair = async () => { throw new Error('sem rede'); };
+  await q.sessao().sair();
+  assert.deepStrictEqual([q.cofre.size, q.abertas.length, q.recargas], [0, 1, 1], 'falha em aoSair: o Sair segue');
+  const n = aparelho({ navegador: true });
+  assert.strictEqual(typeof n.sessao().sair, 'function'); // no navegador e na PWA nada de push (o aoSair nem existe la)
+});
+
 teste('A-T14, A-T22i: refresh recusado (400) encerra a sessao; sem rede e 503 mantem; refresh sem refresh_token mantem o guardado', async () => {
   for (const erro of ['invalid_grant', 'invalid_client', 'invalid_request']) {
     const d = aparelho({ cofre: new Map([['refresh', 'R0']]), login: () => resp(400, { error: erro }) });

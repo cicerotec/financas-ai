@@ -1203,4 +1203,14 @@ html.bloqueado header,html.bloqueado main,html.bloqueado .ab{visibility:hidden;}
 .seg-msg{margin:2px 4px 0;font-size:13px;color:var(--muted);}
 .seg-msg.ruim{color:var(--danger);}
 .seg-msg:empty{display:none;}
+/* Avisos (cartao mestre, demo .ai/demos/demo-push-v1.html): o Telegram e o aparelho sao subsecoes; a caixa tira 14 px de cada lado,
+   entao o campo do Id e os botoes do Telegram ganham linhas proprias */
+#avisosCard .ap-sub[hidden]{display:none;}
+#telegramCard .row{flex-wrap:wrap;}
+#telegramCard .row input{flex:1 1 100%;}
+#telegramCard .row .ghost{flex:1 1 0;}
+.ps-acoes{margin-top:8px;gap:8px;flex-wrap:wrap;}
+.ps-acoes .ghost{min-height:44px;}
+.ps-acoes[hidden],.ps-acoes button[hidden]{display:none;}
+#pushNota{margin:10px 4px 0;font-size:12.5px;}
 @media (prefers-reduced-motion:reduce){.ab{transition:none;}.ab-baixo{animation:none;}.ab-gira{animation-duration:2.4s;}}

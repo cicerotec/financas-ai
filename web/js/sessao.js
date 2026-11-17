@@ -6,6 +6,7 @@
 //    o refresh token e o PKCE ficam no plugin Cofre (Java, cifrado por chave do Android Keystore) e o ID token so em memoria.
 //    Nada de token em localStorage ou sessionStorage. Rede e 5xx nao sao logout; 400 do refresh e.
 // Este modulo nao escreve log nenhum (R18): token, code, verifier e a URL de retorno nunca sao impressos.
+// Sair no app chama env.aoSair() (opcional) antes de apagar a sessao: e por onde web/js/push.js tira o aparelho do servidor (push, R19).
 function criarSessao(env){
   const CFG = env.cfg;
   const b64url = buf => env.btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -190,9 +191,11 @@ function criarSessao(env){
     async function sair(){
       try {
         await iniciar();
+        // Push (R19): ANTES de apagar a sessao, tira o aparelho do servidor e invalida o token no FCM. Falha aqui nunca impede o Sair.
+        try { if(env.aoSair) await env.aoSair(); } catch (e) {}
         await limpar();
       } catch (e) { aviso('cofre'); throw e; }
-      try { for(const k of ['financas.space', 'financas.trava', 'financas.recentes']) env.localStorage.removeItem(k); } catch (e) {} // o espaco escolhido e a trava (R14); tema e o olho ficam
+      try { for(const k of ['financas.space', 'financas.trava', 'financas.recentes', 'financas.push']) env.localStorage.removeItem(k); } catch (e) {} // o espaco escolhido e a trava (R14); tema e o olho ficam
       try { await Browser.open({url: urlLogout(redirect)}); } catch (e) {} // sem aba do sistema o Cognito nao e avisado; a sessao local ja foi apagada
       env.recarregar();
     }
@@ -217,6 +220,7 @@ if(typeof window !== 'undefined' && window.FINANCAS_CONFIG){
     btoa: s => window.btoa(s),
     agora: () => Date.now(),
     recarregar: () => window.location.reload(),
+    aoSair: () => (typeof PushApp !== 'undefined' && PushApp ? PushApp.sair() : undefined), // web/js/push.js (so age no app)
     aviso: tipo => { if(typeof Abertura !== 'undefined' && Abertura && Abertura.sessao) Abertura.sessao(tipo); }
   });
 }
