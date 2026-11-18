@@ -59,6 +59,7 @@ try {
     if (-not (Test-Path $apk)) { throw "O Gradle terminou, mas o APK nao esta em $apk." }
     Write-Host "APK de debug: $apk"
     Write-Host "Instale com: adb install -r `"$apk`""
+    Write-Host "Ou compile e instale de uma vez: .\scripts\instalar-app-android.ps1 -Ambiente $Ambiente"
 } finally {
     Pop-Location
     $env:Path = $pathAntes
