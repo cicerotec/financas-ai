@@ -195,7 +195,7 @@ function criarSessao(env){
         try { if(env.aoSair) await env.aoSair(); } catch (e) {}
         await limpar();
       } catch (e) { aviso('cofre'); throw e; }
-      try { for(const k of ['financas.space', 'financas.trava', 'financas.recentes', 'financas.push']) env.localStorage.removeItem(k); } catch (e) {} // o espaco escolhido e a trava (R14); tema e o olho ficam
+      try { for(const k of ['financas.space', 'financas.trava', 'financas.recentes', 'financas.push', 'financas.telegram']) env.localStorage.removeItem(k); } catch (e) {} // o espaco escolhido e a trava (R14); tema e o olho ficam
       try { await Browser.open({url: urlLogout(redirect)}); } catch (e) {} // sem aba do sistema o Cognito nao e avisado; a sessao local ja foi apagada
       env.recarregar();
     }
