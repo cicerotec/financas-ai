@@ -35,7 +35,6 @@ pendentes: nenhum.
 - [\[Backend\] - 34 - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - 42 - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
 - [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
-- [\[Front\] - 54 - **\[Próximo\] App Android com Capacitor:**](#item-54)
 - [\[UX/UI\] - 63 - **\[Próximo\] Avisar a falta de rede em toda tela:**](#item-63)
 - [\[Infra\] - 11 - **\[Depois\] Backup periódico:**](#item-11)
 - [\[Backend\] - 59 - **\[Depois\] Congelar meio (continua existindo, mas não aceita eventos novos):**](#item-59)
@@ -397,7 +396,7 @@ DynamoDB sem discutir com o dono.**
   - **Dados novos aprovados pelo dono em 2026-10-25:** `pagador` e `diaVencimento` no cartão e `pagador` e `vencimento` por fatura (tudo dentro da entrada do
     cartão em `CFG#CARTOES`). O atributo `pagaFatura` no lançamento aguarda a aprovação no spec. **O pagamento é um lançamento normal e a marca `pagaFatura` é só uma label** (sem limite de pagamentos, de valor ou de meio; pagamento mínimo e restante são da operadora, nada passa adiante). Depende dos itens 33a e 41,
     concluídos. Intent, plan e spec (aprovados em 2026-10-25; **concluído em 2026-10-25: fases A (backend, #228) e B (telas, #230), painel do cartão refeito em linhas compactas (#231) e o débito do mesmo banco pode pagar a fatura (#233); conferido em dev pelo dono**) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md). Detalhes em `.ai/arquitetura.md`.
-- 54. [ ] <a id="item-54"></a>**[Próximo] App Android com Capacitor (2026-11-01; rascunho para aprovação, roteiro em [`.ai/specs/app-android/`](.ai/specs/app-android/intent.md)):** hoje o app é uma página (`web/`) usada
+- 54. [x] <a id="item-54"></a>**App Android com Capacitor (concluído em 2026-11-18, fases 1 a 4, conferido no aparelho pelo dono; 2026-11-01; rascunho para aprovação, roteiro em [`.ai/specs/app-android/`](.ai/specs/app-android/intent.md)):** hoje o app é uma página (`web/`) usada
   pelo navegador ou como PWA. O dono quer um app Android **fora do navegador**, com **capacidades nativas**, primeiro para duas pessoas e depois pela **Play Store**. Decidido: **Capacitor** com o
   `web/` empacotado dentro do app (sem reescrever telas, sem mudar regra nem backend); TWA e app nativo (Kotlin ou Flutter) foram descartados; `dev` e `prod` coexistem por `applicationId` distinto;
   **APK de debug** no desenvolvimento e **AAB assinado** na Play. Fases (cada uma um PR):
