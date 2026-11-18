@@ -1,5 +1,5 @@
 // Push: avisos como notificacao do app Android (item 54, fase 4). Spec: .ai/specs/app-android-push/spec.md (R14 a R17, R19, R20).
-// Padrao: .ai/padrao-de-telas.md ("Avisos neste aparelho"), demo .ai/demos/demo-push-v1.html (aprovada em 2026-11-17).
+// Padrao: .ai/padrao-de-telas.md ("Avisos neste aparelho"), demo .ai/demos/arquivo/demo-push-v1.html (aprovada em 2026-11-17).
 // So existe no app (Capacitor.isNativePlatform()); no navegador e na PWA este modulo nao faz nada e a subsecao nao aparece.
 // O token do aparelho vem do plugin Push (Java, SDK do Firebase) e SO passa por aqui rumo a API: nunca e guardado, mostrado nem escrito
 // em log (R23). No aparelho fica apenas financas.push = {"<espaco>": {em: quando registrou, h: impressao curta do token}} (R15).

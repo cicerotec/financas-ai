@@ -178,10 +178,12 @@ teste('A-T13, A-T22h: sair apaga o Cofre e o espaco escolhido, espera, e so enta
 teste('P-T20: sair chama aoSair antes de apagar a sessao, e falha ou demora de aoSair nao impede o Sair', async () => {
   const d = aparelho({ cofre: new Map([['refresh', 'R0']]) });
   d.ls.m.set('financas.push', '{"s1":{}}');
+  d.ls.m.set('financas.telegram', '{"s1":"123456789"}');
   d.env.aoSair = async () => { d.ordem.push('aoSair'); assert.strictEqual(d.cofre.size, 1, 'a sessao ainda existe quando o aparelho sai do servidor'); };
   await d.sessao().sair();
   assert.deepStrictEqual(d.ordem, ['aoSair', 'apagar refresh', 'apagar pkce', 'abrir'], 'o aparelho sai antes de apagar a sessao');
   assert.strictEqual(d.ls.m.has('financas.push'), false, 'financas.push some no Sair');
+  assert.strictEqual(d.ls.m.has('financas.telegram'), false, 'o Id lembrado do Telegram some no Sair');
   assert.strictEqual(d.recargas, 1);
   const q = aparelho({ cofre: new Map([['refresh', 'R0']]) });
   q.env.aoSair = async () => { throw new Error('sem rede'); };
