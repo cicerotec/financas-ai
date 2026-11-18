@@ -35,6 +35,11 @@ const (
 	AcaoEditarConsulta  Acao = "consulta.editar" // renomear, atualizar, excluir e restaurar: o member so as que criou
 	AcaoEscreverMeio    Acao = "meio.escrever"   // desativar, reativar e remover um meio de pagamento (item 43; so o dono)
 	AcaoRotinaCombos    Acao = "combos.rotina"   // liga e desliga a rotina semanal dos combos sugeridos (item 57; so o dono)
+
+	// Aparelhos que recebem aviso pelo app (push; fase 4 do item 54). Cada pessoa mexe so nos proprios, no proprio vinculo.
+	AcaoRegistrarPush Acao = "push.registrar" // PUT /spaces/{sid}/push
+	AcaoRemoverPush   Acao = "push.remover"   // POST /spaces/{sid}/push/remover
+	AcaoSairPush      Acao = "push.sair"      // POST /push/sair: tira o aparelho de todos os espacos de quem chama (sem papel: nao ha espaco na rota)
 )
 
 // Decisao e o que um papel pode fazer com uma acao.
@@ -60,13 +65,15 @@ func Permitido(papel string, a Acao) Decisao {
 			AcaoLerCfg, AcaoEscreverCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso,
 			AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao,
-			AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta, AcaoEscreverMeio, AcaoRotinaCombos:
+			AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta, AcaoEscreverMeio, AcaoRotinaCombos,
+			AcaoRegistrarPush, AcaoRemoverPush:
 			return Liberado
 		}
 	case PapelMember:
 		switch a {
 		case AcaoLerTx, AcaoCriarTx, AcaoLerCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
-			AcaoLerFech, AcaoLerSeq, AcaoTestarAviso, AcaoLerCartao, AcaoLerConsulta, AcaoCriarConsulta:
+			AcaoLerFech, AcaoLerSeq, AcaoTestarAviso, AcaoLerCartao, AcaoLerConsulta, AcaoCriarConsulta,
+			AcaoRegistrarPush, AcaoRemoverPush:
 			return Liberado
 		case AcaoEditarTx, AcaoConfirmarTx, AcaoLerHistorico, AcaoRestaurar, AcaoEditarConsulta: // so o que ela criou (restaurar excluido e so do owner: service)
 			return SoDono
@@ -150,6 +157,10 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		return AcaoEditarPerfil, true
 	case len(rest) == 2 && rest[0] == "avisos" && rest[1] == "teste" && metodo == "POST":
 		return AcaoTestarAviso, true
+	case len(rest) == 1 && rest[0] == "push" && metodo == "PUT":
+		return AcaoRegistrarPush, true
+	case len(rest) == 2 && rest[0] == "push" && rest[1] == "remover" && metodo == "POST":
+		return AcaoRemoverPush, true
 	case len(rest) == 1 && rest[0] == "aparencia":
 		switch metodo {
 		case "GET":
@@ -157,6 +168,15 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		case "PUT":
 			return AcaoEscreverAparenc, true
 		}
+	}
+	return "", false
+}
+
+// RotaSemEspaco classifica as rotas autenticadas que nao tem espaco no caminho (hoje so o "sair" do aparelho). Quem chega aqui ja tem token
+// valido; a acao vale para qualquer pessoa autenticada e so mexe no que e dela (o sub vem do token). ok=false: nao e uma dessas rotas.
+func RotaSemEspaco(metodo string, p []string) (Acao, bool) {
+	if len(p) == 2 && p[0] == "push" && p[1] == "sair" && metodo == "POST" {
+		return AcaoSairPush, true
 	}
 	return "", false
 }

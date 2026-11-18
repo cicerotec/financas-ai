@@ -38,6 +38,12 @@ se marcado, **todo dia** depois dele até o lançamento deixar de ser evento fut
    próprio **chat id** (converse com o `@userinfobot`, que responde com o `Id`) e cola no app em *Configurações → Avisos*.
    O botão **Enviar aviso de teste** confirma que chegou.
 
+## Push no app (fase 4 do item 54)
+- Segundo canal do despachante: a notificação do app Android, pelo Firebase Cloud Messaging. Cada aparelho registra o seu token (`PUT /spaces/{sid}/push`), guardado no campo `pushTokens` do vínculo da pessoa no espaço, e a rotina das 8h o recebe como destino, igual ao chat id do Telegram.
+- **A notificação só traz a contagem** ("2 atrasados · 1 vence hoje"), nunca descrição, valor, meio de pagamento nem nome do espaço: ela aparece na tela bloqueada. O mesmo aparelho em dois espaços recebe uma notificação com a soma.
+- O token que o FCM disser não existir mais (`UNREGISTERED`) é apagado dos vínculos pela própria rotina. A credencial do Firebase fica no SSM (`/financas/<ambiente>/fcm-credencial`, gravada por `scripts/guardar-fcm.ps1`); sem ela o push fica "não configurado" e o Telegram segue.
+- Sem promessa de horário: a notificação sai às 8h do servidor e chega quando o aparelho a receber.
+
 ## Limites e decisões
 - O Telegram é o único canal por enquanto; outros (Web Push, e-mail) entrariam como novos canais da mesma rotina.
 - O horário é fixo (8h). Sem horário de verão no Brasil, a regra em UTC (`cron(0 11 * * ? *)`) não deriva.

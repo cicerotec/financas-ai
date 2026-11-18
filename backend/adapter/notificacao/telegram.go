@@ -66,12 +66,12 @@ func (t *Telegram) tokenDoBot(ctx context.Context) (string, error) {
 // Nome e o nome do canal no despachante.
 func (t *Telegram) Nome() string { return "telegram" }
 
-// Enviar entrega o resumo ao chat id, em uma ou mais mensagens (domain.PartesDoResumo). As partes saem em ordem; a falha de
+// Enviar entrega o resumo ao chat id, em uma ou mais mensagens (PartesDoResumo). As partes saem em ordem; a falha de
 // uma nao impede as seguintes, e o erro devolvido e o da primeira que falhou. Sem token, a primeira parte ja devolve
 // ErrCanalNaoConfigurado e nenhuma outra e tentada.
 func (t *Telegram) Enviar(ctx context.Context, chatID string, r domain.ResumoAvisos) error {
 	var primeiro error
-	for _, texto := range domain.PartesDoResumo(r, domain.LimiteTelegram) {
+	for _, texto := range PartesDoResumo(r, LimiteTelegram) {
 		if err := t.EnviarTexto(ctx, chatID, texto); err != nil {
 			if errors.Is(err, domain.ErrCanalNaoConfigurado) {
 				return err

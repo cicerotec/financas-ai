@@ -10,4 +10,4 @@ O metodo-ai (versão pessoal do BMad Method, repositório à parte) planeja, des
 
 | Documento | Para quê |
 |---|---|
-| (nenhum ainda) | |
+| [`arquitetura-avisos-canais.md`](arquitetura-avisos-canais.md) | Como um canal de aviso (Telegram, push) entra no backend sem vazar para `domain` e `service`: dez decisões (AD-1 a AD-10), o PR 0 antes do push e as emendas à spec do push |

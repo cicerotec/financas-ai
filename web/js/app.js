@@ -923,11 +923,15 @@ async function avisar(msg){
     document.getElementById('modalOk').onclick = ()=>{ document.getElementById('modalOverlay').classList.add('hidden'); resolve(); };
   });
 }
-function confirmarModal(msg, rotuloOk){
+function confirmarModal(msg, rotuloOk, rotuloCancelar, titulo){
   return new Promise(resolve=>{
-    document.getElementById('modalMsg').textContent = msg;
+    const m = document.getElementById('modalMsg');
+    m.textContent = '';
+    if(titulo){ const b = document.createElement('b'); b.textContent = titulo; m.appendChild(b); m.appendChild(document.createElement('br')); } // o titulo so entra como texto
+    m.appendChild(document.createTextNode(msg));
     document.getElementById('modalExtra').innerHTML = '';
-    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar">Cancelar</button><button class="primary" id="modalConfirmar"></button>';
+    document.getElementById('modalBotoes').innerHTML = '<button class="ghost" id="modalCancelar"></button><button class="primary" id="modalConfirmar"></button>';
+    document.getElementById('modalCancelar').textContent = rotuloCancelar || 'Cancelar';
     document.getElementById('modalConfirmar').textContent = rotuloOk || 'Confirmar';
     document.getElementById('modalOverlay').classList.remove('hidden');
     const fechar = (v)=>{ document.getElementById('modalOverlay').classList.add('hidden'); resolve(v); };
@@ -1046,6 +1050,11 @@ async function init(){
     document.getElementById('perfilCard').classList.add('hidden'); // sem perfil nesta versão da API
     document.getElementById('telegramCard').classList.add('hidden');
   }
+  // Avisos neste aparelho (push): so no app Android; o modulo mostra a subsecao e registra de novo so quando precisa (R15)
+  if(typeof PushApp !== 'undefined' && PushApp) PushApp.iniciar();
+  // o cartao mestre Avisos some quando nenhuma subsecao esta a vista (navegador sem a API de perfil)
+  { const av = document.getElementById('avisosCard');
+    av.classList.toggle('hidden', ![...av.querySelectorAll('.ap-sub')].some(s=>!s.hidden && !s.classList.contains('hidden'))); }
   if(papelAtual !== 'owner'){
     const dica = document.getElementById('saldoDica');
     if(dica) dica.textContent = 'Saldos por meio de pagamento';

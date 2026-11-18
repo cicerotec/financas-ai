@@ -28,15 +28,18 @@ type LeitorContatos interface {
 	Destinos(ctx context.Context, sid, sub string) (map[string][]string, error)
 }
 
+// RemovedorDeDestinos apaga um destino que o canal disse ser invalido (domain.ErrDestinoInvalido) do vinculo de onde ele veio. Quem sabe em
+// que campo cada canal guarda o destino e o repository (um mapa so, AD-4).
+type RemovedorDeDestinos interface {
+	RemoverDestino(ctx context.Context, sid, sub, canal, endereco string) error
+}
+
 type LeitorDono interface {
 	Dono(ctx context.Context, sid string) string
 }
 
-// Erros do teste de aviso. O controller traduz cada um na resposta HTTP de sempre.
-var (
-	ErrTelegramNaoConfigurado = errors.New("o envio pelo Telegram ainda nao foi configurado no servidor")
-	ErrTelegramRecusou        = errors.New("o Telegram recusou a mensagem: confira o chat id e se voce ja iniciou a conversa com o bot")
-)
+// ErrSemDestino: a pessoa nao tem destino cadastrado no canal pedido (no teste de aviso). O controller diz a frase de cada canal.
+var ErrSemDestino = errors.New("sem destino cadastrado neste canal")
 
 // Avisos mantem o item auxiliar de cada lancamento com aviso e roda a rotina diaria que manda o resumo do dia. O "hoje" vem
 // do Relogio; a marca [DEV] vem do ambiente.
@@ -47,6 +50,7 @@ type Avisos struct {
 	contatos    LeitorContatos
 	dono        LeitorDono
 	despachante *Despachante
+	removedor   RemovedorDeDestinos
 	rel         Relogio
 	ambiente    string
 	faturas     LeitorFaturaAviso
@@ -90,8 +94,8 @@ func (s *Avisos) RemoverFatura(ctx context.Context, sid, meio, ym string) {
 }
 
 func NewAvisos(repo RepositorioAvisos, lancamentos LeitorLancamento, cfg RepositorioConfig, contatos LeitorContatos,
-	dono LeitorDono, despachante *Despachante, rel Relogio, ambiente string) *Avisos {
-	return &Avisos{repo: repo, lancamentos: lancamentos, cfg: cfg, contatos: contatos, dono: dono, despachante: despachante, rel: rel, ambiente: ambiente}
+	dono LeitorDono, despachante *Despachante, removedor RemovedorDeDestinos, rel Relogio, ambiente string) *Avisos {
+	return &Avisos{repo: repo, lancamentos: lancamentos, cfg: cfg, contatos: contatos, dono: dono, despachante: despachante, removedor: removedor, rel: rel, ambiente: ambiente}
 }
 
 // Sincronizar mantem o item auxiliar de um lancamento: grava se ele tem aviso, apaga se nao tem. Falha aqui nao derruba o
@@ -129,6 +133,21 @@ func (s *Avisos) Remover(ctx context.Context, sid, id string) {
 	}
 }
 
+// vinculo e o par (espaco, pessoa) de onde um destino saiu.
+type vinculo struct{ sid, sub string }
+
+// placarDoCanal soma o que aconteceu com um canal numa rodada (so contagens vao ao log).
+type placarDoCanal struct{ enviados, recusados, falhas, falhasAoApagar int }
+
+func sortedKeys(m map[string]*placarDoCanal) []string {
+	chaves := make([]string, 0, len(m))
+	for k := range m {
+		chaves = append(chaves, k)
+	}
+	sort.Strings(chaves)
+	return chaves
+}
+
 type contextoEspaco struct {
 	ownerSub string
 }
@@ -144,6 +163,13 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 	espacos := map[string]*contextoEspaco{}
 	cache := map[string][]Destino{} // sid|sub -> destinos (vazio = sem vinculo ou sem destino)
 	porDestino := map[Destino][]domain.LinhaAviso{}
+	origens := map[Destino]map[vinculo]bool{} // de quais vinculos cada destino saiu nesta rodada (para apagar o que o canal recusar)
+	lembrar := func(d Destino, sid, sub string) {
+		if origens[d] == nil {
+			origens[d] = map[vinculo]bool{}
+		}
+		origens[d][vinculo{sid, sub}] = true
+	}
 
 	destinosDe := func(sid, sub string) []Destino {
 		k := sid + "|" + sub
@@ -202,6 +228,7 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 				// a fatura nao tem criador: o aviso vai para o dono do espaco
 				if esp.ownerSub != "" {
 					for _, d := range destinosDe(sid, esp.ownerSub) {
+						lembrar(d, sid, esp.ownerSub)
 						porDestino[d] = append(porDestino[d], linha)
 					}
 				}
@@ -242,6 +269,7 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 				continue
 			}
 			for _, d := range destinosDe(sid, sub) {
+				lembrar(d, sid, sub)
 				if vistos[d] {
 					continue
 				}
@@ -270,49 +298,82 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 	})
 
 	enviados := 0
-	parados := map[string]bool{} // canais sem configuracao nesta rodada: o resto dos grupos deles e pulado
+	parados := map[string]bool{} // canais sem configuracao (ou com a credencial recusada) nesta rodada: o resto dos grupos deles e pulado
+	placar := map[string]*placarDoCanal{}
 	marca := domain.MarcaAmbiente(s.ambiente)
 	for _, d := range destinos {
 		if parados[d.Canal] {
 			continue
 		}
-		// nenhuma linha de log leva o destino, o texto ou o valor: so o nome do canal
+		pl := placar[d.Canal]
+		if pl == nil {
+			pl = &placarDoCanal{}
+			placar[d.Canal] = pl
+		}
+		// nenhuma linha de log leva o destino, o texto ou o valor: so o nome do canal e contagens
 		err := s.despachante.Entregar(ctx, d, domain.ResumoAvisos{Hoje: hoje, Marca: marca, Linhas: porDestino[d]})
 		switch {
 		case errors.Is(err, domain.ErrCanalNaoConfigurado):
 			parados[d.Canal] = true
 			log.Printf("avisos: canal %s nao configurado; nada enviado por ele", d.Canal)
+		case errors.Is(err, domain.ErrCredencialRecusada):
+			parados[d.Canal] = true
+			log.Printf("avisos: canal %s: CREDENCIAL RECUSADA; nada enviado por ele (renove a credencial do canal)", d.Canal)
+		case errors.Is(err, domain.ErrDestinoInvalido):
+			pl.recusados++
+			for v := range origens[d] {
+				if s.removedor == nil {
+					break
+				}
+				if err := s.removedor.RemoverDestino(ctx, v.sid, v.sub, d.Canal, d.Endereco); err != nil {
+					pl.falhasAoApagar++
+				}
+			}
 		case err != nil:
+			pl.falhas++
 			log.Printf("avisos: enviar pelo canal %s: %v", d.Canal, err)
 		default:
+			pl.enviados++
 			enviados++
 		}
+	}
+	for _, canal := range []string(sortedKeys(placar)) {
+		pl := placar[canal]
+		log.Printf("avisos: canal %s: %d enviado(s), %d destino(s) recusado(s), %d falha(s), %d falha(s) ao apagar", canal, pl.enviados, pl.recusados, pl.falhas, pl.falhasAoApagar)
 	}
 	log.Printf("avisos: %d item(ns) ativos, %d resumo(s) enviado(s)", len(itens), enviados)
 	return enviados, nil
 }
 
-// Testar manda uma mensagem de teste para o Telegram de quem fez a chamada.
-func (s *Avisos) Testar(ctx context.Context, sid, sub string) error {
+// Testar manda uma mensagem de teste, pelo canal pedido, a todos os destinos de quem fez a chamada naquele espaco (um chat id, ou
+// varios aparelhos). O servico nao conhece os canais: quem escolhe o canal e o controller. Erros que atravessam: ErrCanalDesconhecido,
+// ErrSemDestino, domain.ErrCanalNaoConfigurado e domain.ErrEntregaFalhou (qualquer outra falha do canal).
+func (s *Avisos) Testar(ctx context.Context, sid, sub, canal string) error {
+	if !s.despachante.Conhece(canal) {
+		return ErrCanalDesconhecido
+	}
 	todos, err := s.contatos.Destinos(ctx, sid, sub)
 	if err != nil {
 		log.Println("aviso teste:", err)
 		return ErrInterno
 	}
-	var chat string
-	if l := todos["telegram"]; len(l) > 0 {
-		chat = l[0]
+	enderecos := todos[canal]
+	if len(enderecos) == 0 {
+		return ErrSemDestino
 	}
-	if chat == "" {
-		return &ErroValidacao{"cadastre o seu chat id do Telegram primeiro"}
+	var primeiro error
+	for _, e := range enderecos {
+		err := s.despachante.Entregar(ctx, Destino{canal, e}, domain.ResumoAvisos{Marca: domain.MarcaAmbiente(s.ambiente), Teste: true})
+		if errors.Is(err, domain.ErrCanalNaoConfigurado) {
+			return err
+		}
+		if err != nil && primeiro == nil {
+			primeiro = err
+		}
 	}
-	err = s.despachante.Entregar(ctx, Destino{"telegram", chat}, domain.ResumoAvisos{Marca: domain.MarcaAmbiente(s.ambiente), Teste: true})
-	switch {
-	case errors.Is(err, domain.ErrCanalNaoConfigurado):
-		return ErrTelegramNaoConfigurado
-	case err != nil:
-		log.Println("aviso teste:", err)
-		return ErrTelegramRecusou
+	if primeiro != nil {
+		log.Printf("aviso teste: canal %s: %v", canal, primeiro)
+		return domain.ErrEntregaFalhou
 	}
 	return nil
 }

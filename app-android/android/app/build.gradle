@@ -47,6 +47,9 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation "androidx.biometric:biometric:$androidxBiometricVersion" // janela de digital, rosto ou senha do aparelho (TravaPlugin)
+    // Push (item 54, fase 4): o SDK do Firebase Messaging, unica dependencia de terceiros nova, obtem o token do aparelho (PushPlugin).
+    implementation platform("com.google.firebase:firebase-bom:$firebaseBomVersion")
+    implementation "com.google.firebase:firebase-messaging"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

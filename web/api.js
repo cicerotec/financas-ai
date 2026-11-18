@@ -106,8 +106,29 @@
     ESPACO.telegramChatId = body.telegramChatId || '';
     return ESPACO.telegramChatId;
   }
-  async function testarAviso() {
-    await api('POST', (await base()) + '/avisos/teste', {});
+  // canal: so "push" (aparelhos da pessoa neste espaco); sem ele e o Telegram, como sempre. O texto da frase vem do servidor.
+  async function testarAviso(canal) {
+    await api('POST', (await base()) + '/avisos/teste', canal ? { canal } : {});
+  }
+
+  // Aparelhos que recebem aviso pelo app (item 54, fase 4; spec .ai/specs/app-android-push). O token so vai na requisicao: o servidor nunca o devolve.
+  // O sub e o espaco da pessoa vem do login; "sid" so escolhe qual dos espacos dela (registrar de novo, R15).
+  function respostaAparelho(r, campo) {
+    if (r.status === 409) { // limite de 5 aparelhos: a frase e do servidor
+      const e = new Error((r.body && r.body.erro) || 'Limite de aparelhos neste espaço.');
+      e.code = 409;
+      throw e;
+    }
+    return r.body[campo];
+  }
+  async function registrarAparelho(token, sid) {
+    return respostaAparelho(await api('PUT', '/spaces/' + (sid || (await espaco()).id) + '/push', { token }), 'aparelhos');
+  }
+  async function removerAparelho(token, sid) {
+    return respostaAparelho(await api('POST', '/spaces/' + (sid || (await espaco()).id) + '/push/remover', { token }), 'aparelhos');
+  }
+  async function sairAparelho(token) { // tira o aparelho de todos os espacos da pessoa
+    return respostaAparelho(await api('POST', '/push/sair', { token }), 'removidos');
   }
 
   // ---------- configuracoes (documentos) ----------
@@ -614,6 +635,10 @@
     telegramChatId: () => (ESPACO && ESPACO.telegramChatId) || '',
     definirTelegram,
     testarAviso,
+    espacoId: () => (ESPACO ? ESPACO.id : ''),
+    registrarAparelho,
+    removerAparelho,
+    sairAparelho,
     use: async (nome) => {
       if (nome === 'db') {
         try { await espaco(); } catch (e) { erroDeAcesso = e; return null; } // quem mostra o erro e a abertura (js/abertura.js), nao um alerta do navegador

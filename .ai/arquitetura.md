@@ -134,6 +134,7 @@ qual canal está por trás. *(Implementado no item 34 com os nomes `Canal` e `De
   agrupamento (um resumo por **destino** por dia, juntando os espaços, sem nome de espaço) ficou na rotina, em ordem estável. A idempotência de
   entrega **não foi feita** (aviso em dobro se o agendamento disparar duas vezes), por decisão do item 34.
 - Sem canal assinado, o despachante simplesmente não entrega; o service não tem caso especial.
+- **Canal é vocabulário do controller, do adaptador e do repository, não de `domain` e `service`** (spine de 2026-11-14, [`bmad/arquitetura-avisos-canais.md`](bmad/arquitetura-avisos-canais.md)): texto, limite e divisão da mensagem vivem em `adapter/notificacao/`; o `service` trata o canal como valor opaco (`Testar(ctx, sid, sub, canal)`) e só devolve `ErrCanalNaoConfigurado`, `ErrEntregaFalhou`, `ErrCanalDesconhecido` e `ErrSemDestino`; as frases por canal estão em `controller/avisos.go`. O `arquitetura_test.go` falha se `domain/` ou `service/` nomearem `telegram`, `fcm`, `firebase` ou `push` (exceções fixas e nomeadas no teste).
 
 ## Histórico imutável e versionado
 

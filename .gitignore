@@ -25,3 +25,6 @@ local.properties
 *.keystore
 *.apk
 *.aab
+# push (item 54, fase 4): configuracao do Firebase do app e a chave da conta de servico NUNCA entram no git (o repositorio e publico)
+app-android/android/app/google-services.json
+*-adminsdk-*.json

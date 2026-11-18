@@ -285,11 +285,25 @@
     <div class="row"><input id="perfilNome" maxlength="30" placeholder="ex: Maria"><button class="ghost" id="btnSalvarNome">Salvar</button></div>
     <p class="muted" id="perfilMsg"></p>
   </div>
-  <div class="card" id="telegramCard">
-    <b>Avisos no Telegram</b>
-    <p class="muted">Para receber os avisos dos lançamentos futuros: abra o bot do app no Telegram e toque em Iniciar; depois descubra o seu Id conversando com o @userinfobot e cole aqui.</p>
-    <div class="row"><input id="telegramChatId" inputmode="numeric" maxlength="21" placeholder="ex: 123456789"><button class="ghost" id="btnSalvarTelegram">Salvar</button><button class="ghost" id="btnTesteTelegram">Enviar aviso de teste</button></div>
-    <p class="muted" id="telegramMsg"></p>
+  <div class="card" id="avisosCard">
+    <b>Avisos</b>
+    <div class="ap-subs">
+      <div class="ap-sub" id="telegramCard">
+        <div class="ap-st">Avisos no Telegram</div>
+        <p class="muted">Para receber os avisos dos lançamentos futuros: abra o bot do app no Telegram e toque em Iniciar; depois descubra o seu Id conversando com o @userinfobot e cole aqui.</p>
+        <div class="row"><input id="telegramChatId" inputmode="numeric" maxlength="21" placeholder="ex: 123456789"><button class="ghost" id="btnSalvarTelegram">Salvar</button><button class="ghost" id="btnTesteTelegram">Enviar aviso de teste</button></div>
+        <p class="muted" id="telegramMsg"></p>
+      </div>
+      <!-- push (item 54, fase 4; demo-push-v1): so no app Android; web/js/push.js tira o hidden -->
+      <div class="ap-sub" id="pushCard" hidden>
+        <div class="ap-st">Avisos neste aparelho</div>
+        <p class="muted">Receba os avisos dos lançamentos futuros como notificação do app. Ela diz só quantos são, como “2 atrasados · 1 vence hoje”; o que é cada um você vê ao abrir o app.</p>
+        <label class="fut-sw seg-sw"><input type="checkbox" role="switch" id="swPush"><span>Receber avisos neste aparelho<small id="pushApoio">Vale só neste espaço e neste aparelho.</small></span></label>
+        <p class="seg-msg" id="pushMsg" role="status"></p>
+        <div class="row ps-acoes" id="pushAcoes" hidden><button class="ghost" id="btnPushTeste" hidden>Enviar notificação de teste</button><button class="ghost" id="btnPushConfig" hidden>Abrir configurações do app</button><button class="ghost" id="btnPushDeNovo" hidden>Tentar de novo</button></div>
+        <p class="muted" id="pushNota">Chega quando o aparelho a receber: o horário depende do Android, da bateria e da rede, e não é garantido. O Telegram continua como reserva.</p>
+      </div>
+    </div>
   </div>
   <div class="card">
     <b>Aparência</b>
@@ -486,6 +500,7 @@
 <script src="lista-tags.js"></script>
 <script src="js/voltar.js"></script>
 <script src="js/nativo.js"></script>
+<script src="js/push.js"></script>
 <script src="js/app.js"></script>
 <script src="js/usuario.js"></script>
 <script src="js/valores.js"></script>
