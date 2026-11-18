@@ -1,1 +1,4 @@
 *.sh text eol=lf
+# Gerados pelo "npx cap sync", que os regrava com LF: sem isto, no Windows com autocrlf o checkout os grava com CRLF e o git os mostra como modificados depois de cada build do app (so o tamanho muda).
+app-android/android/app/capacitor.build.gradle text eol=lf
+app-android/android/capacitor.settings.gradle text eol=lf
