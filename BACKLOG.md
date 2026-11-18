@@ -32,7 +32,6 @@ com o salto para o registro real. **Ao concluir um item, marque `[x]` no registr
 pendentes: nenhum.
 
 - [\[Infra\] - 49 - **\[Próximo\] App multiusuário (MFA, cadastro com convite, espaço próprio, isolamento):**](#item-49)
-- [\[Backend\] - 34 - **\[Próximo\] Avisos por despachante e vários canais:**](#item-34)
 - [\[UX/UI\] - 42 - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
 - [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
 - [\[UX/UI\] - 63 - **\[Próximo\] Avisar a falta de rede em toda tela:**](#item-63)
@@ -268,7 +267,7 @@ DynamoDB sem discutir com o dono.**
   **Fatia a concluída em 2026-10-24** (fases A, B e C: a aba Cartão de crédito e a linha Fatura do Lançar leem o servidor, conferidas pelo dono em dev e produção; o `PUT /cfg/cartoes` saiu). Sobra a fatia b.
   - [x] **Fatia a: faturas do cartão no servidor** (concluída em 2026-10-24: fases A, B e C).
   - [x] **Fatia b, com o escopo reduzido (2026-10-25; concluída em 2026-10-25, junto com o item 35):** só a **trava da fatura conferida pelo servidor**, feita junto com o item 35. **Fora, por decisão do dono:** o cartão como entidade própria (ele continua sendo uma entrada de `CFG#CARTOES`, `meios[].cartao`) e a migração do `faturaAjuste` explícito (o passado está correto). Intent, plan e spec (rascunho) em [`.ai/specs/pagar-fatura/`](.ai/specs/pagar-fatura/intent.md).
-- 34. [x] <a id="item-34"></a>**[Próximo] Avisos por despachante e vários canais:** o service só sabe o que avisar e usa um `Avisador`; um
+- 34. [x] <a id="item-34"></a>**Avisos por despachante e vários canais (concluído em 2026-11-13, PR 429; o push, fase 4 do item 54, é o segundo canal):** o service só sabe o que avisar e usa um `Avisador`; um
   despachante lê os canais que a pessoa assinou (Telegram, e-mail, WhatsApp), formata, divide e entrega, e uma falha de
   canal não derruba as outras. Cada canal é uma strategy; canal novo é um adaptador novo. Resolve na origem o limite de
   4096 caracteres do item 28. **Ponto de partida (item 32, fatia 4):** o `Avisador` já existe com o nome `service.Notificador`
