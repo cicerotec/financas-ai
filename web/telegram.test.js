@@ -3,9 +3,11 @@
 const assert = require('assert');
 const criarTelegram = require('./js/telegram.js');
 
+function mem(init){ const d = Object.assign({}, init); return {d, getItem: k => (k in d ? d[k] : null), setItem: (k, v) => { d[k] = String(v); }, removeItem: k => { delete d[k]; }}; }
+
 function montar(op){
   op = op || {};
-  const ev = [], dom = {}, toasts = [];
+  const ev = [], dom = {}, toasts = [], arm = mem(op.mem);
   let salvo = op.chatId || '';
   const el = id => dom[id] || (dom[id] = {id, checked: false, disabled: false, hidden: false, value: '', textContent: '', focus(){ ev.push('foco'); }, classList: {_r: false, toggle(c, v){ this._r = !!v; }}});
   const env = {
@@ -18,11 +20,12 @@ function montar(op){
       salvo = id; return id;
     },
     testar: async () => { ev.push('testar'); if(op.erroTeste) throw op.erroTeste; },
+    armazenamento: arm, sid: () => 's1',
     toast: (m, e) => toasts.push([m, !!e]),
     aoMudar: () => ev.push('aoMudar')
   };
   const t = criarTelegram(env);
-  return {t, ev, dom, toasts, ruim: () => dom.telegramMsg.classList._r};
+  return {t, ev, dom, toasts, arm, ruim: () => dom.telegramMsg.classList._r};
 }
 const erroServidor = (codigo, texto) => Object.assign(new Error(texto), {code: codigo});
 
@@ -95,13 +98,32 @@ const erroServidor = (codigo, texto) => Object.assign(new Error(texto), {code: c
   assert.deepStrictEqual(durante, [true, true], 'durante a chamada a chave continua ligada e travada');
   assert.ok(m.ev.includes('definir:'), 'desligar manda o Id vazio');
   assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.swTelegram.disabled, m.dom.tgCampos.hidden, m.dom.telegramChatId.value], [false, false, true, '']);
-  assert.ok(m.toasts.some(t => t[0] === '✓ Telegram desligado (o Id foi apagado)') && m.ev.includes('aoMudar'));
+  assert.ok(m.toasts.some(t => t[0] === '✓ Telegram desligado (o Id fica só neste aparelho)') && m.ev.includes('aoMudar'));
+  assert.deepStrictEqual(JSON.parse(m.arm.d['financas.telegram']), {s1: '123456789'}, 'o Id fica so neste aparelho, por espaco');
+  // ligar de novo: o campo vem preenchido com o ultimo Id, a chave NAO liga e nada vai ao servidor antes do Salvar
+  m.dom.swTelegram.checked = true; await m.dom.swTelegram.onchange();
+  assert.deepStrictEqual([m.dom.telegramChatId.value, m.dom.swTelegram.checked, m.dom.telegramMsg.textContent], ['123456789', false, 'Usei o último Id deste aparelho. Toque em Salvar para ligar.']);
+  const antes = m.ev.length;
+  await m.dom.btnSalvarTelegram.onclick();
+  assert.deepStrictEqual(m.ev.slice(antes, antes + 1), ['definir:123456789']);
+  assert.strictEqual(m.dom.swTelegram.checked, true);
+  assert.strictEqual(m.arm.d['financas.telegram'], undefined, 'com o Id no servidor, o aparelho nao guarda copia');
 
-  // desligar sem rede: continua ligada, com a frase em vermelho
+  // quem ja tem outro Id lembrado em outro espaco nao o perde ao desligar este
+  m = montar({chatId: '111111', mem: {'financas.telegram': '{"s2":"222222"}'}});
+  m.t.ligarCartao(); m.dom.swTelegram.checked = false; await m.dom.swTelegram.onchange();
+  assert.deepStrictEqual(JSON.parse(m.arm.d['financas.telegram']), {s1: '111111', s2: '222222'});
+  // sem Id lembrado, ligar abre o campo vazio com a explicacao de sempre; armazenamento quebrado nao atrapalha
+  m = montar({mem: {'financas.telegram': 'lixo{'}});
+  m.t.ligarCartao(); m.dom.swTelegram.checked = true; await m.dom.swTelegram.onchange();
+  assert.deepStrictEqual([m.dom.telegramChatId.value, m.dom.telegramMsg.textContent], ['', 'Cole o seu Id e toque em Salvar.']);
+
+  // desligar sem rede: continua ligada, com a frase em vermelho (e nada e lembrado)
   m = montar({chatId: '123456789', erro: new TypeError('Failed to fetch')});
   m.t.ligarCartao();
   m.dom.swTelegram.checked = false;
   await m.dom.swTelegram.onchange();
+  assert.strictEqual(m.arm.d['financas.telegram'], undefined);
   assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.swTelegram.disabled, m.dom.tgCampos.hidden, m.ruim(), m.t.ligadoAgora()], [true, false, false, true, true]);
   assert.strictEqual(m.dom.telegramMsg.textContent, 'Não consegui desligar agora (sem conexão). Tente de novo.');
   assert.strictEqual(m.dom.telegramChatId.value, '123456789');

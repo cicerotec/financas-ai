@@ -1072,7 +1072,7 @@ body{padding-bottom:280px;}
 <div id="notaDemo" style="max-width:720px;margin:12px auto 0;padding:0 16px;">
   <div class="card" style="margin:0;">
     <b>Demo v2: chave para ligar e desligar o Telegram</b>
-    <p class="muted" style="margin:6px 0 0;"><b>O que muda nesta versão:</b> a subseção <b>Avisos no Telegram</b> ganha a chave <b>Receber avisos no Telegram</b>, igual à de <b>Avisos neste aparelho</b>. Desligada, mostra só a chave; ligar abre o campo do Id (com a explicação) e a chave só liga depois do Salvar; ligada, mostra o Id, <b>Salvar</b> e <b>Enviar aviso de teste</b>; desligar apaga o Id (é o mesmo que o Salvar vazio de hoje, sem campo novo no banco). O resto é a v1: o <b>Avisos no Telegram</b>, que era um cartão solto, vira uma subseção do cartão mestre <b>Avisos</b>, ao lado da subseção nova <b>Avisos neste aparelho</b> (só no app Android). Use a barra preta para ver cada caso; este quadro, a barra, a "janela do sistema" e a tela bloqueada do aparelho não existem no app.</p>
+    <p class="muted" style="margin:6px 0 0;"><b>O que muda nesta versão:</b> a subseção <b>Avisos no Telegram</b> ganha a chave <b>Receber avisos no Telegram</b>, igual à de <b>Avisos neste aparelho</b>. Desligada, mostra só a chave; ligar abre o campo do Id (com a explicação) e a chave só liga depois do Salvar; ligada, mostra o Id, <b>Salvar</b> e <b>Enviar aviso de teste</b>; desligar apaga o Id <b>do servidor</b> (é o mesmo que o Salvar vazio de hoje, sem campo novo no banco) e o deixa guardado <b>só neste aparelho</b>, para preencher o campo quando ligar de novo. O resto é a v1: o <b>Avisos no Telegram</b>, que era um cartão solto, vira uma subseção do cartão mestre <b>Avisos</b>, ao lado da subseção nova <b>Avisos neste aparelho</b> (só no app Android). Use a barra preta para ver cada caso; este quadro, a barra, a "janela do sistema" e a tela bloqueada do aparelho não existem no app.</p>
   </div>
 </div>
 <main>
@@ -1571,7 +1571,7 @@ body{padding-bottom:280px;}
 <div class="gr"><span>Tema:</span><button type="button" id="dvClaro" aria-pressed="false">Claro</button><button type="button" id="dvEscuro" aria-pressed="false">Escuro</button><button type="button" id="dvAuto" aria-pressed="true">Do aparelho</button></div>
 <div class="gr" id="dvEstado" style="color:#9fe3c4;"></div>
 <details><summary>O que muda, e o que se perde</summary>
-<b>Nesta versão (v2), o Telegram com chave:</b> a chave <b>Receber avisos no Telegram</b> fica no alto da subseção, desligada de início para quem ainda não vinculou. Ligar abre a explicação (abrir o bot, tocar em Iniciar, achar o Id no @userinfobot) e o campo do Id; a chave só liga <b>depois do Salvar</b>, como a do aparelho (e "Agora não" fecha sem ligar). Ligada, mostra o Id, <b>Salvar</b> (para trocar o Id) e <b>Enviar aviso de teste</b>, e a frase diz que os avisos deste espaço chegam neste Telegram. Desligar espera o servidor e <b>apaga o Id</b>. <b>Custo:</b> para ligar de novo é preciso colar o Id outra vez (não existe pausa que guarde o Id: isso pediria um campo novo no DynamoDB, que não foi aprovado); desligar não pergunta nada. <b>Quem vê:</b> todas as telas (computador, navegador e app), porque o Telegram não depende do aparelho; no navegador a subseção do aparelho continua não existindo. O que o aviso diz, o horário e o limite de 4096 caracteres não mudam.<br><br>
+<b>Nesta versão (v2), o Telegram com chave:</b> a chave <b>Receber avisos no Telegram</b> fica no alto da subseção, desligada de início para quem ainda não vinculou. Ligar abre a explicação (abrir o bot, tocar em Iniciar, achar o Id no @userinfobot) e o campo do Id; a chave só liga <b>depois do Salvar</b>, como a do aparelho (e "Agora não" fecha sem ligar). Ligada, mostra o Id, <b>Salvar</b> (para trocar o Id) e <b>Enviar aviso de teste</b>, e a frase diz que os avisos deste espaço chegam neste Telegram. Desligar espera o servidor e <b>apaga o Id do servidor</b>; o último Id fica <b>só neste aparelho</b> (por espaço) e preenche o campo ao ligar de novo ("Usei o último Id deste aparelho. Toque em Salvar para ligar."); o Sair da conta o apaga. <b>Custo:</b> a lembrança vale só neste aparelho; em outro, ou depois do Sair, é preciso colar o Id outra vez (guardar o Id no servidor com a chave desligada pediria um campo novo no DynamoDB, que não foi aprovado); desligar não pergunta nada. <b>Quem vê:</b> todas as telas (computador, navegador e app), porque o Telegram não depende do aparelho; no navegador a subseção do aparelho continua não existindo. O que o aviso diz, o horário e o limite de 4096 caracteres não mudam.<br><br>
 <b>O resto, da v1:</b>
 <b>O que muda:</b> em Listas, o cartão <b>Avisos no Telegram</b> deixa de ser solto e vira uma subseção (a caixa com borda de Aparência) do novo cartão mestre <b>Avisos</b>; o conteúdo, os campos e os botões dele não mudam, só a moldura. Ao lado dele aparece, <b>só no app Android</b>, a subseção <b>Avisos neste aparelho</b>, com a chave <b>Receber avisos neste aparelho</b>, desligada de início. Ligar: uma janela explica o que a notificação mostra e só então o Android pede a permissão (Android 13 ou mais; antes dele a permissão já vale e a janela é só a explicação). Com a permissão, o app registra o aparelho neste espaço e a chave liga, dizendo quantos aparelhos recebem avisos aqui. Depois de ligada, aparece <b>Enviar notificação de teste</b>. Desligar vale na hora e tira o aparelho deste espaço. A notificação sai junto com o aviso diário (o mesmo que vai ao Telegram) e traz <b>só a contagem</b>. <b>Sair da conta</b> tira o aparelho de todos os espaços e apaga o token no Firebase. Nada disto aparece no navegador nem na versão instalada pela tela inicial.<br>
 <b>Quando não dá:</b> sem Google Play a chave fica desabilitada com a frase; com as notificações bloqueadas no Android, a chave volta a desligada e o botão leva às configurações do app (o app não pede de novo sozinho); com 5 aparelhos já ligados, a frase diz para desligar um deles; sem internet a chave volta a desligada e há <b>Tentar de novo</b>.<br>
@@ -1686,7 +1686,7 @@ body{padding-bottom:280px;}
 (function(){
   var $=function(i){return document.getElementById(i);};
   var sw=$('swTelegram'), inp=$('telegramChatId'), msg=$('telegramMsg');
-  var ligado=false, aberto=false, ocupado=false, ID='123456789';
+  var ligado=false, aberto=false, ocupado=false, ID='123456789', lembrado='';
   function rede(){return document.querySelector('input[name=dvCond]:checked').value==='rede';}
   function toast(m,erro){var t=$('toast');t.textContent=m;t.classList.toggle('erro',!!erro);t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on');},3200);}
   function aviso(t,ruim){msg.textContent=t||'';msg.classList.toggle('ruim',!!ruim);}
@@ -1696,15 +1696,15 @@ body{padding-bottom:280px;}
     $('btnTesteTelegram').hidden=!ligado; $('btnTgAgoraNao').hidden=ligado;
     $('tgApoio').textContent=ligado?'Os avisos deste espaço chegam neste Telegram.':'Vale só para você, neste espaço.';
   }
-  function zerar(){ ligado=document.querySelector('input[name=dvTg]:checked').value==='on'; aberto=false; ocupado=false; inp.value=ligado?ID:''; aviso(''); desenhar(); }
+  function zerar(){ lembrado=''; ligado=document.querySelector('input[name=dvTg]:checked').value==='on'; aberto=false; ocupado=false; inp.value=ligado?ID:''; aviso(''); desenhar(); }
   sw.addEventListener('change',function(){
     var quer=sw.checked; sw.checked=ligado; aviso('');
-    if(quer){ aberto=true; inp.value=''; desenhar(); aviso('Cole o seu Id e toque em Salvar.'); inp.focus(); return; }
+    if(quer){ aberto=true; inp.value=lembrado; desenhar(); aviso(lembrado?'Usei o último Id deste aparelho. Toque em Salvar para ligar.':'Cole o seu Id e toque em Salvar.'); inp.focus(); return; }
     ocupado=true; desenhar(); aviso('Desligando…');
     setTimeout(function(){
       ocupado=false;
       if(rede()){ aviso('Não consegui desligar agora (sem conexão). Tente de novo.',true); desenhar(); return; }
-      ligado=false; aberto=false; inp.value=''; aviso(''); desenhar(); toast('✓ Telegram desligado (o Id foi apagado)');
+      lembrado=inp.value.trim()||lembrado; ligado=false; aberto=false; inp.value=''; aviso(''); desenhar(); toast('✓ Telegram desligado (o Id fica só neste aparelho)');
     },500);
   });
   $('btnSalvarTelegram').onclick=function(){
@@ -1712,7 +1712,7 @@ body{padding-bottom:280px;}
     aviso('Salvando...');
     setTimeout(function(){
       if(rede()){ aviso('Não consegui salvar agora (sem conexão). Tente de novo.',true); return; }
-      ligado=true; aberto=false; desenhar(); aviso('Salvo ✓ Use "Enviar aviso de teste" para conferir.'); toast('✓ Avisos no Telegram ligados');
+      ligado=true; aberto=false; lembrado=''; desenhar(); aviso('Salvo ✓ Use "Enviar aviso de teste" para conferir.'); toast('✓ Avisos no Telegram ligados');
     },500);
   };
   $('btnTgAgoraNao').onclick=function(){ aberto=false; aviso(''); desenhar(); };
