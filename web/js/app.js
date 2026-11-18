@@ -1045,7 +1045,7 @@ async function init(){
   if(window.financasApi && financasApi.definirApelido){
     document.getElementById('perfilNome').value = (financasApi.apelido && financasApi.apelido()) || '';
     usAtualizar();
-    document.getElementById('telegramChatId').value = (financasApi.telegramChatId && financasApi.telegramChatId()) || '';
+    if(typeof TelegramApp !== 'undefined' && TelegramApp) TelegramApp.ligarCartao(); // a chave do Telegram segue o Id que o servidor mandou
   } else {
     document.getElementById('perfilCard').classList.add('hidden'); // sem perfil nesta versão da API
     document.getElementById('telegramCard').classList.add('hidden');
@@ -4566,26 +4566,6 @@ async function salvarNomePerfil(){
 }
 document.getElementById('btnSalvarNome').addEventListener('click', salvarNomePerfil);
 
-async function salvarTelegram(){
-  const msg = document.getElementById('telegramMsg'), inp = document.getElementById('telegramChatId');
-  if(!window.financasApi || !financasApi.definirTelegram){ msg.textContent = 'Indisponível nesta versão.'; return; }
-  msg.textContent = 'Salvando...';
-  try{
-    const chat = await financasApi.definirTelegram(inp.value);
-    inp.value = chat;
-    msg.textContent = chat ? 'Salvo ✓ Use "Enviar aviso de teste" para conferir.' : 'Telegram desvinculado ✓';
-    atualizarCampoAviso();
-  }catch(e){ msg.textContent = '⚠️ ' + ((e && e.message) || e); }
-}
-async function testarTelegram(){
-  const msg = document.getElementById('telegramMsg');
-  if(!window.financasApi || !financasApi.testarAviso){ msg.textContent = 'Indisponível nesta versão.'; return; }
-  msg.textContent = 'Enviando...';
-  try{ await financasApi.testarAviso(); msg.textContent = 'Enviado ✓ Confira o Telegram.'; }
-  catch(e){ msg.textContent = '⚠️ ' + ((e && e.message) || e); }
-}
-document.getElementById('btnSalvarTelegram').addEventListener('click', salvarTelegram);
-document.getElementById('btnTesteTelegram').addEventListener('click', testarTelegram);
 
 window.addEventListener('unhandledrejection', ev=>{
   const r = ev.reason;

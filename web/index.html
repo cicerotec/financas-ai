@@ -290,9 +290,11 @@
     <div class="ap-subs">
       <div class="ap-sub" id="telegramCard">
         <div class="ap-st">Avisos no Telegram</div>
-        <p class="muted">Para receber os avisos dos lançamentos futuros: abra o bot do app no Telegram e toque em Iniciar; depois descubra o seu Id conversando com o @userinfobot e cole aqui.</p>
-        <div class="row"><input id="telegramChatId" inputmode="numeric" maxlength="21" placeholder="ex: 123456789"><button class="ghost" id="btnSalvarTelegram">Salvar</button><button class="ghost" id="btnTesteTelegram">Enviar aviso de teste</button></div>
-        <p class="muted" id="telegramMsg"></p>
+        <p class="muted">Receba os avisos dos lançamentos futuros numa conversa do Telegram.</p>
+        <label class="fut-sw seg-sw"><input type="checkbox" role="switch" id="swTelegram"><span>Receber avisos no Telegram<small id="tgApoio">Vale só para você, neste espaço.</small></span></label>
+        <p class="muted" id="tgAjuda" hidden>Abra o bot do app no Telegram e toque em Iniciar; depois descubra o seu Id conversando com o @userinfobot e cole aqui.</p>
+        <div class="row" id="tgCampos" hidden><input id="telegramChatId" inputmode="numeric" maxlength="21" placeholder="ex: 123456789"><button class="ghost" id="btnSalvarTelegram">Salvar</button><button class="ghost" id="btnTesteTelegram" hidden>Enviar aviso de teste</button><button class="ghost" id="btnTgAgoraNao" hidden>Agora não</button></div>
+        <p class="seg-msg" id="telegramMsg" role="status"></p>
       </div>
       <!-- push (item 54, fase 4; demo-push-v1): so no app Android; web/js/push.js tira o hidden -->
       <div class="ap-sub" id="pushCard" hidden>
@@ -501,6 +503,7 @@
 <script src="js/voltar.js"></script>
 <script src="js/nativo.js"></script>
 <script src="js/push.js"></script>
+<script src="js/telegram.js"></script>
 <script src="js/app.js"></script>
 <script src="js/usuario.js"></script>
 <script src="js/valores.js"></script>
