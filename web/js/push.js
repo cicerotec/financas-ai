@@ -5,7 +5,7 @@
 // em log (R23). No aparelho fica apenas financas.push = {"<espaco>": {em: quando registrou, h: impressao curta do token}} (R15).
 // O front nao decide quem recebe nem o que a notificacao diz: guarda a escolha da pessoa e chama a API (R24).
 function criarPush(env){
-  const K = 'financas.push', SETE_DIAS = 7 * 24 * 3600 * 1000, LIMITE_SAIR = 8000;
+  const K = 'financas.push', SETE_DIAS = 7 * 24 * 3600 * 1000, LIMITE_SAIR = 8000, ATRASO_TESTE = 10000;
   const cap = env.Capacitor;
   const nativo = !!(cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform());
   const Plugin = (nativo && cap.Plugins && cap.Plugins.Push) || null;
@@ -20,6 +20,7 @@ function criarPush(env){
     redeLigar: 'Não consegui ligar agora (sem conexão). Tente de novo.',
     redeDesligar: 'Não consegui desligar agora (sem conexão). Tente de novo.',
     redeTeste: 'Não consegui enviar o teste (sem conexão).',
+    esperaTeste: 'O teste sai em 10 segundos. Aperte o botão Início do Android para ver a notificação.',
     erroLigar: 'Não consegui ligar agora. Tente de novo.',
     erroDesligar: 'Não consegui desligar agora. Tente de novo.'
   };
@@ -170,10 +171,18 @@ function criarPush(env){
     };
     bDeNovo.onclick = () => { aviso(''); botoes(false, false, false); return ativar(); };
     bConfig.onclick = () => { try { if(Plugin && Plugin.abrirConfiguracoes) Promise.resolve(Plugin.abrirConfiguracoes()).catch(() => {}); } catch (e) {} };
+    // Com o app aberto o Android nao mostra a notificacao (R12/R14). Por isso o teste espera 10 s: da tempo de sair do app.
+    let testando = false;
     bTeste.onclick = async () => {
-      const r = await testar();
-      if(r.ok) env.toast('✓ Teste enviado: a notificação chega em alguns segundos');
-      else env.toast(r.texto, true);
+      if(testando) return;
+      testando = true; bTeste.disabled = true; aviso(FRASE.esperaTeste);
+      try {
+        await env.esperar(ATRASO_TESTE);
+        aviso('');
+        const r = await testar();
+        if(r.ok) env.toast('✓ Teste enviado: a notificação chega em alguns segundos');
+        else env.toast(r.texto, true);
+      } finally { testando = false; bTeste.disabled = false; aviso(''); }
     };
     desenhar(); botoes(ligadoNo(env.sid()), false, false);
     if(Plugin) Promise.resolve().then(() => Plugin.disponivel()).then(d => { indisponivel = !(d && d.disponivel); desenhar(); }, () => { indisponivel = true; desenhar(); });

@@ -34,7 +34,7 @@ function montar(op){
   const env = {
     Capacitor: {isNativePlatform: () => op.nativo !== false, Plugins: op.semPlugin ? {} : {Push: plugin}},
     armazenamento: arm, agora: () => agora, digest, el, api,
-    esperar: ms => new Promise(r => setTimeout(r, op.espera === undefined ? 5 : op.espera)),
+    esperar: ms => { if(ms === 10000) ev.push('esperar:10000'); return new Promise(r => setTimeout(r, op.espera === undefined ? 5 : op.espera)); },
     toast: (m, e) => toasts.push([m, !!e]),
     explicar: async () => { ev.push('explicar'); return op.explicar !== false; },
     sid: () => op.sid === undefined ? 's1' : op.sid
@@ -203,6 +203,15 @@ const semToken = m => assert.ok(!JSON.stringify(m.arm.d).includes('tok-ficticio'
   assert.strictEqual(d.pushApoio.textContent, '2 aparelhos recebem avisos neste espaço.');
   assert.strictEqual(d.btnPushTeste.hidden, false);
   assert.ok(m.toasts.some(t => t[0] === '✓ Este aparelho recebe os avisos'));
+  // o teste espera 10 s ANTES de chamar a API (com o app aberto o Android nao mostra a notificacao) e avisa a pessoa
+  const antes = m.ev.length;
+  const clique = d.btnPushTeste.onclick();
+  assert.ok(/10 segundos/.test(d.pushMsg.textContent) && d.btnPushTeste.disabled, 'avisa e trava o botao durante a espera');
+  await d.btnPushTeste.onclick(); // segundo clique durante a espera: ignorado
+  await clique;
+  assert.deepStrictEqual(m.ev.slice(antes), ['esperar:10000', 'api.testar:push'], 'espera 10 s e so entao chama a API, uma vez');
+  assert.ok(!d.btnPushTeste.disabled && d.pushMsg.textContent === '');
+  assert.ok(m.toasts.some(t => /Teste enviado/.test(t[0])));
   d.swPush.checked = false;
   await d.swPush.onchange();
   assert.strictEqual(d.swPush.checked, false);
