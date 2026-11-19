@@ -33,9 +33,11 @@ const (
 
 var apiMetodos = []string{"GET", "POST", "PUT", "DELETE"}
 
-// apiEhPublica diz se a rota vale sem token. Enquanto nao existe rota publica, e sempre falso.
-// Na entrega da rota publica do MFA (AD-1) passa a ser: return ok com auth.RotaPublica(m, p).
-func apiEhPublica(m string, p []string) bool { return false }
+// apiEhPublica diz se a rota vale sem token: a decisao e a de auth.RotaPublica (a unica excecao ao "sem token e 401").
+func apiEhPublica(m string, p []string) bool {
+	_, ok := auth.RotaPublica(m, p)
+	return ok
+}
 
 // classificar e a unica porta para o codigo: a mesma do log.
 func apiClassificar(m string, p []string) (string, bool) {

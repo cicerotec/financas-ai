@@ -24,6 +24,7 @@ type Servidor struct {
 	cartoes   *rotasCartao
 	meios     *controller.Meios
 	combos    *controller.Combos
+	recup     *controller.Recuperacao // rota PUBLICA: recuperacao do MFA (auth.RotaPublica; spec mfa-opcional)
 }
 
 // novoServidor liga repository, service e controller. Recebe o que vem de fora (banco, tabela, relogio, despachante de avisos e o
@@ -65,5 +66,6 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, despachante *
 		cartoes:   &rotasCartao{c: controller.NewCartoes(cartoes)},
 		meios:     controller.NewMeios(service.NewMeios(cfgRepo, lancRepo, rel, encerramento)),
 		combos:    controller.NewCombos(combos),
+		recup:     controller.NewRecuperacao(service.NewRecuperacao()),
 	}
 }

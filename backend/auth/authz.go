@@ -40,6 +40,10 @@ const (
 	AcaoRegistrarPush Acao = "push.registrar" // PUT /spaces/{sid}/push
 	AcaoRemoverPush   Acao = "push.remover"   // POST /spaces/{sid}/push/remover
 	AcaoSairPush      Acao = "push.sair"      // POST /push/sair: tira o aparelho de todos os espacos de quem chama (sem papel: nao ha espaco na rota)
+
+	// Recuperacao do MFA (spec mfa-opcional, R27). Rota PUBLICA: quem perdeu o autenticador nao tem token. Esta acao nao e listada em
+	// Permitido para nenhum papel (nao passa por papel); a unica excecao ao "sem token e 401" e RotaPublica.
+	AcaoRecuperarMFA Acao = "mfa.recuperar" // POST /mfa/recuperar
 )
 
 // Decisao e o que um papel pode fazer com uma acao.
@@ -177,6 +181,15 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 func RotaSemEspaco(metodo string, p []string) (Acao, bool) {
 	if len(p) == 2 && p[0] == "push" && p[1] == "sair" && metodo == "POST" {
 		return AcaoSairPush, true
+	}
+	return "", false
+}
+
+// RotaPublica classifica as rotas que valem SEM token (hoje so a recuperacao do MFA, spec mfa-opcional R27). Metodo e caminho exatos; todo o
+// resto e false e segue pelo VerificarToken (401 sem token). A acao devolvida NAO esta em Permitido para nenhum papel: a excecao e so esta funcao.
+func RotaPublica(metodo string, p []string) (Acao, bool) {
+	if metodo == "POST" && len(p) == 2 && p[0] == "mfa" && p[1] == "recuperar" {
+		return AcaoRecuperarMFA, true
 	}
 	return "", false
 }

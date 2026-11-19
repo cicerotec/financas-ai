@@ -36,15 +36,30 @@ func (s *Servidor) handler(ctx context.Context, r req) (resp, error) {
 
 // atender autentica e roda a requisicao; grava em rt o nome da rota assim que ela e classificada.
 func (s *Servidor) atender(ctx context.Context, r req, rt *rotulo) (resp, error) {
+	m := r.RequestContext.HTTP.Method
+	p := strings.Split(strings.Trim(r.RawPath, "/"), "/")
+	// A unica excecao ao "sem token e 401" (spec mfa-opcional, R27): a rota publica e reconhecida ANTES do token, por metodo e caminho
+	// exatos (auth.RotaPublica). O cabecalho authorization nem e lido: um token invalido nela nao muda a resposta. VerificarToken nao muda.
+	if a, ok := auth.RotaPublica(m, p); ok {
+		*rt = rotular(m, p) // o rotulo e gravado antes de entregar ao controller: o log nao diz "sem-token" numa chamada atendida
+		return s.publica(ctx, a, r)
+	}
 	u, err := auth.VerificarToken(strings.TrimPrefix(r.Headers["authorization"], "Bearer "))
 	if err != nil {
 		return erro(http.StatusUnauthorized, "nao autenticado")
 	}
-	m := r.RequestContext.HTTP.Method
-	p := strings.Split(strings.Trim(r.RawPath, "/"), "/")
 	*rt = rotular(m, p)
 
 	return s.processar(ctx, u, m, p, r.QueryStringParameters, r.Body)
+}
+
+// publica entrega ao controller uma rota que vale sem token. A origem vem so de RequestContext.HTTP.SourceIP, nunca de cabecalho.
+func (s *Servidor) publica(ctx context.Context, a auth.Acao, r req) (resp, error) {
+	switch a {
+	case auth.AcaoRecuperarMFA:
+		return s.recup.Post(ctx, r.RequestContext.HTTP.SourceIP, r.Body)
+	}
+	return erro(http.StatusNotFound, "rota inexistente")
 }
 
 // Nomes de acao das saidas que nao chegam a classificacao da rota (o log nunca leva o caminho, que tem ids).
@@ -60,6 +75,9 @@ type rotulo struct{ Acao, Rota string }
 // rotular classifica uma rota para o log, sem ids. A rota e o primeiro trecho depois do espaco (um nome fixo da API) e,
 // em /cfg, o nome da configuracao, que auth.RotaParaAcao so aceita de uma lista fixa.
 func rotular(m string, p []string) rotulo {
+	if a, ok := auth.RotaPublica(m, p); ok { // a rota publica tem o proprio rotulo: acao=mfa.recuperar rota=mfa
+		return rotulo{string(a), p[0]}
+	}
 	if len(p) == 1 && p[0] == "me" && m == "GET" {
 		return rotulo{acaoMe, "me"}
 	}
