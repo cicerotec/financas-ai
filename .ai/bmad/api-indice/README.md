@@ -2,14 +2,9 @@
 
 Desenho do metodo-ai, a pedido do dono (2026-11-19), para o agente deste projeto implementar. Não há API Gateway nem documento central de rotas; a regra "Seção API no `spec.md`" do guardrails dá o contrato **de cada feature**, e falta **uma visão única do que existe hoje**. Este desenho a cria sem deixá-la desatualizar: **o `go test ./...` falha se o índice e o código divergirem.**
 
-## O que vem pronto nesta pasta
+## Onde estão o índice e o teste
 
-| Arquivo | O que é | Onde vai |
-|---|---|---|
-| [`api.md`](api.md) | O índice, com as **55 rotas de hoje** (48 linhas, porque `cfg/listas|tags|...` agrupa alternativas), gerado a partir do código e conferido pelo teste | `.ai/api.md` |
-| [`api_doc_test.go.txt`](api_doc_test.go.txt) | O teste (357 linhas), sem a extensão `.go` para não compilar aqui | `backend/api_doc_test.go` |
-
-Os dois passam juntos contra o código de 2026-11-19 (branch `feature/mfa-opcional`, sem as rotas do MFA): `go test -run TestIndiceDeRotas` verde, 0,05 s. Os links relativos de `api.md` (`guardrails.md`, `security.md`) só valem depois de ele ir para `.ai/`.
+O índice (`api.md`, com as **55 rotas de hoje**, em 48 linhas, porque `cfg/listas|tags|...` agrupa alternativas) e o teste (`api_doc_test.go`, 357 linhas) **foram instalados em 2026-11-19** em [`../../api.md`](../../api.md) e em `backend/api_doc_test.go`, e **já não são copiados nesta pasta**, para não ficarem desatualizados. Passaram juntos contra o código de 2026-11-19 (`go test -run TestIndiceDeRotas` verde, 0,05 s). Esta pasta guarda só o desenho.
 
 ## Como o teste funciona
 
@@ -38,7 +33,7 @@ Também confia em `rotular`: se `processar` passar a tratar uma rota que `rotula
 
 ## O que o agente faz
 
-1. Copia `api.md` para `.ai/api.md` e `api_doc_test.go.txt` para `backend/api_doc_test.go`. Roda `cd backend && go vet ./... && go test ./...`. Os nomes do teste começam com `api` para não colidir com os de `package main` (`chave` já existe em `handler_test.go`).
+1. **(Feito em 2026-11-19.)** Copiou `api.md` para `.ai/api.md` e `api_doc_test.go.txt` para `backend/api_doc_test.go` (as cópias desta pasta foram apagadas depois). Rodou `cd backend && go vet ./... && go test ./...`. Os nomes do teste começam com `api` para não colidir com os de `package main` (`chave` já existe em `handler_test.go`).
 2. Acrescenta uma linha em [`.ai/README.md`](../../README.md) (índice) e cita `api.md` na tabela "Tarefa" do `AGENTS.md`, na linha "Backend, rota, permissão".
 3. **`guardrails.md` já foi ajustado (OK do dono em 2026-11-19):** a regra "Seção API no `spec.md`" ganhou o parágrafo "Índice único". Falta o `security.md`: a regra "Rota nova exige ação nova" ganha "e uma linha em `api.md`". **O parágrafo do guardrails aponta para `api.md` e para o teste: copie os dois no mesmo PR (passo 1), para o link não ficar solto.**
 4. **Junto com a Fase 3 do MFA** (AD-1 e AD-2 de [`../arquitetura-mfa-recuperacao.md`](../arquitetura-mfa-recuperacao.md)):
