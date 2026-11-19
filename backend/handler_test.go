@@ -113,6 +113,20 @@ func (f *bancoFake) TransactWriteItems(_ context.Context, in *dynamodb.TransactW
 			}
 		case t.Delete != nil:
 			k = chave(sv(t.Delete.Key["PK"]), sv(t.Delete.Key["SK"]))
+			// a pendente da lista de codigos do MFA so sai se ainda e a do listaId pedido e nao venceu (spec mfa-opcional, R25a)
+			if aws.ToString(t.Delete.ConditionExpression) == "listaId = :id AND expiraEm > :agora" {
+				it, existe := f.itens[k]
+				bom := existe && it["listaId"] != nil && sv(it["listaId"]) == sv(t.Delete.ExpressionAttributeValues[":id"])
+				if bom {
+					exp, _ := strconv.ParseInt(it["expiraEm"].(*types.AttributeValueMemberN).Value, 10, 64)
+					agora, _ := strconv.ParseInt(t.Delete.ExpressionAttributeValues[":agora"].(*types.AttributeValueMemberN).Value, 10, 64)
+					bom = exp > agora
+				}
+				if !bom {
+					return nil, &types.TransactionCanceledException{Message: aws.String("ConditionalCheckFailed em " + k),
+						CancellationReasons: []types.CancellationReason{{Code: aws.String("ConditionalCheckFailed")}}}
+				}
+			}
 		}
 		if k != "" && vistas[k] {
 			return nil, &types.TransactionCanceledException{Message: aws.String("dois itens com a mesma chave: " + k)}

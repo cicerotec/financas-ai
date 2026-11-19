@@ -124,12 +124,20 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 	if len(p) == 1 && p[0] == "me" && m == "GET" {
 		return s.esp.GetMe(ctx, u.Sub, u.Email)
 	}
-	if a, ok := auth.RotaSemEspaco(m, p); ok && a == auth.AcaoSairPush { // sem espaco no caminho: so o sub do token
+	if a, ok := auth.RotaSemEspaco(m, p); ok { // sem espaco no caminho: so o sub do token, nunca o do corpo
+		if a == auth.AcaoGerarMFA { // gerar aceita corpo vazio: nao le nada do corpo
+			return s.codigos.PostGerar(ctx, u.Sub)
+		}
 		var body domain.Doc
-		if err := json.Unmarshal([]byte(rawBody), &body); err != nil || body == nil {
+		if err := json.Unmarshal([]byte(rawBody), &body); err != nil || body == nil { // as demais exigem JSON
 			return erro(http.StatusBadRequest, "json invalido")
 		}
-		return s.aparelhos.PostPushSair(ctx, u.Sub, body)
+		switch a {
+		case auth.AcaoSairPush:
+			return s.aparelhos.PostPushSair(ctx, u.Sub, body)
+		case auth.AcaoConfirmarMFA:
+			return s.codigos.PostConfirmar(ctx, u.Sub, body)
+		}
 	}
 	if len(p) < 3 || p[0] != "spaces" {
 		return erro(http.StatusNotFound, "rota inexistente")
