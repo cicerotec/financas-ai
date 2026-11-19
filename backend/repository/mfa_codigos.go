@@ -130,3 +130,81 @@ func (r *CodigosDeRecuperacao) Confirmar(ctx context.Context, sub, listaID strin
 	}
 	return domain.ErrListaSubstituida
 }
+
+// LerAtiva devolve a lista ativa da pessoa (leitura eventualmente consistente: meio RCU), ou nil se nao ha. Quem decide em cima dela
+// (o uso de um codigo) confirma com a escrita condicional de MarcarUsado.
+func (r *CodigosDeRecuperacao) LerAtiva(ctx context.Context, sub string) (*domain.ListaCodigos, error) {
+	out, err := r.db.GetItem(ctx, &dynamodb.GetItemInput{TableName: &r.table, Key: Key(pkUsuarioMFA(sub), skCodigosAtiva)})
+	if err != nil {
+		return nil, err
+	}
+	if out.Item == nil {
+		return nil, nil
+	}
+	var it itemListaCodigos
+	if err := attributevalue.UnmarshalMap(out.Item, &it); err != nil {
+		return nil, err
+	}
+	l := &domain.ListaCodigos{ListaID: it.ListaID}
+	for _, c := range it.Codigos {
+		l.Codigos = append(l.Codigos, domain.CodigoGuardado{Hash: c.Hash, Usado: c.Usado})
+	}
+	return l, nil
+}
+
+func condicaoFalhou(err error) bool {
+	var c *types.ConditionalCheckFailedException
+	return errors.As(err, &c)
+}
+
+// MarcarUsado marca o codigo de indice i como usado, de forma condicional: so se a lista ativa ainda e a de listaID e o codigo ainda nao
+// foi usado. Dois usos simultaneos do mesmo codigo: so um recebe true (spec mfa-opcional, R27).
+func (r *CodigosDeRecuperacao) MarcarUsado(ctx context.Context, sub, listaID string, i int) (bool, error) {
+	_, err := r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName:           &r.table,
+		Key:                 Key(pkUsuarioMFA(sub), skCodigosAtiva),
+		UpdateExpression:    aws.String("SET codigos[" + strconv.Itoa(i) + "].usado = :t"),
+		ConditionExpression: aws.String("listaId = :id AND codigos[" + strconv.Itoa(i) + "].usado = :f"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":id": &types.AttributeValueMemberS{Value: listaID},
+			":t":  &types.AttributeValueMemberBOOL{Value: true},
+			":f":  &types.AttributeValueMemberBOOL{Value: false},
+		},
+	})
+	if condicaoFalhou(err) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// DesfazerUsado tira a marca de usado (quando o Cognito falhou: um codigo nao e queimado por falha do Cognito), condicional ao mesmo listaID.
+func (r *CodigosDeRecuperacao) DesfazerUsado(ctx context.Context, sub, listaID string, i int) error {
+	_, err := r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName:           &r.table,
+		Key:                 Key(pkUsuarioMFA(sub), skCodigosAtiva),
+		UpdateExpression:    aws.String("SET codigos[" + strconv.Itoa(i) + "].usado = :f"),
+		ConditionExpression: aws.String("listaId = :id"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":id": &types.AttributeValueMemberS{Value: listaID},
+			":f":  &types.AttributeValueMemberBOOL{Value: false},
+		},
+	})
+	if condicaoFalhou(err) {
+		return nil // a lista ja mudou: nada a desfazer
+	}
+	return err
+}
+
+// ApagarAtiva apaga a lista ativa inteira (usar um codigo invalida o resto), so se ainda e a de listaID.
+func (r *CodigosDeRecuperacao) ApagarAtiva(ctx context.Context, sub, listaID string) error {
+	_, err := r.db.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName:                 &r.table,
+		Key:                       Key(pkUsuarioMFA(sub), skCodigosAtiva),
+		ConditionExpression:       aws.String("listaId = :id"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{":id": &types.AttributeValueMemberS{Value: listaID}},
+	})
+	if condicaoFalhou(err) {
+		return nil
+	}
+	return err
+}

@@ -7,9 +7,11 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 
+	"financas/adapter/identidade"
 	"financas/adapter/notificacao"
 	"financas/adapter/relogio"
 	"financas/service"
@@ -30,6 +32,8 @@ func main() {
 		log.Fatal(err)
 	}
 	s := novoServidor(dynamodb.NewFromConfig(cfg), table, relogio.Real{}, despachante, os.Getenv("AMBIENTE"))
+	// a recuperacao do MFA fala com o login (o Cognito) so para achar a pessoa pelo e-mail e desligar o MFA dela (spec mfa-opcional, R32)
+	s.usarIdentidade(identidade.NovoCognito(cognitoidentityprovider.NewFromConfig(cfg), os.Getenv("USER_POOL_ID")))
 	if porta := os.Getenv("LOCAL_PORT"); porta != "" { // so no computador do desenvolvedor (local.go)
 		rodarLocal(porta, s, table)
 		return

@@ -118,3 +118,10 @@ func HashCodigo(listaID, codigoNormalizado string) string {
 	m.Write([]byte(codigoNormalizado))
 	return hex.EncodeToString(m.Sum(nil))
 }
+
+// PessoaMFA e o que a recuperacao precisa saber de uma conta do login (vem do Cognito, nunca do corpo da requisicao).
+type PessoaMFA struct {
+	Sub        string // o id estavel da pessoa: o mesmo sub do token
+	Habilitada bool   // a conta esta habilitada no login
+	TemMFA     bool   // a pessoa tem o aplicativo autenticador ligado
+}
