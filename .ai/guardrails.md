@@ -101,6 +101,12 @@ e para ajustes em telas que já existem.
 - Origem: o Recorrente do Lançar (item 51) herda o aviso do lançamento original para a primeira cópia (`CopiaDeRecorrencia`, R5 e R17 do spec), o que só era
   inofensivo porque o Lançar escondia o aviso quando a data não era futura. A dependência não estava escrita em lugar nenhum e só apareceu quando a tela
   Repetir única (itens 47 e 42) removeu essa regra de esconder.
+- **Seção API no `spec.md` (2026-11-19, obrigatório):** todo `spec.md` de uma feature que **cria, muda ou remove uma rota** nasce com uma seção **"API"** (antes de "Testes"), que é a
+  prova das rotas: não há gateway nem documento central, então o contrato de cada rota vive no spec da feature que a criou. Uma linha por rota, no estilo `POST /caminho  { corpo }  -> 200 { ... } | 400 | 403`, com
+  **método, caminho, corpo, resposta e todos os status que ela pode devolver**, mais, abaixo do bloco, **a ação em `auth/authz.go`** (ou, se a rota for pública, o motivo e onde ela é reconhecida), **quem pode
+  chamar** e **o rótulo no log**. O `sub` vem do token, nunca do corpo. O `plan.md` aponta para essa seção. Os testes do spec cobrem cada status listado, e o PR confere que o código bate com o que a seção diz.
+  Modelo: [`specs/mfa-opcional/spec.md`](specs/mfa-opcional/spec.md), seção "API". Feature sem rota nova escreve "API: sem rotas novas".
+  **Índice único (2026-11-19, aprovado pelo dono):** toda rota criada, mudada ou removida também muda uma linha de [`api.md`](api.md), o índice das rotas de hoje (ação, owner, member, token e a spec de origem). O teste `backend/api_doc_test.go` compara o índice com o código e **falha o `go test ./...`** se uma rota existir sem linha, se a linha não existir no código ou se a ação ou a decisão de papel divergirem de `auth.Permitido`. Desenho e limites: [`bmad/api-indice/`](bmad/api-indice/README.md).
 
 ## Git
 - Rode `git branch --show-current` antes de commitar e use `git push origin <branch>` com o nome da branch. Não commite

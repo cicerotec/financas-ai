@@ -45,17 +45,17 @@ que a própria pessoa use, sem o dono.**
 ## Dado novo no DynamoDB (o dono discute antes de qualquer código)
 
 A lista de códigos precisa ser guardada, **só como hash** (nunca o código). Isso exige **item ou campo novo**, e o guardrails manda não criar, renomear nem remover chave ou campo sem discutir com o dono.
-**Nada será criado até essa conversa.** O que ela precisa definir: onde o hash mora, o tipo de hash (lento, por ser código curto), o formato do código e a quantidade, e o que fica gravado de cada uso
+**Nada será criado até essa conversa.** O que ela precisa definir: onde o hash mora, o tipo de hash (HMAC com pepper se o código for longo; lento só se for curto), o formato do código e a quantidade, e o que fica gravado de cada uso
 (se foi gasto e quando, sem gravar o código) e do controle de tentativas.
 
 ## Segurança da rota de recuperação (requisitos)
 
 A pessoa que perdeu o autenticador **não tem token**, então a rota é pública e é o ponto mais exposto desta entrega:
-- **Limite de tentativas por pessoa e por origem**, com teste; força bruta não pode compensar (códigos longos e aleatórios, hash lento no servidor).
+- **Limite de tentativas por pessoa e por origem**, com teste; força bruta não pode compensar (códigos longos e aleatórios, hash adequado à entropia no servidor).
 - **Resposta idêntica** para e-mail sem conta, sem MFA ou com código errado, para a rota não revelar quem tem conta.
-- **Cada código vale uma vez**, com teste que prove isso; gerar uma lista nova invalida a anterior; usar um código desliga o MFA e invalida o restante da lista.
+- **Cada código vale uma vez**, com teste que prove isso; a lista nova nasce **pendente** e só substitui a anterior depois de a pessoa a confirmar (para nunca ficar sem saída); usar um código desliga o MFA e invalida o restante da lista.
 - **Nunca logar** código, e-mail nem corpo (regra de `security.md`).
-- A rota desliga o MFA **só da pessoa dona do código**, e a permissão de IAM da Lambda para isso é **mínima** (uma ação só, sobre o próprio pool). Permissão nova na infra exige atualizar as roles do Actions antes do merge.
+- A rota desliga o MFA **só da pessoa dona do código**, e a permissão de IAM da Lambda para isso é **mínima** (só `AdminSetUserMFAPreference` e `AdminGetUser`, para achar a pessoa pelo e-mail, sobre o próprio pool). Permissão nova na infra exige atualizar as roles do Actions antes do merge.
 - Um código vazado só desliga o MFA; a senha continua sendo exigida no login. Quem tem a lista e não a senha **não entra**.
 
 ## Limites (o que fica de fora)
@@ -74,7 +74,7 @@ novo no DynamoDB ocupa a tabela de 5/5 RCU/WCU: poucas leituras e gravações po
 
 ## O que foi testado no `dev` (2026-11-19)
 
-**Primeira rodada, no UI clássico** (antes de o dono decidir pelo Managed login; o Managed login foi testado depois, na seção seguinte, com o mesmo resultado). Testado à mão no `financas-dev` (pool `sa-east-1_GYBppGGE1`, plano **Essentials**), com dados fictícios e um usuário de teste. Onde esta seção diz "Hosted UI", leia "o login do Cognito no UI clássico". Nada disto está no `template.yaml` ainda, e **o `dev` foi
+**Primeira rodada, no UI clássico** (antes de o dono decidir pelo Managed login; o Managed login foi testado depois, na seção seguinte, com o mesmo resultado). Testado à mão no pool do `dev` (`financas-dev`, plano **Essentials**), com dados fictícios e um usuário de teste. Onde esta seção diz "Hosted UI", leia "o login do Cognito no UI clássico". Nada disto está no `template.yaml` ainda, e **o `dev` foi
 devolvido ao estado original ao fim dos testes** (ver "Estado do `dev` depois dos testes").
 
 **Confirmado**
@@ -95,7 +95,11 @@ devolvido ao estado original ao fim dos testes** (ver "Estado do `dev` depois do
 - Que o segundo login **força a senha de novo** no Managed login (`prompt=login` ou `max_age`): é a premissa P2 do plan.
 - O login do **app Android** com o escopo novo no pedido. A diferença é só uma palavra a mais no endereço, sem efeito esperado; **não se faz um teste à parte**, acontece na verificação da implementação.
 - Que a mudança no `template.yaml` (`MfaConfiguration` e escopo do cliente) **não substitui o pool nem o cliente**: só o changeset do deploy mostra.
-- Que a Lambda comum consegue desligar o MFA de uma pessoa (`AdminSetUserMFAPreference`) com permissão mínima.
+- Que a Lambda comum consegue desligar o MFA de uma pessoa (`AdminSetUserMFAPreference`) com permissão mínima, e que `AdminGetUser` aceita o e-mail como `Username` (se não, `ListUsers` filtrado).
+- Que o navegador e o WebView, a partir do CloudFront, chamam o Cognito (`cognito-idp.<região>.amazonaws.com`) por `fetch` com `Content-Type: application/x-amz-json-1.1` (CORS): os testes acima foram feitos por script.
+- Que o `POST /oauth2/revoke` aceita o cliente público com o refresh do segundo login, e que o access token já emitido continua valendo.
+- Quantos erros de `VerifySoftwareToken` o Cognito tolera antes de recusar por excesso de tentativas (não está provado; o spec não afirma o número).
+- Que o tempo de resposta da rota pública de recuperação é próximo para e-mail com e sem conta (medido no `dev`).
 - Como o "esqueci a senha" do Cognito convive com o MFA ligado; como gerar o QR code no front sem biblioteca pesada; o PWA instalado.
 
 **Estado do `dev` depois dos testes (devolvido ao original em 2026-11-19, conferido por leitura)**

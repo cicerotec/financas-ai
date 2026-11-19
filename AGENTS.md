@@ -12,7 +12,7 @@ Respostas e documentos em português.
 |---|---|
 | Pedido "leia X" | X inteiro e o que ele indexa (`.ai/README.md` é o índice do `.ai/`) |
 | Bug ou feature no front, tela | `.ai/padrao-de-telas.md` e a demo-padrão mais recente da tela em `.ai/demos/` (a tabela no início do padrao-de-telas aponta qual é) |
-| Backend, rota, permissão | `.ai/arquitetura.md` e `.ai/security.md` |
+| Backend, rota, permissão | `.ai/arquitetura.md`, `.ai/security.md` e `.ai/api.md` (índice das rotas; rota nova ou removida muda uma linha dele) |
 | Item do roadmap | o item em `BACKLOG.md` e `.ai/specs/<feature>/{intent,plan,spec}.md` |
 | Decisão de produto, nomes, status | `.ai/decisoes.md` |
 | Release, hotfix, bug em produção | `.ai/fluxo-de-versoes.md` |

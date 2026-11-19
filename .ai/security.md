@@ -39,6 +39,14 @@ Dados financeiros de uma família (lançamentos, saldos, cartões, notas) e o ac
   validação do token é código crítico (veja "Regras ao mexer").
 - **Não há MFA no login do app** (o template não configura `MfaConfiguration`); é a fase 1 do item 49 do backlog (multiusuário), de prioridade
   alta. O MFA que existe hoje é o da **sessão AWS do dono** para operar a conta (`scripts/aws-mfa.ps1`).
+- **MFA opcional por aplicativo autenticador (TOTP) com lista de códigos de recuperação. Em desenho (2026-11-19, nada implementado);** o roteiro
+  está em [`specs/mfa-opcional/`](specs/mfa-opcional/spec.md) e a revisão de arquitetura em [`bmad/arquitetura-mfa-recuperacao.md`](bmad/arquitetura-mfa-recuperacao.md). O que o desenho assume, e o que ele **não** protege:
+  - **Opcional para todos, sem SMS.** Cada pessoa liga e desliga o seu; quem não liga continua só com a senha. A tela de login passa a ser o Managed login do Cognito (plano Essentials), com marca do app; a senha continua nunca passando pelo nosso JavaScript. Testado à mão no `dev` (2026-11-19): o login pede o código depois da senha, no navegador e no app Android.
+  - **O token com o escopo de autoatendimento** (`aws.cognito.signin.user.admin`, que permite ligar e desligar o MFA, mas também trocar a senha e apagar o usuário) **não é pedido no login normal**: só num segundo login, ao abrir a seção do MFA, e vive **só em memória** (nem `localStorage`, nem `sessionStorage`, nem o `Cofre`). O backend continua validando **só o ID token**. Ponto não provado: se o Managed login força a senha de novo nesse segundo login (`prompt=login` ou `max_age`); se reaproveitar a sessão por cookie, desligar o MFA não pede prova nova.
+  - **A lista de códigos é a única saída** de quem perde o autenticador: sem o dono, sem e-mail, sem prazo. Perder o autenticador **e** a lista é perder a conta, sem volta, mesmo sabendo a senha; a tela diz isso ("SE PERDER A LISTA, PERDE O ACESSO.") antes de ligar o MFA. Um código só desliga o MFA: **não dá entrada** nem devolve token, e o login continua exigindo a senha.
+  - **A lista nasce pendente e só vale depois de confirmada** (gerar não invalida a anterior; confirmar promove a pendente e apaga a ativa), para a pessoa nunca ficar sem saída por janela fechada ou duas abas. Os hashes (nunca o código) ficam no DynamoDB, **em item novo que o dono ainda vai discutir**: nada é criado antes.
+  - **"MFA ligado implica lista ativa" vale só pela ordem da tela**, não pelo servidor, que não vê o MFA no Cognito (o front fala direto com ele). Quem chamar `SetUserMFAPreference` à mão com o token de escopo amplo pode ligar o MFA sem lista; o dano é da própria pessoa **ou de quem executar código na página durante a seção do MFA** (um XSS pode ligar o MFA com o autenticador do atacante e deixar a vítima sem saída).
+  - **A sessão por cookie do login do Cognito no navegador do aparelho** pode devolver o login sem senha e sem código por cerca de 1 hora (não confirmado no pool), e sair do app não a encerra: o MFA protege o login novo, não esse reaproveitamento.
 
 ## O que cada pessoa pode: autorização
 **Regra de ouro (`backend/auth/authz.go`): o que não está liberado explicitamente é negado.** Papel ou ação desconhecidos
@@ -70,6 +78,20 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `seq.ler` | sim | sim |
 | `avisos.testar` (mensagem de teste para o próprio Telegram ou, com `{"canal":"push"}`, para os próprios aparelhos) | sim | sim |
 | `push.registrar`, `push.remover` (o aparelho do app no próprio vínculo) e `push.sair` (tira o aparelho de todos os espaços da pessoa) | sim | sim |
+
+**Rotas fora de `/spaces/{sid}` e a rota pública do MFA. Em desenho (2026-11-19, nada implementado;** [`specs/mfa-opcional/spec.md`](specs/mfa-opcional/spec.md), R4 e R25 a R34**).**
+Hoje `atender` valida o token **antes** de classificar qualquer rota, então uma rota sem token responde `401`. O desenho acrescenta **três rotas**, cada uma com ação própria em `auth/authz.go` e teste:
+
+| Rota | Ação | Quem | Token |
+|---|---|---|---|
+| `POST /me/mfa/codigos` (gera a lista **pendente**; não toca na ativa) | de gerar (nome fixado no código) | qualquer pessoa autenticada, sempre pelo `sub` do token | ID token, como hoje |
+| `POST /me/mfa/codigos/confirmar` (promove a pendente a ativa e apaga a anterior; idempotente; `409 lista_substituida`) | `mfa.confirmar` | qualquer pessoa autenticada, sempre pelo `sub` do token | ID token, como hoje |
+| `POST /mfa/recuperar` (um código da lista ativa desliga o MFA da pessoa) | `mfa.recuperar` | **qualquer um**, sem token | **nenhum** |
+
+- **A rota pública é a única exceção ao "sem token é `401`", por método e caminho exatos.** `auth.RotaPublica(metodo, p)` devolve `true` **só** para `POST` `["mfa","recuperar"]`; a ação `mfa.recuperar` **não** é listada em `Permitido` para nenhum papel. Em `atender`, o método e o caminho são quebrados **antes** de `VerificarToken`; se a rota for essa, o roteador a entrega ao controller **sem ler o cabeçalho `authorization`** (um token inválido nela não muda a resposta); senão tudo segue como hoje. **`token.go` e `VerificarToken` não mudam**, e nenhuma outra rota muda de comportamento. Testes: só aquele método e caminho é público; toda rota autenticada sem token segue `401`; o log não diz `sem-token` numa chamada atendida.
+- **A rota pública só desliga o MFA** (`AdminSetUserMFAPreference`): nunca cria sessão, nunca devolve token, nunca altera a senha. Responde **uma só resposta de falha** (mesmo status e corpo) para e-mail sem conta, pessoa sem MFA, código errado ou usado, limite estourado, corpo inválido e falha interna; entrada mínima antes de qualquer trabalho (corpo acima de 2 KiB, JSON inválido ou campo faltando respondem igual).
+- **Origem do limite de tentativas:** `r.RequestContext.HTTP.SourceIP` do evento da Function URL, **nunca** cabeçalho (`x-forwarded-for` é de quem chama). O limite grava no DynamoDB **sem autenticação** (ver "Pontos em aberto"). Um código vale uma vez, mesmo sob concorrência (escrita condicional), e a marca de usado é desfeita se o Cognito falhar, para um código não ser queimado por falha do Cognito.
+- O código só vale para o **usuário (`sub`) a que foi gerado**; o código de uma pessoa nunca desliga o MFA de outra.
 
 Dois detalhes que contam:
 - **Registro sem `criadoPor` não é de ninguém:** só o owner mexe nele (`ehDono`).
@@ -125,7 +147,8 @@ só existe no front não protege nada (veja [`arquitetura.md`](arquitetura.md)).
   prod** (`!If [EhDev, false, true]` no `template.yaml`; retenção de 35 dias; o `dev` fica desligado). Além dele, só o
   botão Exportar. O backup periódico do item 11 segue adiado.
 - **Rate limit:** não há WAF nem teto por IP; o teto de concorrência está desligado porque a conta permite 10 execuções
-  no total, o que já funciona como limite natural.
+  no total, o que já funciona como limite natural. **Em desenho (MFA, 2026-11-19):** a rota pública de recuperação passa a ter limite de tentativas **no servidor**, por pessoa e por origem.
+- **Em desenho (MFA, 2026-11-19, nada implementado):** a role da Lambda ganha, no Cognito, **só** as ações `AdminSetUserMFAPreference` (desligar o MFA) e `AdminGetUser` (achar o `sub` pelo e-mail; a confirmar no `dev`, com `ListUsers` filtrado como fallback) **sobre o próprio pool**; as roles do Actions (`infra/github-oidc.yaml`) são atualizadas **antes** do merge. Se o hash dos códigos for um HMAC, o pepper fica no SSM como `SecureString` (`/financas/<ambiente>/mfa-pepper`, um por ambiente), com a mesma regra dos outros segredos.
 
 ## CI/CD
 Detalhes em [`deploy-github-actions.md`](deploy-github-actions.md). Em resumo: cada role OIDC só aceita o repositório
@@ -138,9 +161,12 @@ manual.
 |---|---|---|
 | Token do Cognito em `localStorage` (navegador e PWA; no app Android fica no `Cofre`, mas um script injetado ainda consegue lê-lo) | Um XSS no front rouba a sessão | item 18 do backlog; item 54 (refresh em Java) |
 | Sem CSP própria | Reduz a defesa em profundidade contra XSS | item 18 |
-| Sem WAF nem limite de taxa na Function URL | Enxurrada de requisições (custo e disponibilidade) | item 18 |
+| Sem WAF nem limite de taxa na Function URL | Enxurrada de requisições (custo e disponibilidade). **Com a rota pública do MFA (em desenho), a enxurrada deixa de ser só de leitura:** o limite de tentativas **grava no DynamoDB sem autenticação**, e uma tabela de 5 RCU/WCU (que já estourou em 2026-10-27) derrubaria o app inteiro; por isso o limite lê o contador por origem antes de tudo, tem TTL curto e um teto de gravações por origem (números do dono) | item 18; item 49, fase 1 (`specs/mfa-opcional`, P14) |
 | Member lê tudo | Dados de bancos e cartões que não são dela | item 27 |
-| Sem MFA no login do app | Senha vazada basta para entrar | item 49, fase 1 (prioridade alta) |
+| Sem MFA no login do app | Senha vazada basta para entrar | item 49, fase 1 (prioridade alta); em desenho em `specs/mfa-opcional` (opcional, TOTP, lista de códigos); quem não ligar o MFA continua só com a senha |
+| (MFA, em desenho) O access token com o escopo `aws.cognito.signin.user.admin` alcança as APIs de autoatendimento do Cognito (trocar a senha, apagar o usuário, mexer no MFA) | Um XSS que o alcance toma a conta e pode ligar ou desligar o MFA; por isso o escopo só é pedido num segundo login e o token vive só em memória. **Não provado:** que o segundo login obriga a senha de novo | `specs/mfa-opcional` (P2, P3, P6) |
+| (MFA, em desenho) "MFA ligado implica lista ativa" só vale pela ordem da tela, não pelo servidor | Quem chamar `SetUserMFAPreference` à mão com o token de escopo amplo liga o MFA sem lista; o dano é da própria pessoa **ou de quem executar código na página durante a seção do MFA** (um XSS pode ligar o MFA com o autenticador do atacante e deixar a vítima sem saída) | `specs/mfa-opcional` (P13; decisões D2 e D3 do dono) |
+| (MFA, em desenho) Perder o autenticador **e** a lista | A conta se perde, sem volta, mesmo sabendo a senha; não há outro caminho (sem o dono, sem e-mail, sem prazo) | `specs/mfa-opcional/intent.md` |
 | Histórico de versões só dos lançamentos, e sem tela de recuperação ainda (PITR só em prod, janela de 35 dias) | Configurações e fechamentos continuam sem versão; recuperar um lançamento ainda é pelo banco | item 31 (fases 2 e 3) |
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
 | `excluirDoTotal` montado pelo front a partir do nome do status | **Fechada na fase A do item 41 (2026-10-24):** o servidor calcula `excluirDoTotal` pelo catálogo e o valor do corpo é descartado; o front ainda o envia, ignorado | item 41 (fase C tira o envio) |
@@ -148,10 +174,12 @@ manual.
 | Resumo do Telegram acima de 4096 caracteres | **Fechada no item 34:** o canal divide em partes de até 4000 letras | item 28, item 34 |
 
 ## Regras ao mexer (propostas, a confirmar com o dono)
-- **Rota nova exige ação nova** em `auth/authz.go`, com o que owner e member podem, **e teste** em `auth/authz_test.go`. Nunca
+- **Rota nova exige ação nova** em `auth/authz.go`, com o que owner e member podem, **e teste** em `auth/authz_test.go`, **e uma linha em [`api.md`](api.md)**
+  (o índice das rotas; `backend/api_doc_test.go` falha o `go test ./...` se a rota existir sem linha, se a linha não existir no código ou se a ação ou o papel divergirem de `auth.Permitido`). Nunca
   liberar por padrão.
 - **Não afrouxar a validação do token** (`algoritmo`, `iss`, `aud`, `exp`, `token_use`) nem passar a aceitar o access token
-  sem decisão do dono.
+  sem decisão do dono. A única exceção ao "sem token é `401`" é `auth.RotaPublica` (hoje, no desenho do MFA, só `POST /mfa/recuperar`), por método e caminho exatos, **antes** do `VerificarToken`, sem mexer nele.
+  Qualquer rota nova sem token exige decisão do dono, ação própria, e teste de que nenhuma outra rota ganhou a liberação.
 - **Toda escrita confere o papel no servidor**, mesmo que o front já esconda o botão.
 - **O cliente nunca manda número derivado como verdade** (decisão de 2026-10-18). Saldo, cache de fechamento, totais,
   faturas, `excluirDoTotal` e qualquer resumo são calculados pelo servidor, que **rejeita** o campo se ele vier no corpo.
