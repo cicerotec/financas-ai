@@ -67,7 +67,7 @@ Testado à mão no `financas-dev` (pool `sa-east-1_GYBppGGE1`, plano **Essential
 - O cliente do `dev` está só com `ALLOW_REFRESH_TOKEN_AUTH` de novo (o `ALLOW_USER_PASSWORD_AUTH` dos testes foi removido); o escopo `aws.cognito.signin.user.admin` foi marcado à mão no console e ainda **não está no `template.yaml`**.
 
 **Ainda não provado**
-- Que o login do **app Android** continua funcionando quando o front passar a pedir o escopo novo.
+- O login do **app Android** com o escopo novo no pedido (o login com MFA e os dois casos de voltar na aba já foram testados no Android, com o pedido de hoje, `openid email`). A diferença é só uma palavra a mais no endereço, sem efeito esperado na tela nem no retorno; **não se faz um teste à parte**: ele acontece na verificação da implementação, com o app do `dev` instalado com o front novo.
 - Que a mudança no `template.yaml` (`MfaConfiguration` e escopo do cliente) **não substitui o pool nem o cliente**: só o changeset do deploy mostra.
 - Como a recuperação de senha do Cognito ("esqueci a senha", por e-mail) convive com o MFA ligado.
 - Como gerar o QR code no front sem biblioteca pesada (dependência nova ou código nosso).
