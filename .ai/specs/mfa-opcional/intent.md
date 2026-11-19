@@ -61,9 +61,13 @@ Testado à mão no `financas-dev` (pool `sa-east-1_GYBppGGE1`, plano **Essential
 - O Hosted UI guarda uma **sessão própria por cookie no navegador do aparelho**. Com ela ativa, o Cognito mostra "continuar com este usuário ou trocar" e pode devolver o login **sem pedir senha nem código**. Pelo que sei, ela dura cerca de 1 hora (não confirmado no pool). Sair do app **não encerra essa sessão**: o MFA protege o login novo, não o reaproveitamento da sessão do navegador. É a mesma limitação que `security.md` já registra para "sair do app", e deve ser registrada ali também com o MFA.
 - Um teste com o login do navegador pareceu "não pedir o código" porque foi feito com o usuário **sem** MFA. Em teste de MFA, confirme sempre qual usuário foi ligado (console do Cognito, Usuários, nome de usuário = `sub`).
 
+**Confirmado em 2026-11-19, com o token do login do Hosted UI** (não o do login direto): um script de teste fez o login pelo Hosted UI pedindo o escopo `aws.cognito.signin.user.admin`, capturou o código num ouvinte em `http://localhost:8080/` (URL de retorno que o cliente do `dev` já tem) e usou o access token nas APIs:
+- `GetUser` devolveu o estado do MFA, `SetUserMFAPreference` **desligou** o MFA e deixou o usuário sem MFA, e depois `AssociateSoftwareToken`, `VerifySoftwareToken` e `SetUserMFAPreference` **cadastraram e religaram** o TOTP, com o autenticador do celular. Ou seja, as APIs de autoatendimento que a tela de Listas precisa funcionam com o token que o app teria, e a própria pessoa desliga e liga o seu MFA.
+- A resposta do endpoint de token **não traz o campo `scope`**; o escopo vale porque as APIs aceitaram o token. O front só precisa pedir o escopo novo no login (hoje `scope: 'openid email'`, `web/js/sessao.js:27`). Qual impacto isso tem no login do app Android (aba do sistema) **não foi testado**: o teste usou o navegador.
+- O cliente do `dev` está só com `ALLOW_REFRESH_TOKEN_AUTH` de novo (o `ALLOW_USER_PASSWORD_AUTH` dos testes foi removido); o escopo `aws.cognito.signin.user.admin` foi marcado à mão no console e ainda **não está no `template.yaml`**.
+
 **Ainda não provado**
-- Se o **access token do login do Cognito** (e não o do login direto) aceita as APIs de MFA com o escopo `aws.cognito.signin.user.admin`. O escopo já foi marcado no cliente do `dev` pelo console, mas o app hoje só pede `openid email`; falta o front pedir o escopo novo. É o ponto mais importante antes da tela de Listas.
-- Que **a própria pessoa desliga o MFA** (`SetUserMFAPreference` com o token dela).
+- Que o login do **app Android** continua funcionando quando o front passar a pedir o escopo novo.
 - Que a mudança no `template.yaml` (`MfaConfiguration` e escopo do cliente) **não substitui o pool nem o cliente**: só o changeset do deploy mostra.
 - Como a recuperação de senha do Cognito ("esqueci a senha", por e-mail) convive com o MFA ligado.
 - Como gerar o QR code no front sem biblioteca pesada (dependência nova ou código nosso).
