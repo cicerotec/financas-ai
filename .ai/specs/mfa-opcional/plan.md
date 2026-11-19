@@ -12,11 +12,11 @@ Como construir o que o [`intent.md`](intent.md) pede. Cada fase é um PR pequeno
 | Cliente com `openid email`, fluxo `code` e `ALLOW_REFRESH_TOKEN_AUTH` | `template.yaml` (`UserPoolClient`) | O escopo `aws.cognito.signin.user.admin` precisa ser **permitido** no cliente |
 | O front guarda só o **ID token** e o refresh token; o access token nunca é guardado | `web/js/sessao.js` (`salvarAuth`, `token`) | A tela do MFA precisa do **access token**, que hoje o app não tem |
 | O backend valida só o ID token | `backend/auth/token.go` | **Não muda**: as APIs de MFA vão do front direto ao Cognito, sem passar pela Lambda |
-| Login no Hosted UI clássico, na aba do sistema no Android e na mesma aba no navegador | `web/js/sessao.js` | O desafio do código já aparece ali (testado no `dev`, intent) |
+| Login no Hosted UI clássico (domínio na versão 1), na aba do sistema no Android e na mesma aba no navegador | `web/js/sessao.js`, `template.yaml` (`UserPoolDomain`) | **Decidido migrar para o Managed login** (dono, 2026-11-19): o desafio do código, o retorno e o "esqueci a senha" foram testados nele no `dev` (intent); o app não muda, o domínio e o estilo de marca sim |
 | Listas tem o cartão Aparência com a subseção Segurança (trava e apps recentes, só no app, valem só no aparelho) | `.ai/padrao-de-telas.md` | A seção do MFA **não** é só do app e **não** vale só no aparelho: precisa ficar em lugar próprio |
-| Provado no `dev` (2026-11-19): token do Hosted UI com o escopo novo aceito por `GetUser`, `Associate`, `Verify` e `SetUserMFAPreference` | `intent.md` | O desenho funciona; o que falta é construir |
+| Provado no `dev` (2026-11-19): token do login do Cognito (UI clássico e Managed login) com o escopo novo aceito por `GetUser`, `Associate`, `Verify` e `SetUserMFAPreference` | `intent.md` | O desenho funciona; o que falta é construir |
 | A Lambda só tem CRUD na própria tabela, leitura do SSM e nada do Cognito; toda rota exige JWT validado e papel no espaço | `template.yaml`, `auth/authz.go`, `auth/token.go` | A lista de códigos pede **permissão nova no Cognito** (desligar o MFA de uma pessoa), uma **rota pública** (sem token) e uma rota autenticada **fora de `/spaces/{sid}`**, cada uma com ação própria e teste |
-| O front vai ao Cognito sem sessão (o navegador manda direto ao Hosted UI quando não há token) | `web/js/sessao.js` (`irParaLogin`) | A tela de recuperação precisa de uma entrada **fora do Hosted UI**: ele não tem onde pôr um link nem aceita o código da lista |
+| O front vai ao Cognito sem sessão (o navegador manda direto ao login do Cognito quando não há token) | `web/js/sessao.js` (`irParaLogin`) | A tela de recuperação precisa de uma entrada **fora do login do Cognito**: ele não tem onde pôr um link nem aceita o código da lista |
 
 ## Decisão de desenho (a mais importante) — **confirmada pelo dono em 2026-11-19**: o escopo só no segundo login
 
@@ -27,19 +27,21 @@ esse token, mais poderoso, circulando no app o tempo todo, e um XSS (ponto em ab
 O cliente **permite** o escopo no `template.yaml`, mas o app só o **pede** nesse momento. Isso também ajuda o MFA: o segundo login passa pelo Cognito (senha e, se já houver MFA, o código), então **desligar o MFA exige provar de novo quem a pessoa é**.
 
 - **Alternativa:** pedir o escopo em todo login. É mais simples (um login só, o token já está à mão), mas o token mais poderoso fica sempre disponível. **Não recomendada.**
-- **Ponto a verificar no `dev`, não provado:** se o Hosted UI aceita forçar a senha de novo (o parâmetro `prompt=login` ou `max_age`), em vez de reaproveitar a sessão por cookie (a tela "continuar com este usuário ou trocar" apareceu nos testes e o login voltou sem senha). Sem isso, o "confirmar de novo" não confirma nada e a proposta perde o argumento do MFA (continua valendo o do escopo em memória).
+- **Ponto a verificar no `dev`, não provado:** se o Managed login aceita forçar a senha de novo (o parâmetro `prompt=login` ou `max_age`), em vez de reaproveitar a sessão por cookie (a tela "continuar com este usuário ou trocar" apareceu nos testes e o login voltou sem senha). Sem isso, o "confirmar de novo" não confirma nada e a proposta perde o argumento do MFA (continua valendo o do escopo em memória).
 
 ## Fases (cada uma é um PR)
 
 ### Fase 1: demo da tela (sem código)
 - Demo versionada, partindo da **última versão de Listas** (a tabela do início de `.ai/padrao-de-telas.md` diz qual é a padrão; as de Avisos, `demo-push-v2-telegram-chave`, e Bloqueio, `demo-bloqueio-v1`, são as mais recentes citadas no guardrails): `demo-listas-v<N>-mfa.html`, artefato privado com link que abre no celular.
 - Mostra a tela inteira de Listas, com a nova seção **Segurança da conta** (separada da Segurança do aparelho do cartão Aparência, que fica como está) e estes estados: MFA desligado; confirmando a identidade (o segundo login); cadastrando (QR code e chave para digitar, campo do código); **a lista de códigos**, com a frase em destaque **"SE PERDER A LISTA, PERDE O ACESSO."** e a confirmação de leitura antes de ligar; ligado (com a opção de gerar uma lista nova); desligar (com confirmação e o aviso de 6 s do padrão do app); erro de código; sem internet.
+- Mostra também o **visual do login no Managed login** (logo, cores, fundo, claro e escuro, no celular e no computador), dentro do que o editor do Cognito aceita; o layout e os textos são do Cognito e a demo diz o que isso faz perder.
 - Mostra também a **tela de recuperação**, sem login: e-mail e um código da lista, o resultado ("MFA desligado, entre com e-mail e senha") e as mensagens de erro, e **de onde a pessoa chega a ela** (na abertura do app Android, ao lado do "Entrar", e por um endereço próprio no navegador e no PWA).
 - Seletores nativos, janelas de baixo, linhas de pelo menos 56 px, tokens do app, tema claro e escuro, celular (≈ 390 px) e computador (≥ 1280 px). A demo diz o que a proposta faz perder.
 - **A demo diz** (decidir com o dono): a seção aparece para dono e membro, no navegador, no PWA e no app.
 
 ### Fase 2: `template.yaml` e deploy no `dev`
 - `UserPool`: `MfaConfiguration: OPTIONAL` e `EnabledMfas: [SOFTWARE_TOKEN_MFA]` (só TOTP; o nome exato das propriedades se confere em `sam validate --lint`).
+- `UserPoolDomain`: `ManagedLoginVersion: 2`; e um recurso de estilo de marca (`AWS::Cognito::ManagedLoginBranding`, com os valores do Cognito e depois o logo e as cores aprovados na demo) ligado ao cliente. O **domínio e o endereço de login não mudam**: a documentação da AWS diz que a troca é uma atualização no lugar; o changeset confirma (R3 do spec). Os nomes exatos das propriedades se conferem em `sam validate --lint`.
 - `UserPoolClient`: `AllowedOAuthScopes: [openid, email, aws.cognito.signin.user.admin]` (permitir, não pedir). **Não** acrescentar `ALLOW_USER_PASSWORD_AUTH` nem nenhum fluxo de senha.
 - **Verificar no changeset** (o deploy já falha se substituir pool ou cliente; conferir também a olho): só **modificação de propriedade**, sem `Replacement: True` no pool nem no cliente. Se o changeset mostrar substituição, **parar** e voltar ao dono.
 - O `dev` foi **devolvido ao original** em 2026-11-19 (pool `OFF`, cliente só com `openid` e `email`, usuário de teste sem MFA): o primeiro deploy deve mostrar `MfaConfiguration` e o escopo do cliente como mudança de propriedade, e nada mais.
@@ -59,7 +61,7 @@ O cliente **permite** o escopo no `template.yaml`, mas o app só o **pede** ness
 - **Chamadas ao Cognito** (`https://cognito-idp.<região>.amazonaws.com/`, por `fetch`, sem SDK): `GetUser`, `AssociateSoftwareToken`, `VerifySoftwareToken`, `SetUserMFAPreference`, com o access token no corpo, nunca na URL nem em log. Módulo novo, sem regra de negócio; o front **só exibe** e devolve o que o Cognito responder.
 - **QR code:** decidir entre uma biblioteca pequena embutida em `web/` (sem CDN) e código nosso; sem serviço externo (a chave do TOTP **nunca** sai do aparelho). Além do QR, sempre a chave para digitar.
 - **A lista de códigos e a frase** (texto fixo, da demo): a lista aparece **uma vez**, com a frase em destaque **"SE PERDER A LISTA, PERDE O ACESSO."** e o aviso de que perder o autenticador e a lista é perder a conta, sem volta, mesmo sabendo a senha; a pessoa confirma que leu **antes de o MFA ficar ligado**. A lista não é guardada no aparelho.
-- **Tela de recuperação**, sem login: e-mail e um código; chama a rota pública da Fase 3, mostra só o que o servidor devolve e leva a pessoa a entrar com e-mail e senha. Entrada **fora do Hosted UI**: na abertura do app Android, ao lado do "Entrar", e por um endereço próprio no navegador e no PWA.
+- **Tela de recuperação**, sem login: e-mail e um código; chama a rota pública da Fase 3, mostra só o que o servidor devolve e leva a pessoa a entrar com e-mail e senha. Entrada **fora do login do Cognito**: na abertura do app Android, ao lado do "Entrar", e por um endereço próprio no navegador e no PWA.
 - **Janela ou tela cheia nova entra em `camadasAbertas()` e `fecharCamadaTopo()` de `web/js/app.js`** (botão voltar; guardrails).
 - **Carga:** a seção **não lê nada do nosso servidor** e só toca o Cognito quando a pessoa a abre; `web/carga.test.js` continua passando (a subida não muda).
 - Testes (`node web/<nome>.test.js`, o CI roda todos): a sessão de curta duração não grava token em nenhum armazenamento; o pedido do segundo login contém o escopo novo e o login normal **não**; código errado mostra o erro e não liga; só liga depois da confirmação do aviso; desligar pede o segundo login; nenhuma chamada leva o access token em URL. **Quebrar o código de propósito uma vez** para ver cada teste falhar.
@@ -80,7 +82,7 @@ Regras que só funcionam por causa de outra coisa, e o que acontece se ela deixa
 | # | Regra | Depende de | Se a outra deixar de valer |
 |---|---|---|---|
 | P1 | A tela chama as APIs de MFA com o access token | O cliente **permitir** o escopo `aws.cognito.signin.user.admin` (Fase 2) | Sem o escopo no cliente, o Cognito recusa o segundo login; a tela mostra erro e não liga nada. Teste: pedir o escopo num cliente sem ele |
-| P2 | "Desligar exige confirmar quem você é de novo" | O Hosted UI **forçar a senha** no segundo login (`prompt=login` ou `max_age`, **não provado**) | Se ele reaproveitar a sessão por cookie, o segundo login passa sem senha nem código e desligar o MFA fica sem a garantia; precisa de outra proteção ou da decisão do dono |
+| P2 | "Desligar exige confirmar quem você é de novo" | O Managed login **forçar a senha** no segundo login (`prompt=login` ou `max_age`, **não provado**) | Se ele reaproveitar a sessão por cookie, o segundo login passa sem senha nem código e desligar o MFA fica sem a garantia; precisa de outra proteção ou da decisão do dono |
 | P3 | O token com o escopo vive só em memória | O front **não** o repassar a nenhum outro módulo, log ou armazenamento | Se algum módulo o guardar (por exemplo, o `Cofre` do Android), o ganho de pedir o escopo só no momento some. Teste de que nenhum armazenamento o recebe |
 | P4 | A frase "SE PERDER A LISTA, PERDE O ACESSO." e o aviso de "sem volta" | **A lista ser a única saída** (sem o dono, sem e-mail, sem prazo) | Se outro caminho de recuperação for acrescentado, a frase fica **errada** e é reescrita junto com ele; se a lista deixar de ser guardada ou de funcionar, a pessoa fica trancada, então a lista só é mostrada depois de gravada e a confirmação de leitura vem antes de ligar o MFA |
 | P9 | "Um código sozinho não dá entrada" | O Cognito **continuar exigindo a senha** no login depois que o MFA é desligado | Se a senha deixar de ser exigida (por exemplo, login só por código), um código vazado dá entrada; a rota só desliga o MFA e nunca cria sessão nem devolve token |
@@ -99,7 +101,7 @@ O `spec.md` ainda não existe; a revisão vem depois dele. **Quem faz** (subagen
 | Risco | Resposta |
 |---|---|
 | O changeset mostrar substituição do pool ou do cliente | Parar; o deploy já barra; voltar ao dono antes de seguir |
-| O segundo login reaproveitar a sessão do Hosted UI e não pedir nada | Verificar `prompt=login` no `dev` na Fase 2; sem ele, decidir com o dono |
+| O segundo login reaproveitar a sessão do login do Cognito e não pedir nada | Verificar `prompt=login` no `dev` na Fase 2; sem ele, decidir com o dono |
 | Token com escopo amplo vazar | Só em memória, só durante a seção, nunca em log nem armazenamento (P3, P6) |
 | Pessoa liga o MFA sem entender o risco e perde o autenticador **e** a lista | Frase "SE PERDER A LISTA, PERDE O ACESSO." em destaque, confirmação de leitura antes de ligar, e a lista guardada em lugar seguro, separado do autenticador |
 | Rota pública de recuperação sofre força bruta ou revela quem tem conta | Limite de tentativas, resposta idêntica, códigos longos e hash lento (Fase 3, P11) |

@@ -18,7 +18,7 @@ que a própria pessoa use, sem o dono.**
 
 1. **MFA por aplicativo autenticador (TOTP), sem SMS**, nos dois ambientes (`dev` e prod), configurado no `template.yaml`.
 2. **Opcional para todos**, inclusive o dono: cada pessoa liga e desliga o seu. Não é obrigatório.
-3. **Login na tela do Cognito (UI hospedada clássica, como hoje).** Depois que a pessoa liga o MFA, o Cognito pede o código de 6 dígitos no login. A senha continua nunca passando
+3. **Login na tela do Cognito, no Managed login, com o visual do app (logo, cores e fundo).** Depois que a pessoa liga o MFA, o Cognito pede o código de 6 dígitos no login. A senha continua nunca passando
    pelo nosso JavaScript, o que mantém a garantia do app Android (a senha só é digitada na aba do sistema).
 4. **Uma tela nossa em Listas, Segurança da conta**, para ligar e desligar o MFA: mostra o QR code e a chave, confere o primeiro código e liga; ou desliga. Ela chama as APIs do Cognito
    (`AssociateSoftwareToken`, `VerifySoftwareToken`, `SetUserMFAPreference`) com o access token da própria pessoa. O Cognito guarda o segredo e confere o código; nós só desenhamos a tela.
@@ -38,8 +38,8 @@ que a própria pessoa use, sem o dono.**
 - **A recuperação é da própria pessoa, sem o dono**, e é a **lista de códigos**. Não é por código no e-mail (vale tanto quanto a conta de e-mail, e quem a invade e tem a senha entra), não é por
   perguntas de segurança (respostas adivinháveis; quase ninguém preenche) e **não é por prazo**.
 - **Tela do Cognito, não tela de login própria**: uma tela própria faria a senha passar pelo nosso código e exigiria habilitar fluxos de senha no `UserPoolClient`.
-- **Fica no UI clássico agora.** O pool `financas` já está no plano **Essentials** (visto no console em 2026-11-18); o `financas-dev` foi dado como igual pelo dono, e o domínio
-  dele está em "UI hospedada (clássica)". O Managed login, com editor visual, é possível sem mudar de plano, mas fica como decisão posterior, com demo própria.
+- **O login passa para o Managed login nesta entrega** (dono, 2026-11-19, depois dos testes no `dev`). O pool `financas` já está no plano **Essentials** (visto no console em 2026-11-18); o
+  `financas-dev` também. O domínio hoje está em "UI hospedada (clássica)" e passa à versão 2, com um estilo de marca (logo, cores e fundo) por cliente. O layout e o fluxo continuam sendo do Cognito.
 - O login normal **não muda**; o escopo `aws.cognito.signin.user.admin` é pedido só num segundo login, ao abrir a seção do MFA (decisão confirmada em 2026-11-19, ver `plan.md`).
 
 ## Dado novo no DynamoDB (o dono discute antes de qualquer código)
@@ -61,10 +61,10 @@ A pessoa que perdeu o autenticador **não tem token**, então a rota é pública
 ## Limites (o que fica de fora)
 
 - **Perder o autenticador e a lista ao mesmo tempo:** a conta se perde, sem volta (item 6). Sem o dono e sem suporte, não há outro caminho; por isso a frase em destaque é parte da entrega.
-- Visual do login (Managed login, branding): outra entrega.
+- Um login com **layout ou textos próprios**: o Managed login só aceita marca (logo, cores, fundo, modo escuro); o layout e o fluxo são do Cognito.
 - Login social, SMS, MFA por e-mail do Cognito, perguntas de segurança, recuperação por e-mail e MFA obrigatório para todos.
 - Quem **não liga** o MFA continua com só senha: opcional significa que uma senha vazada ainda basta para ele.
-- **A sessão do Hosted UI no navegador do aparelho** (cookie, cerca de 1 hora, não confirmado no pool) pode devolver o login sem senha e sem código; sair do app não a encerra. O MFA protege o login novo, não o
+- **A sessão do login do Cognito no navegador do aparelho** (cookie, cerca de 1 hora, não confirmado no pool) pode devolver o login sem senha e sem código; sair do app não a encerra. O MFA protege o login novo, não o
   reaproveitamento dessa sessão. É a mesma limitação que o `security.md` já registra para "sair do app".
 
 ## Custo
@@ -74,7 +74,7 @@ novo no DynamoDB ocupa a tabela de 5/5 RCU/WCU: poucas leituras e gravações po
 
 ## O que foi testado no `dev` (2026-11-19)
 
-Testado à mão no `financas-dev` (pool `sa-east-1_GYBppGGE1`, plano **Essentials**, UI clássico), com dados fictícios e um usuário de teste. Nada disto está no `template.yaml` ainda, e **o `dev` foi
+**Primeira rodada, no UI clássico** (antes de o dono decidir pelo Managed login; o Managed login foi testado depois, na seção seguinte, com o mesmo resultado). Testado à mão no `financas-dev` (pool `sa-east-1_GYBppGGE1`, plano **Essentials**), com dados fictícios e um usuário de teste. Onde esta seção diz "Hosted UI", leia "o login do Cognito no UI clássico". Nada disto está no `template.yaml` ainda, e **o `dev` foi
 devolvido ao estado original ao fim dos testes** (ver "Estado do `dev` depois dos testes").
 
 **Confirmado**
@@ -88,11 +88,11 @@ devolvido ao estado original ao fim dos testes** (ver "Estado do `dev` depois do
 - Para esses testes o cliente do `dev` teve, à mão, o escopo marcado no console e o `ALLOW_USER_PASSWORD_AUTH` habilitado para o login direto. Ambos já foram removidos; o escopo entra pelo `template.yaml`, na Fase 2 do plan, como "permitido" no cliente.
 
 **Descoberto no teste (vale para o plano)**
-- O Hosted UI guarda uma **sessão própria por cookie no navegador do aparelho**. Com ela ativa, o Cognito mostra "continuar com este usuário ou trocar" e pode devolver o login **sem pedir senha nem código**.
+- O login do Cognito guarda uma **sessão própria por cookie no navegador do aparelho** (no UI clássico e também no Managed login). Com ela ativa, o Cognito mostra "continuar com este usuário ou trocar" e pode devolver o login **sem pedir senha nem código**.
 - Um teste com o login do navegador pareceu "não pedir o código" porque foi feito com o usuário **sem** MFA. Em teste de MFA, confirme sempre qual usuário foi ligado (console do Cognito, Usuários, nome de usuário = `sub`).
 
 **Ainda não provado**
-- Que o segundo login **força a senha de novo** no Hosted UI (`prompt=login` ou `max_age`): é a premissa P2 do plan.
+- Que o segundo login **força a senha de novo** no Managed login (`prompt=login` ou `max_age`): é a premissa P2 do plan.
 - O login do **app Android** com o escopo novo no pedido. A diferença é só uma palavra a mais no endereço, sem efeito esperado; **não se faz um teste à parte**, acontece na verificação da implementação.
 - Que a mudança no `template.yaml` (`MfaConfiguration` e escopo do cliente) **não substitui o pool nem o cliente**: só o changeset do deploy mostra.
 - Que a Lambda comum consegue desligar o MFA de uma pessoa (`AdminSetUserMFAPreference`) com permissão mínima.
@@ -117,7 +117,7 @@ Testado à mão, sem mudar código: estilo padrão do Cognito para o cliente (`c
 - No navegador, voltar depois de logado mostra a tela de "continuar com este usuário ou trocar" (a sessão por cookie do Cognito, já registrada acima); no app a sessão não se perde.
 - Com o Managed login, a tela de login demorou a responder em um dos testes (mais de 4 minutos até o retorno ao ouvinte local); não ficou claro se foi o Cognito ou o tempo da pessoa. Vale medir de novo na implementação.
 
-**Conclusão:** nos testes, o Managed login faz o mesmo que o UI clássico para o MFA, então ele **pode** ser a tela de login quando o dono decidir mudar o visual; a escolha continua sendo outra entrega, com demo própria (guardrails), e esta entrega não depende dela.
+**Conclusão:** nos testes, o Managed login faz o mesmo que o UI clássico para o MFA. **O dono decidiu adotá-lo nesta entrega (2026-11-19).** O visual novo do login é mudança de tela e precisa de demo aprovada antes do código (guardrails).
 
 ## Pronto quando
 

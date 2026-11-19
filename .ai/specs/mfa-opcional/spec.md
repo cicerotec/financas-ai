@@ -12,6 +12,7 @@ Itens marcados **[PENDENTE]** dependem de uma verificação no `dev` ou de uma d
 
 - **R1.** O `UserPool` define `MfaConfiguration: OPTIONAL` e `EnabledMfas: [SOFTWARE_TOKEN_MFA]`. Não há SMS nem MFA por e-mail. Nenhuma outra propriedade do pool muda.
 - **R2.** O `UserPoolClient` passa a **permitir** `aws.cognito.signin.user.admin` em `AllowedOAuthScopes`, junto de `openid` e `email`. `ExplicitAuthFlows` continua `[ALLOW_REFRESH_TOKEN_AUTH]`, sem nenhum fluxo de senha. `CallbackURLs`, `LogoutURLs` e o resto do cliente não mudam. (P1)
+- **R2a.** O `UserPoolDomain` define `ManagedLoginVersion: 2` e existe um estilo de marca (`AWS::Cognito::ManagedLoginBranding`) ligado ao cliente, com o visual aprovado na demo (logo, cores, fundo, claro e escuro). O nome do domínio e o endereço de login **não mudam**; o app, o fluxo `code` com PKCE e as URLs de retorno continuam os mesmos.
 - **R3.** O changeset do deploy no `dev` mostra só **modificação de propriedade**, sem `Replacement: True` no pool, no cliente nem no domínio. Se mostrar substituição, **para-se** e a decisão volta ao dono; o deploy já barra substituição do login.
 - **R4.** A **validação do token não muda**: `auth/token.go` segue validando só o ID token, e nenhuma rota existente muda de ação. O backend só ganha as duas rotas da lista de códigos (R25 a R32), cada uma com ação própria em `auth/authz.go`; qualquer rota sem ação continua `404` e o que não está liberado continua negado. (P7)
 - **R5.** Antes do merge da Fase 2, confere-se que a role do Actions de cada ambiente (`infra/github-oidc.yaml`) tem as permissões que o deploy dessas propriedades exige; se faltar, atualiza-se **antes** do merge.
@@ -20,7 +21,7 @@ Itens marcados **[PENDENTE]** dependem de uma verificação no `dev` ou de uma d
 ### Sessão (`web/js/sessao.js`, Fase 4)
 
 - **R7.** O **login normal** continua pedindo exatamente `openid email`. Nenhum caminho do login normal pede `aws.cognito.signin.user.admin`. (P6)
-- **R8.** A seção do MFA obtém o access token por um **segundo login**, que pede `openid email aws.cognito.signin.user.admin`, com PKCE e `state` novos a cada vez. O segundo login **exige que a pessoa prove de novo quem é** (senha e, se tiver MFA, o código). **[PENDENTE]** O parâmetro que força isso no Hosted UI (`prompt=login` ou `max_age`) não foi provado: se o Cognito reaproveitar a sessão por cookie, esta regra não pode ser cumprida e a decisão volta ao dono. (P2)
+- **R8.** A seção do MFA obtém o access token por um **segundo login**, que pede `openid email aws.cognito.signin.user.admin`, com PKCE e `state` novos a cada vez. O segundo login **exige que a pessoa prove de novo quem é** (senha e, se tiver MFA, o código). **[PENDENTE]** O parâmetro que força isso no Managed login (`prompt=login` ou `max_age`) não foi provado: se o Cognito reaproveitar a sessão por cookie, esta regra não pode ser cumprida e a decisão volta ao dono. (P2)
 - **R9.** O access token do segundo login vive **só em memória**: não vai a `localStorage`, `sessionStorage`, ao `Cofre` do Android nem a nenhum outro módulo. É descartado ao fechar a seção, ao sair da conta e ao expirar. (P3)
 - **R10.** O segundo login **não substitui a sessão do app**: o ID token e o refresh token do login normal continuam como estavam, e os tokens do segundo login (inclusive ID e refresh) são descartados, exceto o access token de R9.
 - **R11.** Cancelar o segundo login (voltar, fechar a aba do sistema, erro do Cognito) deixa o app **logado, como estava**, e a seção volta ao estado de antes, sem MFA alterado.
@@ -56,7 +57,7 @@ Itens marcados **[PENDENTE]** dependem de uma verificação no `dev` ou de uma d
 - **R30.** Um código só vale para o usuário (`sub`) a que foi gerado; o código de uma pessoa **nunca** desliga o MFA de outra, mesmo com e-mail parecido ou alias. (P10)
 - **R31.** A rota pública **só desliga o MFA**: nunca cria sessão, nunca devolve token e nunca altera a senha. A entrada continua exigindo a senha pelo login do Cognito. (P9)
 - **R32.** A Lambda ganha **uma** permissão nova no Cognito, `AdminSetUserMFAPreference` (mais a leitura mínima para achar a pessoa pelo e-mail), **sobre o próprio pool**; as roles do Actions são atualizadas **antes** do merge. Nenhum log escreve código, e-mail nem corpo.
-- **R33.** A **tela de recuperação** (sem login) pede e-mail e um código, chama `POST /mfa/recuperar` e mostra só o que o servidor devolve: no sucesso, "MFA desligado; entre com e-mail e senha"; no erro, uma mensagem genérica na própria tela. Ela fica **fora do Hosted UI**: na abertura do app Android, ao lado do "Entrar", e por um endereço próprio no navegador e no PWA. O front **não decide** nada sobre o código (não confere, não conta tentativas). Segue a demo aprovada (R24) e o botão voltar (R22).
+- **R33.** A **tela de recuperação** (sem login) pede e-mail e um código, chama `POST /mfa/recuperar` e mostra só o que o servidor devolve: no sucesso, "MFA desligado; entre com e-mail e senha"; no erro, uma mensagem genérica na própria tela. Ela fica **fora do login do Cognito**: na abertura do app Android, ao lado do "Entrar", e por um endereço próprio no navegador e no PWA. O front **não decide** nada sobre o código (não confere, não conta tentativas). Segue a demo aprovada (R24) e o botão voltar (R22).
 ## Testes
 
 Cada um falha antes da mudança. Os de front são `web/<nome>.test.js` (o CI roda todos); os de infra são conferidos por `sam validate --lint` e pelo changeset.
@@ -64,6 +65,7 @@ Cada um falha antes da mudança. Os de front são `web/<nome>.test.js` (o CI rod
 | Id | O que prova |
 |---|---|
 | M-T1 | O `template.yaml` tem `MfaConfiguration: OPTIONAL` e `EnabledMfas: [SOFTWARE_TOKEN_MFA]`, sem SMS (R1) |
+| M-T1a | O domínio tem `ManagedLoginVersion: 2` e o estilo de marca está ligado ao cliente; o nome do domínio e as URLs de retorno não mudaram (R2a) |
 | M-T2 | O cliente **permite** o escopo novo, **não** lista fluxo de senha, e não perde as URLs de retorno (R2) |
 | M-T3 | A validação de `token.go` não mudou e nenhuma rota existente trocou de ação; as duas rotas novas têm ação própria em `authz.go`; `go vet ./...`, `go test ./...` e `arquitetura_test.go` passam (R4) |
 | M-T4 | O pedido de login normal tem o escopo `openid email` e **não** tem `aws.cognito.signin.user.admin` (R7) |
@@ -99,7 +101,7 @@ Cada um falha antes da mudança. Os de front são `web/<nome>.test.js` (o CI rod
 ## Verificação no `dev`
 
 1. Deploy da Fase 2 no `financas-dev` e **changeset conferido a olho**: só modificação de propriedade (R3). O pool e o cliente do `dev` foram **devolvidos ao original** em 2026-11-19; o primeiro deploy deve mostrar `MfaConfiguration` e o escopo como mudança.
-2. **P2:** com uma sessão do Hosted UI ativa, o segundo login pede senha de novo? Testar `prompt=login` e `max_age`. Sem isso, decidir com o dono antes da Fase 3 (R8).
+2. **P2:** com uma sessão do login do Cognito ativa, o segundo login pede senha de novo? Testar `prompt=login` e `max_age`. Sem isso, decidir com o dono antes da Fase 3 (R8).
 3. App do `dev` instalado com o front novo (`scripts/instalar-app-android.ps1 -Ambiente dev`) e o navegador: ligar com o autenticador do celular, sair, entrar pedindo o código, desligar.
 4. **Android:** o segundo login com o escopo novo na aba do sistema, e os dois casos de voltar (antes da senha e antes do código).
 5. **Recuperação:** com o MFA ligado e sem o autenticador, um código da lista, na tela de recuperação, desliga o MFA; o mesmo código não funciona de novo; a pessoa entra com e-mail e senha e liga de novo com uma lista nova. No navegador, no PWA e no app Android.
@@ -108,4 +110,4 @@ Cada um falha antes da mudança. Os de front são `web/<nome>.test.js` (o CI rod
 
 ## Fora do escopo
 
-Recuperação por e-mail, por prazo ou por perguntas de segurança, Managed login e branding, passkey, SMS, MFA por e-mail, MFA obrigatório, login social e qualquer caminho para quem perdeu o autenticador **e** a lista (ver `intent.md`).
+Recuperação por e-mail, por prazo ou por perguntas de segurança, layout ou textos próprios no login (o Managed login só aceita marca), passkey, SMS, MFA por e-mail, MFA obrigatório, login social e qualquer caminho para quem perdeu o autenticador **e** a lista (ver `intent.md`).
