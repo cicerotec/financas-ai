@@ -105,6 +105,20 @@ devolvido ao estado original ao fim dos testes** (ver "Estado do `dev` depois do
 - O pool de produção (`financas`) nunca foi tocado.
 - O primeiro deploy da Fase 2 deve mostrar `MfaConfiguration` e o escopo do cliente como mudança de propriedade.
 
+## O Managed login também foi testado no `dev` (2026-11-19)
+
+Testado à mão, sem mudar código: estilo padrão do Cognito para o cliente (`create-managed-login-branding --use-cognito-provided-values`) e o domínio passado para a versão 2 (`update-user-pool-domain --managed-login-version 2`). Segundo a documentação da AWS, essa troca é uma **atualização no lugar** (não recria o domínio) e leva até 1 minuto; no `template.yaml` ainda se confere no changeset. Depois dos testes o `dev` é devolvido ao original (domínio na versão 1, escopo removido, MFA do usuário desligado, pool em `OFF`).
+
+**Confirmado no navegador e no app Android do `dev`**
+- Usuário **sem MFA** entra só com e-mail e senha; usuário **com MFA** recebe o pedido do código depois da senha e, com o código certo, entra.
+- Voltar **antes da senha** e **depois da senha** leva de volta à tela de senha; no app, a sessão não se perde indevidamente.
+- O cadastro e a ligação do TOTP com o token do login do Managed login (`AssociateSoftwareToken`, `VerifySoftwareToken`, `SetUserMFAPreference`) funcionam com o escopo `aws.cognito.signin.user.admin` e o retorno em `http://localhost:8080/`.
+- Alterar a senha funciona com e sem MFA, e o "esqueci a senha" existe (o e-mail de recuperação **não** foi enviado no teste).
+- No navegador, voltar depois de logado mostra a tela de "continuar com este usuário ou trocar" (a sessão por cookie do Cognito, já registrada acima); no app a sessão não se perde.
+- Com o Managed login, a tela de login demorou a responder em um dos testes (mais de 4 minutos até o retorno ao ouvinte local); não ficou claro se foi o Cognito ou o tempo da pessoa. Vale medir de novo na implementação.
+
+**Conclusão:** nos testes, o Managed login faz o mesmo que o UI clássico para o MFA, então ele **pode** ser a tela de login quando o dono decidir mudar o visual; a escolha continua sendo outra entrega, com demo própria (guardrails), e esta entrega não depende dela.
+
 ## Pronto quando
 
 - No `dev`, uma pessoa liga o MFA em Listas, recebe a lista de códigos com a frase em destaque, confirma que leu, sai, entra de novo e o Cognito pede o código do aplicativo; sem o código não entra.
