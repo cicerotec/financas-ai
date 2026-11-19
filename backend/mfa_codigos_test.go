@@ -305,7 +305,7 @@ func TestGerarComFonteFixaEDeterministico(t *testing.T) {
 	f := cenario(t)
 	_ = f
 	mk := func() doc {
-		svc := service.NewCodigosDeRecuperacao(&repoCodigosMudo{}, relogioTeste)
+		svc := service.NewCodigosDeRecuperacao(&repoCodigosMudo{}, nil, relogioTeste)
 		svc.UsarFonte(mrand.New(mrand.NewSource(7)))
 		r, err := svc.Gerar(context.Background(), "ana")
 		if err != nil {
@@ -337,7 +337,7 @@ func (fonteQueRepete) Read(p []byte) (int, error) {
 }
 
 func TestGerarComFonteQueRepeteNaoPrende(t *testing.T) {
-	svc := service.NewCodigosDeRecuperacao(&repoCodigosMudo{}, relogioTeste)
+	svc := service.NewCodigosDeRecuperacao(&repoCodigosMudo{}, nil, relogioTeste)
 	svc.UsarFonte(fonteQueRepete{})
 	feito := make(chan error, 1)
 	go func() { _, err := svc.Gerar(context.Background(), "ana"); feito <- err }()

@@ -35,12 +35,13 @@ type RepositorioRecuperacao interface {
 type Recuperacao struct {
 	id      Identidade
 	repo    RepositorioRecuperacao
+	avisos  Avisador // avisa a pessoa pelo canal que ja tem ligado (R35); pode ser nil
 	rel     Relogio
 	limites *LimitadorRecuperacao
 }
 
-func NewRecuperacao(id Identidade, repo RepositorioRecuperacao, rel Relogio) *Recuperacao {
-	return &Recuperacao{id: id, repo: repo, rel: rel, limites: NewLimitadorRecuperacao()}
+func NewRecuperacao(id Identidade, repo RepositorioRecuperacao, avisos Avisador, rel Relogio) *Recuperacao {
+	return &Recuperacao{id: id, repo: repo, avisos: avisos, rel: rel, limites: NewLimitadorRecuperacao()}
 }
 
 // Recuperar tenta desligar o MFA da pessoa do e-mail com um codigo da lista ativa. origem e o IP de quem chamou (SourceIP, nunca cabecalho).
@@ -116,5 +117,8 @@ func (s *Recuperacao) Recuperar(ctx context.Context, origem, email, codigo strin
 		log.Println("recuperacao: falha ao apagar a lista usada")
 	}
 	s.limites.ZerarPar(par)
+	if s.avisos != nil { // o aviso e de melhor esforco e nunca muda a resposta (R28, R35): quem fez a chamada recebe sempre o mesmo
+		s.avisos.Avisar(ctx, p.Sub, domain.MensagemMFADesligado) // a pessoa e a achada no login (o sub), nunca o e-mail do corpo
+	}
 	return nil
 }

@@ -75,6 +75,15 @@ func TextoDoPush(c domain.ContagemAvisos) (titulo, corpo string) {
 	return titulo, strings.Join(partes, " · ")
 }
 
+// textoDaNotificacao e o titulo e o corpo de um resumo: so as contagens e, no aviso de seguranca (spec mfa-opcional, R35), o texto fixo, sem dado nenhum.
+func textoDaNotificacao(r domain.ResumoAvisos) (titulo, corpo string) {
+	titulo, corpo = TextoDoPush(domain.Contagens(r))
+	if r.Mensagem != "" {
+		corpo = r.Mensagem
+	}
+	return titulo, corpo
+}
+
 var codigoDoFCM = regexp.MustCompile(`^[A-Z_]{1,40}$`)
 
 // Enviar manda a notificacao ao aparelho (token). 404 UNREGISTERED e o aparelho que saiu: ErrDestinoInvalido.
@@ -83,7 +92,7 @@ func (f *FCM) Enviar(ctx context.Context, token string, r domain.ResumoAvisos) e
 	if err != nil {
 		return err
 	}
-	titulo, corpoTxt := TextoDoPush(domain.Contagens(r))
+	titulo, corpoTxt := textoDaNotificacao(r)
 	corpo, _ := json.Marshal(map[string]any{"message": map[string]any{
 		"token":        token,
 		"notification": map[string]any{"title": titulo, "body": corpoTxt},

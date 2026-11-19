@@ -24,13 +24,14 @@ type RepositorioCodigos interface {
 // CodigosDeRecuperacao gera e confirma a lista de codigos de recuperacao. O sub vem SEMPRE do token de quem chama, nunca do corpo.
 // O codigo em texto so existe na resposta de Gerar: nunca e gravado nem logado.
 type CodigosDeRecuperacao struct {
-	repo  RepositorioCodigos
-	rel   Relogio
-	fonte io.Reader // bytes aleatorios; crypto/rand em producao
+	repo   RepositorioCodigos
+	avisos Avisador // avisa a pessoa pelo canal que ja tem ligado (R35); pode ser nil
+	rel    Relogio
+	fonte  io.Reader // bytes aleatorios; crypto/rand em producao
 }
 
-func NewCodigosDeRecuperacao(repo RepositorioCodigos, rel Relogio) *CodigosDeRecuperacao {
-	return &CodigosDeRecuperacao{repo: repo, rel: rel, fonte: rand.Reader}
+func NewCodigosDeRecuperacao(repo RepositorioCodigos, avisos Avisador, rel Relogio) *CodigosDeRecuperacao {
+	return &CodigosDeRecuperacao{repo: repo, avisos: avisos, rel: rel, fonte: rand.Reader}
 }
 
 // UsarFonte troca a fonte de bytes aleatorios (so para os testes serem deterministicos).
@@ -86,6 +87,9 @@ func (s *CodigosDeRecuperacao) Confirmar(ctx context.Context, sub string, body d
 	case err != nil:
 		log.Println("mfa codigos: confirmar:", err)
 		return nil, ErrSalvar
+	}
+	if s.avisos != nil { // o 200 do confirmar: "uma nova lista foi gerada" (NAO diz que o MFA foi ligado: ele so liga depois, na tela)
+		s.avisos.Avisar(ctx, sub, domain.MensagemListaGerada)
 	}
 	return domain.Doc{"ok": true}, nil
 }

@@ -324,8 +324,9 @@ func TestRotaPublicaNaoGastaATabelaSemConta(t *testing.T) {
 	// o sucesso grava so o necessario: marcar e apagar
 	c.db.zerar()
 	ok(t, "sucesso", c.recuperar("ana@exemplo.com", codigos[0], ipA))
-	if c.db.leituras != 1 || c.db.escritas != 2 {
-		t.Errorf("o sucesso custa 1 leitura e 2 escritas (marcar e apagar), veio %d e %d", c.db.leituras, c.db.escritas)
+	// 1 leitura da lista + 1 consulta dos espacos para o aviso (R35; mais 1 leitura por espaco da pessoa, aqui nenhum) e 2 escritas (marcar e apagar)
+	if c.db.leituras != 2 || c.db.escritas != 2 {
+		t.Errorf("o sucesso custa 2 leituras (lista e espacos do aviso) e 2 escritas (marcar e apagar), veio %d e %d", c.db.leituras, c.db.escritas)
 	}
 }
 
