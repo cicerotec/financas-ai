@@ -26,8 +26,9 @@ que a própria pessoa use, sem o dono.**
    ao autenticador, ela digita **um código da lista** numa tela nossa, sem login, e o MFA dela **desliga**; depois entra só com e-mail e senha e pode ligar de novo, com uma lista nova.
    **O código sozinho não dá entrada**: só desliga o MFA, e a entrada continua exigindo a senha pelo login do Cognito.
 6. **A frase que a pessoa vê, em destaque, junto da lista, e confirma que leu antes de o MFA ficar ligado:** **"SE PERDER A LISTA, PERDE O ACESSO."** Mais: a lista precisa ser guardada num
-   lugar seguro, **separado do autenticador** (um gerenciador de senhas diferente, papel em local protegido, cofre). Perder o acesso ao autenticador **e** a lista significa perder a conta, **sem volta**,
-   mesmo sabendo a senha: nem o dono nem o app conseguem devolvê-la.
+   lugar seguro, **separado do autenticador** (um gerenciador de senhas diferente, papel em local protegido, cofre). Perder o acesso ao autenticador **e** a lista significa, **para a pessoa e para o app, perder a conta**,
+   mesmo sabendo a senha: o app não oferece nenhum outro caminho, e a tela **não promete nada além disso** (nem cita o dono nem um "último recurso"). O dono, por ser administrador da conta AWS, **pode** desligar o MFA de uma
+   pessoa por fora do app, pelo console da AWS, como último recurso (decisão D1, abaixo); isso **não é uma promessa feita a quem usa o app**, e o passo a passo fica **fora do git** (o repositório é público).
 7. O backend **não muda a validação do token**: continua validando só o ID token, como em `auth/token.go`. A geração da lista tem uma rota autenticada nova, e o uso de um código tem uma rota
    pública nova (a pessoa que perdeu o autenticador não tem sessão); as duas ganham ação própria em `auth/authz.go`.
 
@@ -35,12 +36,19 @@ que a própria pessoa use, sem o dono.**
 
 - MFA **opcional para todos**, não obrigatório.
 - **TOTP**, sem SMS (o SMS é cobrado à parte pelo SNS e tem troca de chip e interceptação como pontos fracos).
-- **A recuperação é da própria pessoa, sem o dono**, e é a **lista de códigos**. Não é por código no e-mail (vale tanto quanto a conta de e-mail, e quem a invade e tem a senha entra), não é por
+- **A recuperação que o app oferece é da própria pessoa, sem o dono**, e é a **lista de códigos**. Não é por código no e-mail (vale tanto quanto a conta de e-mail, e quem a invade e tem a senha entra), não é por
   perguntas de segurança (respostas adivinháveis; quase ninguém preenche) e **não é por prazo**.
 - **Tela do Cognito, não tela de login própria**: uma tela própria faria a senha passar pelo nosso código e exigiria habilitar fluxos de senha no `UserPoolClient`.
 - **O login passa para o Managed login nesta entrega** (dono, 2026-11-19, depois dos testes no `dev`). O pool `financas` já está no plano **Essentials** (visto no console em 2026-11-18); o
   `financas-dev` também. O domínio hoje está em "UI hospedada (clássica)" e passa à versão 2, com um estilo de marca (logo, cores e fundo) por cliente. O layout e o fluxo continuam sendo do Cognito.
 - O login normal **não muda**; o escopo `aws.cognito.signin.user.admin` é pedido só num segundo login, ao abrir a seção do MFA (decisão confirmada em 2026-11-19, ver `plan.md`).
+- **Decisões da revisão (dono, 2026-11-19; detalhe em `plan.md`, "Decisões do dono"):**
+  - **D1:** o texto de impossibilidade sai. O app não oferece caminho para quem perdeu o autenticador e a lista; o dono pode, por fora do app, desligar o MFA pelo console como último recurso, e o passo a passo fica fora do git. A frase da tela é regra de produto.
+  - **D2:** registrar o risco (um script injetado na seção do MFA pode ligar o MFA com o autenticador do atacante e deixar a vítima sem saída) e o último recurso do dono (D1). Fica em `security.md`.
+  - **D3:** avisar a pessoa quando o MFA mudar, **pelo canal que ela já tem ligado** (Telegram ou push), sem prometer entrega a quem não tem.
+  - **D4:** como a pessoa guarda a lista decide-se na demo da Fase 1; a inclinação é Copiar tudo (gesto explícito) e Imprimir.
+  - **D5:** se a seção mostra que há lista válida (um `GET`) ainda não está decidido; a inclinação é incluir.
+  - **D6:** HMAC com pepper ou hash lento fica para a conversa do DynamoDB.
 
 ## Dado novo no DynamoDB (o dono discute antes de qualquer código)
 
@@ -60,7 +68,7 @@ A pessoa que perdeu o autenticador **não tem token**, então a rota é pública
 
 ## Limites (o que fica de fora)
 
-- **Perder o autenticador e a lista ao mesmo tempo:** a conta se perde, sem volta (item 6). Sem o dono e sem suporte, não há outro caminho; por isso a frase em destaque é parte da entrega.
+- **Perder o autenticador e a lista ao mesmo tempo:** **o app não oferece caminho** (item 6): para quem usa, a conta se perde, mesmo sabendo a senha. O dono pode, por fora do app, desligar o MFA pelo console da AWS como último recurso (D1); **não é suporte, não é promessa e não aparece na tela**, e o passo a passo fica fora do git. Por isso a frase em destaque é parte da entrega.
 - Um login com **layout ou textos próprios**: o Managed login só aceita marca (logo, cores, fundo, modo escuro); o layout e o fluxo são do Cognito.
 - Login social, SMS, MFA por e-mail do Cognito, perguntas de segurança, recuperação por e-mail e MFA obrigatório para todos.
 - Quem **não liga** o MFA continua com só senha: opcional significa que uma senha vazada ainda basta para ele.
