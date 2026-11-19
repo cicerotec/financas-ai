@@ -8,6 +8,7 @@ feito e ideias).
 | [`guardrails.md`](guardrails.md) | Regras que valem para toda tarefa (arquitetura, telas, git, segurança, testes) |
 | [`arquitetura.md`](arquitetura.md) | Camadas, regras no servidor, histórico imutável, domínio do cartão |
 | [`security.md`](security.md) | Autenticação, papéis e permissões, dados, segredos, infraestrutura e pontos em aberto |
+| [`api.md`](api.md) | Índice das rotas de hoje, uma linha por rota (ação, owner, member, token e a spec de origem); o teste `backend/api_doc_test.go` o compara com o código e falha o `go test ./...` se divergirem. Desenho: [`bmad/api-indice/`](bmad/api-indice/README.md) |
 | [`privacidade-e-cifragem.md`](privacidade-e-cifragem.md) | Ideia para o futuro: cifrar os valores no DynamoDB (envelope encryption com KMS) para que nenhuma pessoa os veja ao consultar o banco; o service continua decifrando e calculando (nada decidido) |
 | [`decisoes.md`](decisoes.md) | Decisões de produto fechadas e descartadas |
 | [`bmad/`](bmad/README.md) | Documentos aprovados que os agentes do metodo-ai (BMad) produziram para este projeto, como as premissas de arquitetura; `guardrails.md`, `arquitetura.md` e `decisoes.md` prevalecem |

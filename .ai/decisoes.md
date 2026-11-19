@@ -86,6 +86,14 @@ Pedido do dono: "Cartão" era genérico e se confundia. Demos aprovadas: `demo-c
 - **Custo aceito:** no cabeçalho do celular o título corta com reticências até 390 px de tela ("Cartão de créd…") e cabe inteiro a partir de 412 px; em Configurações, em 320 e 360 px o título da seção quebra em duas linhas e o resumo corta. Um título curto só para o celular foi oferecido e não foi escolhido.
 - **Ajuste de 2026-11-09 (pedido do dono):** o `BACKLOG.md` passou a dizer "Cartão de crédito" onde cita a aba, e cada demo-padrão ganhou a versão seguinte com o assunto `nome` (só o nome da aba; lista em `padrao-de-telas.md`). As specs, as versões anteriores das demos, as explorações e `demos/arquivo/` continuam com "Cartão", como registro da época.
 
+## Todo spec nasce com a seção API (2026-11-19)
+Pedido do dono, registrado em [`guardrails.md`](guardrails.md) ("Roteiros (intent, plan e spec)").
+- **Regra:** todo `spec.md` de uma feature que cria, muda ou remove uma rota nasce com uma seção **"API"** (antes de "Testes"), com método, caminho, corpo, resposta e todos os status, a ação em `auth/authz.go`, quem pode chamar e o rótulo no log.
+- **Motivo:** não há gateway nem documento central de rotas, então o contrato de cada rota vive no spec da feature que a criou, e a seção é a **prova das rotas**. Um documento com todas as rotas ficou **para depois**.
+- **Modelo:** a seção "API" de [`specs/mfa-opcional/spec.md`](specs/mfa-opcional/spec.md).
+- **Índice único das rotas (aprovado pelo dono em 2026-11-19):** como o contrato de cada rota vive no spec da sua feature, falta uma visão única do que existe hoje. [`api.md`](api.md) é essa visão, **uma linha por rota** (ação em `auth/authz.go`, owner, member, token e a spec de origem), e **toda rota criada, mudada ou removida muda uma linha dele no mesmo PR**. O teste `backend/api_doc_test.go` compara o índice com o código (a mesma função `rotular` que dá o rótulo do log) e **falha o `go test ./...`**, e por isso o CI e o deploy, se uma rota existir sem linha, se a linha não existir no código ou se a ação ou a decisão de papel divergirem de `auth.Permitido`.
+- **O que o índice não faz:** não documenta corpo nem resposta (isso é a seção "API" do spec), não cobre os eventos do EventBridge (`avisos`, `combos`, que não são rotas) e não gera OpenAPI nem coleção do Postman. Desenho, limites e como o teste foi conferido: [`bmad/api-indice/`](bmad/api-indice/README.md).
+
 ## Outras decisões
 - Descartado: bloquear duplicidade por conteúdo (a mesma compra pode ter outro horário e outra descrição).
 - Atualização da tela por gatilho (foco da aba, troca de aba, antes de salvar, botão Atualizar, checagem lenta de 3 a
