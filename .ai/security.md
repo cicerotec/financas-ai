@@ -13,7 +13,7 @@ Dados financeiros de uma família (lançamentos, saldos, cartões, notas) e o ac
   (`scripts/seed.sh`). Login com e-mail, senha de no mínimo 10 caracteres com minúscula, maiúscula e número.
 - **Fluxo `code` com PKCE** (Hosted UI), sem segredo no cliente. Escopos `openid` e `email`.
 - **Tokens:** ID token e access token de 60 minutos; refresh token de 30 dias.
-- **Onde o token fica** (`web/js/sessao.js`, item 54 fase 2). **Navegador e PWA:** em `localStorage` (`financas.auth`), como sempre; é o ponto em aberto do item 18.
+- **Onde o token fica** (`web/js/sessao.js`, item 54 fase 2). **Navegador e PWA:** em `localStorage` (`financas.auth`), como sempre; é o ponto em aberto do item 18. **Sem sessão, o navegador e a PWA mostram a tela de entrada e o login só abre no toque em "Entrar"** (R33a do `mfa-opcional`, 2026-11-19; antes iam direto ao login). **O access token do segundo login do MFA fica só em memória** (`web/js/sessao.js`; nunca em `localStorage`, `sessionStorage` nem no `Cofre`), o ID token e o refresh desse login são descartados e o refresh é revogado na troca.
   **App Android:** o login abre na **aba do sistema** (Custom Tabs; a WebView nunca vê a senha) e só no toque em "Entrar"; o **refresh token** fica no plugin
   `Cofre` (`app-android/.../CofrePlugin.java`), cifrado com AES-GCM por uma chave do **Android Keystore** que nunca sai dele, num arquivo fora do backup
   (`allowBackup="false"` e regras de extração); o **ID token fica só em memória**; nada vai a `localStorage` nem a `sessionStorage`. O `verifier` e o `state` do PKCE
