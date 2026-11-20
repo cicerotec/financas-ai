@@ -62,6 +62,9 @@ Resources:
       AdminCreateUserConfig: { AllowAdminCreateUserOnly: true }   # sem auto cadastro: voce convida
       Policies:
         PasswordPolicy: { MinimumLength: 10, RequireLowercase: true, RequireUppercase: true, RequireNumbers: true, RequireSymbols: false }
+      # MFA opcional (spec mfa-opcional, R1 e R6): so aplicativo autenticador (TOTP), sem SMS. Nunca ON: quem nao cadastrou autenticador nao entraria.
+      MfaConfiguration: OPTIONAL
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
 
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
@@ -70,7 +73,8 @@ Resources:
       GenerateSecret: false
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows: [code]
-      AllowedOAuthScopes: [openid, email]
+      # O escopo de autoatendimento so e PERMITIDO aqui; o app so o PEDE no segundo login da secao do MFA (spec mfa-opcional, R2, R7 e R8).
+      AllowedOAuthScopes: [openid, email, aws.cognito.signin.user.admin]
       SupportedIdentityProviders: [COGNITO]
       CallbackURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/', !If [EhDev, 'br.com.cicerotec.financas.dev://auth', 'br.com.cicerotec.financas://auth']]
       LogoutURLs: [!Sub '${FrontOrigin}/', !Sub 'https://${Distribution.DomainName}/', !If [EhDev, 'br.com.cicerotec.financas.dev://auth', 'br.com.cicerotec.financas://auth']]
@@ -85,6 +89,16 @@ Resources:
     Properties:
       UserPoolId: !Ref UserPool
       Domain: !Ref CognitoDomainPrefix
+      ManagedLoginVersion: 2            # Managed login (spec mfa-opcional, R2a): atualizacao no lugar, o dominio e o endereco de login nao mudam
+
+  # Estilo de marca do Managed login. Comeca com os valores do Cognito; logo, cores e fundo entram depois da demo aprovada.
+  UserPoolBranding:
+    Type: AWS::Cognito::ManagedLoginBranding
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientId: !Ref UserPoolClient
+      UseCognitoProvidedValues: true
+    DependsOn: UserPoolDomain
 
   ApiLogs:
     Type: AWS::Logs::LogGroup

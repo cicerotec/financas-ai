@@ -69,7 +69,7 @@ A pessoa que perdeu o autenticador **não tem token**, então a rota é pública
 ## Limites (o que fica de fora)
 
 - **Perder o autenticador e a lista ao mesmo tempo:** **o app não oferece caminho** (item 6): para quem usa, a conta se perde, mesmo sabendo a senha. O dono pode, por fora do app, desligar o MFA pelo console da AWS como último recurso (D1); **não é suporte, não é promessa e não aparece na tela**, e o passo a passo fica fora do git. Por isso a frase em destaque é parte da entrega.
-- Um login com **layout ou textos próprios**: o Managed login só aceita marca (logo, cores, fundo, modo escuro); o layout e o fluxo são do Cognito.
+- Um login com **layout ou textos próprios**: o Managed login só aceita marca (logo, cores, fundo, modo escuro); o layout e o fluxo são do Cognito. **Por isso a recuperação não está no login:** a entrada é a tela de entrada do app ("Entrar" e "Perdi o autenticador"), que o **navegador e o PWA passam a mostrar** antes do login, como o app Android já faz (decisão do dono, 2026-11-19; custo: um toque a mais para entrar pelo navegador).
 - Login social, SMS, MFA por e-mail do Cognito, perguntas de segurança, recuperação por e-mail e MFA obrigatório para todos.
 - Quem **não liga** o MFA continua com só senha: opcional significa que uma senha vazada ainda basta para ele.
 - **A sessão do login do Cognito no navegador do aparelho** (cookie, cerca de 1 hora, não confirmado no pool) pode devolver o login sem senha e sem código; sair do app não a encerra. O MFA protege o login novo, não o

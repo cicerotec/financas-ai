@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Confere o changeset pendente da stack e FALHA se ele remover ou substituir a tabela do DynamoDB ou o pool de login
+# Confere o changeset pendente da stack e FALHA se ele remover ou substituir a tabela do DynamoDB ou o pool, o cliente e o dominio de login
 # (Cognito): os dois guardam dados que nao se recriam. Imprime changeset=<nome> (vai para $GITHUB_OUTPUT no Actions);
 # vazio quando nao ha mudanca. Uso: scripts/verificar-changeset.sh <stack>
 set -euo pipefail
@@ -19,7 +19,7 @@ echo "$json" | jq -r '.Changes[].ResourceChange | "\(.Action)\t\(.Replacement //
 
 perigosas=$(echo "$json" | jq -r '
   .Changes[].ResourceChange
-  | select(.ResourceType | IN("AWS::DynamoDB::Table", "AWS::Cognito::UserPool"))
+  | select(.ResourceType | IN("AWS::DynamoDB::Table", "AWS::Cognito::UserPool", "AWS::Cognito::UserPoolClient", "AWS::Cognito::UserPoolDomain"))
   | select(.Action == "Remove" or .Replacement == "True" or .Replacement == "Conditional")
   | "\(.Action) \(.Replacement // "-") \(.ResourceType) \(.LogicalResourceId)"')
 if [ -n "$perigosas" ]; then
