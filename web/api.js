@@ -131,6 +131,15 @@
     return respostaAparelho(await api('POST', '/push/sair', { token }), 'removidos');
   }
 
+  // Verificacao em duas etapas (spec mfa-opcional, R25, R25a, R37). Rotas fora de /spaces: valem para a pessoa do token. O front so exibe o que o servidor devolve.
+  async function mfaEstado() { return (await api('GET', '/me/mfa')).body; }
+  async function mfaGerarLista() { return (await api('POST', '/me/mfa/codigos', {})).body; } // {listaId, codigos}: so aparece nesta resposta
+  async function mfaConfirmarLista(listaId) {
+    const r = await api('POST', '/me/mfa/codigos/confirmar', { listaId });
+    if (r.status === 409) { const e = new Error('lista_substituida'); e.code = 409; throw e; } // a lista foi trocada ou venceu
+    return true;
+  }
+
   // ---------- configuracoes (documentos) ----------
   // A aparencia e pessoal (cada pessoa a sua); o resto de config/listas e compartilhado.
   const PESSOAL = ['tema', 'statusCor', 'estiloCor', 'layoutSaldos', 'ordemSaldos', 'ordemManual'];
@@ -635,6 +644,9 @@
     telegramChatId: () => (ESPACO && ESPACO.telegramChatId) || '',
     definirTelegram,
     testarAviso,
+    mfaEstado,
+    mfaGerarLista,
+    mfaConfirmarLista,
     espacoId: () => (ESPACO ? ESPACO.id : ''),
     registrarAparelho,
     removerAparelho,

@@ -137,6 +137,22 @@ const teste = async (nome, fn) => {
     assert.strictEqual(app.includes('carregarConsultas'), false, 'o app.js (a subida) nao chama a leitura das consultas');
   });
 
+  await teste('a Segurança da conta so le GET /me/mfa quando Listas abre, nunca na subida (spec mfa-opcional R23, M-T19)', async () => {
+    const app = fs.readFileSync(path.join(__dirname, 'js', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
+    assert.deepStrictEqual(todas.filter((c) => c.includes('/me/mfa')), [], 'a subida nao tocou em /me/mfa');
+    const chamaEstado = app.split('\n').filter((l) => l.includes('entrouEmListas') || l.includes('mfaEstado'));
+    assert.strictEqual(chamaEstado.filter((l) => l.includes('entrouEmListas')).length, 1, 'so um lugar le o estado');
+    assert.ok(chamaEstado.some((l) => l.includes("t==='listas'") && l.includes('entrouEmListas')), 'e esse lugar e a abertura de Listas (irParaAba)');
+    const ini = app.indexOf('async function init()');
+    const initCorpo = app.slice(ini, app.indexOf('\n}\n', ini));
+    assert.strictEqual(initCorpo.includes('entrouEmListas'), false, 'o init (a subida) nao le o estado');
+    chamadas.length = 0;
+    await ctx.financasApi.mfaEstado();
+    await ctx.financasApi.mfaGerarLista();
+    await ctx.financasApi.mfaConfirmarLista('L1');
+    assert.deepStrictEqual(chamadas.splice(0), ['GET /me/mfa', 'POST /me/mfa/codigos', 'POST /me/mfa/codigos/confirmar']);
+  });
+
   if (falhas) process.exit(1);
   console.log('carga.test.js: ok');
 })();
