@@ -1259,3 +1259,14 @@ html.bloqueado header,html.bloqueado main,html.bloqueado .ab{visibility:hidden;}
 .mf-ck[aria-checked="true"] .mf-check{background:var(--accent);}
 .mf-ck[aria-checked="true"] .mf-check::after{content:"✓";}
 .seg-msg.ok{color:var(--accent);}
+/* Recuperar o acesso (sem login): fica acima da Abertura (200), que ainda cobre o app sem sessão; demo .ai/demos/demo-listas-v10-mfa.html */
+.mf-rec{z-index:210;}
+.mf-lb{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px;}
+.mf-lb:first-child{margin-top:0;}
+.mf-cod-lista{font:600 16px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;min-height:52px;text-transform:uppercase;}
+#mfRecEmail{min-height:52px;}
+.mf-corpo[hidden],.mf-rodape .primary[hidden]{display:none;}
+.mf-ok{text-align:center;}
+.mf-ok-ic{width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:28px;font-weight:700;margin:6px auto 10px;}
+.mf-ok p{margin-top:8px;}
+.ab-ent button.sec{background:transparent;color:var(--muted);min-height:44px;font-weight:500;}
