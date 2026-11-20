@@ -1153,6 +1153,7 @@ function ligarSegurancaConta(){
     agora: ()=>Date.now(),
     agoraISO: ()=>new Date().toISOString(),
     nomeDoApp: ()=>cfg.ambiente === 'dev' ? 'Finanças DEV' : 'Finanças',
+    nomeDaConta: ()=>{ const s = financasApi.sessao && financasApi.sessao(); return (s && s.nome) || ''; }, // o apelido ou a parte do e-mail antes do @ (nunca o e-mail)
     api: {estado: ()=>financasApi.mfaEstado(), gerar: ()=>financasApi.mfaGerarLista(), confirmar: id=>financasApi.mfaConfirmarLista(id)},
     mfa: ()=>carregarScript('js/mfa-cognito.js').then(()=>{ if(!window.MfaCognito) throw Object.assign(new Error('config'), {codigo:'config'}); return window.MfaCognito; }),
     qr: ()=>carregarScript('js/qr.js').then(()=>QR),

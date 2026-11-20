@@ -134,7 +134,7 @@ function criarSegurancaConta(env){
       const [mfa, qr] = await Promise.all([env.mfa(), env.qr()]);
       const { chave } = await mfa.associar(token);
       if($('mfLig').hidden) return; // fechou enquanto esperava
-      $('mfQr').innerHTML = qr.svg(mfa.uriOtpauth(chave, env.nomeDoApp())); // o QR e a chave, so neste aparelho e so nesta tela (R19)
+      $('mfQr').innerHTML = qr.svg(mfa.uriOtpauth(chave, env.nomeDoApp(), env.nomeDaConta())); // o QR e a chave, so neste aparelho e so nesta tela (R19)
       $('mfChave').textContent = mfa.formatarChave(chave);
       msg('mfLigMsg', '');
       $('mfCodigo').focus();

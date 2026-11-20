@@ -101,6 +101,17 @@ teste('R16, R19: a chave devolvida pelo Cognito e validada (base32) antes de vir
   assert.strictEqual(api.uriOtpauth('jbswy3dpehpk3pxp', 'Finanças'), 'otpauth://totp/Finan%C3%A7as?secret=JBSWY3DPEHPK3PXP&issuer=Finan%C3%A7as');
   assert.strictEqual(api.uriOtpauth('JBSWY3DPEHPK3PXP', 'Finanças DEV'), 'otpauth://totp/Finan%C3%A7as%20DEV?secret=JBSWY3DPEHPK3PXP&issuer=Finan%C3%A7as%20DEV');
   assert.ok(!/@/.test(api.uriOtpauth('JBSWY3DPEHPK3PXP')), 'R15: o texto do QR nunca leva e-mail');
+  // o autenticador mostra "App: nome": o nome da conta vem depois do app
+  assert.strictEqual(api.uriOtpauth('JBSWY3DPEHPK3PXP', 'Finanças DEV', 'cicero-dev'), 'otpauth://totp/Finan%C3%A7as%20DEV:cicero-dev?secret=JBSWY3DPEHPK3PXP&issuer=Finan%C3%A7as%20DEV');
+  assert.strictEqual(api.uriOtpauth('JBSWY3DPEHPK3PXP', 'Finanças', 'Ana Souza'), 'otpauth://totp/Finan%C3%A7as:Ana%20Souza?secret=JBSWY3DPEHPK3PXP&issuer=Finan%C3%A7as');
+  assert.strictEqual(api.uriOtpauth('JBSWY3DPEHPK3PXP', 'Finanças', ''), api.uriOtpauth('JBSWY3DPEHPK3PXP', 'Finanças'), 'sem nome, so o app');
+  for (const conta of ['ana@exemplo.com', 'ana@', '@exemplo.com']) {
+    const u = api.uriOtpauth('JBSWY3DPEHPK3PXP', 'Finanças', conta);
+    assert.ok(!/@|exemplo|\.com/.test(u), 'R15: nem um e-mail que escape do chamador chega ao QR: ' + u);
+  }
+  const longa = api.uriOtpauth('JBSWY3DPEHPK3PXP', 'Finanças', 'x'.repeat(200));
+  assert.ok(longa.length < 200, 'o nome e cortado');
+  assert.strictEqual(api.uriOtpauth('JBSWY3DPEHPK3PXP', 'Finanças', 'a:b:c'), 'otpauth://totp/Finan%C3%A7as:a%20b%20c?secret=JBSWY3DPEHPK3PXP&issuer=Finan%C3%A7as', 'dois pontos no nome nao quebram o rotulo');
   assert.strictEqual(api.formatarChave('JBSWY3DPEHPK3PXP'), 'JBSW Y3DP EHPK 3PXP');
 });
 
