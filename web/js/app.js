@@ -1050,6 +1050,7 @@ async function init(){
     document.getElementById('perfilCard').classList.add('hidden'); // sem perfil nesta versão da API
     document.getElementById('telegramCard').classList.add('hidden');
   }
+  ligarSegurancaConta(); // a leitura do estado so acontece quando Listas abre (irParaAba), nunca na subida
   // Avisos neste aparelho (push): so no app Android; o modulo mostra a subsecao e registra de novo so quando precisa (R15)
   if(typeof PushApp !== 'undefined' && PushApp) PushApp.iniciar();
   // o cartao mestre Avisos some quando nenhuma subsecao esta a vista (navegador sem a API de perfil)
@@ -1129,6 +1130,43 @@ async function init(){
   ligarVoltar();
 }
 
+// ---------- Segurança da conta: verificação em duas etapas (web/js/seguranca-conta.js; spec .ai/specs/mfa-opcional) ----------
+let segurancaConta = null;
+function imprimirTexto(texto){ // a lista sai por uma janela de impressao do proprio aparelho; nada e guardado
+  const f = document.createElement('iframe');
+  f.style.cssText = 'position:fixed;width:0;height:0;border:0;';
+  document.body.appendChild(f);
+  const d = f.contentDocument;
+  d.open(); d.write('<!doctype html><meta charset="utf-8"><title>Finanças</title><pre style="font:16px/1.6 monospace;white-space:pre-wrap;"></pre>'); d.close();
+  d.querySelector('pre').textContent = texto;
+  f.contentWindow.focus(); f.contentWindow.print();
+  setTimeout(()=>f.remove(), 60000);
+}
+function ligarSegurancaConta(){
+  if(segurancaConta || typeof criarSegurancaConta !== 'function' || !window.financasApi || !financasApi.mfaEstado) return;
+  const cfg = window.FINANCAS_CONFIG || {};
+  segurancaConta = criarSegurancaConta({
+    el: id=>document.getElementById(id),
+    documento: document,
+    sessao: Sessao,
+    armazenamento: window.sessionStorage,
+    agora: ()=>Date.now(),
+    agoraISO: ()=>new Date().toISOString(),
+    nomeDoApp: ()=>cfg.ambiente === 'dev' ? 'Finanças DEV' : 'Finanças',
+    enderecoRecuperar: ()=>'',
+    api: {estado: ()=>financasApi.mfaEstado(), gerar: ()=>financasApi.mfaGerarLista(), confirmar: id=>financasApi.mfaConfirmarLista(id)},
+    mfa: ()=>carregarScript('js/mfa-cognito.js').then(()=>{ if(!window.MfaCognito) throw Object.assign(new Error('config'), {codigo:'config'}); return window.MfaCognito; }),
+    qr: ()=>carregarScript('js/qr.js').then(()=>QR),
+    confirmar: confirmarModal,
+    toast,
+    aviso: (txt, sub)=>mostrarAvisoAcao({txt, sub, rotulo:'OK'}),
+    copiar: t=>navigator.clipboard.writeText(t),
+    imprimir: imprimirTexto,
+    irParaListas: ()=>irParaAba('listas')
+  });
+  segurancaConta.ligar();
+}
+
 // ---------- botao voltar do navegador e do celular (web/js/voltar.js; padrao em .ai/padrao-de-telas.md) ----------
 // Camadas = janelas e telas cheias que o "←" ou o toque fora fecharia. Quem abre ou fecha continua sendo o codigo de sempre;
 // voltar.js so acompanha a contagem (MutationObserver nos atributos e nos filhos do body, e Voltar.sync() onde o DOM nao muda).
@@ -1148,6 +1186,8 @@ function camadasAbertas(){
   if(document.getElementById('vsTc')) n++;
   if(document.getElementById('futOv')) n++;
   if(camadaVisivel('histFilOv')) n++;
+  if(camadaVisivel('mfLista')) n++;
+  if(camadaVisivel('mfLig')) n++;
   if(document.getElementById('tagsCard').classList.contains('aberto')) n++;
   return n;
 }
@@ -1169,6 +1209,8 @@ function fecharCamadaTopo(){ // na ordem de cima para baixo; o que nao existe e 
   if(document.getElementById('vsTc')){ vsFechar(); return; }
   if(document.getElementById('futOv')){ fecharAcoesFuturo(); return; }
   if(camadaVisivel('histFilOv')){ fecharFiltrosHist(); return; }
+  if(camadaVisivel('mfLista')){ clicar('#mfListaVolta'); return; }
+  if(camadaVisivel('mfLig')){ clicar('#mfLigVolta'); return; }
   if(document.getElementById('tagsCard').classList.contains('aberto')) lancarTags(false);
 }
 // Edicao com texto digitado: o voltar pergunta antes de sair do formulario.
@@ -1220,6 +1262,7 @@ function irParaAba(t){
   if(t==='saldos') carregarSaldosConfig().then(()=>carregarSaldos(false));
   if(t==='cartao') carregarCartoes(false);
   if(t==='futuros') carregarFuturos();
+  if(t==='listas' && segurancaConta) segurancaConta.entrouEmListas(); // GET /me/mfa: so ao abrir Listas (spec mfa-opcional R23)
   if(usaRecorrencias(t)) garantirRecorrencias(); // "Parar recorrencia" so existe no Historico e em Futuros
   if(t==='versoes') carregarScript('js/versoes.js').then(()=>{ if(abaAtual()==='versoes') abrirVersoes(); });
   if(t==='configuracoes') carregarScript(XLSX_URL).catch(e=>console.error(e)); // a leitura de planilhas (~1 MB) so serve a importacao
