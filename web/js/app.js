@@ -1153,7 +1153,6 @@ function ligarSegurancaConta(){
     agora: ()=>Date.now(),
     agoraISO: ()=>new Date().toISOString(),
     nomeDoApp: ()=>cfg.ambiente === 'dev' ? 'Finanças DEV' : 'Finanças',
-    enderecoRecuperar: ()=>(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) ? '' : location.origin + '/#recuperar', // no app Android nao ha endereco para abrir
     api: {estado: ()=>financasApi.mfaEstado(), gerar: ()=>financasApi.mfaGerarLista(), confirmar: id=>financasApi.mfaConfirmarLista(id)},
     mfa: ()=>carregarScript('js/mfa-cognito.js').then(()=>{ if(!window.MfaCognito) throw Object.assign(new Error('config'), {codigo:'config'}); return window.MfaCognito; }),
     qr: ()=>carregarScript('js/qr.js').then(()=>QR),

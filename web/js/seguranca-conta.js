@@ -180,8 +180,7 @@ function criarSegurancaConta(env){
     msg('mfListaMsg', '');
     $('mfLista').hidden = false;
   }
-  const textoDaLista = () => ['Finanças: códigos de recuperação', 'Gerada em ' + dataBR(env.agoraISO()), ''].concat(lista.codigos || [], ['', FRASE_LISTA]).join('\n') +
-    (env.enderecoRecuperar() ? '\n\nSe perder o autenticador, abra ' + env.enderecoRecuperar() + ' e digite um destes códigos.' : '');
+  const textoDaLista = () => ['Finanças: códigos de recuperação', 'Gerada em ' + dataBR(env.agoraISO()), ''].concat(lista.codigos || [], ['', FRASE_LISTA]).join('\n'); // sem endereco: uma lista achada nao pode dizer onde usar os codigos (decisao do dono, 2026-11-20)
   async function copiar(){
     if(!lista) return;
     try { await env.copiar(textoDaLista()); env.toast('✓ Lista copiada. Cole num lugar seguro.'); }
