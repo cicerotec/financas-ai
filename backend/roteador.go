@@ -125,6 +125,9 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 		return s.esp.GetMe(ctx, u.Sub, u.Email)
 	}
 	if a, ok := auth.RotaSemEspaco(m, p); ok { // sem espaco no caminho: so o sub do token, nunca o do corpo
+		if a == auth.AcaoLerMFA { // leitura: sem corpo; so o sub do token
+			return s.estadoMFA.Get(ctx, u.Sub)
+		}
 		if a == auth.AcaoGerarMFA { // gerar aceita corpo vazio: nao le nada do corpo
 			return s.codigos.PostGerar(ctx, u.Sub)
 		}

@@ -146,6 +146,9 @@ func (r *CodigosDeRecuperacao) LerAtiva(ctx context.Context, sub string) (*domai
 		return nil, err
 	}
 	l := &domain.ListaCodigos{ListaID: it.ListaID}
+	if t, err := time.Parse(time.RFC3339, it.GeradaEm); err == nil {
+		l.GeradaEm = t
+	}
 	for _, c := range it.Codigos {
 		l.Codigos = append(l.Codigos, domain.CodigoGuardado{Hash: c.Hash, Usado: c.Usado})
 	}

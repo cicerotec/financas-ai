@@ -45,6 +45,7 @@ const (
 	// pessoa autenticada e so mexem no que e dela (o sub vem do token, nunca do corpo).
 	AcaoGerarMFA     Acao = "mfa.gerar"     // POST /me/mfa/codigos
 	AcaoConfirmarMFA Acao = "mfa.confirmar" // POST /me/mfa/codigos/confirmar
+	AcaoLerMFA       Acao = "mfa.ler"       // GET /me/mfa: o estado do MFA da propria pessoa e se ha lista de codigos ativa
 
 	// Recuperacao do MFA (spec mfa-opcional, R27). Rota PUBLICA: quem perdeu o autenticador nao tem token. Esta acao nao e listada em
 	// Permitido para nenhum papel (nao passa por papel); a unica excecao ao "sem token e 401" e RotaPublica.
@@ -186,6 +187,9 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 func RotaSemEspaco(metodo string, p []string) (Acao, bool) {
 	if len(p) == 2 && p[0] == "push" && p[1] == "sair" && metodo == "POST" {
 		return AcaoSairPush, true
+	}
+	if metodo == "GET" && len(p) == 2 && p[0] == "me" && p[1] == "mfa" {
+		return AcaoLerMFA, true
 	}
 	if metodo == "POST" && len(p) == 3 && p[0] == "me" && p[1] == "mfa" && p[2] == "codigos" {
 		return AcaoGerarMFA, true
