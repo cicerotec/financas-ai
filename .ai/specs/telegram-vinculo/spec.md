@@ -1,0 +1,160 @@
+# Spec: vínculo do Telegram por link, aviso só com a contagem e "ligar um canal" nas telas de aviso
+
+O roteiro **verificável** do [`plan.md`](plan.md), que segue o [`intent.md`](intent.md). Regras com número (`R`), testes com id (`V-T<n>`), para o PR dizer exatamente o que cobriu. Quando este texto e o do intent divergirem, vale o plan. Cada premissa da tabela "Premissas" do plan (P1 a P12) aponta aqui para a sua regra.
+
+**Estado:** rascunho para aprovação (2026-11-20). Nada implementado. **O dado novo (R1) e as decisões D1 a D5 do plan esperam o dono**: onde uma regra depende delas, está marcada **[PENDENTE]** e a fase que a usa não começa sem a resposta. A revisão independente das premissas foi dispensada pelo dono em 2026-11-13. Convenção dos testes: os de lógica são `go test ./...` em `backend/` e `node web/*.test.js`, e **falham antes da mudança**; o que depende do aparelho, do Telegram ou do `dev` é marcado **[aparelho]** ou **[dev]** e entra como roteiro manual no PR, com o resultado escrito. Diga o que não deu para ver em vez de afirmar que funciona. **Token do bot, segredo do webhook, código de vínculo e chat id nunca aparecem no chat, no log nem em captura de tela.**
+
+## Regras
+
+### Dado novo (R1, [PENDENTE] D1)
+
+- **R1. Item do código de vínculo.** `PK = TGLINK#<hash>`, `SK = TGLINK`, com `sub`, `sid`, `expiraEm` (segundos desde 1970, conferido no código) e `criadoEm`. **Sem TTL do DynamoDB, sem índice, sem varredura.** O formato físico mora só no `repository` (guardrails) e entra em `specs/modelo-de-dados/README.md` na fase 2, com exemplo fictício. **Nada é criado na tabela antes da resposta do dono (D1).** O `chat id` **não** ganha campo novo: continua `telegramChatId` no vínculo. Capacidade (5 RCU/WCU): gerar, 1 gravação; consumir, 1 exclusão condicional; ligar, 1 atualização condicional do vínculo; o `GET` do item é consistente (1 RCU). Um código nunca usado fica (cerca de 200 bytes).
+- **R2. O código.** 20 caracteres de um alfabeto de 32 símbolos (`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, 100 bits), gerador criptográfico, mostrado só na URL; o servidor guarda o **`SHA-256` do código normalizado em maiúsculas** (a chave tem de sair do código sozinho; com 100 bits aleatórios o hash lento não acrescenta segurança). Vale **10 minutos** e **uma vez**. O servidor nunca grava, devolve nem loga o código em texto, **a não ser na URL da resposta de R3**. (P6)
+
+### Gerar o link
+
+- **R3. `POST /spaces/{sid}/telegram/vinculo`.** Rota autenticada, de espaço, ação própria `telegram.vincular` liberada a `owner` e `member`, **sempre no vínculo de quem chama** (o `sub` vem do token). Sem corpo (aceita vazio). Gera o código (R2), grava o item (R1) e devolve `{url, expiraEm}`, em que `url` é `https://t.me/<usuário do bot>?start=<código>`: **só o servidor monta a URL**, com o usuário do bot lido do SSM (R23); o front só a abre. Sem bot configurado (sem usuário ou sem token): `503` com a frase do canal. **Limite de 5 gerações por hora por pessoa**, em memória da Lambda (melhor esforço, zera na partida a frio); o sexto responde `429`. Gerar de novo **não invalida** o código anterior (cada um vale até vencer ou ser usado). Vale para quem já tem Telegram ligado (refazer o vínculo sobrescreve o chat id). (P1)
+
+### O webhook
+
+- **R4. `POST /telegram/webhook` é uma rota pública**, a **segunda** exceção ao "sem token é `401`" (a primeira é `POST /mfa/recuperar`), reconhecida por **`auth.RotaPublica(metodo, p)`**, que passa a devolver `true` **só** para `POST` `["mfa","recuperar"]` e `POST` `["telegram","webhook"]`; a ação `telegram.webhook` **não** é listada em `Permitido` para nenhum papel. Em `atender`, o método e o caminho são quebrados **antes** de `VerificarToken`; o cabeçalho `authorization` **nem é lido**. **A barreira é o segredo:** o cabeçalho `x-telegram-bot-api-secret-token` é comparado **em tempo constante** com o segredo do SSM (R23). **Falha fechada:** sem segredo configurado, ou cabeçalho ausente, vazio ou diferente, a resposta é `401 {"erro":"nao autenticado"}` **antes de ler o corpo e de qualquer acesso ao DynamoDB**. `token.go` e `VerificarToken` **não mudam**; nenhuma outra rota muda de comportamento. (P3)
+- **R5. Entrada mínima.** Com o segredo certo: corpo acima de **16 KiB**, JSON inválido, atualização sem `message` ou sem `text` e qualquer `chat.type` diferente de `private` respondem `200 {}` **sem trabalho** (nenhuma leitura, nenhuma gravação, nenhuma chamada externa). Só `message` de chat **privado** é tratada (a rota é registrada com `allowed_updates: ["message"]`, R24).
+- **R6. `/start <código>`.** Ordem, da mais barata à mais cara: (1) formato do código (20 caracteres do alfabeto, ignorando espaços e hifens e a caixa); (2) **limite por chat**: 10 tentativas por hora por `chat.id`, em memória; estourado, **ignora** (`200 {}`, sem resposta); (3) **consome** o item: exclusão condicional que devolve o item antigo (`attribute_exists`); item ausente, vencido (`expiraEm` passou) ou de outro ambiente: texto fixo "Este link não vale mais. Volte ao app e toque em Ligar Telegram de novo."; (4) com o item consumido, atualiza o vínculo `USER#<sub>` / `SPACE#<sid>` do item com `telegramChatId = <chat.id>` (condição `attribute_exists(PK)`): sucesso, texto fixo "Ligado ✓ Os avisos deste espaço chegam aqui, só com a contagem."; vínculo inexistente ou erro de gravação, texto fixo "Não consegui ligar agora. Volte ao app e toque em Ligar Telegram de novo." **O código é consumido antes da gravação, de propósito: não vale duas vezes, mesmo sob concorrência.** O `chat.id` vem **só do Telegram**; nenhum chat id vem do corpo de uma rota autenticada. (P5)
+- **R7. Outros textos.** `/start` sem código, qualquer outro texto e `/parar` respondem um texto fixo ("Este bot só envia avisos. Para ligar, use o app; para parar, desligue em Listas, Avisos."). **`/parar` não apaga o destino** (D2); o bloqueio do bot é percebido pela rotina (R12).
+- **R8. Resposta.** `200` com corpo `{"method":"sendMessage","chat_id":<chat.id>,"text":"<texto fixo>"}` (a resposta é o envio) ou `{}` quando não há o que dizer. **Nenhuma resposta leva dado da conta**, nome de espaço, e-mail, contagem nem o código. O `chat_id` na resposta é o do próprio chat que escreveu, devolvido ao Telegram. (P4)
+- **R9. Resposta igual para quem ainda não tem conta.** O texto de "não vale mais" é o mesmo para código inexistente, vencido, já usado e de formato errado; o webhook **não revela** se um código existiu.
+- **R10. Log.** O rótulo é `acao=telegram.webhook rota=telegram` (por `rotular`; a rota grava o rótulo **antes** de entregar ao controller, para a linha não dizer `sem-token`). Nenhuma linha leva chat id, texto da mensagem, código, `sub`, `sid` nem corpo; a rotina de avisos segue logando só contagens e o nome do canal.
+
+### O aviso só com a contagem
+
+- **R11. O texto do Telegram.** `adapter/notificacao/telegram.go` lê **só** `domain.Contagens(r)` (AD-1 e AD-3 de `bmad/arquitetura-avisos-canais.md`) e monta uma mensagem: `🔔 <marca>Avisos de dd/mm/aaaa: <contagem>. Abra o app para ver o que é cada um.`; a contagem usa as **mesmas frases do push** (`N atrasado(s)`, `N vence(m) hoje`, `N a vencer`, na ordem atrasados, hoje, a vencer, separadas por ` · `, omitindo o que for zero), numa função do pacote usada pelos dois canais. **Nenhuma descrição, valor, meio de pagamento, data de vencimento, id, nome de espaço ou de pessoa entra no texto, mesmo que as linhas os tenham.** Entradas (a receber) contam na situação do vencimento. A mensagem de teste e o `Mensagem` do MFA (texto fixo) **não mudam**. **A divisão em partes e o limite de 4000 letras saem** (a mensagem é curta). A decisão do dono vale para **todos**, inclusive quem já recebe o resumo com valor. (P10)
+- **R12. Erros do Telegram e destino recusado.** `403` e `400` com `chat not found` devolvem `domain.ErrDestinoInvalido` (a rotina chama o `RemovedorDeDestinos` para cada vínculo de onde o destino saiu, R11 do push, e conta o grupo como não entregue). `401` do bot devolve `domain.ErrCredencialRecusada` (a rotina pula o canal e loga o texto próprio). `429`, `5xx` e erro de rede devolvem um erro com **só o código HTTP e o `error_code`**; **nunca** a URL, o token do bot, o corpo da resposta nem o chat id. Nenhum erro é repetido na mesma rodada. (P7, P11)
+- **R13. O que não muda.** Quem recebe o aviso (o criador do lançamento e o dono; a fatura, só o dono), o horário (8h), os filtros, o agrupamento por destino, o evento `{"acao":"avisos"}` e a resposta `{"enviados": n}`, o push, o login e a trava. O aviso da fatura do cartão (item 46) passa a contagem como os demais.
+
+### Estado dos canais e perfil
+
+- **R14. `GET /me`.** Cada espaço ganha `canais: {"telegram": bool, "push": bool}`: `true` quando o vínculo tem destino daquele canal (chat id não vazio; ao menos um token). Vale para o que a **pessoa** tem neste espaço (outro aparelho dela conta). **Na fase 2 o campo é somado ao que existe; na fase 3 o `telegramChatId` deixa de ser devolvido** (o chat id nunca mais chega ao navegador). **Nenhuma leitura nova**: o dado vem da mesma `Query` de `EspacosDe` (P8). O front **só exibe** `canais`; não infere, não soma, não decide quem recebe. (P1, P8)
+- **R15. `PUT /spaces/{sid}/perfil`.** A partir da fase 3, `telegramChatId` **não vazio** devolve `400` ("O Telegram agora é ligado pelo link, em Listas."); `telegramChatId` vazio (o "desligar", que apaga o Id) e `apelido` seguem como hoje. Um teste tenta forjar um Id digitado e **falha antes da mudança**. A ação e os papéis não mudam. `domain.ChatIDValido` deixa de ser usado pelo `service/perfil.go` (o chat id agora é o do Telegram, só gravado pelo vínculo). (P9)
+- **R16. Teste de aviso do Telegram.** `POST /spaces/{sid}/avisos/teste` sem `canal` continua o Telegram. As frases do canal em `controller/avisos.go` mudam: sem destino, "ligue o Telegram em Listas, Avisos, primeiro"; recusado, "o Telegram recusou a mensagem: tente de novo, ou ligue o Telegram de novo em Listas".
+
+### Telas (demo antes do código)
+
+- **R17. Cartão "Avisos no Telegram" de Listas.** Sem campo do Id, sem Salvar, sem "Agora não", sem o Id lembrado no aparelho. A chave "Receber avisos no Telegram" **liga** pedindo o link a R3 e abrindo a `url`; estados: **desligado** (Ligar Telegram), **aguardando** ("Aguardando você tocar em Iniciar no Telegram", com **Já iniciei** e **Cancelar**; até 10 minutos), **ligado** ("Os avisos deste espaço chegam no seu Telegram"; Enviar aviso de teste; desligar apaga o Id pelo `PUT` vazio de R15), **venceu** ("O link venceu: toque em Ligar Telegram de novo"), **sem conexão**, **não configurado** (`503`). O estado "ligado" vem **de `GET /me` (`canais.telegram`)**, relido: (a) ao tocar em **Já iniciei**; (b) **uma vez** quando o app volta ao primeiro plano **enquanto está aguardando**; (c) depois de desligar. **Sem sondagem por tempo.** O front **apaga `financas.telegram`** (o Id lembrado de antes) ao subir. O cartão mestre Avisos some quando nenhuma subseção está à vista, como hoje. (P5)
+- **R18. A janela "Ligar um canal".** Um componente só, aberto **por cima da tela atual**, com botões que quebram linha: **Telegram** (R17, pede o link e abre a `url`) e **Neste aparelho** (o push; **só no app Android**, que o front sabe pelo ambiente, e só exibe: o servidor não escolhe). Concluído (ou fechado) o canal, o app **relê `GET /me`**; a tela de baixo **mantém o que a pessoa já digitou**. Entra em `camadasAbertas()` e `fecharCamadaTopo()` de `web/js/app.js`; o voltar a fecha. **Canal novo entra como mais um botão**, sem mexer nas caixas "Avisar". (P1)
+- **R19. As caixas "Avisar".** O Lançar, a janela e as telas Repetir, Prever e Estender, o aviso da fatura do cartão e o toast da recorrência falam **"Avisar"** e **"Avisos"**, nunca "Telegram" (só o cartão de Listas e a janela de escolha dizem o nome de um canal). Quando a pessoa **marca** o aviso (ou abre o da fatura) e `canais.telegram` e `canais.push` são **falsos** neste espaço, a tela diz "Você ainda não tem um canal ativo para receber este aviso" com **Ligar um canal** (abre R18) e **Continuar assim**; **o salvar nunca é bloqueado** e o aviso é guardado como hoje (fica mudo até haver canal). Com qualquer canal ligado (inclusive só o push) **a dica não aparece**. A frase antiga "Você ainda não vinculou o Telegram…" e `telegramVinculado()` saem. (P1)
+- **R20. A prévia.** "Assim chega no Telegram" (com descrição, valor e meio de pagamento) vira uma **frase fixa**, sem dado do lançamento ("Assim chega: a contagem, como "1 vence hoje". O que é cada um você vê ao abrir o app."). O front **não monta** texto de aviso a partir do lançamento.
+- **R21. Cada tela lê só o que é dela.** Nenhuma leitura nova na subida: `GET /me` já é lido ali, e `canais` vem junto. Gerar o link (R3) só roda no toque. `web/carga.test.js` continua verde.
+- **R22. A tela implementada fica igual à demo aprovada**; desvio se avisa antes do PR. Vale o padrão de telas: tokens do app (claro e escuro), linhas de pelo menos 56 px, janelas de baixo, datas com ano, pior caso medido (celular ≈ 390 px e janela ≥ 1280 px). Janela ou tela cheia nova entra em `camadasAbertas()` e `fecharCamadaTopo()`.
+- **R22a. 🔔 "sem canal ativo" (fase 5).** No Histórico e em Futuros, o sino de um lançamento com aviso mostra "Sem canal ativo" quando `canais.telegram` e `canais.push` são falsos; **a leitura é a de `GET /me`**, sem chamada nova por linha.
+
+### Infraestrutura, segredos e scripts
+
+- **R23. Por ambiente, no SSM:** `/financas/<amb>/telegram-token` (SecureString, **já existe**; o do `dev` passa a ser o do bot novo), `/financas/<amb>/telegram-webhook-secret` (SecureString) e `/financas/<amb>/telegram-bot-usuario` (texto). O `template.yaml` ganha **só** as variáveis de ambiente com esses nomes e a política de leitura **desses dois parâmetros** (como o `FCM_CREDENCIAL_PARAM`); nenhuma outra mudança de infraestrutura e nenhuma regra do Events. O segredo tem de ser de 1 a 256 caracteres, só `A-Z a-z 0-9 _ -`.
+- **R24. Scripts do dono** (nunca rodados pela IA): `scripts/guardar-telegram.ps1 -Ambiente dev|prod` lê o token com `Read-Host -AsSecureString`, não o aceita na linha de comando, não imprime e grava como SecureString; `scripts/registrar-webhook-telegram.ps1 -Ambiente dev|prod` gera o segredo (gerador criptográfico), grava-o, lê o usuário do bot (`getMe`) e grava `telegram-bot-usuario`, **confere o `getWebhookInfo` e recusa** se o bot já tem um webhook de outra URL (sem `-Forcar`), e chama `setWebhook` com a URL da API do ambiente, o segredo e `allowed_updates: ["message"]`. Nenhum imprime token, segredo nem código. Recusam ambiente que não seja `dev` ou `prod`. (P2)
+- **R25. Autorização.** Duas ações novas em `auth/authz.go`: `telegram.vincular` (`owner` e `member`, cada um só no próprio vínculo; **rota de espaço**: sem vínculo, `403`) e `telegram.webhook` (**não** listada em `Permitido`; só existe por `RotaPublica`). Cada uma tem teste em `authz_test.go`; o que não está liberado continua negado. O índice [`api.md`](../../api.md) ganha **duas linhas** (e a de `GET /me` e a de `PUT /perfil` apontam para este spec); o `api_doc_test.go` confere.
+- **R26. Segredos e dado real fora do git.** Nenhum token, segredo, código, chat id nem usuário de bot real em arquivo, fixture, log ou documento (o repositório é público); os testes usam valores fictícios.
+- **R27. Um bot por ambiente.** `security.md` ("Segredos") deixa de dizer que os dois ambientes usam o mesmo bot; o `dev` tem bot e webhook próprios, e as mensagens do `dev` seguem com `[DEV]`.
+
+## API
+
+Duas rotas novas e duas rotas existentes que mudam o corpo (fase 2 e fase 3). O `sub` vem **sempre** do token, nunca do corpo. Todas as outras rotas ficam como estão.
+
+```
+POST   /spaces/{sid}/telegram/vinculo     (sem corpo; autenticada, de espaço)
+         -> 200 { "url": "https://t.me/<usuario-do-bot>?start=<codigo>", "expiraEm": "<ISO 8601>" }
+         | 401 (sem token ou inválido) | 403 (sem vínculo com o espaço) | 429 { "erro": "..." } (6ª geração na hora)
+         | 503 { "erro": "o Telegram ainda nao foi configurado no servidor" } | 500
+
+POST   /telegram/webhook                  (PÚBLICA: sem token do Cognito; o cabeçalho authorization é ignorado)
+         cabeçalho: x-telegram-bot-api-secret-token: <segredo>      corpo: o JSON do Telegram (até 16 KiB)
+         -> 200 { "method": "sendMessage", "chat_id": <n>, "text": "<texto fixo>" }   (a resposta é o envio ao chat que escreveu)
+         | 200 {}                                                                       (nada a dizer, ou entrada ignorada)
+         | 401 { "erro": "nao autenticado" }                                            (segredo ausente, vazio, diferente ou não configurado)
+
+GET    /me                                (autenticada)
+         -> 200 { "sub": "...", "email": "...", "espacos": [ { "id", "nome", "role", "apelido",
+                    "canais": { "telegram": true|false, "push": true|false },
+                    "telegramChatId": "..." } ] }                    (fase 2: "telegramChatId" ainda vem; fase 3: DEIXA de vir)
+         | 401 | 500
+
+PUT    /spaces/{sid}/perfil               { "apelido": "...", "telegramChatId": "" }     (fase 3: telegramChatId só vazio)
+         -> 200 { "apelido": "...", "telegramChatId": "" }
+         | 400 { "erro": "O Telegram agora é ligado pelo link, em Listas." }   (telegramChatId não vazio)
+         | 400 (apelido inválido, ou nenhum dos dois campos) | 401 | 403 | 404 (sem vínculo) | 500
+```
+
+- **Ações em `auth/authz.go`:** `telegram.vincular` para `POST /spaces/{sid}/telegram/vinculo` (`owner` sim, `member` sim, só no próprio vínculo); `telegram.webhook` para `POST /telegram/webhook` (**não** listada em `Permitido`; pública, reconhecida por `auth.RotaPublica`, R4). `GET /me` e `PUT /perfil` não mudam de ação.
+- **Quem pode chamar:** o gerar, `owner` e `member`; o webhook, **qualquer um que saiba o segredo** (na prática, o Telegram); `GET /me`, qualquer pessoa autenticada; `PUT /perfil`, `owner` e `member`, cada um só no próprio vínculo.
+- **Rótulo no log:** `acao=telegram.vincular rota=telegram` e `acao=telegram.webhook rota=telegram`; as duas linhas nunca levam chat id, código, segredo nem corpo. `GET /me` e `PUT /perfil` seguem como hoje.
+- **O webhook responde sempre `200` ao que o segredo autenticou**, para o Telegram não repetir a entrega; só o segredo errado é `401`. O corpo nunca diz se um código existe (R9).
+- **Limites:** o gerar, 5 por hora por pessoa (memória); o webhook, 10 tentativas por hora por chat (memória). Os dois são de melhor esforço e zeram na partida a frio; o teto real é o de execuções da Lambda (item 18).
+
+## Testes
+
+Cada um falha antes da mudança. Os de front são `web/<nome>.test.js` (o CI roda todos); os de infra são conferidos por `sam validate --lint` e pelo changeset.
+
+| Id | O que prova |
+|---|---|
+| V-T1 | **Gerar:** com token e vínculo devolve `{url, expiraEm}` e grava só o **hash** (o código em texto não está no item, no log nem na resposta além da `url`); o `sub` é o do token (outro `sub` no corpo ou na URL não muda o dono); sem vínculo, `403`; sem token, `401`; sem bot configurado, `503`; a 6ª geração na hora, `429` (R1 a R3) |
+| V-T2 | **O código:** 20 símbolos do alfabeto de 32, gerador criptográfico (dois códigos diferem), vale 10 minutos e **uma vez**; o hash é o `SHA-256` do código em maiúsculas (R2) |
+| V-T3 | **Webhook sem segredo:** ausente, vazio, diferente e **não configurado** respondem `401` **sem ler o corpo e sem nenhuma chamada ao banco** (banco falso sem leituras nem gravações); a comparação é em tempo constante (R4) |
+| V-T4 | **`RotaPublica`** devolve `true` **só** para `POST` `["mfa","recuperar"]` e `POST` `["telegram","webhook"]`; `false` para `GET`, `PUT`, `["telegram","webhook","x"]`, `["telegram"]`, caixa diferente e `["telegram","","webhook"]`; toda rota **autenticada** conhecida sem token segue `401`; o cabeçalho `authorization` lixo nessa rota não muda a resposta e `VerificarToken` não é chamado (R4, R25) |
+| V-T5 | **Entrada mínima:** corpo de 17 KiB, JSON inválido, sem `message`, sem `text` e `chat.type` de grupo, supergrupo ou canal respondem `200 {}` **sem nenhuma chamada ao banco** (R5) |
+| V-T6 | **Ligar:** `/start <código válido>` consome o item, grava `telegramChatId` **do `chat.id` do Telegram** no vínculo certo (nunca de um chat id do corpo de outra rota) e responde "Ligado ✓"; o mesmo código de novo responde "não vale mais" e **não grava**; dois `/start` simultâneos do mesmo código, **só um liga**; código de outro vínculo não liga este; vencido não liga; vínculo apagado nesse meio tempo: "Não consegui ligar" e o código foi consumido (R6) |
+| V-T7 | **Formato e limite:** código fora do formato, vazio e curto respondem "não vale mais" **sem ler o banco**; a 11ª tentativa do mesmo `chat.id` na hora é **ignorada** (`200 {}`); outro chat não é afetado (R6) |
+| V-T8 | **Outros textos:** `/start` sem código, texto livre e `/parar` respondem o texto fixo e **não gravam nem apagam nada**; nenhuma resposta leva dado da conta (R7, R8) |
+| V-T9 | **Resposta igual:** código inexistente, vencido, usado e de formato errado dão **a mesma resposta** (mesmo status e corpo) (R9) |
+| V-T10 | **Log:** nenhuma linha do gerar, do webhook e da rotina contém chat id, código, segredo, texto da mensagem, `sub` nem `sid`; o rótulo é `telegram.webhook`, não `sem-token` (R10) |
+| V-T11 | **Contagem:** `telegram.go` com linhas cheias de descrição, valor, meio de pagamento, data e nome de espaço **não contém nenhum deles**; singular e plural; zero some; `[DEV]` só no `dev`; entradas contam; o texto é o mesmo do push na parte da contagem; **uma mensagem só**, sem divisão (R11) |
+| V-T12 | **Teste e MFA:** a mensagem de teste e o `Mensagem` do MFA seguem iguais (`mfa_aviso_test.go` e `TestMensagemDeTeste` passam **sem mudar asserção**); a rotina e o aviso da fatura mandam a contagem (R11, R13) |
+| V-T13 | **Erros do Telegram:** `403` e `400 chat not found` devolvem `ErrDestinoInvalido`; `401` devolve `ErrCredencialRecusada`; `429`, `5xx` e erro de rede devolvem erro **sem** URL, token do bot, corpo nem chat id; nenhum é repetido (R12) |
+| V-T14 | **Rotina:** com o canal falso que devolve `ErrDestinoInvalido`, o chat id é apagado do vínculo de onde saiu, o grupo não conta como entregue e a rotina não devolve erro; os outros destinos entregam; `ErrCredencialRecusada` pula o canal com o texto de log próprio (R12) |
+| V-T15 | **`GET /me`:** `canais.telegram` e `canais.push` refletem o vínculo (só chat id, só aparelhos, os dois, nenhum); a **mesma** `Query` de antes, sem leitura nova (contador do banco falso); na fase 3, `telegramChatId` **não** vem mais (R14) |
+| V-T16 | **Perfil:** na fase 3, `PUT /perfil` com `telegramChatId` não vazio é `400`; vazio apaga o campo; `apelido` segue; nenhum Id digitado chega ao banco (R15) |
+| V-T17 | **Teste de aviso:** sem destino e recusado devolvem as frases novas do Telegram; os do push não mudam (R16) |
+| V-T18 | **`authz`:** `telegram.vincular` liberada a `owner` e `member`, negada a quem não tem vínculo; `telegram.webhook` **não** listada em `Permitido`; rota desconhecida segue negada; o `api_doc_test.go` passa com as linhas novas (R25) |
+| V-T19 | **Arquitetura:** `arquitetura_test.go` verde; `service/` e `domain/` não nomeiam o canal (o serviço do vínculo trata `canal` como valor opaco) fora das exceções nomeadas; `adapter/notificacao/telegram.go` não importa o `service` (R11) |
+| V-T20 | **Infra:** `template.yaml` com as variáveis dos dois parâmetros por ambiente e a política de leitura **só desses dois**; o resto idêntico; nenhuma regra do Events nova; os scripts não imprimem segredo, não aceitam o token na linha de comando, recusam ambiente inválido e `registrar-webhook-telegram.ps1` recusa um bot que já tem outro webhook (R23, R24) |
+| V-T21 | **Segredos fora do git:** nenhum token, segredo, código, chat id ou usuário de bot reais em fixture ou documento (R26) |
+| V-T22 | **Front, cartão de Listas** (`web/telegram.test.js` reescrito): ligar pede o link e abre a `url`, mostra "Aguardando…"; **Já iniciei** e o retorno ao primeiro plano **só enquanto aguardando** releem `GET /me`; `canais.telegram` verdadeiro mostra "Ligado"; desligar chama o `PUT` vazio; expirar mostra "O link venceu"; `503` mostra "não configurado"; **nenhum chat id** é lido, mostrado, guardado ou lembrado; o `financas.telegram` antigo é apagado na subida (R17) |
+| V-T23 | **Front, caixas Avisar:** marcar o aviso sem nenhum canal mostra a dica com **Ligar um canal** e **Continuar assim**; com **só o push** a dica **não** aparece; com qualquer canal a dica não aparece; **o salvar nunca é bloqueado**; nenhum rótulo diz "Telegram" fora de Listas e da janela; `telegramVinculado()` não existe mais (R19) |
+| V-T24 | **Front, janela "Ligar um canal":** abre por cima, **mantém o que foi digitado**, o push só aparece no app, relê `GET /me` ao fechar, entra em `camadasAbertas()` e `fecharCamadaTopo()` e o voltar a fecha (R18) |
+| V-T25 | **Front, prévia:** "Assim chega" não contém descrição, valor nem meio de pagamento; `web/sem-status.test.js` e `web/carga.test.js` continuam verdes (a subida não lê nada novo) (R20, R21) |
+| V-T26 **[dev]** | Com o bot e o webhook do `dev`: Ligar Telegram → o Telegram abre → Iniciar → o app mostra "Ligado" e o teste chega com a contagem; o código usado de novo e o vencido não ligam (R3, R6, R8) |
+| V-T27 **[aparelho]** | O toque no link em **um chat que já existia** (quem já usava o bot) envia o `/start` na hora; no app Android, no navegador do computador e na PWA (P5) |
+| V-T28 **[dev]** | Rodar a rotina de avisos com dados fictícios: o Telegram recebe **só a contagem**, igual ao push; nada de descrição, valor ou meio de pagamento (R11) |
+| V-T29 **[dev]** | Bloquear o bot no Telegram e rodar a rotina apaga o destino do vínculo (conferir o campo antes e depois); o log só traz contagens e o nome do canal (R12) |
+| V-T30 **[dev]** | Webhook sem o segredo certo, direto na URL do `dev`: `401` e **nenhum** acesso ao banco (conferir no Logs Insights); o segredo certo e um `/start` inválido: o texto fixo (R4, R6) |
+| V-T31 **[dev]** | Refazer o vínculo de um chat id antigo pelo link **sobrescreve** o valor (a rotina seguinte manda ao chat novo); confirma se "refazer o cadastro" basta, ou o `plan.md` ganha o script (intent) |
+| V-T32 **[aparelho]** | Pior caso de layout do cartão de Listas, da janela e das caixas Avisar (rótulo longo, frase de erro, tema claro e escuro, 360 e 412 px) medido por script e com captura (guardrails, "Telas") (R17 a R19, R22) |
+
+**Quebrar de propósito:** pôr a descrição no texto do Telegram tem de derrubar V-T11; aceitar um segredo diferente (ou não conferir o segredo) tem de derrubar V-T3; liberar `RotaPublica` para qualquer `POST` tem de derrubar V-T4; gravar o chat id **antes** de consumir o código (ou não o consumir) tem de derrubar V-T6; ler o banco antes de conferir o formato do código tem de derrubar V-T7; apagar o destino em qualquer erro (e não só `403` e `chat not found`) tem de derrubar V-T13; deixar `PUT /perfil` aceitar o Id digitado tem de derrubar V-T16; devolver `telegramChatId` em `GET /me` na fase 3 tem de derrubar V-T15; gravar o código em texto no item ou no log tem de derrubar V-T1 e V-T10; bloquear o salvar sem canal tem de derrubar V-T23; a janela perder o que foi digitado tem de derrubar V-T24.
+
+## Telas (demo antes do código)
+
+**Nada de `web/` vai ao código antes de uma demo aprovada** (guardrails). Cada demo parte da **última versão** da tela, é uma página interativa publicada com link que abre no celular, mostra claro e escuro, e **diz o que a proposta faz perder**. Versões de partida: Listas `v10-mfa`, Avisar `v2-nome`, Lançar `v8-nome`, Cartão `v4-separadores`, Histórico `v4-nome`, Futuros `v3-nome`.
+
+| Demo | Mostra | O que a proposta faz perder |
+|---|---|---|
+| `demo-listas-v11-telegram-vinculo` | o cartão Avisos no Telegram: desligado, aguardando, ligado, venceu, sem conexão, não configurado; o teste | o Id visível e digitável; quem não tem o Telegram instalado não liga; um toque por espaço |
+| `demo-avisar-v3-canal` | a tela Avisar (rótulos neutros) e a prévia neutra; a janela **Ligar um canal** | a prévia deixa de mostrar o que será avisado |
+| `demo-lancar-v9-aviso-canal` | a caixa Avisar do Lançar sem canal (dica, Ligar um canal, Continuar assim) e com só o push (sem dica); a janela por cima, com o que foi digitado | uma dica a mais ao marcar o aviso sem canal |
+| `demo-cartao-v5-aviso-canal` | o aviso da fatura sem canal e com canal | idem |
+| `demo-historico-v5-sem-canal`, `demo-futuros-v4-sem-canal` (fase 5) | o 🔔 "sem canal ativo" na linha, no celular e no computador | uma marca a mais na linha |
+
+A mensagem do Telegram com a contagem (texto exato) é mostrada na demo e **aprovada pelo dono** (D5).
+
+## Verificação no `dev`
+
+1. O dono cria o bot do `dev` e roda `guardar-telegram.ps1` e, depois do deploy, `registrar-webhook-telegram.ps1` (passos do `plan.md`). **Confira o changeset e o status final da stack** (guardrails): só a Lambda, as variáveis e a política de leitura dos dois parâmetros; a tabela e o login **não** podem ser substituídos.
+2. V-T26 a V-T31, no aparelho do dono e no navegador, **sem prometer o que não deu para ver** (por exemplo, o atraso da mensagem).
+3. No Logs Insights de `/aws/lambda/financas-api-dev`: as linhas do webhook, do gerar e da rotina trazem só contagens, códigos HTTP e o nome do canal (R10, R12).
+4. A produção só depois do `dev` verde: o dono cria o webhook da produção **ele mesmo**, e refaz o vínculo dele pelo link. **A IA não lê nem roda nada em produção.**
+
+## Documentos que ficam em dia na entrega
+
+`avisos.md` ("Configuração única" vira o link; o resumo só com a contagem; o fim da divisão em partes), `security.md` (o Telegram deixa de ser um terceiro com valor; a segunda rota pública e o segredo do webhook; o bot por ambiente; o fim do chat id no navegador), `api.md` (duas linhas novas e as de `GET /me` e `PUT /perfil`), `arquitetura.md` (nota da AD-9: o estado dos canais por espaço em `GET /me`), `specs/modelo-de-dados/README.md` (o item `TGLINK#`), `padrao-de-telas.md` e as demos em `.ai/demos/`, o resumo do `guardrails.md` (linhas de "Avisos" e "Previstos em lote") e o `BACKLOG.md` (item 66).
+
+## Fora do escopo
+
+WhatsApp e e-mail; `/parar` apagando o destino e o bloqueio percebido na hora (D2, pede índice reverso); mudar quem recebe e o horário; idempotência da entrega e a Lambda de 30 s em série (item 34, medido no item 65); comandos além de `/start` e `/parar`; várias contas do Telegram por pessoa; grupo e canal; ligar o Telegram em todos os espaços de uma vez; limpeza de códigos vencidos nunca usados (D1); a revisão independente das premissas (dispensada em 2026-11-13); e a componentização da tela Avisar (item 47).
