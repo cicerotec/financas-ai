@@ -35,34 +35,38 @@ function criarSessao(env){
     response_type: 'code', client_id: CFG.clientId, redirect_uri: redirect,
     scope: mfa ? ESCOPO_MFA : ESCOPO_NORMAL, code_challenge: p.c, code_challenge_method: 'S256', state: p.state
   }, mfa ? REAUTENTICAR : {}));
-  // R10: o refresh do segundo login continua valido por 30 dias no Cognito; descartar no cliente nao basta, entao ele e revogado logo depois da troca.
-  // [PENDENTE no dev, Verificacao passo 9]: a AWS pode revogar junto o access token emitido com ele; se for assim, o momento da revogacao muda (so aqui).
+  // R10: o refresh do segundo login continua valido por 30 dias no Cognito; descartar no cliente nao basta, entao ele e revogado.
+  // PROVADO no dev (2026-11-19, Verificacao passo 9): revogar o refresh REVOGA TAMBEM o access token emitido com ele ("Access Token has been revoked"),
+  // entao a revogacao NAO pode ser logo depois da troca: o refresh fica so em memoria, junto do access token, e e revogado quando a secao termina
+  // (descartarMfa), quando o access token vence ou quando a pagina e fechada.
   const revogar = refresh => env.fetch(base + '/oauth2/revoke', {
     method: 'POST',
     headers: {'content-type': 'application/x-www-form-urlencoded'},
-    body: new URLSearchParams({token: refresh, client_id: CFG.clientId})
+    body: new URLSearchParams({token: refresh, client_id: CFG.clientId}),
+    keepalive: true // a revogacao feita ao fechar a pagina ainda sai
   });
   const urlLogout = redirect => base + '/logout?' + new URLSearchParams({client_id: CFG.clientId, logout_uri: redirect});
   const erro = (msg, codigo) => { const e = new Error(msg); e.codigo = codigo; return e; };
 
   // ---------- o access token da secao do MFA: so em memoria, nos dois modos (R9) ----------
-  let mfa = null;          // {acesso, exp}: nunca vai a localStorage, sessionStorage, Cofre nem a outro modulo
+  let mfa = null;          // {acesso, refresh, exp}: nunca vai a localStorage, sessionStorage, Cofre nem a outro modulo
   const ouvintesMfa = [];
-  const tokenMfa = () => { if(mfa && mfa.exp <= env.agora()) mfa = null; return mfa ? mfa.acesso : null; };
-  const descartarMfa = () => { mfa = null; };
+  // Descartar = esquecer os dois tokens e revogar o refresh (que revoga tambem o access token). A falha da revogacao nunca sobe.
+  const descartarMfa = () => { const m = mfa; mfa = null; if(m && m.refresh) Promise.resolve().then(() => revogar(m.refresh)).catch(() => {}); };
+  const tokenMfa = () => { if(mfa && mfa.exp <= env.agora()) descartarMfa(); return mfa ? mfa.acesso : null; };
   const aoMfa = f => { ouvintesMfa.push(f); if(tokenMfa()) { try { f(); } catch (e) {} } };
-  // Troca o code do segundo login. Entrega SO o access token a secao (R10): o ID token e o refresh sao descartados, e o refresh e revogado.
+  // Troca o code do segundo login. Entrega SO o access token a secao (R10): o ID token e descartado; o refresh fica so em memoria e e revogado ao descartar (ver acima).
   async function trocarMfa(code, verifier, redirect){
     let r;
     try { r = await pedirToken({grant_type: 'authorization_code', client_id: CFG.clientId, code, redirect_uri: redirect, code_verifier: verifier}); }
     catch (e) { throw erro('Não consegui confirmar que é você.', 'mfa_falhou'); } // sem rede: o erro do fetch nunca sobe (nem seu texto)
     const t = r.ok ? await r.json().catch(() => null) : null;
     if(!t || !t.access_token) throw erro('Não consegui confirmar que é você.', 'mfa_falhou');
-    if(t.refresh_token) Promise.resolve().then(() => revogar(t.refresh_token)).catch(() => {});
-    mfa = {acesso: t.access_token, exp: env.agora() + ((t.expires_in || 3600) - 60) * 1000};
+    mfa = {acesso: t.access_token, refresh: t.refresh_token || null, exp: env.agora() + ((t.expires_in || 3600) - 60) * 1000};
     for(const f of ouvintesMfa.slice()) { try { f(); } catch (e) {} }
     return mfa.acesso;
   }
+  if(env.aoFecharPagina) env.aoFecharPagina(descartarMfa); // fechar ou sair da pagina no meio da secao: o refresh e revogado
   const aviso = tipo => { if(env.aviso) env.aviso(tipo); }; // 'nova' | 'fim' | 'falhou' | 'entrando' | 'cofre' (quem desenha e a Abertura)
   const semSessao = tipo => { aviso(tipo); return erro('Sem sessão: entre de novo.', 'sem_sessao'); };
 
@@ -317,6 +321,7 @@ if(typeof window !== 'undefined' && window.FINANCAS_CONFIG){
     agora: () => Date.now(),
     recarregar: () => window.location.reload(),
     setTimeout: (f, ms) => window.setTimeout(f, ms),
+    aoFecharPagina: f => { if(typeof window.addEventListener === 'function') window.addEventListener('pagehide', f); },
     aoSair: () => (typeof PushApp !== 'undefined' && PushApp ? PushApp.sair() : undefined), // web/js/push.js (so age no app)
     aviso: tipo => { if(typeof Abertura !== 'undefined' && Abertura && Abertura.sessao) Abertura.sessao(tipo); }
   });
