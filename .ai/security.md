@@ -81,10 +81,11 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `push.registrar`, `push.remover` (o aparelho do app no próprio vínculo) e `push.sair` (tira o aparelho de todos os espaços da pessoa) | sim | sim |
 
 **Rotas fora de `/spaces/{sid}` e a rota pública do MFA. Implementadas em 2026-11-19** ([`specs/mfa-opcional/spec.md`](specs/mfa-opcional/spec.md), R4 e R25 a R36).**
-Hoje `atender` valida o token **antes** de classificar qualquer rota, então uma rota sem token responde `401`. Há **três rotas** do MFA, cada uma com ação própria em `auth/authz.go` e teste (e uma linha em [`api.md`](api.md)):
+Hoje `atender` valida o token **antes** de classificar qualquer rota, então uma rota sem token responde `401`. Há **quatro rotas** do MFA, cada uma com ação própria em `auth/authz.go` e teste (e uma linha em [`api.md`](api.md)):
 
 | Rota | Ação | Quem | Token |
 |---|---|---|---|
+| `GET /me/mfa` (o estado do MFA da própria pessoa e se há lista de códigos ativa; **só lê**, só pelo `sub` do token; nunca hash, `listaId`, código nem e-mail; R37) | `mfa.ler` | qualquer pessoa autenticada | ID token, como hoje |
 | `POST /me/mfa/codigos` (gera a lista **pendente**; não toca na ativa) | de gerar (nome fixado no código) | qualquer pessoa autenticada, sempre pelo `sub` do token | ID token, como hoje |
 | `POST /me/mfa/codigos/confirmar` (promove a pendente a ativa e apaga a anterior; idempotente; `409 lista_substituida`) | `mfa.confirmar` | qualquer pessoa autenticada, sempre pelo `sub` do token | ID token, como hoje |
 | `POST /mfa/recuperar` (um código da lista ativa desliga o MFA da pessoa) | `mfa.recuperar` | **qualquer um**, sem token | **nenhum** |

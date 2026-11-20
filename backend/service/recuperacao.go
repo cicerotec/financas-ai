@@ -17,8 +17,9 @@ var ErrRecuperacaoInvalida = errors.New("recuperacao invalida")
 // Identidade e o que o service precisa do login (o Cognito): achar a pessoa pelo e-mail e desligar o MFA dela. So estas duas coisas
 // (R32): nunca cria sessao, nunca devolve token e nunca altera a senha (R31).
 type Identidade interface {
-	// BuscarPessoa acha a pessoa pelo e-mail ja normalizado. achou=false se nao ha conta; erro so para falha do servico.
-	BuscarPessoa(ctx context.Context, email string) (p domain.PessoaMFA, achou bool, err error)
+	// BuscarPessoa acha a pessoa pelo nome de usuario do pool: o e-mail ja normalizado (recuperacao) ou o sub do token (estado do MFA).
+	// achou=false se nao ha conta; erro so para falha do servico.
+	BuscarPessoa(ctx context.Context, usuario string) (p domain.PessoaMFA, achou bool, err error)
 	// DesligarMFA desliga o aplicativo autenticador da pessoa (pelo sub).
 	DesligarMFA(ctx context.Context, sub string) error
 }

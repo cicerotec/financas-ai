@@ -28,6 +28,7 @@ type Servidor struct {
 	cartoes   *rotasCartao
 	meios     *controller.Meios
 	combos    *controller.Combos
+	estadoMFA *controller.EstadoMFA            // GET /me/mfa: o estado do MFA e a lista de codigos, lidos do login e do banco (spec mfa-opcional, R37)
 	codigos   *controller.CodigosDeRecuperacao // lista de codigos de recuperacao do MFA (gerar e confirmar; spec mfa-opcional)
 	recup     *controller.Recuperacao          // rota PUBLICA: recuperacao do MFA (auth.RotaPublica; spec mfa-opcional)
 
@@ -76,6 +77,7 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, despachante *
 		cartoes:   &rotasCartao{c: controller.NewCartoes(cartoes)},
 		meios:     controller.NewMeios(service.NewMeios(cfgRepo, lancRepo, rel, encerramento)),
 		combos:    controller.NewCombos(combos),
+		estadoMFA: controller.NewEstadoMFA(service.NewEstadoMFA(identidadeIndisponivel{}, repository.NewCodigosDeRecuperacao(db, table))),
 		codigos:   controller.NewCodigosDeRecuperacao(service.NewCodigosDeRecuperacao(repository.NewCodigosDeRecuperacao(db, table), segAvisos, rel)),
 		recup:     controller.NewRecuperacao(service.NewRecuperacao(identidadeIndisponivel{}, repository.NewCodigosDeRecuperacao(db, table), segAvisos, rel)),
 	}
@@ -86,6 +88,7 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, despachante *
 // usarIdentidade liga a recuperacao do MFA ao login (o Cognito, no main; um falso, nos testes). Ate la toda recuperacao falha.
 func (s *Servidor) usarIdentidade(id service.Identidade) {
 	s.recup = controller.NewRecuperacao(service.NewRecuperacao(id, s.repoCodigos, s.segAvisos, s.relogio))
+	s.estadoMFA = controller.NewEstadoMFA(service.NewEstadoMFA(id, s.repoCodigos))
 }
 
 // identidadeIndisponivel e a identidade de antes de o main ligar o Cognito: nao acha ninguem, entao a recuperacao so responde a falha.
