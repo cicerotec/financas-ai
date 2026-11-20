@@ -1153,7 +1153,7 @@ function ligarSegurancaConta(){
     agora: ()=>Date.now(),
     agoraISO: ()=>new Date().toISOString(),
     nomeDoApp: ()=>cfg.ambiente === 'dev' ? 'Finanças DEV' : 'Finanças',
-    enderecoRecuperar: ()=>'',
+    enderecoRecuperar: ()=>(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) ? '' : location.origin + '/#recuperar', // no app Android nao ha endereco para abrir
     api: {estado: ()=>financasApi.mfaEstado(), gerar: ()=>financasApi.mfaGerarLista(), confirmar: id=>financasApi.mfaConfirmarLista(id)},
     mfa: ()=>carregarScript('js/mfa-cognito.js').then(()=>{ if(!window.MfaCognito) throw Object.assign(new Error('config'), {codigo:'config'}); return window.MfaCognito; }),
     qr: ()=>carregarScript('js/qr.js').then(()=>QR),
@@ -1186,6 +1186,7 @@ function camadasAbertas(){
   if(document.getElementById('vsTc')) n++;
   if(document.getElementById('futOv')) n++;
   if(camadaVisivel('histFilOv')) n++;
+  if(camadaVisivel('mfRec')) n++;
   if(camadaVisivel('mfLista')) n++;
   if(camadaVisivel('mfLig')) n++;
   if(document.getElementById('tagsCard').classList.contains('aberto')) n++;
@@ -1209,6 +1210,7 @@ function fecharCamadaTopo(){ // na ordem de cima para baixo; o que nao existe e 
   if(document.getElementById('vsTc')){ vsFechar(); return; }
   if(document.getElementById('futOv')){ fecharAcoesFuturo(); return; }
   if(camadaVisivel('histFilOv')){ fecharFiltrosHist(); return; }
+  if(camadaVisivel('mfRec')){ clicar('#mfRecVolta'); return; }
   if(camadaVisivel('mfLista')){ clicar('#mfListaVolta'); return; }
   if(camadaVisivel('mfLig')){ clicar('#mfLigVolta'); return; }
   if(document.getElementById('tagsCard').classList.contains('aberto')) lancarTags(false);

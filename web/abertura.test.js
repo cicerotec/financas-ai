@@ -130,7 +130,7 @@ teste('o index.html traz a abertura no comeco do body, antes do cabecalho, com o
   const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   const iAb = html.indexOf('id="abertura"'), iScript = html.indexOf('<script src="js/abertura.js"></script>'), iHeader = html.indexOf('<header>');
   assert.ok(iAb > html.indexOf('<body>') && iAb < iScript && iScript < iHeader, 'ordem: body, abertura, script, header');
-  ['abMsg', 'abErroT', 'abErroS', 'abDeNovo', 'abSair', 'abEntT', 'abEntS', 'abEntrar'].forEach((id) => assert.ok(html.includes('id="' + id + '"'), 'falta #' + id));
+  ['abMsg', 'abErroT', 'abErroS', 'abDeNovo', 'abSair', 'abEntT', 'abEntS', 'abEntrar', 'abPerdi'].forEach((id) => assert.ok(html.includes('id="' + id + '"'), 'falta #' + id));
 });
 
 teste('o icone da abertura e o do splash do Android: mesmo recorte, em circulo, no centro; em dev leva a faixa DEV (demo v2)', () => {

@@ -32,6 +32,7 @@
         <b id="abEntT"></b>
         <span id="abEntS"></span>
         <button type="button" id="abEntrar">Entrar</button>
+        <button type="button" class="sec" id="abPerdi">Perdi o autenticador</button>
       </div>
     </div>
   </div>
@@ -545,6 +546,34 @@
   <div class="mf-rodape"><button class="primary" type="button" id="mfGuardei">Guardei a lista</button></div>
 </div>
 
+<!-- Recuperar o acesso (sem login): um código da lista desliga a verificação em duas etapas. Spec .ai/specs/mfa-opcional (R33); demo .ai/demos/demo-listas-v10-mfa.html -->
+<div class="mf-tela mf-rec" id="mfRec" hidden role="dialog" aria-modal="true" aria-label="Recuperar o acesso">
+  <div class="mf-cab"><button type="button" class="mf-volta" id="mfRecVolta" aria-label="Voltar">←</button><h2>Recuperar o acesso</h2></div>
+  <div class="mf-corpo" id="mfRecForm">
+    <div class="card">
+      <b>Perdeu o aplicativo autenticador?</b>
+      <p class="muted">Digite o seu e-mail e <b>um</b> dos códigos da lista que você guardou. Isso desliga a verificação em duas etapas. Depois você entra só com e-mail e senha e pode ligar de novo, com uma lista nova.</p>
+      <p class="muted">O código sozinho não dá entrada: a senha continua sendo pedida.</p>
+    </div>
+    <div class="card">
+      <label class="mf-lb" for="mfRecEmail">E-mail</label>
+      <input id="mfRecEmail" type="email" autocomplete="email" inputmode="email" placeholder="voce@exemplo.com">
+      <label class="mf-lb" for="mfRecCod">Código da lista</label>
+      <input id="mfRecCod" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" class="mf-cod-lista">
+      <p class="seg-msg" id="mfRecMsg" role="status"></p>
+    </div>
+    <p class="muted mf-nota">Sem a lista e sem o autenticador, o app não tem como devolver a conta.</p>
+  </div>
+  <div class="mf-corpo" id="mfRecOk" hidden>
+    <div class="card mf-ok">
+      <div class="mf-ok-ic" aria-hidden="true">✓</div>
+      <b>Verificação em duas etapas desligada</b>
+      <p class="muted">Entre com o seu e-mail e a sua senha. Esse código já foi usado e a lista antiga foi apagada: ao ligar de novo, você recebe uma lista nova.</p>
+    </div>
+  </div>
+  <div class="mf-rodape"><button class="primary" type="button" id="mfRecEnviar">Desligar a verificação</button><button class="primary" type="button" id="mfRecEntrar" hidden>Entrar</button></div>
+</div>
+
 <div class="modal-overlay hidden" id="modalOverlay">
   <div class="modal-box">
     <p id="modalMsg"></p>
@@ -559,6 +588,7 @@
 <script src="config.js"></script>
 <script src="js/ambiente.js"></script>
 <script src="js/sessao.js"></script>
+<script src="js/recuperar.js"></script>
 <script src="api.js"></script>
 <script src="recorrencia.js"></script>
 <script src="consulta-tags.js"></script>
