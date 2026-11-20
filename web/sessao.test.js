@@ -46,7 +46,8 @@ function aparelho(op) {
     agora: () => d.agora,
     recarregar: () => { d.recargas++; },
     setTimeout: (f) => { d.timers.push(f); },
-    aviso: (t) => { d.avisos.push(t); }
+    aviso: (t) => { d.avisos.push(t); },
+    aoFecharPagina: (f) => { d.fecharPagina = f; }
   };
   d.sessao = () => criarSessao(d.env);
   d.estadoDaAba = () => new URL(d.abertas[d.abertas.length - 1]).searchParams.get('state');
@@ -349,7 +350,7 @@ const AUTH_OK = (d) => JSON.stringify({ id: 'ID-N', refresh: 'R-N', exp: d.agora
 // o navegador logo depois de voltar do segundo login: sessao normal guardada, PKCE do tipo mfa e o code na URL
 function voltaMfa(op) {
   op = op || {};
-  const d = aparelho({ navegador: true, search: op.search === undefined ? '?code=C2&state=SM' : op.search, login: op.login || loginMfa });
+  const d = aparelho({ navegador: true, search: op.search === undefined ? '?code=C2&state=SM' : op.search, login: op.login || (op.semRefresh ? (p) => (p.token ? resp(200, {}) : resp(200, comAcesso({ refresh_token: undefined }))) : loginMfa) });
   d.ls.m.set('financas.auth', AUTH_OK(d));
   if (op.pkce !== null) d.ss.m.set('financas.pkce', JSON.stringify(op.pkce || { v: 'VM', state: 'SM', tipo: 'mfa', ate: d.agora + 5 * 60 * 1000 }));
   return d;
@@ -414,16 +415,42 @@ teste('M-T6, M-T7, R9, R10, R12: no navegador, o retorno do segundo login guarda
   assert.deepStrictEqual(d.ss.escritas, [], 'nada gravado em sessionStorage');
   assert.strictEqual(d.ss.m.has('financas.pkce'), false, 'a intencao e apagada no retorno');
   assert.ok([...d.ls.m.values(), ...d.ss.m.values()].every((v) => !v.includes('ACESSO-1') && !v.includes('REFRESH-1')), 'nenhum armazenamento recebe o access token nem o refresh do segundo login');
-  assert.strictEqual(revogacoes(d).length, 1, 'o refresh do segundo login e revogado');
-  assert.deepStrictEqual([revogacoes(d)[0].p.token, revogacoes(d)[0].p.client_id], ['REFRESH-1', 'cliente']);
+  assert.strictEqual(revogacoes(d).length, 0, 'revogar o refresh agora revogaria o access token (provado no dev): fica so em memoria ate a secao terminar');
   assert.strictEqual(d.recargas, 0, 'a pagina nao recarrega');
   assert.deepStrictEqual(d.avisos, []);
   // a secao que ja estava aberta e se registra depois tambem e avisada; fechar a secao descarta o token
   let depois = 0;
   s.aoMfa(() => { depois++; });
   assert.strictEqual(depois, 1);
-  s.descartarMfa();
+  s.descartarMfa(); await esperar();
   assert.strictEqual(s.tokenMfa(), null);
+  assert.strictEqual(revogacoes(d).length, 1, 'ao fechar a secao o refresh do segundo login e revogado');
+  assert.deepStrictEqual([revogacoes(d)[0].p.token, revogacoes(d)[0].p.client_id], ['REFRESH-1', 'cliente']);
+  s.descartarMfa(); await esperar();
+  assert.strictEqual(revogacoes(d).length, 1, 'descartar de novo nao revoga de novo');
+});
+
+teste('R10: o refresh do segundo login tambem e revogado quando o access token vence e quando a pagina e fechada no meio da secao', async () => {
+  const d = voltaMfa(), s = d.sessao();
+  await s.token();
+  assert.strictEqual(s.tokenMfa(), 'ACESSO-1');
+  assert.strictEqual(revogacoes(d).length, 0);
+  d.agora += 3600 * 1000;
+  assert.strictEqual(s.tokenMfa(), null, 'venceu');
+  await esperar();
+  assert.deepStrictEqual(revogacoes(d).map((x) => x.p.token), ['REFRESH-1']);
+  const e = voltaMfa(), t = e.sessao();
+  await t.token();
+  assert.strictEqual(typeof e.fecharPagina, 'function');
+  e.fecharPagina(); await esperar();
+  assert.deepStrictEqual(revogacoes(e).map((x) => x.p.token), ['REFRESH-1']);
+  assert.strictEqual(t.tokenMfa(), null);
+});
+
+teste('R10: um segundo login sem refresh no retorno nao revoga nada ao descartar', async () => {
+  const d = voltaMfa({ semRefresh: true }), s = d.sessao();
+  await s.token(); s.descartarMfa(); await esperar();
+  assert.strictEqual(revogacoes(d).length, 0);
 });
 
 teste('M-T6, R9: o access token vence em memoria (1 hora menos a folga) e some ao descartar; chamadas juntas na volta trocam o code uma vez so', async () => {
@@ -491,11 +518,12 @@ teste('M-T5, M-T6, M-T7, R10, R11: no app, o retorno "mfa" entrega so o access t
   assert.deepStrictEqual([d.cofre.get('refresh'), d.cofre.has('pkce'), d.recargas, d.avisos], ['R0', false, 0, []], 'a sessao do app nao muda; o PKCE some');
   assert.deepStrictEqual([d.ls.escritas, d.ss.escritas], [[], []]);
   assert.ok(![...d.cofre.values()].some((v) => v.includes('ACESSO-1') || v.includes('REFRESH-1')), 'o Cofre nao recebe o access token nem o refresh do segundo login');
-  assert.deepStrictEqual([trocas(d).length, revogacoes(d).length, revogacoes(d)[0].p.token], [1, 1, 'REFRESH-1']);
+  assert.deepStrictEqual([trocas(d).length, revogacoes(d).length], [1, 0], 'o refresh do segundo login so e revogado ao descartar');
   assert.strictEqual(await s.token(), 'ID-1', 'a sessao do app segue valida');
-  // sair descarta o access token da secao
-  await s.sair();
+  // sair descarta o access token da secao e revoga o refresh dele
+  await s.sair(); await esperar();
   assert.strictEqual(s.tokenMfa(), null);
+  assert.deepStrictEqual(revogacoes(d).map((x) => x.p.token), ['REFRESH-1']);
 });
 
 teste('M-T8, R11: no app, fechar a aba sem concluir cancela; o retorno invalido ou a troca que falha nao viram "sem sessao" nem encerram a sessao', async () => {
