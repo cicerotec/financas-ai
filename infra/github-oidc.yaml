@@ -176,6 +176,13 @@ Resources:
                   - cognito-idp:UpdateUserPool
                   - cognito-idp:DescribeUserPool
                   - cognito-idp:GetUserPoolMfaConfig
+                  - cognito-idp:SetUserPoolMfaConfig
+                  - cognito-idp:UpdateUserPoolDomain
+                  - cognito-idp:CreateManagedLoginBranding
+                  - cognito-idp:UpdateManagedLoginBranding
+                  - cognito-idp:DeleteManagedLoginBranding
+                  - cognito-idp:DescribeManagedLoginBranding
+                  - cognito-idp:DescribeManagedLoginBrandingByClient
                   - cognito-idp:CreateUserPoolClient
                   - cognito-idp:UpdateUserPoolClient
                   - cognito-idp:DescribeUserPoolClient
