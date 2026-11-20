@@ -1157,6 +1157,253 @@
           }
         }
       }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {
+            "S": "USER#sub-demo-dono"
+          },
+          "SK": {
+            "S": "MFACODIGOS#ATIVA"
+          },
+          "listaId": {
+            "S": "0123456789abcdef0123456789abcdef"
+          },
+          "geradaEm": {
+            "S": "2026-11-19T20:00:00Z"
+          },
+          "codigos": {
+            "L": [
+              {
+                "M": {
+                  "hash": {
+                    "S": "0101010101010101010101010101010101010101010101010101010101010101"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "0202020202020202020202020202020202020202020202020202020202020202"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "0303030303030303030303030303030303030303030303030303030303030303"
+                  },
+                  "usado": {
+                    "BOOL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "0404040404040404040404040404040404040404040404040404040404040404"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "0505050505050505050505050505050505050505050505050505050505050505"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "0606060606060606060606060606060606060606060606060606060606060606"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "0707070707070707070707070707070707070707070707070707070707070707"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "0808080808080808080808080808080808080808080808080808080808080808"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "0909090909090909090909090909090909090909090909090909090909090909"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {
+            "S": "USER#sub-demo-dono"
+          },
+          "SK": {
+            "S": "MFACODIGOS#PENDENTE"
+          },
+          "listaId": {
+            "S": "fedcba9876543210fedcba9876543210"
+          },
+          "geradaEm": {
+            "S": "2026-11-19T20:00:00Z"
+          },
+          "codigos": {
+            "L": [
+              {
+                "M": {
+                  "hash": {
+                    "S": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              },
+              {
+                "M": {
+                  "hash": {
+                    "S": "a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9"
+                  },
+                  "usado": {
+                    "BOOL": false
+                  }
+                }
+              }
+            ]
+          },
+          "expiraEm": {
+            "N": "1763586000"
+          }
+        }
+      }
     }
   ]
 }

@@ -64,7 +64,7 @@ backend/
   controller/    um controller por assunto: chama o service e traduz o erro em resposta. resposta.go tem o tipo Resp,
                  Out, Erro e a tradução dos erros do service em status HTTP. Não toca o banco
   adapter/       adaptadores para o que não é banco, um pacote por assunto. Hoje: adapter/relogio (Real e Fixo; o service
-                 declara a interface Relogio e nunca chama time.Now) e adapter/notificacao (um arquivo por canal de aviso:
+                 declara a interface Relogio e nunca chama time.Now) adapter/identidade (o login, o Cognito: só achar a pessoa pelo e-mail e desligar o MFA dela; spec `mfa-opcional`) e adapter/notificacao (um arquivo por canal de aviso:
                  telegram.go agora; e-mail e WhatsApp depois). O banco continua em repository/
   (raiz)         só main.go, servidor.go, roteador.go e local.go: não há regra, banco nem variável global
 ```
