@@ -58,7 +58,6 @@ function pagina(op) {
     agora: () => 1000,
     agoraISO: () => '2026-11-19T10:00:00Z',
     nomeDoApp: () => 'Finanças',
-    enderecoRecuperar: () => '',
     api: {
       estado: async () => { reg('GET estado'); if (d.servidor.falharEstado) throw d.servidor.falharEstado; return d.servidor.estado; },
       gerar: async () => { reg('POST gerar'); if (d.servidor.falharGerar) throw d.servidor.falharGerar; d.servidor.n++; return { listaId: 'L' + d.servidor.n, codigos: CODIGOS.slice() }; },
@@ -302,6 +301,7 @@ teste('copiar e imprimir levam os codigos e a frase; a lista so existe em memori
   for (const t of [d.copiados[0], d.impressos[0]]) {
     assert.ok(CODIGOS.every((c) => t.includes(c)));
     assert.ok(t.includes('SE PERDER A LISTA, PERDE O ACESSO.'));
+    assert.ok(!/https?:|#recuperar|@|\.com|cloudfront/i.test(t), 'o texto nao leva endereco, e-mail nem dominio: uma lista achada nao diz onde usar os codigos');
   }
   assert.strictEqual(d.armazem.size, 0);
 });
