@@ -16,7 +16,7 @@ provisionada em 5 RCU/WCU.
 1. **Cadastro aberto, mas só com código de convite.** A pessoa cria a conta sozinha, informando um código que o dono distribui e pode revogar.
 2. **Espaço próprio no primeiro acesso.** Quem entra e não tem espaço ganha um, vazio, onde é `owner`. Nenhum dado de outra pessoa aparece.
 3. **App vazio utilizável.** A primeira tela leva a pessoa a criar o primeiro meio de pagamento; nada de nome de banco, tag ou status do dono.
-4. **Proteção antes de abrir:** MFA por aplicativo autenticador, teto de custo (AWS Budget) e de uso (limite de taxa), tudo dentro do item 49 do BACKLOG.
+4. **Proteção antes de abrir:** MFA por aplicativo autenticador, teto de custo (AWS Budget) e de uso (limite de taxa), o MFA no item 49 do BACKLOG (concluído) e o resto no item 65.
 5. **Isolamento entre espaços provado por teste**, e a pessoa pode **exportar e excluir a própria conta**.
 
 ## Decisões já tomadas (dono, 2026-10-27)
@@ -58,7 +58,7 @@ Depende de quantas pessoas entrarem. Cognito, Lambda e CloudFront têm faixa gra
 - Uma pessoa sem convite individual, só com o código, cria a conta no `dev`, confirma o e-mail, ativa o MFA e cai num app vazio com espaço próprio.
 - Um teste cria dois espaços e prova que nenhuma rota de um lê, grava ou lista o outro; um código errado ou revogado não cria conta.
 - Exportar e excluir conta funcionam e a exclusão cobre também o `HIST#` (que a Lambda não pode apagar hoje) e o usuário do Cognito.
-- `security.md`, `BACKLOG.md` e o `README.md` ficam em dia; o item 49 do BACKLOG é fechado.
+- `security.md`, `BACKLOG.md` e o `README.md` ficam em dia; o item 65 do BACKLOG é fechado.
 
 ## Para o dono decidir
 

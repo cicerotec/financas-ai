@@ -1,6 +1,6 @@
 # Backlog e roadmap
 
-Atualizado em 2026-10-27. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
+Atualizado em 2026-11-20. O roadmap é separado por **área de responsabilidade**; dentro de cada área, os itens estão em
 ordem de prioridade e levam a etiqueta **[Agora]**, **[Próximo]** ou **[Depois]**. A numeração é fixa (não renumerar:
 outros trechos referenciam os números). Os detalhes de cada assunto ficam em `.ai/`. Marque `[x]` ao concluir e
 retire o item do índice "Seções".
@@ -31,7 +31,7 @@ Só o que ainda não foi feito, na ordem de prioridade (**[Agora]**, depois **[P
 com o salto para o registro real. **Ao concluir um item, marque `[x]` no registro e tire a linha daqui.** Bugs
 pendentes: nenhum.
 
-- [\[Infra\] - 49 - **\[Próximo\] App multiusuário (MFA, cadastro com convite, espaço próprio, isolamento):**](#item-49)
+- [\[Infra\] - 65 - **\[Próximo\] App multiusuário (proteção antes de abrir, cadastro com convite, espaço próprio, isolamento):**](#item-65)
 - [\[UX/UI\] - 42 - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
 - [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
 - [\[UX/UI\] - 63 - **\[Próximo\] Avisar a falta de rede em toda tela:**](#item-63)
@@ -49,21 +49,28 @@ pendentes: nenhum.
 ### Infra (AWS, SAM, ambientes, custo, backup)
 - 51. [x] <a id="item-51"></a>**Recorrência automática de lançamentos (concluído em 2026-11-01, em produção; aprovado em 2026-10-29, roteiro em [`.ai/specs/recorrencia/`](.ai/specs/recorrencia/intent.md)):** hoje o dono cria as contas fixas (colégio, internet, água, luz, aluguel) como previstos mês a mês, pelo Prever ou pelo Repetir, que fazem um número fixo de cópias. Ele quer **marcar o lançamento como recorrente uma vez** e deixar o servidor copiá-lo sozinho, com todas as características (valor, banco, tags, nota, aviso do Telegram), até desligar. Decidido com o dono: a recorrência é um lançamento previsto com o atributo `recorrente: { intervalo }` (objeto, no `TX#`), **sem chave nem tipo de registro novo** (o `REC#` foi rejeitado); quem comanda a criação é o item auxiliar do `AVISOS#ATIVOS`, que guarda intervalo (1, 2, 3, 6, 12 meses ou outro), próxima data e o último registro; a cópia nasce **na hora de marcar** (aparece em Futuros com meses de antecedência, para IPVA, IPTU e seguro) e a rotina diária dos avisos cria a seguinte quando a anterior vence (sem janela de 30 dias); a cópia herda a marca e **não leva série** (o Repetir continua com série); **criar não grava histórico**; apagar uma cópia pula o mês; desligar deixa as cópias futuras como estão; religar cria na hora a próxima, sempre para frente. Fases: A (backend, rotina, rotas, testes) e B (tela, **demo antes**, no padrão do Prever). **Aprovado em 2026-10-30. Fase A (backend: marcar, copiar, rotina, rotas) implementada. Fase B (telas) implementada em 2026-10-30 sobre as demos aprovadas** ([Histórico](.ai/demos/arquivo/demo-historico-v2-recorrencia.html), [Lançar](.ai/demos/arquivo/demo-lancar-v2-recorrencia.html) e [Futuros](.ai/demos/arquivo/demo-futuros-v2-recorrencia.html)): "Tornar recorrente" e "Parar recorrência" nas ações do lançamento, linha Recorrente em "Mais" no Lançar, marca 🔁 nas linhas; padrão Mensal; **sem a lista "Recorrentes"** (o dono achou desnecessária). Limite conhecido: "Parar" aparece só na cópia mais recente de cada recorrência; se ela for excluída (pular o ciclo), a recorrência continua ativa e não há como pará-la pela tela. Em produção e em uso pelo dono desde 2026-11-01, com os ajustes do aviso (Editar mostra o aviso da data futura; linha de aviso em "Tornar recorrente").
 - 50. [x] <a id="item-50"></a>**Log de cada requisição** (concluído em 2026-10-29; roteiro em [`.ai/specs/log-de-requisicoes/`](.ai/specs/log-de-requisicoes/intent.md)): o `handler` escreve uma linha `req rid= m= acao= status= ms=` ao terminar, sem corpo, query string nem ids; serve para achar as leituras repetidas e decidir o índice do Histórico.
-- 49. [ ] <a id="item-49"></a>**[Próximo] App multiusuário (2026-10-27; absorve o antigo item 37, MFA):** abrir o app a qualquer pessoa, cada uma no seu espaço, em fases
+- 49. [x] <a id="item-49"></a>**MFA opcional por aplicativo autenticador (TOTP) com lista de códigos de recuperação (concluído em 2026-11-20; antigo item 37; roteiro em [`.ai/specs/mfa-opcional/`](.ai/specs/mfa-opcional/spec.md)):**
+  a pessoa liga a **verificação em duas etapas** no cartão **Segurança da conta**, em Listas (Cognito, TOTP, sem o custo do SMS; `template.yaml`, os dois ambientes). Quem não ligar continua entrando só
+  com e-mail e senha. Quem perde o autenticador recupera o acesso com **um código da lista de códigos de recuperação**, guardada pela própria pessoa, na tela **Recuperar o acesso** (não há reset do dono
+  nem outro caminho no app; o console da AWS fica como último recurso por fora do app, sem promessa). Backend (PRs 455, 456, 457, 461 e 466) e front (PRs 467 a 471) mergeados em 2026-11-19 e 2026-11-20;
+  **verificado no `dev` em 2026-11-20**, no navegador, no PWA e no app Android (ligar, desligar, segundo login, recuperação por código, "Esqueci a senha"); vai à produção no próximo release.
+  **Pendências que não são deste item:** medir de novo o tempo da rota pública de recuperação, com mais chamadas, **antes de abrir o app a qualquer pessoa**, e decidir se o MFA passa a ser obrigatório
+  (ambos no item 65). Resultados e riscos em [`.ai/security.md`](.ai/security.md).
+- 65. [ ] <a id="item-65"></a>**[Próximo] App multiusuário (2026-10-27, separado do MFA em 2026-11-20):** abrir o app a qualquer pessoa, cada uma no seu espaço, em fases
   (plano em [`.ai/specs/app-multiusuario/`](.ai/specs/app-multiusuario/intent.md)). Decidido com o dono: **ninguém lê dado de outro, nem o dono** (isolamento lógico; a garantia
   criptográfica seria a cifragem por campo de `.ai/privacidade-e-cifragem.md`); **o status é do app, global e nunca do usuário** (cada status novo, como `PIX`, `DEBITO` e `CRIPTO`, é
   uma entrada do `Catalogo` por spec).
-  - [ ] **Fase 1, proteger antes de abrir:** **MFA** no login (Cognito, TOTP por aplicativo autenticador, sem o custo do SMS, `template.yaml`, os dois ambientes; hoje o login é só e-mail e
-    senha e uma senha vazada basta para ver tudo; **recuperação** se o celular se perder, por uma **lista de códigos de recuperação** guardada pela própria pessoa (não por reset do dono: o app não oferece outro caminho, e o console da AWS fica como último recurso por fora do app, sem promessa); ajuste no convite de `scripts/seed.sh`, que agora grava o e-mail em minúsculas; **backend pronto e mergeado em 2026-11-19 (PRs 455, 456, 457 e 461); falta o front (a seção em Listas, a lista de códigos, a tela de recuperação e a tela de entrada no navegador) e a verificação no `dev`**; roteiro em [`.ai/specs/mfa-opcional/`](.ai/specs/mfa-opcional/spec.md)); **AWS Budget de US$ 1**
-    com alerta por e-mail (conferir se existe; controla o custo da conta AWS, os 2 primeiros são grátis: Billing > Budgets); **limite de taxa** na Function URL (teto de concorrência,
-    WAF só se o dono aceitar o custo); **capacidade da tabela** (5/5, autoscaling dentro das 25 unidades gratuitas ou sob demanda). Ao concluir, atualizar a autenticação de `.ai/security.md`.
+  - [ ] **Fase 1, proteger antes de abrir:** o **MFA** já está pronto (item 49); falta o **AWS Budget de US$ 1** com alerta por e-mail (conferir se existe; controla o custo da conta AWS, os 2 primeiros
+    são grátis: Billing > Budgets); o **limite de taxa** na Function URL (teto de concorrência, WAF só se o dono aceitar o custo); a **capacidade da tabela** (5/5, autoscaling dentro das 25 unidades
+    gratuitas ou sob demanda; a tabela do `dev` está com 20 de escrita por mudança manual, e o próximo deploy a devolve a 5); **medir de novo o tempo da rota pública do MFA** com mais chamadas
+    (canal conhecido, R28 do `mfa-opcional`). O ajuste no convite de `scripts/seed.sh` (grava o e-mail em minúsculas) já foi feito. Ao concluir, atualizar a autenticação de `.ai/security.md`.
   - [ ] **Fase 2, cadastro só com código de convite** (gatilho `PreSignUp` do Cognito, código no SSM, tela de cadastro própria; demo antes).
   - [ ] **Fase 3, espaço próprio no primeiro acesso** (`POST /me/espaco`, mesmos itens do `seed.sh`, sem chave nova).
   - [ ] **Fase 4, app vazio e boas-vindas** (espaço sem configuração funciona, só com status do catálogo; demo antes).
   - [ ] **Fase 5, isolamento provado, exportar e excluir a conta** (teste por rota; exclusão cobre `HIST#` e o Cognito; política de privacidade).
   - [ ] **Fase 6, abrir** no `dev` e depois na produção, para poucas pessoas.
-  **A decidir (no `intent.md`):** como limitar a taxa, capacidade da tabela, um código ou vários, MFA obrigatório para todos ou só para o dono, como a pessoa cadastra o aplicativo no
-  primeiro acesso (confirmar no `dev`), política de privacidade. **Fora:** a tela de permissões (item 27), login social e planos pagos.
+  **A decidir (no `intent.md`):** como limitar a taxa, capacidade da tabela, **MFA obrigatório para todos ou só para o dono**, política de privacidade.
+  **Fora:** a tela de permissões (item 27), login social e planos pagos.
 - 2. [x] **Decidir o `/api/*`: chamada direta à Function URL (opção B)**, front estático no CloudFront. Reavaliar
   rotear a API pelo CloudFront (OAC) quando entrar domínio próprio, WAF ou mais usuários. Detalhe em [`.ai/hospedagem.md`](.ai/hospedagem.md).
 - 3. [x] **Hospedar o front em S3 + CloudFront** (HTTPS, `*.cloudfront.net`). No ar (PR #5). Detalhes em [`.ai/hospedagem.md`](.ai/hospedagem.md).
@@ -75,7 +82,7 @@ pendentes: nenhum.
   ou substituir a tabela ou o login. No ar (PRs #38, #39 e #40, release v0.6.0). Guia em
   `.ai/deploy-github-actions.md`.
 - 11. [ ] <a id="item-11"></a>**[Depois] Backup periódico** (exportar JSON e/ou point-in-time recovery do DynamoDB). Adiado por decisão: não será feito agora. O **AWS Budget** que
-  este item trazia passou para a fase 1 do item 49.
+  este item trazia passou para a fase 1 do item 65.
   - **Backup:** o PITR do DynamoDB está ligado **só em prod** pelo `template.yaml` (`!If [EhDev, false, true]`; ligar
     no console sem mudar o template seria desfeito no próximo deploy). Falta o backup periódico; enquanto isso, o
     botão Exportar (`.json`) é a cópia manual. Plano em fases (dump cifrado fora da AWS, restauração testada, espelho do
@@ -316,7 +323,7 @@ DynamoDB sem discutir com o dono.**
   1. **Token de login no navegador e no PWA (segurança).** Depois do login, o Cognito entrega um token (o ID token vale 60 minutos; o refresh token, que renova o ID token sem pedir a senha, vale 30 dias). O front o guarda em `localStorage` (`financas.auth`, em `web/js/sessao.js`), e qualquer JavaScript que rode dentro da página consegue lê-lo. Se algum dia houver uma falha de XSS (um texto de fora, como nota ou descrição, ou uma biblioteca externa, executando como script), quem a explorar copia o token e usa a conta de outro lugar, **sem senha e sem MFA**, até o refresh token vencer. Hoje não há XSS provado (o app escapa HTML); este ponto é defesa em profundidade, para uma falha futura não entregar a sessão. No app Android o refresh token fica cifrado no Keystore e o ID token só em memória, mas o plugin `Cofre` responde "ler" ao JavaScript da página, então um script injetado ainda o obtém. **O MFA (item 49, fase 1) não resolve isto:** ele protege o momento do login (senha vazada), não um token já emitido. **Caminhos a avaliar, do mais barato ao mais caro:** (a) **CSP** (cabeçalho que só deixa a página executar script do próprio site; hoje não há CSP própria, ver `.ai/security.md`); (b) fazer o refresh em Java no app Android, sem o token chegar ao JavaScript; (c) no navegador, cookie `HttpOnly` em vez de `localStorage`, o que exige um intermediário no servidor para trocar o token (mudança de arquitetura grande). Riscos em aberto em [`.ai/security.md`](.ai/security.md), "Pontos em aberto".
   2. **Conflito ao gravar configuração (dado se perde em silêncio).** Cada configuração (`listas`, `saldos`, `cartoes`, `combos`...) tem um número de `version`. Se duas pessoas (ou dois aparelhos) gravam a mesma configuração ao mesmo tempo, o servidor recusa a segunda com 409. Hoje, em `gravarCfg` (`web/api.js`, linha 164 em diante), o front responde ao 409 adotando a `version` do servidor e **reenviando o objeto inteiro dele por cima**: a alteração de quem gravou primeiro é apagada sem aviso. O que se quer: o servidor (não o front, que não decide) mesclar o que mudou em cada lado, ou recusar e avisar a pessoa em vez de sobrescrever. **A decidir:** quais configurações precisam disso (lista de meios e status, tags e combos são listas e mesclam bem; um número como o saldo inicial não) e se o aviso ao usuário basta. O 409 de consulta da Tendências (`conflito_versao`) já relê a lista e deixa a pessoa conferir, e pode servir de modelo.
   3. **Índice (GSI) por banco no DynamoDB (escala).** A tabela é uma só, com 5 RCU de leitura, e as consultas por meio de pagamento (`banco`) hoje leem a partição do espaço e filtram, sem índice. Avaliar se um índice por banco compensa quando o volume crescer. **Regras já decididas:** índice só entra se a medição provar a necessidade (`feedback_performance-consultas`), e criar chave ou índice no DynamoDB só com a aprovação do dono. **Falta saber:** qual consulta concreta pesa e que cenário de volume justifica (o texto original do item não dizia). O GSI por data do Histórico (itens 31 e 45) é outro assunto, também adiado.
-  **Já tratado em outro item:** limite de taxa na Function URL e capacidade da tabela (item 49, fase 1) e MFA (item 49, fase 1); não duplicar aqui.
+  **Já tratado em outro item:** limite de taxa na Function URL e capacidade da tabela (item 65, fase 1) e MFA (item 49); não duplicar aqui.
 - 28. [x] **Avisos de lançamentos futuros no Telegram**: campo `aviso` no lançamento (dias antes do vencimento e
   "insistir todo dia depois"), desligado por padrão e independente do status (o PREVISTO continua sendo só a previsão
   que soma em Futuros); rotina diária às 8h pela mesma Lambda (EventBridge), um resumo por pessoa (quem criou e o
@@ -418,7 +425,7 @@ DynamoDB sem discutir com o dono.**
     de privacidade, formulário de Segurança dos Dados e as demais exigências da loja (conferir no Play Console na hora). Inclui o **App Link por `https`** no retorno do login, que troca o esquema
     próprio da fase 2 (decisão de 2026-11-11), e compilar e instalar o sabor `prod`, que ainda não foi feito. **A decidir antes:** conta da Play (pessoal ou de organização) e a distribuição inicial
     (APK assinado direto entre as duas pessoas ou esperar o teste interno).
-  - [ ] **Fase 6, produção aberta:** só depois das fases 1 a 5 do [item 49](#item-49) (MFA, limite de taxa, cadastro, espaço próprio, exportar e excluir conta) e da política de privacidade.
+  - [ ] **Fase 6, produção aberta:** só depois das fases 1 a 5 do [item 65](#item-65) (limite de taxa, cadastro, espaço próprio, exportar e excluir conta) e da política de privacidade, com o MFA (item 49) já pronto.
   - [ ] **Fase 7, uso sem internet** (futuro; segue [`.ai/offline-e-sincronizacao.md`](.ai/offline-e-sincronizacao.md)): demo e spec próprias; depende do gatilho "muitos usuários querendo offline".
   **Herdado do item 54, por ver:** `dev` e `prod` instalados juntos (A-T5), o celular em tema claro no splash, e desinstalar para ver o Cofre sumir (A-T16b).
 - 55. [x] <a id="item-55"></a>**Novas visões dos gastos na Tendências (2026-11-01; concluído em 2026-11-02, fases A a F, roteiro em [`.ai/specs/tendencias-visoes/`](.ai/specs/tendencias-visoes/intent.md)):** a consulta continua
