@@ -2,7 +2,7 @@
 
 Este documento diz **o quê e por quê**. O `plan.md` e o `spec.md` só nascem depois que o dono aprovar este intent e responder "Para o dono decidir".
 
-**Estado:** rascunho para aprovação (2026-11-20). Nada implementado. O número do item no `BACKLOG.md` é do dono.
+**Estado:** rascunho para aprovação (2026-11-20). Nada implementado. É o **item 66** do `BACKLOG.md` e pré-requisito do item 65 (abrir o app ao público). Toca a tela de aviso do **item 47** (componente reutilizável): o `plan.md` diz qual dos dois vem primeiro.
 
 ## O problema
 
@@ -94,4 +94,4 @@ Telegram e FCM não cobram. O webhook roda na Lambda de hoje (algumas invocaçõ
 
 ## Para o dono decidir
 
-Só o **número do item** no `BACKLOG.md`. As demais perguntas foram respondidas em 2026-11-20 (ver "Decisões já tomadas").
+Nada em aberto para começar o `plan.md`. As perguntas foram respondidas em 2026-11-20 (ver "Decisões já tomadas") e o item é o **66** do `BACKLOG.md`. O que o `plan.md` ainda precisa decidir com o dono: a ordem frente ao item 47 e o dado novo do código de vínculo no DynamoDB.
