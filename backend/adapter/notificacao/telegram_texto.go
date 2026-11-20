@@ -102,6 +102,9 @@ func tamanho(s string) int { return len([]rune(s)) }
 // MontarResumo, uma linha nunca e cortada ao meio (uma linha sozinha acima do limite e truncada com "…") e nenhuma se perde.
 // A lista de quem chamou nao e reordenada.
 func PartesDoResumo(r domain.ResumoAvisos, limite int) []string {
+	if r.Mensagem != "" { // aviso de seguranca (texto fixo, sem linhas)
+		return []string{"🔐 " + r.Marca + r.Mensagem}
+	}
 	if r.Teste {
 		return []string{TextoDeTeste(r.Marca)}
 	}

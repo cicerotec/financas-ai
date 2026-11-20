@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -72,8 +73,17 @@ func eventoDe(r *http.Request, corpo string) req {
 	ev.QueryStringParameters = qs
 	ev.Body = corpo
 	ev.RequestContext = events.LambdaFunctionURLRequestContext{HTTP: events.LambdaFunctionURLRequestContextHTTPDescription{
-		Method: r.Method, Path: r.URL.Path}}
+		Method: r.Method, Path: r.URL.Path, SourceIP: origemDe(r.RemoteAddr)}}
 	return ev
+}
+
+// origemDe devolve o IP de quem chamou (sem a porta), como a Function URL o poe em RequestContext.HTTP.SourceIP. Nunca vem de cabecalho:
+// x-forwarded-for e de quem chama (spec mfa-opcional, R29).
+func origemDe(remoteAddr string) string {
+	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		return host
+	}
+	return remoteAddr
 }
 
 // rodarLocal abre a porta e nao volta (so se der erro).

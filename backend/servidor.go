@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
+	"errors"
+
 	"financas/controller"
+	"financas/domain"
 	"financas/repository"
 	"financas/service"
 )
@@ -24,6 +28,12 @@ type Servidor struct {
 	cartoes   *rotasCartao
 	meios     *controller.Meios
 	combos    *controller.Combos
+	codigos   *controller.CodigosDeRecuperacao // lista de codigos de recuperacao do MFA (gerar e confirmar; spec mfa-opcional)
+	recup     *controller.Recuperacao          // rota PUBLICA: recuperacao do MFA (auth.RotaPublica; spec mfa-opcional)
+
+	repoCodigos *repository.CodigosDeRecuperacao // para religar a recuperacao a outra identidade (usarIdentidade)
+	relogio     service.Relogio
+	segAvisos   *service.AvisosDeSeguranca
 }
 
 // novoServidor liga repository, service e controller. Recebe o que vem de fora (banco, tabela, relogio, despachante de avisos e o
@@ -50,9 +60,10 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, despachante *
 	avisos.UsarRecorrencias(recorrencias)
 	encerramento := service.NewEncerramento(saldos, lancRepo, cfgRepo, repository.NewAvisos(db, table), lancSvc, cartoes, rel)
 	combos := service.NewCombos(repository.NewAvisos(db, table), cfgRepo, lancRepo, rel)
+	segAvisos := service.NewAvisosDeSeguranca(espacos, pessoas, despachante, ambiente) // aviso de mudanca do MFA (spec mfa-opcional, R35)
 	cfgSvc := service.NewConfig(cfgRepo, rel)
 	cfgSvc.UsarRotinaCombos(combos)
-	return &Servidor{
+	s := &Servidor{
 		lanc:      controller.NewLancamentos(lancSvc),
 		esp:       controller.NewEspacos(service.NewEspacos(espacos)),
 		cfg:       controller.NewConfig(cfgSvc, tags, contador),
@@ -65,5 +76,24 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, despachante *
 		cartoes:   &rotasCartao{c: controller.NewCartoes(cartoes)},
 		meios:     controller.NewMeios(service.NewMeios(cfgRepo, lancRepo, rel, encerramento)),
 		combos:    controller.NewCombos(combos),
+		codigos:   controller.NewCodigosDeRecuperacao(service.NewCodigosDeRecuperacao(repository.NewCodigosDeRecuperacao(db, table), segAvisos, rel)),
+		recup:     controller.NewRecuperacao(service.NewRecuperacao(identidadeIndisponivel{}, repository.NewCodigosDeRecuperacao(db, table), segAvisos, rel)),
 	}
+	s.repoCodigos, s.relogio, s.segAvisos = repository.NewCodigosDeRecuperacao(db, table), rel, segAvisos
+	return s
+}
+
+// usarIdentidade liga a recuperacao do MFA ao login (o Cognito, no main; um falso, nos testes). Ate la toda recuperacao falha.
+func (s *Servidor) usarIdentidade(id service.Identidade) {
+	s.recup = controller.NewRecuperacao(service.NewRecuperacao(id, s.repoCodigos, s.segAvisos, s.relogio))
+}
+
+// identidadeIndisponivel e a identidade de antes de o main ligar o Cognito: nao acha ninguem, entao a recuperacao so responde a falha.
+type identidadeIndisponivel struct{}
+
+func (identidadeIndisponivel) BuscarPessoa(context.Context, string) (domain.PessoaMFA, bool, error) {
+	return domain.PessoaMFA{}, false, nil
+}
+func (identidadeIndisponivel) DesligarMFA(context.Context, string) error {
+	return errors.New("identidade indisponivel")
 }
