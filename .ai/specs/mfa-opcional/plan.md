@@ -2,9 +2,11 @@
 
 Como construir o que o [`intent.md`](intent.md) pede. Cada fase é um PR pequeno e vai primeiro ao `dev`. Tela nova pede **demo aprovada antes do código**.
 
-**Estado:** rascunho para aprovação (2026-11-19). Nada implementado. O [`spec.md`](spec.md) segue este plan. **A revisão independente das premissas foi feita em 2026-11-19** ([`../../bmad/arquitetura-mfa-recuperacao.md`](../../bmad/arquitetura-mfa-recuperacao.md)); este plan e o spec absorvem os achados A1 e A5 (ver "Premissas"). **Nada no DynamoDB é criado antes da conversa com o dono** (Fase 3).
+**Estado (2026-11-19):** Backend implementado e mergeado em 2026-11-19 (PRs 455, 456, 457 e 461); **o front (Fase 4) e a verificação no `dev` (Fase 5) ainda não foram feitos**, então hoje ninguém liga o MFA pelo app. Fase 1 (demo): aprovada e mergeada (PR 456). Fase 2 (infra): mergeada (PR 455) e aplicada no `dev` (o primeiro deploy travou num `ManagedLoginBranding` de teste que sobrou no `dev`, apagado à mão pelo dono). Fase 3 (backend): mergeada (PR 461, em quatro fatias). Fases 4 (front) e 5 (verificação no `dev`): pendentes. O [`spec.md`](spec.md) segue este plan. **A revisão independente das premissas foi feita em 2026-11-19** ([`../../bmad/arquitetura-mfa-recuperacao.md`](../../bmad/arquitetura-mfa-recuperacao.md)); este plan e o spec absorvem os achados A1 e A5 (ver "Premissas"). **Nada no DynamoDB é criado antes da conversa com o dono** (Fase 3).
 
 ## Onde estamos hoje
+
+*(Tabela escrita antes da implementação: as linhas sobre o `template.yaml`, a Lambda e o roteador foram superadas pelos PRs 455 e 461; o que segue valendo é o front, que ainda não guarda o access token nem tem a seção do MFA.)*
 
 | Fato | Onde | Consequência |
 |---|---|---|

@@ -1,0 +1,49 @@
+{
+ "PK": "USER#e33c4aca-...",
+ "SK": "MFACODIGOS#PENDENTE",
+ "listaId": "fedcba9876543210fedcba9876543210",
+ "geradaEm": "2026-11-19T20:00:00Z",
+ "codigos": [
+  {
+   "hash": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+   "usado": false
+  },
+  {
+   "hash": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+   "usado": false
+  },
+  {
+   "hash": "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+   "usado": false
+  },
+  {
+   "hash": "a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3",
+   "usado": false
+  },
+  {
+   "hash": "a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4",
+   "usado": false
+  },
+  {
+   "hash": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+   "usado": false
+  },
+  {
+   "hash": "a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6",
+   "usado": false
+  },
+  {
+   "hash": "a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7",
+   "usado": false
+  },
+  {
+   "hash": "a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8",
+   "usado": false
+  },
+  {
+   "hash": "a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9",
+   "usado": false
+  }
+ ],
+ "expiraEm": 1763586000
+}

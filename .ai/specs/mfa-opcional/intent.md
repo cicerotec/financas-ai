@@ -2,7 +2,7 @@
 
 Este documento diz **o quê e por quê**; o como está em [`plan.md`](plan.md) e as regras verificáveis em [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação (2026-11-19). Nada foi implementado. É a Fase 1 do item 49 do BACKLOG ([`app-multiusuario`](../app-multiusuario/intent.md)).
+**Estado (2026-11-19):** Backend implementado e mergeado em 2026-11-19 (PRs 455, 456, 457 e 461); **o front (Fase 4) e a verificação no `dev` (Fase 5) ainda não foram feitos**, então hoje ninguém liga o MFA pelo app. É a Fase 1 do item 49 do BACKLOG ([`app-multiusuario`](../app-multiusuario/intent.md)).
 
 ## O problema
 
@@ -117,6 +117,7 @@ devolvido ao estado original ao fim dos testes** (ver "Estado do `dev` depois do
 - Usuário de teste: sem MFA preferido e sem MFA ligado. O segredo do TOTP dele continua registrado e **desativado** no Cognito (sem efeito com o pool em `OFF`); não foi removido.
 - O pool de produção (`financas`) nunca foi tocado.
 - O primeiro deploy da Fase 2 deve mostrar `MfaConfiguration` e o escopo do cliente como mudança de propriedade.
+- **Lição do primeiro deploy (2026-11-19):** o **estilo de marca de teste** (`create-managed-login-branding`) **ficou no `dev`** depois dos testes, e o CloudFormation recusou criar o dele (`AlreadyExists` para o cliente), voltando o stack (`UPDATE_ROLLBACK_COMPLETE`). O dono o apagou à mão (`delete-managed-login-branding`) e o deploy passou. Quem repetir os testes à mão num ambiente novo deve apagar o estilo no fim.
 
 ## O Managed login também foi testado no `dev` (2026-11-19)
 
