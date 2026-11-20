@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,12 +28,12 @@ type bancoFake struct {
 	falharLeitura error
 	// fatia 2: falharPut faz o proximo PutItem falhar; falharContador faz o ADD seq falhar; antesDoPut roda no comeco de
 	// PutItem (simula outra pessoa gravando a mesma configuracao antes).
-	falharPut       error
-	lidosNoQuery    int // quantos itens os Query devolveram (a leitura que a tabela cobra)
-	lidosPorInicio  map[string]int // o mesmo, separado pelo inicio do intervalo do Query (o :a da chave de data)
-	falharQuerySemInicio error     // faz falhar so o Query que comeca do inicio dos tempos (SK a partir de TX#)
-	falharContador  error
-	antesDoPut      func(*dynamodb.PutItemInput)
+	falharPut            error
+	lidosNoQuery         int            // quantos itens os Query devolveram (a leitura que a tabela cobra)
+	lidosPorInicio       map[string]int // o mesmo, separado pelo inicio do intervalo do Query (o :a da chave de data)
+	falharQuerySemInicio error          // faz falhar so o Query que comeca do inicio dos tempos (SK a partir de TX#)
+	falharContador       error
+	antesDoPut           func(*dynamodb.PutItemInput)
 }
 
 func novoBancoFake() *bancoFake {
@@ -84,9 +85,16 @@ func (f *bancoFake) PutItem(_ context.Context, in *dynamodb.PutItemInput, _ ...f
 	return &dynamodb.PutItemOutput{}, nil
 }
 func (f *bancoFake) DeleteItem(_ context.Context, in *dynamodb.DeleteItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
+	if aws.ToString(in.ConditionExpression) == "listaId = :id" { // lista de codigos do MFA: so apaga se ainda e a do listaId pedido
+		it, existe := f.itens[chave(sv(in.Key["PK"]), sv(in.Key["SK"]))]
+		if !existe || it["listaId"] == nil || sv(it["listaId"]) != sv(in.ExpressionAttributeValues[":id"]) {
+			return nil, &types.ConditionalCheckFailedException{}
+		}
+	}
 	delete(f.itens, chave(sv(in.Key["PK"]), sv(in.Key["SK"])))
 	return &dynamodb.DeleteItemOutput{}, nil
 }
+
 // TransactWriteItems e tudo ou nada, como o DynamoDB: primeiro confere as condicoes de todos os itens (so
 // attribute_not_exists(PK) e (SK) sao entendidas); se qualquer uma falha, nada muda e volta
 // TransactionCanceledException. Dois itens da mesma chave na mesma transacao tambem sao recusados.
@@ -113,6 +121,20 @@ func (f *bancoFake) TransactWriteItems(_ context.Context, in *dynamodb.TransactW
 			}
 		case t.Delete != nil:
 			k = chave(sv(t.Delete.Key["PK"]), sv(t.Delete.Key["SK"]))
+			// a pendente da lista de codigos do MFA so sai se ainda e a do listaId pedido e nao venceu (spec mfa-opcional, R25a)
+			if aws.ToString(t.Delete.ConditionExpression) == "listaId = :id AND expiraEm > :agora" {
+				it, existe := f.itens[k]
+				bom := existe && it["listaId"] != nil && sv(it["listaId"]) == sv(t.Delete.ExpressionAttributeValues[":id"])
+				if bom {
+					exp, _ := strconv.ParseInt(it["expiraEm"].(*types.AttributeValueMemberN).Value, 10, 64)
+					agora, _ := strconv.ParseInt(t.Delete.ExpressionAttributeValues[":agora"].(*types.AttributeValueMemberN).Value, 10, 64)
+					bom = exp > agora
+				}
+				if !bom {
+					return nil, &types.TransactionCanceledException{Message: aws.String("ConditionalCheckFailed em " + k),
+						CancellationReasons: []types.CancellationReason{{Code: aws.String("ConditionalCheckFailed")}}}
+				}
+			}
 		}
 		if k != "" && vistas[k] {
 			return nil, &types.TransactionCanceledException{Message: aws.String("dois itens com a mesma chave: " + k)}
@@ -159,6 +181,9 @@ func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, 
 		n++
 		it["seq"] = &types.AttributeValueMemberN{Value: strconv.FormatFloat(n, 'f', -1, 64)}
 		return &dynamodb.UpdateItemOutput{Attributes: map[string]types.AttributeValue{"seq": it["seq"]}}, nil
+	}
+	if m := reUsadoMFA.FindStringSubmatch(aws.ToString(in.UpdateExpression)); m != nil { // marcar ou desfazer o "usado" de um codigo da lista ativa do MFA
+		return f.updateUsadoMFA(in, k, m)
 	}
 	if expr := aws.ToString(in.UpdateExpression); strings.HasSuffix(expr, " pushTokens :t") { // aparelhos do push: ADD / DELETE no conjunto pushTokens
 		return f.updateAparelho(in, k, expr)
@@ -604,4 +629,29 @@ func TestRotaInexistente(t *testing.T) {
 		st, _ := chamar(t, "own", c.m, c.caminho, nil, "")
 		esperar(t, c.m+" "+c.caminho, st, 404)
 	}
+}
+
+// ---------- lista de codigos do MFA: SET codigos[i].usado = :t|:f, com a condicao "listaId = :id [AND codigos[i].usado = :f]" ----------
+
+var reUsadoMFA = regexp.MustCompile(`^SET codigos\[(\d+)\]\.usado = (:[tf])$`)
+
+func (f *bancoFake) updateUsadoMFA(in *dynamodb.UpdateItemInput, k string, m []string) (*dynamodb.UpdateItemOutput, error) {
+	it, ok := f.itens[k]
+	cond := aws.ToString(in.ConditionExpression)
+	if !ok || it["listaId"] == nil || sv(it["listaId"]) != sv(in.ExpressionAttributeValues[":id"]) {
+		return nil, &types.ConditionalCheckFailedException{}
+	}
+	i, _ := strconv.Atoi(m[1])
+	lista := it["codigos"].(*types.AttributeValueMemberL).Value
+	if i >= len(lista) {
+		return nil, &types.ConditionalCheckFailedException{}
+	}
+	cod := lista[i].(*types.AttributeValueMemberM).Value
+	if strings.Contains(cond, "AND codigos["+m[1]+"].usado = :f") {
+		if cod["usado"].(*types.AttributeValueMemberBOOL).Value { // ja usado: a escrita condicional falha
+			return nil, &types.ConditionalCheckFailedException{}
+		}
+	}
+	cod["usado"] = in.ExpressionAttributeValues[m[2]]
+	return &dynamodb.UpdateItemOutput{}, nil
 }

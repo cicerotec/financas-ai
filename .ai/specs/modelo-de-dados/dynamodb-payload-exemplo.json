@@ -419,6 +419,103 @@
         "banco": "BANCO DEMO A",
         "excluidoEm": "2026-09-22T10:15:30.120Z"
       }
+    },
+    {
+      "PK": "USER#sub-demo-dono",
+      "SK": "MFACODIGOS#ATIVA",
+      "listaId": "0123456789abcdef0123456789abcdef",
+      "geradaEm": "2026-11-19T20:00:00Z",
+      "codigos": [
+        {
+          "hash": "0101010101010101010101010101010101010101010101010101010101010101",
+          "usado": false
+        },
+        {
+          "hash": "0202020202020202020202020202020202020202020202020202020202020202",
+          "usado": false
+        },
+        {
+          "hash": "0303030303030303030303030303030303030303030303030303030303030303",
+          "usado": true
+        },
+        {
+          "hash": "0404040404040404040404040404040404040404040404040404040404040404",
+          "usado": false
+        },
+        {
+          "hash": "0505050505050505050505050505050505050505050505050505050505050505",
+          "usado": false
+        },
+        {
+          "hash": "0606060606060606060606060606060606060606060606060606060606060606",
+          "usado": false
+        },
+        {
+          "hash": "0707070707070707070707070707070707070707070707070707070707070707",
+          "usado": false
+        },
+        {
+          "hash": "0808080808080808080808080808080808080808080808080808080808080808",
+          "usado": false
+        },
+        {
+          "hash": "0909090909090909090909090909090909090909090909090909090909090909",
+          "usado": false
+        },
+        {
+          "hash": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+          "usado": false
+        }
+      ]
+    },
+    {
+      "PK": "USER#sub-demo-dono",
+      "SK": "MFACODIGOS#PENDENTE",
+      "listaId": "fedcba9876543210fedcba9876543210",
+      "geradaEm": "2026-11-19T20:00:00Z",
+      "codigos": [
+        {
+          "hash": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+          "usado": false
+        },
+        {
+          "hash": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+          "usado": false
+        },
+        {
+          "hash": "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+          "usado": false
+        },
+        {
+          "hash": "a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3",
+          "usado": false
+        },
+        {
+          "hash": "a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4",
+          "usado": false
+        },
+        {
+          "hash": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+          "usado": false
+        },
+        {
+          "hash": "a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6",
+          "usado": false
+        },
+        {
+          "hash": "a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7",
+          "usado": false
+        },
+        {
+          "hash": "a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8",
+          "usado": false
+        },
+        {
+          "hash": "a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9",
+          "usado": false
+        }
+      ],
+      "expiraEm": 1763586000
     }
   ]
 }

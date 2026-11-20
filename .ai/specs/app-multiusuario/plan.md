@@ -21,12 +21,12 @@ vem antes de qualquer abertura de cadastro.** Telas novas pedem demo aprovada an
 ## Fases (cada uma é um PR)
 
 ### Fase 1: proteger antes de abrir (MFA, Budget e limite de taxa)
-- **MFA TOTP** no pool, nos dois ambientes (antigo item 37, hoje parte do item 49): sem SMS; confirmar no `dev` como a pessoa cadastra o aplicativo no primeiro acesso; **recuperação**
+- **MFA TOTP** no pool, nos dois ambientes (antigo item 37, hoje o item 49, concluído): sem SMS; confirmar no `dev` como a pessoa cadastra o aplicativo no primeiro acesso; **recuperação**
   se o celular se perder (reset por script do dono, para ninguém ficar trancada); decidir obrigatório x opcional.
 - **AWS Budget de US$ 1** com alerta por e-mail (era metade do item 11; o backup periódico fica sozinho no item 11).
 - **Limite de taxa:** definir o `ReservedConcurrency` de prod (e, se o dono aceitar o custo, WAF na frente). Medir antes: quantos acessos a tela faz por abertura.
 - **Capacidade da tabela:** decidir 5/5, autoscaling dentro de 25 unidades ou sob demanda; mudar de modo no `template.yaml` não pode substituir a tabela (o deploy já barra isso).
-- Atualizar `.ai/security.md` (autenticação) e o item 49 do BACKLOG.
+- Atualizar `.ai/security.md` (autenticação) e o item 65 do BACKLOG.
 
 ### Fase 2: cadastro com código de convite
 O Hosted UI não pede código, e ligar o auto cadastro do pool deixa **qualquer um chamar `SignUp` direto no Cognito**. Por isso o código é conferido **no próprio

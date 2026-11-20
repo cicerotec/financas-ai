@@ -28,6 +28,10 @@ Rota de espaço (`/spaces/{sid}/...`) também exige vínculo da pessoa com o esp
 | Método | Caminho | Ação | Owner | Member | Token | Spec |
 |---|---|---|---|---|---|---|
 | GET | `/me` | `me` | — | — | ID token | specs/app-multiusuario/intent.md |
+| GET | `/me/mfa` | `mfa.ler` | — | — | ID token | specs/mfa-opcional/spec.md |
+| POST | `/me/mfa/codigos` | `mfa.gerar` | — | — | ID token | specs/mfa-opcional/spec.md |
+| POST | `/me/mfa/codigos/confirmar` | `mfa.confirmar` | — | — | ID token | specs/mfa-opcional/spec.md |
+| POST | `/mfa/recuperar` | `mfa.recuperar` | — | — | nenhum | specs/mfa-opcional/spec.md |
 | POST | `/push/sair` | `push.sair` | — | — | ID token | specs/app-android-push/spec.md |
 | GET | `/spaces/{sid}/aparencia` | `aparencia.ler` | sim | sim | ID token | arquitetura.md |
 | PUT | `/spaces/{sid}/aparencia` | `aparencia.escrever` | sim | sim | ID token | arquitetura.md |

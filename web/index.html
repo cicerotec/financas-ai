@@ -32,6 +32,7 @@
         <b id="abEntT"></b>
         <span id="abEntS"></span>
         <button type="button" id="abEntrar">Entrar</button>
+        <button type="button" class="sec" id="abPerdi">Perdi o autenticador</button>
       </div>
     </div>
   </div>
@@ -307,6 +308,18 @@
       </div>
     </div>
   </div>
+  <div class="card" id="mfaCard">
+    <b>Segurança da conta</b>
+    <p class="muted">Vale em qualquer aparelho seu. Não é a mesma coisa que a Segurança do aparelho (trava e apps recentes), que está em Aparência.</p>
+    <label class="fut-sw seg-sw"><input type="checkbox" role="switch" id="swMfa" disabled><span>Verificação em duas etapas<small id="mfaApoio">Conferindo…</small></span></label>
+    <p class="seg-msg" id="mfaMsg" role="status"></p>
+    <div class="mf-lista" id="mfaListaBloco" hidden>
+      <div class="mf-linha"><span class="mf-ic" aria-hidden="true">🗝️</span><span><b>Códigos de recuperação</b><small id="mfaListaTxt"></small></span></div>
+    </div>
+    <div class="row mf-acoes" id="mfaAcoes" hidden><button class="ghost" id="btnMfaNova" type="button">Gerar nova lista de códigos</button></div>
+    <div class="row mf-acoes"><button class="ghost" id="mfaDeNovo" type="button" hidden>Tentar de novo</button></div>
+    <p class="muted mf-nota" id="mfaNota"></p>
+  </div>
   <div class="card">
     <b>Aparência</b>
     <div class="ap-subs">
@@ -482,6 +495,85 @@
 
 </main>
 
+<!-- Segurança da conta: ligar (QR e código) e a lista de códigos. Spec .ai/specs/mfa-opcional; demo .ai/demos/demo-listas-v10-mfa.html -->
+<div class="mf-tela" id="mfLig" hidden role="dialog" aria-modal="true" aria-label="Ligar a verificação em duas etapas">
+  <div class="mf-cab"><button type="button" class="mf-volta" id="mfLigVolta" aria-label="Voltar">←</button><h2>Ligar a verificação em duas etapas</h2></div>
+  <div class="mf-corpo">
+    <p class="mf-ctx">Passo 1 de 2: o aplicativo autenticador</p>
+    <div class="card">
+      <b>1. Abra o seu aplicativo autenticador</b>
+      <p class="muted">Pode ser o de um gerenciador de senhas ou um aplicativo só para isso. Se ainda não tem, instale um antes de continuar.</p>
+    </div>
+    <div class="card">
+      <b>2. Cadastre o Finanças nele</b>
+      <p class="muted">Aponte a câmera do autenticador para o QR code. No mesmo aparelho, use a chave escrita abaixo.</p>
+      <div class="mf-qr" id="mfQr" role="img" aria-label="QR code para o aplicativo autenticador"></div>
+      <p class="muted mf-chave-l">Chave para digitar</p>
+      <div class="mf-chave" id="mfChave"></div>
+      <p class="muted mf-nota">O QR code e a chave são montados neste aparelho e somem ao fechar a tela. Nada disto vai a um serviço de fora nem fica guardado.</p>
+    </div>
+    <div class="card">
+      <b>3. Digite o código de 6 dígitos que ele mostra</b>
+      <input id="mfCodigo" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000000" class="mf-cod6">
+      <p class="seg-msg" id="mfLigMsg" role="status"></p>
+    </div>
+  </div>
+  <div class="mf-rodape"><button class="primary" type="button" id="mfVerificar">Verificar e continuar</button></div>
+</div>
+
+<div class="mf-tela" id="mfLista" hidden role="dialog" aria-modal="true" aria-label="Códigos de recuperação">
+  <div class="mf-cab"><button type="button" class="mf-volta" id="mfListaVolta" aria-label="Voltar">←</button><h2>Códigos de recuperação</h2></div>
+  <div class="mf-corpo">
+    <p class="mf-ctx" id="mfListaCtx">Passo 2 de 2: guarde a lista</p>
+    <div class="mf-alerta" role="alert">
+      <strong>SE PERDER A LISTA, PERDE O ACESSO.</strong>
+      <p>Guarde esta lista num lugar seguro, <b>separado do autenticador</b>: um gerenciador de senhas diferente, papel num lugar protegido ou um cofre.</p>
+      <p>Se você perder o acesso ao autenticador <b>e</b> a lista, perde a conta, mesmo sabendo a senha. Não há outro caminho.</p>
+    </div>
+    <div class="card">
+      <b>Seus códigos</b>
+      <p class="muted">Cada código vale uma vez. Esta lista aparece <b>só agora</b>: ela não fica guardada no aparelho e some ao fechar esta tela.</p>
+      <ol class="mf-codigos" id="mfCodigos"></ol>
+      <div class="row mf-gestos"><button class="ghost" type="button" id="mfCopiar">Copiar tudo</button><button class="ghost" type="button" id="mfImprimir">Imprimir</button></div>
+      <p class="muted mf-nota">Copiar e imprimir levam só os códigos e a data: nenhum endereço, nome nem e-mail.</p>
+    </div>
+    <div class="mf-ck" id="mfEntendi" role="checkbox" aria-checked="false" tabindex="0">
+      <span class="mf-check" aria-hidden="true"></span>
+      <span>Guardei a lista num lugar seguro e entendi: sem ela e sem o autenticador, perco a conta.</span>
+    </div>
+    <p class="seg-msg" id="mfListaMsg" role="status"></p>
+  </div>
+  <div class="mf-rodape"><button class="primary" type="button" id="mfGuardei">Guardei a lista</button></div>
+</div>
+
+<!-- Recuperar o acesso (sem login): um código da lista desliga a verificação em duas etapas. Spec .ai/specs/mfa-opcional (R33); demo .ai/demos/demo-listas-v10-mfa.html -->
+<div class="mf-tela mf-rec" id="mfRec" hidden role="dialog" aria-modal="true" aria-label="Recuperar o acesso">
+  <div class="mf-cab"><button type="button" class="mf-volta" id="mfRecVolta" aria-label="Voltar">←</button><h2>Recuperar o acesso</h2></div>
+  <div class="mf-corpo" id="mfRecForm">
+    <div class="card">
+      <b>Perdeu o aplicativo autenticador?</b>
+      <p class="muted">Digite o seu e-mail e <b>um</b> dos códigos da lista que você guardou. Isso desliga a verificação em duas etapas. Depois você entra só com e-mail e senha e pode ligar de novo, com uma lista nova.</p>
+      <p class="muted">O código sozinho não dá entrada: a senha continua sendo pedida.</p>
+    </div>
+    <div class="card">
+      <label class="mf-lb" for="mfRecEmail">E-mail</label>
+      <input id="mfRecEmail" type="email" autocomplete="email" inputmode="email" placeholder="voce@exemplo.com">
+      <label class="mf-lb" for="mfRecCod">Código da lista</label>
+      <input id="mfRecCod" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" class="mf-cod-lista">
+      <p class="seg-msg" id="mfRecMsg" role="status"></p>
+    </div>
+    <p class="muted mf-nota">Sem a lista e sem o autenticador, o app não tem como devolver a conta.</p>
+  </div>
+  <div class="mf-corpo" id="mfRecOk" hidden>
+    <div class="card mf-ok">
+      <div class="mf-ok-ic" aria-hidden="true">✓</div>
+      <b>Verificação em duas etapas desligada</b>
+      <p class="muted">Entre com o seu e-mail e a sua senha. Esse código já foi usado e a lista antiga foi apagada: ao ligar de novo, você recebe uma lista nova.</p>
+    </div>
+  </div>
+  <div class="mf-rodape"><button class="primary" type="button" id="mfRecEnviar">Desligar a verificação</button><button class="primary" type="button" id="mfRecEntrar" hidden>Entrar</button></div>
+</div>
+
 <div class="modal-overlay hidden" id="modalOverlay">
   <div class="modal-box">
     <p id="modalMsg"></p>
@@ -496,6 +588,7 @@
 <script src="config.js"></script>
 <script src="js/ambiente.js"></script>
 <script src="js/sessao.js"></script>
+<script src="js/recuperar.js"></script>
 <script src="api.js"></script>
 <script src="recorrencia.js"></script>
 <script src="consulta-tags.js"></script>
@@ -504,6 +597,7 @@
 <script src="js/nativo.js"></script>
 <script src="js/push.js"></script>
 <script src="js/telegram.js"></script>
+<script src="js/seguranca-conta.js"></script>
 <script src="js/app.js"></script>
 <script src="js/usuario.js"></script>
 <script src="js/valores.js"></script>

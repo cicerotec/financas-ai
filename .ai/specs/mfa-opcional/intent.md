@@ -2,7 +2,7 @@
 
 Este documento diz **o quê e por quê**; o como está em [`plan.md`](plan.md) e as regras verificáveis em [`spec.md`](spec.md).
 
-**Estado:** rascunho para aprovação (2026-11-19). Nada foi implementado. É a Fase 1 do item 49 do BACKLOG ([`app-multiusuario`](../app-multiusuario/intent.md)).
+**Estado (2026-11-19):** Backend implementado e mergeado em 2026-11-19 (PRs 455, 456, 457 e 461); **o front (Fase 4) e a verificação no `dev` (Fase 5) ainda não foram feitos**, então hoje ninguém liga o MFA pelo app. É a Fase 1 do item 49 do BACKLOG ([`app-multiusuario`](../app-multiusuario/intent.md)).
 
 ## O problema
 
@@ -48,13 +48,13 @@ que a própria pessoa use, sem o dono.**
   - **D3:** avisar a pessoa quando o MFA mudar, **pelo canal que ela já tem ligado** (Telegram ou push), sem prometer entrega a quem não tem.
   - **D4:** como a pessoa guarda a lista decide-se na demo da Fase 1; a inclinação é Copiar tudo (gesto explícito) e Imprimir.
   - **D5:** se a seção mostra que há lista válida (um `GET`) ainda não está decidido; a inclinação é incluir.
-  - **D6:** HMAC com pepper ou hash lento fica para a conversa do DynamoDB.
+  - **D6:** decidido na conversa do DynamoDB (2026-11-19): HMAC-SHA256 com o `listaId` como chave, sem pepper (código de 100 bits).
 
-## Dado novo no DynamoDB (o dono discute antes de qualquer código)
+## Dado novo no DynamoDB (conversa feita em 2026-11-19)
 
 A lista de códigos precisa ser guardada, **só como hash** (nunca o código). Isso exige **item ou campo novo**, e o guardrails manda não criar, renomear nem remover chave ou campo sem discutir com o dono.
-**Nada será criado até essa conversa.** O que ela precisa definir: onde o hash mora, o tipo de hash (HMAC com pepper se o código for longo; lento só se for curto), o formato do código e a quantidade, e o que fica gravado de cada uso
-(se foi gasto e quando, sem gravar o código) e do controle de tentativas.
+**Decidido na conversa (detalhe em `spec.md`, R36):** **dois** itens por pessoa em `USER#<sub>` (`MFACODIGOS#ATIVA` e `MFACODIGOS#PENDENTE`), só hashes (HMAC-SHA256 com o `listaId` como chave, sem pepper), 10 códigos de 20 caracteres por lista, pendente de 1 hora sem TTL, e o limite de tentativas **por par (pessoa, origem), em memória**, sem item no DynamoDB. **Nada é criado na tabela até a Fase 3.**
+
 
 ## Segurança da rota de recuperação (requisitos)
 
@@ -69,7 +69,7 @@ A pessoa que perdeu o autenticador **não tem token**, então a rota é pública
 ## Limites (o que fica de fora)
 
 - **Perder o autenticador e a lista ao mesmo tempo:** **o app não oferece caminho** (item 6): para quem usa, a conta se perde, mesmo sabendo a senha. O dono pode, por fora do app, desligar o MFA pelo console da AWS como último recurso (D1); **não é suporte, não é promessa e não aparece na tela**, e o passo a passo fica fora do git. Por isso a frase em destaque é parte da entrega.
-- Um login com **layout ou textos próprios**: o Managed login só aceita marca (logo, cores, fundo, modo escuro); o layout e o fluxo são do Cognito.
+- Um login com **layout ou textos próprios**: o Managed login só aceita marca (logo, cores, fundo, modo escuro); o layout e o fluxo são do Cognito. **Por isso a recuperação não está no login:** a entrada é a tela de entrada do app ("Entrar" e "Perdi o autenticador"), que o **navegador e o PWA passam a mostrar** antes do login, como o app Android já faz (decisão do dono, 2026-11-19; custo: um toque a mais para entrar pelo navegador).
 - Login social, SMS, MFA por e-mail do Cognito, perguntas de segurança, recuperação por e-mail e MFA obrigatório para todos.
 - Quem **não liga** o MFA continua com só senha: opcional significa que uma senha vazada ainda basta para ele.
 - **A sessão do login do Cognito no navegador do aparelho** (cookie, cerca de 1 hora, não confirmado no pool) pode devolver o login sem senha e sem código; sair do app não a encerra. O MFA protege o login novo, não o
@@ -103,7 +103,8 @@ devolvido ao estado original ao fim dos testes** (ver "Estado do `dev` depois do
 - Que o segundo login **força a senha de novo** no Managed login (`prompt=login` ou `max_age`): é a premissa P2 do plan.
 - O login do **app Android** com o escopo novo no pedido. A diferença é só uma palavra a mais no endereço, sem efeito esperado; **não se faz um teste à parte**, acontece na verificação da implementação.
 - Que a mudança no `template.yaml` (`MfaConfiguration` e escopo do cliente) **não substitui o pool nem o cliente**: só o changeset do deploy mostra.
-- Que a Lambda comum consegue desligar o MFA de uma pessoa (`AdminSetUserMFAPreference`) com permissão mínima, e que `AdminGetUser` aceita o e-mail como `Username` (se não, `ListUsers` filtrado).
+- Que a Lambda comum consegue desligar o MFA de uma pessoa (`AdminSetUserMFAPreference`) com permissão mínima.
+- **Confirmado no `dev` em 2026-11-19 (lido do terminal do dono, sessão com MFA, só leitura, sem imprimir e-mail):** `AdminGetUser` aceita o **e-mail como `Username`** e devolve a pessoa certa (o `ListUsers` filtrado não é necessário). **A busca diferencia maiúsculas:** o mesmo e-mail em maiúsculas não achou a conta, e o pool não define `UsernameConfiguration.CaseSensitive` (o padrão do CloudFormation é diferenciar). O `dev` tem 2 usuários e **nenhum** e-mail com maiúscula. **Produção: conferido pelo dono em 2026-11-19: todos os e-mails de produção estão em minúsculas (pendência fechada).** Consequência: normalizar o e-mail para minúsculas (R29) só acha quem foi cadastrado em minúsculas; convite novo precisa gravar o e-mail em minúsculas, e o `CaseSensitive` do pool não se muda sem substituí-lo.
 - Que o navegador e o WebView, a partir do CloudFront, chamam o Cognito (`cognito-idp.<região>.amazonaws.com`) por `fetch` com `Content-Type: application/x-amz-json-1.1` (CORS): os testes acima foram feitos por script.
 - Que o `POST /oauth2/revoke` aceita o cliente público com o refresh do segundo login, e que o access token já emitido continua valendo.
 - Quantos erros de `VerifySoftwareToken` o Cognito tolera antes de recusar por excesso de tentativas (não está provado; o spec não afirma o número).
@@ -116,6 +117,7 @@ devolvido ao estado original ao fim dos testes** (ver "Estado do `dev` depois do
 - Usuário de teste: sem MFA preferido e sem MFA ligado. O segredo do TOTP dele continua registrado e **desativado** no Cognito (sem efeito com o pool em `OFF`); não foi removido.
 - O pool de produção (`financas`) nunca foi tocado.
 - O primeiro deploy da Fase 2 deve mostrar `MfaConfiguration` e o escopo do cliente como mudança de propriedade.
+- **Lição do primeiro deploy (2026-11-19):** o **estilo de marca de teste** (`create-managed-login-branding`) **ficou no `dev`** depois dos testes, e o CloudFormation recusou criar o dele (`AlreadyExists` para o cliente), voltando o stack (`UPDATE_ROLLBACK_COMPLETE`). O dono o apagou à mão (`delete-managed-login-branding`) e o deploy passou. Quem repetir os testes à mão num ambiente novo deve apagar o estilo no fim.
 
 ## O Managed login também foi testado no `dev` (2026-11-19)
 
