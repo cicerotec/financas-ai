@@ -3,6 +3,15 @@
 App de finanças da família: `web/` (HTML, CSS e JS sem framework), `backend/` (Go, Lambda, DynamoDB), `.ai/` (contexto para quem constrói com IA) e `BACKLOG.md` (roadmap).
 Respostas e documentos em português.
 
+**Hoje é familiar, mas será aberto ao público em breve (item 65): trate como produto comercial.** Projete, implemente e revise como se já houvesse dados financeiros de desconhecidos no sistema. Na dúvida, escolha o caminho que protege quem usa:
+- **Privacidade por padrão:** dado financeiro (descrição, valor, meio de pagamento) em canal de terceiros, tela bloqueada, log ou mensagem só com decisão do dono; o padrão é o mínimo (ex.: o push só leva a contagem). O Telegram de hoje já leva esses dados e é uma exceção a anotar, não um modelo a copiar.
+- **Isolamento total entre contas:** nenhuma rota, consulta, cache ou aviso pode alcançar dado de outro espaço ou pessoa. Ver dado financeiro de terceiros é antiético, inclusive para o dono e para quem opera o sistema.
+- **A privacidade não pode depender de o dono "não olhar":** o dono é administrador da conta AWS e *consegue* acessar produção, mas isso não significa que vá acessar. O caminho é o sistema dar garantias de privacidade **mesmo que** o acesso à produção aconteça (por exemplo, cifrar os valores: [`.ai/privacidade-e-cifragem.md`](.ai/privacidade-e-cifragem.md)). **Não é o que existe hoje**; é a direção. Decisão nova deve aproximar o sistema disso, não afastá-lo.
+- **"É só a família" não é argumento:** limites, validação no servidor, consentimento, custo por usuário e abuso (robôs, enumeração de contas, tentativas em massa) entram no desenho, não "depois".
+- **Produção é intocável pela IA:** nem leitura nem script em produção; só o dono, pelo console, ou o app, pela esteira de deploy.
+- **Contradição é inevitável; esconder não é.** Durante o desenvolvimento, uma feature vai ferir estas regras (ela mesma será a exceção). Quando acontecer, **não bloqueie e não finja que cumpre**: registre a contradição como **exceção explícita** no `plan.md` e no `spec.md` da feature (qual regra, por que agora, o que falta para fechá-la) e avise o dono antes do PR. A exceção é temporária e tem de ser rastreável.
+- Ao propor uma feature, diga o que muda quando houver milhares de usuários desconhecidos (custo, limite, privacidade, LGPD). Contexto: [`.ai/specs/app-multiusuario/`](.ai/specs/app-multiusuario/intent.md) e [`.ai/security.md`](.ai/security.md).
+
 ## 1. Comece assim (obrigatório)
 1. Leia **inteiro** `.ai/guardrails.md`. É a fonte das regras. O resumo da seção 3 existe para não esquecer; **onde divergir, vale o guardrails**.
 2. Leia o que a tarefa pede, **inteiro** (tabela abaixo). Não use `head`, `limit` nem trechos; se o arquivo for grande, leia em partes até o fim.
