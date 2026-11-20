@@ -8,6 +8,9 @@ STACK=${1:?uso: seed.sh <stack> <email-dono> [<email-membro>] [nome]}
 OWNER=${2:?email do dono}
 MEMBER=${3:-}
 NOME=${4:-Financas da Familia}
+# e-mail sempre em minusculas: o pool diferencia maiusculas e o login e a recuperacao do MFA buscam o Cognito pelo e-mail exato
+OWNER=$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')
+if [ -n "$MEMBER" ]; then MEMBER=$(printf '%s' "$MEMBER" | tr '[:upper:]' '[:lower:]'); fi
 # a tabela do dev e a da stack financas-dev; em qualquer outra, a de producao
 if [ "$STACK" = "financas-dev" ]; then TABLE=FinancasApp-dev; else TABLE=FinancasApp; fi
 

@@ -48,13 +48,13 @@ que a própria pessoa use, sem o dono.**
   - **D3:** avisar a pessoa quando o MFA mudar, **pelo canal que ela já tem ligado** (Telegram ou push), sem prometer entrega a quem não tem.
   - **D4:** como a pessoa guarda a lista decide-se na demo da Fase 1; a inclinação é Copiar tudo (gesto explícito) e Imprimir.
   - **D5:** se a seção mostra que há lista válida (um `GET`) ainda não está decidido; a inclinação é incluir.
-  - **D6:** HMAC com pepper ou hash lento fica para a conversa do DynamoDB.
+  - **D6:** decidido na conversa do DynamoDB (2026-11-19): HMAC-SHA256 com o `listaId` como chave, sem pepper (código de 100 bits).
 
-## Dado novo no DynamoDB (o dono discute antes de qualquer código)
+## Dado novo no DynamoDB (conversa feita em 2026-11-19)
 
 A lista de códigos precisa ser guardada, **só como hash** (nunca o código). Isso exige **item ou campo novo**, e o guardrails manda não criar, renomear nem remover chave ou campo sem discutir com o dono.
-**Nada será criado até essa conversa.** O que ela precisa definir: onde o hash mora, o tipo de hash (HMAC com pepper se o código for longo; lento só se for curto), o formato do código e a quantidade, e o que fica gravado de cada uso
-(se foi gasto e quando, sem gravar o código) e do controle de tentativas.
+**Decidido na conversa (detalhe em `spec.md`, R36):** **dois** itens por pessoa em `USER#<sub>` (`MFACODIGOS#ATIVA` e `MFACODIGOS#PENDENTE`), só hashes (HMAC-SHA256 com o `listaId` como chave, sem pepper), 10 códigos de 20 caracteres por lista, pendente de 1 hora sem TTL, e o limite de tentativas **por par (pessoa, origem), em memória**, sem item no DynamoDB. **Nada é criado na tabela até a Fase 3.**
+
 
 ## Segurança da rota de recuperação (requisitos)
 
@@ -103,7 +103,8 @@ devolvido ao estado original ao fim dos testes** (ver "Estado do `dev` depois do
 - Que o segundo login **força a senha de novo** no Managed login (`prompt=login` ou `max_age`): é a premissa P2 do plan.
 - O login do **app Android** com o escopo novo no pedido. A diferença é só uma palavra a mais no endereço, sem efeito esperado; **não se faz um teste à parte**, acontece na verificação da implementação.
 - Que a mudança no `template.yaml` (`MfaConfiguration` e escopo do cliente) **não substitui o pool nem o cliente**: só o changeset do deploy mostra.
-- Que a Lambda comum consegue desligar o MFA de uma pessoa (`AdminSetUserMFAPreference`) com permissão mínima, e que `AdminGetUser` aceita o e-mail como `Username` (se não, `ListUsers` filtrado).
+- Que a Lambda comum consegue desligar o MFA de uma pessoa (`AdminSetUserMFAPreference`) com permissão mínima.
+- **Confirmado no `dev` em 2026-11-19 (lido do terminal do dono, sessão com MFA, só leitura, sem imprimir e-mail):** `AdminGetUser` aceita o **e-mail como `Username`** e devolve a pessoa certa (o `ListUsers` filtrado não é necessário). **A busca diferencia maiúsculas:** o mesmo e-mail em maiúsculas não achou a conta, e o pool não define `UsernameConfiguration.CaseSensitive` (o padrão do CloudFormation é diferenciar). O `dev` tem 2 usuários e **nenhum** e-mail com maiúscula. **Produção: conferido pelo dono em 2026-11-19: todos os e-mails de produção estão em minúsculas (pendência fechada).** Consequência: normalizar o e-mail para minúsculas (R29) só acha quem foi cadastrado em minúsculas; convite novo precisa gravar o e-mail em minúsculas, e o `CaseSensitive` do pool não se muda sem substituí-lo.
 - Que o navegador e o WebView, a partir do CloudFront, chamam o Cognito (`cognito-idp.<região>.amazonaws.com`) por `fetch` com `Content-Type: application/x-amz-json-1.1` (CORS): os testes acima foram feitos por script.
 - Que o `POST /oauth2/revoke` aceita o cliente público com o refresh do segundo login, e que o access token já emitido continua valendo.
 - Quantos erros de `VerifySoftwareToken` o Cognito tolera antes de recusar por excesso de tentativas (não está provado; o spec não afirma o número).
