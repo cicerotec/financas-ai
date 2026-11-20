@@ -39,7 +39,7 @@ function pagina(op) {
     verificar: async (t, c) => { reg('verificar:' + t + ':' + c); if (d.cognito.falharVerificar) throw d.cognito.falharVerificar; return true; },
     ligar: async (t) => { reg('ligar:' + t); if (d.cognito.falharLigar) throw d.cognito.falharLigar; d.servidor.estado = { ligado: true, lista: { ativa: true, geradaEm: '2026-11-19T10:00:00Z' } }; return true; },
     desligar: async (t) => { reg('desligar:' + t); if (d.cognito.falharDesligar) throw d.cognito.falharDesligar; d.servidor.estado = { ligado: false, lista: { ativa: false } }; return true; },
-    uriOtpauth: (k, n) => 'otpauth://totp/' + n + '?secret=' + k,
+    uriOtpauth: (k, n, conta) => 'otpauth://totp/' + n + (conta ? ':' + conta : '') + '?secret=' + k,
     formatarChave: (k) => k.replace(/(.{4})/g, '$1 ').trim()
   };
   d.sessao = {
@@ -58,6 +58,7 @@ function pagina(op) {
     agora: () => 1000,
     agoraISO: () => '2026-11-19T10:00:00Z',
     nomeDoApp: () => 'Finanças',
+    nomeDaConta: () => 'cicero-dev',
     api: {
       estado: async () => { reg('GET estado'); if (d.servidor.falharEstado) throw d.servidor.falharEstado; return d.servidor.estado; },
       gerar: async () => { reg('POST gerar'); if (d.servidor.falharGerar) throw d.servidor.falharGerar; d.servidor.n++; return { listaId: 'L' + d.servidor.n, codigos: CODIGOS.slice() }; },
@@ -123,7 +124,7 @@ teste('ligar, no app: confirma, segundo login, QR e chave, codigo, lista, "Guard
   assert.strictEqual(d.janelas[0].titulo, 'Confirmar que é você');
   assert.deepStrictEqual(d.chamadas.slice(1, 3), ['iniciarMfa', 'associar:AT']);
   assert.strictEqual(d.els.mfLig.hidden, false);
-  assert.ok(d.els.mfQr.innerHTML.includes('otpauth://totp/Finanças?secret=' + CHAVE), 'o QR leva so o nome do app e a chave');
+  assert.ok(d.els.mfQr.innerHTML.includes('otpauth://totp/Finanças:cicero-dev?secret=' + CHAVE), 'o QR leva o nome do app, o nome de exibicao e a chave');
   assert.ok(!/@/.test(d.els.mfQr.innerHTML), 'sem e-mail no QR');
   assert.ok(/JBSW Y3DP/.test(d.els.mfChave.textContent));
   d.els.mfCodigo.value = '123 456';

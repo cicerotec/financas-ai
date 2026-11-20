@@ -85,12 +85,15 @@ function criarMfaCognito(env){
   const ligar = token => definir(token, true);
   const desligar = token => definir(token, false);
 
-  // O texto do QR code: so o nome do app e a chave (nunca o e-mail da pessoa, R15). Quem desenha e web/js/qr.js, no aparelho.
-  function uriOtpauth(chave, nomeDoApp){
+  // O texto do QR code: o nome do app, o nome de exibicao da pessoa (o autenticador mostra "App: nome") e a chave. NUNCA o e-mail: o nome
+  // de exibicao e o apelido ou a parte do e-mail antes do @, e qualquer coisa a partir de um @ e cortada aqui (R15). Quem desenha e web/js/qr.js, no aparelho.
+  const contaDoQr = c => String(c || '').split('@')[0].replace(/[:%\s]+/g, ' ').trim().slice(0, 40);
+  function uriOtpauth(chave, nomeDoApp, conta){
     const k = String(chave || '').replace(/\s+/g, '').toUpperCase();
     if(!/^[A-Z2-7]{16,128}$/.test(k)) throw falha('servico');
     const nome = encodeURIComponent(String(nomeDoApp || 'Finanças'));
-    return 'otpauth://totp/' + nome + '?secret=' + k + '&issuer=' + nome;
+    const cta = contaDoQr(conta);
+    return 'otpauth://totp/' + nome + (cta ? ':' + encodeURIComponent(cta) : '') + '?secret=' + k + '&issuer=' + nome;
   }
   // a chave em grupos de 4, para ler e digitar
   const formatarChave = chave => String(chave || '').replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
