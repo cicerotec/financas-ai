@@ -54,19 +54,21 @@ function atualizarCampoFatura(){
   document.getElementById('fFaturaDica').textContent = padrao>0 ? 'Registros com esta forma de pagamento já vão para a próxima fatura.' : (padrao<0 ? 'Registros com esta forma de pagamento já entram na fatura anterior (a que fecha neste mês).' : '');
 }
 // ---------- aviso (Telegram): controles reutilizados pelo formulario (prefixo f) e pela janela de repeticao (pv) ----------
-function telegramVinculado(){ return !!(window.financasApi && financasApi.canais && financasApi.canais().telegram); } // o estado vem de GET /me (canais.telegram)
+// Aviso de "sem canal ativo" (spec telegram-vinculo, R19): a dica aparece quando a pessoa marca o aviso e o espaco nao tem Telegram nem aparelho ligado. "Continuar assim" a
+// esconde ate marcar de novo; o salvar nunca e bloqueado. O estado dos canais vem de GET /me (canais) e so e exibido aqui (js/canais.js).
+const avisoDispensado = {f:false, pv:false};
 const avisoVisivel = { f: ()=>dataFuturaForm(), pv: ()=>true };
 function htmlAviso(p){
   const dias = [[7,'7 dias antes'],[3,'3 dias antes'],[1,'1 dia antes'],[0,'No dia']];
   return `<div id="${p}AvisoWrap" class="hidden">
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" id="${p}Avisar" style="width:auto;"> 🔔 Avisar no Telegram</label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" id="${p}Avisar" style="width:auto;"> 🔔 Avisar</label>
     <div id="${p}AvisoOpcoes" class="hidden" style="margin:6px 0 0 4px;">
       <div id="${p}AvisoDias" style="display:flex;flex-wrap:wrap;gap:6px 14px;">
         ${dias.map(([v,t])=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="${v}" style="width:auto;"> ${t}</label>`).join('')}
       </div>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px;"><input type="checkbox" id="${p}AvisoInsistir" style="width:auto;"> Insistir todo dia depois do vencimento, até pagar</label>
     </div>
-    <p class="muted" id="${p}AvisoDica"></p>
+    <div id="${p}AvisoDica"></div>
   </div>`;
 }
 function atualizarAviso(p){
@@ -76,8 +78,8 @@ function atualizarAviso(p){
   const marcado = document.getElementById(p+'Avisar').checked;
   w.classList.toggle('hidden', !mostrar);
   document.getElementById(p+'AvisoOpcoes').classList.toggle('hidden', !marcado);
-  document.getElementById(p+'AvisoDica').textContent = (mostrar && marcado && !telegramVinculado())
-    ? 'Você ainda não ligou o Telegram: o aviso é guardado, mas só chega depois que você ligar o Telegram em Listas.' : '';
+  if(!marcado) avisoDispensado[p] = false;
+  if(typeof CanaisApp !== 'undefined' && CanaisApp) CanaisApp.dica(document.getElementById(p+'AvisoDica'), mostrar && marcado && !avisoDispensado[p], ()=>{ avisoDispensado[p] = true; });
 }
 // null = sem aviso; 'incompleto' = marcado sem nenhum dia nem "insistir"
 function lerAviso(p){
@@ -109,6 +111,13 @@ function ligarAviso(p, aoMudar){
   document.getElementById(p+'AvisoWrap').addEventListener('change', e=>{ if(e.target.id!==p+'Avisar' && aoMudar) aoMudar(); });
 }
 function atualizarCampoAviso(){ atualizarAviso('f'); atualizarCampoRepetir(); }
+// Chamado quando o estado dos canais mudou (a janela Ligar um canal fechou ou concluiu): as telas de aviso, o cartao do Telegram e o do aparelho leem de novo.
+function atualizarCanais(){
+  atualizarCampoAviso();
+  if(pv && pv.tela==='avi') pvRender(false);
+  if(typeof TelegramApp !== 'undefined' && TelegramApp) TelegramApp.atualizar();
+  if(typeof PushApp !== 'undefined' && PushApp) PushApp.atualizarCartao();
+}
 function lerAvisoDoFormulario(){ return lerAviso('f'); }
 function preencherAvisoNoFormulario(aviso){ preencherAviso('f', aviso); }
 
@@ -285,7 +294,7 @@ function pvTelaRecorrente(){
   const l = pv.base, valor = Math.abs(valorAssinado(l));
   return tcCabeca('Tornar recorrente','fechar')+
     `<p class="tc-ctx">${esc(l.descricao)} · ${fmtMoeda(valor)} · ${dataBR(l)}</p>`+
-    `<div class="tc-card">${tcLinha('rep','Repetir',esc(capitalizar(Recorrencia.rotuloIntervalo(pv.meses))))}${tcLinha('avi','Avisar no Telegram',Recorrencia.fraseAviso(pv.aviso))}</div>`+
+    `<div class="tc-card">${tcLinha('rep','Repetir',esc(capitalizar(Recorrencia.rotuloIntervalo(pv.meses))))}${tcLinha('avi','Avisar',Recorrencia.fraseAviso(pv.aviso))}</div>`+
     `<p class="tc-nota">Ao ativar, a próxima cópia nasce agora, em <b>${pvPreviaRec()}</b>, e já aparece em Futuros. Depois, uma nova a cada vez que a última chega. Sem data final.<br>Cada cópia leva valor, meio de pagamento, tags e nota deste lançamento. O aviso escolhido aqui vai na primeira cópia e as seguintes o herdam; se você mudar o aviso da cópia mais recente em Futuros, as próximas seguem o novo.</p>`+
     (pv.erro ? `<div class="tc-erro" role="alert">${esc(pv.erro)}</div>` : '');
 }
@@ -310,7 +319,7 @@ async function ativarRecorrencia(){
   try{
     const r = await db.marcarRecorrencia(l.id, l.dataEvento, meses, aviso);
     fecharPrever();
-    toast(`✓ Recorrência ativada. Primeira cópia criada em Futuros: ${r && r.dataUltimo ? pvData(r.dataUltimo) : 'veja lá'}${aviso ? ', com aviso no Telegram' : ''}.`);
+    toast(`✓ Recorrência ativada. Primeira cópia criada em Futuros: ${r && r.dataUltimo ? pvData(r.dataUltimo) : 'veja lá'}${aviso ? ', com aviso' : ''}.`);
     carregarRecorrencias();
   }catch(err){
     console.error(err);
@@ -335,7 +344,7 @@ async function pararRecorrencia(id){
 document.getElementById('fRecAbrir').addEventListener('click', abrirRecorrenciaForm);
 
 // ---------- Prever e Estender no padrao de telas (.ai/padrao-de-telas.md) ----------
-// Tela cheia com tres linhas-resumo (Status das copias, Repetir, Avisar no Telegram), a previa das datas e o botao de
+// Tela cheia com tres linhas-resumo (Status das copias, Repetir, Avisar), a previa das datas e o botao de
 // criar. Cada linha abre uma tela cheia propria; "Outro..." abre rodas numa janela de baixo. As datas, os prazos e as
 // frases vem de recorrencia.js (testado em node). Demo: .ai/demos/arquivo/demo-repeticao-e-aviso.html.
 let pv = null;
@@ -407,7 +416,7 @@ function pvTelaLote(){
   const meses = pv.rep ? pv.qtd + 1 : 1;
   let h = tcCabeca('Tornar previstos', 'fechar');
   h += `<p class="tc-ctx">${n} lançamento${n===1?'':'s'} do Histórico</p>`;
-  h += `<div class="tc-card">${tcLinha('dest','Mês de destino',esc(rotuloMes(L.destinos[L.dest].ym)))}${tcLinha('rep','Repetir',pv.rep ? Recorrencia.fraseRepeticao(pv.qtd,pv.meses).replace('além deste','além do primeiro mês') : 'Só em ' + esc(rotuloMes(L.destinos[L.dest].ym).split(' ')[0].toLowerCase()))}${tcLinha('avi','Avisar no Telegram',Recorrencia.fraseAviso(pv.aviso))}</div>`;
+  h += `<div class="tc-card">${tcLinha('dest','Mês de destino',esc(rotuloMes(L.destinos[L.dest].ym)))}${tcLinha('rep','Repetir',pv.rep ? Recorrencia.fraseRepeticao(pv.qtd,pv.meses).replace('além deste','além do primeiro mês') : 'Só em ' + esc(rotuloMes(L.destinos[L.dest].ym).split(' ')[0].toLowerCase()))}${tcLinha('avi','Avisar',Recorrencia.fraseAviso(pv.aviso))}</div>`;
   if(!c.erro){
     const datas = ex ? c.docs.filter(d=>d.descricao===ex.descricao).slice(0,3).map(d=>pvData(d.dataEvento)).join(', ') : '';
     const soma = c.docs.reduce((s,d,i)=>s + ((pv.dup==='pular' && c.iguais.has(i)) ? 0 : (d.tipo==='entrada'?1:-1)*Number(d.valor)), 0);
@@ -453,7 +462,7 @@ function pvTelaPrincipal(){
   const datas = c.docs.slice(0,4).map(d=>pvData(d.dataEvento)).join(', ') + (qtd>4 ? ` e mais ${qtd-4}` : '');
   let h = tcCabeca(pv.ctx.estender ? 'Estender a série' : 'Prever próximas datas', 'fechar');
   h += `<p class="tc-ctx">${pv.ctx.estender?'A partir de: ':''}${esc(b.descricao)} · ${fmtMoeda(valor)} · ${esc(b.status)} · ${dataBR(b)}</p>`;
-  h += `<div class="tc-card">${tcLinha('rep','Repetir',Recorrencia.fraseRepeticao(pv.qtd,pv.meses))}${tcLinha('avi','Avisar no Telegram',Recorrencia.fraseAviso(pv.aviso))}</div>`;
+  h += `<div class="tc-card">${tcLinha('rep','Repetir',Recorrencia.fraseRepeticao(pv.qtd,pv.meses))}${tcLinha('avi','Avisar',Recorrencia.fraseAviso(pv.aviso))}</div>`;
   if(pv.temParcela) h += `<div class="tc-card">${tcInterruptor('num','Continuar a numeração das parcelas','2/10 vira 3/10, 4/10…',pv.numerar)}</div>`;
   if(!c.erro) h += `<p class="tc-nota">Cria <b>${qtd}</b> evento${qtd===1?'':'s'}: <b>${datas}</b><br>Total <b>${fmtMoeda(valor*qtd)}</b>${pv.numerar && pv.qtd>qtd ? ` · a numeração só comporta mais ${qtd}` : ''}</p>`;
   if(c.iguais.size){
@@ -488,15 +497,10 @@ function pvTelaRepetir(){
     `<div class="tc-card"><button type="button" class="tc-li" data-a="janela" data-tipo="qtd"><span class="t"><b>Repetir quantas vezes</b><span class="s">Além deste lançamento</span></span><span style="color:var(--muted)">${pv.qtd}</span><span class="go" aria-hidden="true">›</span></button></div>`+
     (c.erro ? '' : `<p class="tc-nota">Datas: <b>${datas}</b><br>Dia que não existe no mês vira o último (31/01 mensal: 28/02, 31/03).</p>`);
 }
-function pvBalao(c){
-  const ds = [...pv.aviso.dias].sort((a,b)=>b-a);
-  if(!ds.length) return '';
-  const d = ds[0], ref = c.docs[0] || pv.base, venc = new Date(ref.dataEvento);
-  const aviso = new Date(venc); aviso.setDate(aviso.getDate()-d);
-  const saida = ref.tipo !== 'entrada';
-  const quando = d===0 ? (saida?'Vence hoje':'A receber hoje') : `${saida?'Vence em':'A receber em'} ${d} ${d===1?'dia':'dias'}`;
-  return `<div class="tc-card" style="margin-top:10px"><div style="padding:12px 16px;font-size:13px"><div style="color:var(--faint);margin:0 0 6px">Assim chega no Telegram</div>`+
-    `<div>🔔 Avisos de ${pvData(aviso)}<br>• ${quando} (${pvData(venc)}): ${esc(ref.descricao)} — ${fmtMoeda(Math.abs(valorAssinado(ref)))} (${esc(ref.banco||'-')})</div></div></div>`;
+// A previa nao monta texto de aviso a partir do lancamento: o aviso diz so a contagem (spec telegram-vinculo, R20), entao a frase e fixa.
+function pvBalao(){
+  if(!pv.aviso.dias.length) return '';
+  return `<div class="tc-card" style="margin-top:10px"><div class="tc-previa"><div class="l">Assim chega</div><div>A contagem, como “1 vence hoje”. O que é cada um você vê ao abrir o app.</div></div></div>`;
 }
 function pvTelaAvisar(){
   const av = pv.aviso, c = pvCalcular();
@@ -507,11 +511,11 @@ function pvTelaAvisar(){
     : `<button type="button" class="tc-li" data-a="janela" data-tipo="prazo"><span class="t">Outro prazo<span class="s">${n} de ${max} prazos</span></span><span class="go" aria-hidden="true">›</span></button>`;
   const venc = new Date((c.docs[0] || pv.base).dataEvento);
   const datas = [...av.dias].sort((a,b)=>b-a).map(d=>{ const x = new Date(venc); x.setDate(x.getDate()-d); return `<b>${pvData(x)}</b>`; }).join(', ');
-  return tcCabeca('Avisar no Telegram','voltar')+
+  return tcCabeca('Avisar','voltar')+
     (pv.fatura ? `<p class="tc-ctx">${pv.fatura.padrao ? 'Aviso padrão' : 'Fatura ' + esc(pv.fatura.rotulo)} · ${esc(pv.fatura.meio)}</p>` : '')+
     `<div class="tc-card">${tcInterruptor('sw','Avisar','',av.on)}</div>`+
     (av.on
-      ? `<div class="tc-card">${lista}</div><div class="tc-card">${outro}</div>`+
+      ? `<div id="avDica"></div><div class="tc-card">${lista}</div><div class="tc-card">${outro}</div>`+
         `<div class="tc-card">${tcInterruptor('ins','Insistir depois do vencimento','Avisa todo dia, até pagar',av.insistir)}</div>`+
         (pv.rec ? `<p class="tc-nota">Vale para a primeira cópia; as seguintes herdam o aviso, cada uma pelo seu vencimento.</p>${pvBalao(c)}` : pv.fatura && pv.fatura.padrao
           ? `<p class="tc-nota">Para cada fatura, avisa ${datas||'nenhum prazo'}${av.insistir?' e todo dia depois':''} do vencimento. Vale quando a fatura ganha o vencimento.</p>${pvBalao(c)}`
@@ -583,7 +587,13 @@ function pvRender(topo){
   el.innerHTML = `<div class="tc-scr"><div class="tc-col">${tela}</div></div>${pv.fatura ? pvBarraFatura() : pv.tela==='main' ? pvBarra() : ''}${pvHtmlJanela()}`;
   el.querySelector('.tc-scr').scrollTop = y;
   pvMontarRodas();
+  pvPintarDica();
   Voltar.sync(); // as telas internas (Repetir, Avisar, Status) e a janela de rodas contam como camadas do botao voltar
+}
+// A dica de "sem canal ativo" da tela Avisar (Prever, Estender, Repetir, aviso da fatura e aviso padrao do cartao); "Continuar assim" vale ate marcar o aviso de novo.
+function pvPintarDica(){
+  if(typeof CanaisApp === 'undefined' || !CanaisApp || !pv) return;
+  CanaisApp.dica(document.getElementById('avDica'), pv.tela==='avi' && pv.aviso.on && !pv.avDispensado, ()=>{ if(pv) pv.avDispensado = true; });
 }
 function pvVoltar(){
   if(!pv || pv.ocupado) return;
@@ -645,7 +655,7 @@ function pvClique(e){
   if(a==='dest'){ pv.lote.dest = parseInt(b.dataset.v,10); pv.tela = 'main'; return pvRender(true); }
   if(a==='dup'){ pv.dup = b.dataset.v; return pvRender(false); }
   if(a==='int'){ pv.meses = parseInt(b.dataset.m,10); return pvRender(false); }
-  if(a==='sw'){ av.on = !av.on; return pvRender(false); }
+  if(a==='sw'){ av.on = !av.on; if(av.on) pv.avDispensado = false; return pvRender(false); }
   if(a==='ins'){ av.insistir = !av.insistir; return pvRender(false); }
   if(a==='dia'){
     const d = parseInt(b.dataset.d,10), i = av.dias.indexOf(d);
@@ -717,7 +727,7 @@ async function abrirLote(){
   if(voltar) voltar.focus();
 }
 
-// Aviso da fatura do cartao (item 46): a MESMA tela "Avisar no Telegram" do Prever, sem a tela principal por tras; o Salvar fica no rodape e a seta so desiste.
+// Aviso da fatura do cartao (item 46): a MESMA tela "Avisar" do Prever, sem a tela principal por tras; o Salvar fica no rodape e a seta so desiste.
 // Demo: .ai/demos/arquivo/demo-aviso-fatura.html. O servidor valida o aviso e exige o vencimento da fatura (que ja existe: so assim a fatura aparece em Futuros).
 function pvBarraFatura(){
   return `<div class="tc-barra"><button type="button" class="tc-criar" id="tcCriar" data-a="salvarFatura" aria-busy="${pv.ocupado}">${pv.ocupado ? 'Salvando…' : 'Salvar'}</button></div>`;
@@ -735,7 +745,7 @@ function abrirAvisoFatura(f){
   const el = document.createElement('div');
   el.className = 'tc'; el.id = 'tc';
   el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
-  el.setAttribute('aria-label','Avisar no Telegram');
+  el.setAttribute('aria-label','Avisar');
   el.addEventListener('click', pvClique);
   document.body.appendChild(el);
   document.documentElement.style.overflow = 'hidden';
@@ -760,7 +770,7 @@ function abrirAvisoPadrao(meio){
   const el = document.createElement('div');
   el.className = 'tc'; el.id = 'tc';
   el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
-  el.setAttribute('aria-label','Avisar no Telegram');
+  el.setAttribute('aria-label','Avisar');
   el.addEventListener('click', pvClique);
   document.body.appendChild(el);
   document.documentElement.style.overflow = 'hidden';
@@ -1050,6 +1060,7 @@ async function init(){
     document.getElementById('perfilCard').classList.add('hidden'); // sem perfil nesta versão da API
     document.getElementById('telegramCard').classList.add('hidden');
   }
+  if(typeof CanaisApp !== 'undefined' && CanaisApp) CanaisApp.ligarJanela(); // a janela Ligar um canal (nao le nada na subida: o estado dos canais ja veio de GET /me)
   ligarSegurancaConta(); // a leitura do estado so acontece quando Listas abre (irParaAba), nunca na subida
   // Avisos neste aparelho (push): so no app Android; o modulo mostra a subsecao e registra de novo so quando precisa (R15)
   if(typeof PushApp !== 'undefined' && PushApp) PushApp.iniciar();
@@ -1174,6 +1185,7 @@ function camadaVisivel(id){ const e = document.getElementById(id); return !!e &&
 function camadasAbertas(){
   let n = 0;
   if(camadaVisivel('modalOverlay')) n++;
+  if(camadaVisivel('lcOv')) n++;
   if(camadaVisivel('mnDrop')) n++;
   if(camadaVisivel('gxLimVeu')) n++;
   if(camadaVisivel('tdRnVeu')) n++;
@@ -1195,6 +1207,7 @@ function camadasAbertas(){
 function fecharCamadaTopo(){ // na ordem de cima para baixo; o que nao existe e pulado
   const clicar = sel=>{ const e = document.querySelector(sel); if(e) e.click(); return !!e; };
   if(camadaVisivel('modalOverlay')){ clicar('#modalCancelar') || clicar('#modalOk'); return; }
+  if(camadaVisivel('lcOv')){ clicar('#lcFechar'); return; }
   if(camadaVisivel('mnDrop')){ fecharMenuApp(false); return; }
   if(camadaVisivel('gxLimVeu')){ clicar('#gxLimFechar'); return; }
   if(camadaVisivel('tdRnVeu')){ clicar('#tdRnFechar'); return; }
@@ -2368,7 +2381,7 @@ function chipAviso(l){
   if(!a || typeof a !== 'object' || !l.previsto) return '';
   const dias = (Array.isArray(a.dias) ? a.dias : []).map(d=>d===0?'no dia':d+'d antes');
   if(a.insistir) dias.push('todo dia depois');
-  return ` <span class="chip" title="Aviso no Telegram: ${esc(dias.join(', '))}">🔔</span>`;
+  return ` <span class="chip" title="Aviso: ${esc(dias.join(', '))}">🔔</span>`;
 }
 
 function renderFuturos(){
@@ -2949,7 +2962,7 @@ function abrirAcoesFatura(chave){
   ov.className = 'fut-ov'; ov.id = 'futOv';
   ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Ações da fatura ${esc(f.rotulo)}">
     <h3>Fatura ${esc(f.rotulo)} · ${esc(f.meio)}</h3><p class="mm">${fmtMoeda(f.valor)} · vence ${fmtDataCompleta(f.vencimento)} · ${f.estado}</p>
-    ${ehOwner() ? `<button type="button" class="fut-ac pri" data-acao="pagarFatura" data-id="${esc(chave)}">Já paguei</button><button type="button" class="fut-ac" data-acao="avisarFatura" data-id="${esc(chave)}">Avisar no Telegram</button>` : '<p class="muted" style="margin:8px">Só o dono lança o pagamento da fatura.</p>'}</div>`;
+    ${ehOwner() ? `<button type="button" class="fut-ac pri" data-acao="pagarFatura" data-id="${esc(chave)}">Já paguei</button><button type="button" class="fut-ac" data-acao="avisarFatura" data-id="${esc(chave)}">Avisar</button>` : '<p class="muted" style="margin:8px">Só o dono lança o pagamento da fatura.</p>'}</div>`;
   ov.addEventListener('click', e=>{
     const b = e.target.closest('button[data-acao]');
     if(b){ fecharAcoesFuturo(); executarAcaoRegistro(b.dataset.acao, b.dataset.id); return; }

@@ -238,5 +238,26 @@ const semToken = m => assert.ok(!JSON.stringify(m.arm.d).includes('tok-ficticio'
   assert.ok(m.ev.includes('abrirConfiguracoes'));
   assert.strictEqual(m.dom.swPush.checked, false);
 
+  // Janela "Ligar um canal" (spec telegram-vinculo, R18): a mesma explicacao e o mesmo registro do cartao, sem mexer no cartao
+  m = montar({aparelhos: 2});
+  r = await m.push.ligarDaJanela();
+  assert.deepStrictEqual([r.ok, r.aparelhos], [true, 2]);
+  assert.ok(m.ev.indexOf('explicar') >= 0 && m.ev.indexOf('explicar') < m.ev.indexOf('permissao'), 'a explicacao vem antes do pedido');
+  assert.ok(m.push.ligadoNo('s1'));
+  m = montar({explicar: false});
+  r = await m.push.ligarDaJanela();
+  assert.deepStrictEqual([r.ok, r.cancelou], [false, true]);
+  assert.deepStrictEqual(m.ev, ['explicar'], 'Agora nao: nada e pedido ao Android nem ao servidor');
+  assert.strictEqual(gravado(m), null);
+  m = montar({permissao: 'negada'});
+  r = await m.push.ligarDaJanela();
+  assert.deepStrictEqual([r.ok, r.motivo, r.config], [false, 'negada', true]);
+  // o cartao de Listas se redesenha quando a janela muda o estado (sem cartao montado, nao quebra)
+  m = montar(); m.push.atualizarCartao();
+  m.push.ligarCartao();
+  await m.push.ligarDaJanela();
+  m.push.atualizarCartao();
+  assert.strictEqual(m.dom.swPush.checked, true, 'o cartao mostra o aparelho ligado pela janela');
+
   console.log('push.test.js: ok');
 })().catch(e => { console.error(e); process.exit(1); });
