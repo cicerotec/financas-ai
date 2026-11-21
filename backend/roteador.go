@@ -58,6 +58,8 @@ func (s *Servidor) publica(ctx context.Context, a auth.Acao, r req) (resp, error
 	switch a {
 	case auth.AcaoRecuperarMFA:
 		return s.recup.Post(ctx, r.RequestContext.HTTP.SourceIP, r.Body)
+	case auth.AcaoWebhookTelegram: // so o cabecalho do segredo e lido; o authorization nem entra aqui
+		return s.telegram.PostWebhook(ctx, r.Headers, r.Body)
 	}
 	return erro(http.StatusNotFound, "rota inexistente")
 }
@@ -165,7 +167,7 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 	var body domain.Doc
 	if rawBody == "" && acaoReq == auth.AcaoEscreverCartao { // os comandos do cartao sem opcao aceitam corpo vazio
 		body = domain.Doc{}
-	} else if (m == "POST" || m == "PUT") && acaoReq != auth.AcaoRestaurar && !(acaoReq == auth.AcaoEditarConsulta && m == "POST") { // restaurar (versao e consulta) nao tem corpo
+	} else if (m == "POST" || m == "PUT") && acaoReq != auth.AcaoRestaurar && acaoReq != auth.AcaoVincularTelegram && !(acaoReq == auth.AcaoEditarConsulta && m == "POST") { // restaurar (versao e consulta) e o link do Telegram nao tem corpo
 		if err := json.Unmarshal([]byte(rawBody), &body); err != nil || body == nil {
 			return erro(http.StatusBadRequest, "json invalido")
 		}
@@ -230,6 +232,8 @@ func (s *Servidor) processar(ctx context.Context, u *auth.User, m string, p []st
 		return s.cfg.GetAparencia(ctx, sid, u.Sub)
 	case auth.AcaoEditarPerfil:
 		return s.perfil.PutPerfil(ctx, sid, u.Sub, body)
+	case auth.AcaoVincularTelegram: // o sub e o do token; nada do corpo
+		return s.telegram.PostVinculo(ctx, sid, u.Sub)
 	case auth.AcaoRegistrarPush:
 		return s.aparelhos.PutPush(ctx, sid, u.Sub, body)
 	case auth.AcaoRemoverPush:

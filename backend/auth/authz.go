@@ -36,6 +36,9 @@ const (
 	AcaoEscreverMeio    Acao = "meio.escrever"   // desativar, reativar e remover um meio de pagamento (item 43; so o dono)
 	AcaoRotinaCombos    Acao = "combos.rotina"   // liga e desliga a rotina semanal dos combos sugeridos (item 57; so o dono)
 
+	// Vinculo do Telegram por link (spec telegram-vinculo, R3 e R25). Cada pessoa gera o link so do proprio vinculo (o sub vem do token).
+	AcaoVincularTelegram Acao = "telegram.vincular" // POST /spaces/{sid}/telegram/vinculo
+
 	// Aparelhos que recebem aviso pelo app (push; fase 4 do item 54). Cada pessoa mexe so nos proprios, no proprio vinculo.
 	AcaoRegistrarPush Acao = "push.registrar" // PUT /spaces/{sid}/push
 	AcaoRemoverPush   Acao = "push.remover"   // POST /spaces/{sid}/push/remover
@@ -50,6 +53,10 @@ const (
 	// Recuperacao do MFA (spec mfa-opcional, R27). Rota PUBLICA: quem perdeu o autenticador nao tem token. Esta acao nao e listada em
 	// Permitido para nenhum papel (nao passa por papel); a unica excecao ao "sem token e 401" e RotaPublica.
 	AcaoRecuperarMFA Acao = "mfa.recuperar" // POST /mfa/recuperar
+
+	// Webhook do bot do Telegram (spec telegram-vinculo, R4). A segunda rota PUBLICA: quem chama e o Telegram, sem token do Cognito; a barreira e o
+	// segredo do webhook. Como a de cima, nao e listada em Permitido para nenhum papel.
+	AcaoWebhookTelegram Acao = "telegram.webhook" // POST /telegram/webhook
 )
 
 // Decisao e o que um papel pode fazer com uma acao.
@@ -76,14 +83,14 @@ func Permitido(papel string, a Acao) Decisao {
 			AcaoLerFech, AcaoConferirMes, AcaoReabrirMes, AcaoLerSeq, AcaoTestarAviso,
 			AcaoLerHistorico, AcaoRestaurar, AcaoConfirmarTx, AcaoLerCartao, AcaoEscreverCartao,
 			AcaoLerConsulta, AcaoCriarConsulta, AcaoEditarConsulta, AcaoEscreverMeio, AcaoRotinaCombos,
-			AcaoRegistrarPush, AcaoRemoverPush:
+			AcaoRegistrarPush, AcaoRemoverPush, AcaoVincularTelegram:
 			return Liberado
 		}
 	case PapelMember:
 		switch a {
 		case AcaoLerTx, AcaoCriarTx, AcaoLerCfg, AcaoAdicionarTags, AcaoLerAparencia, AcaoEscreverAparenc, AcaoEditarPerfil,
 			AcaoLerFech, AcaoLerSeq, AcaoTestarAviso, AcaoLerCartao, AcaoLerConsulta, AcaoCriarConsulta,
-			AcaoRegistrarPush, AcaoRemoverPush:
+			AcaoRegistrarPush, AcaoRemoverPush, AcaoVincularTelegram:
 			return Liberado
 		case AcaoEditarTx, AcaoConfirmarTx, AcaoLerHistorico, AcaoRestaurar, AcaoEditarConsulta: // so o que ela criou (restaurar excluido e so do owner: service)
 			return SoDono
@@ -167,6 +174,8 @@ func RotaParaAcao(metodo string, rest []string) (Acao, bool) {
 		return AcaoEditarPerfil, true
 	case len(rest) == 2 && rest[0] == "avisos" && rest[1] == "teste" && metodo == "POST":
 		return AcaoTestarAviso, true
+	case len(rest) == 2 && rest[0] == "telegram" && rest[1] == "vinculo" && metodo == "POST":
+		return AcaoVincularTelegram, true
 	case len(rest) == 1 && rest[0] == "push" && metodo == "PUT":
 		return AcaoRegistrarPush, true
 	case len(rest) == 2 && rest[0] == "push" && rest[1] == "remover" && metodo == "POST":
@@ -200,11 +209,15 @@ func RotaSemEspaco(metodo string, p []string) (Acao, bool) {
 	return "", false
 }
 
-// RotaPublica classifica as rotas que valem SEM token (hoje so a recuperacao do MFA, spec mfa-opcional R27). Metodo e caminho exatos; todo o
-// resto e false e segue pelo VerificarToken (401 sem token). A acao devolvida NAO esta em Permitido para nenhum papel: a excecao e so esta funcao.
+// RotaPublica classifica as rotas que valem SEM token: a recuperacao do MFA (spec mfa-opcional R27) e o webhook do Telegram (spec telegram-vinculo
+// R4). Metodo e caminho exatos; todo o resto e false e segue pelo VerificarToken (401 sem token). A acao devolvida NAO esta em Permitido para
+// nenhum papel: a excecao e so esta funcao.
 func RotaPublica(metodo string, p []string) (Acao, bool) {
 	if metodo == "POST" && len(p) == 2 && p[0] == "mfa" && p[1] == "recuperar" {
 		return AcaoRecuperarMFA, true
+	}
+	if metodo == "POST" && len(p) == 2 && p[0] == "telegram" && p[1] == "webhook" {
+		return AcaoWebhookTelegram, true
 	}
 	return "", false
 }
