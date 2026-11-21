@@ -10,13 +10,13 @@ import (
 // Aviso de seguranca do MFA (spec mfa-opcional, R35): cada canal mostra o texto fixo, sem nenhum dado.
 
 func TestTelegramMostraSoAFraseDoAvisoDeSeguranca(t *testing.T) {
-	partes := PartesDoResumo(domain.ResumoAvisos{Marca: "[DEV] ", Mensagem: domain.MensagemMFADesligado}, LimiteTelegram)
-	if len(partes) != 1 || partes[0] != "🔐 [DEV] "+domain.MensagemMFADesligado {
-		t.Errorf("texto = %q", partes)
+	texto := TextoDoTelegram(domain.ResumoAvisos{Marca: "[DEV] ", Mensagem: domain.MensagemMFADesligado})
+	if texto != "🔐 [DEV] "+domain.MensagemMFADesligado {
+		t.Errorf("texto = %q", texto)
 	}
-	partes = PartesDoResumo(domain.ResumoAvisos{Mensagem: domain.MensagemListaGerada}, LimiteTelegram)
-	if len(partes) != 1 || !strings.HasSuffix(partes[0], domain.MensagemListaGerada) {
-		t.Errorf("texto = %q", partes)
+	texto = TextoDoTelegram(domain.ResumoAvisos{Mensagem: domain.MensagemListaGerada})
+	if !strings.HasSuffix(texto, domain.MensagemListaGerada) {
+		t.Errorf("texto = %q", texto)
 	}
 }
 

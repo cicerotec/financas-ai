@@ -144,28 +144,39 @@ func TestRotinaCanalNaoConfiguradoPulaOResto(t *testing.T) {
 	}
 }
 
-// ---------- D-T6: agrupamento por destino ----------
+// ---------- D-T6 e V-T12a: agrupamento por pessoa (spec telegram-vinculo, D7) ----------
 
-func TestRotinaAgrupaPorDestinoSemRepetirLinha(t *testing.T) {
+// O mesmo chat dividido por duas pessoas: uma mensagem para cada, e os spaces da MESMA pessoa nesse chat viram uma mensagem so, sem repetir linha.
+func TestRotinaAgrupaPorPessoaSemRepetirLinha(t *testing.T) {
 	tg := &canalFalso{nome: "telegram"}
 	contatos := map[string]map[string][]string{
 		"s1|own": {"telegram": {"9"}}, "s1|mem": {"telegram": {"9"}}, // duas pessoas, o mesmo chat
-		"s2|own": {"telegram": {"9"}}, // o mesmo chat em outro espaco
+		"s2|own": {"telegram": {"9"}}, // o mesmo chat da mesma pessoa em outro espaco
 	}
 	r := montarRotina(t, []itemRotina{{"s1", "x1", "mem", "Luz"}, {"s1", "x2", "own", "Agua"}, {"s2", "x3", "own", "Gas"}},
 		contatos, map[string]string{"s1": "own", "s2": "own"}, tg)
 	n, err := r.Rodar(context.Background())
-	if err != nil || n != 1 || len(tg.entregas) != 1 {
-		t.Fatalf("Rodar = (%d, %v); entregas=%v (esperado um resumo so, com o mesmo destino juntando os espacos)", n, err, tg.entregas)
+	if err != nil || n != 2 || len(tg.entregas) != 2 {
+		t.Fatalf("Rodar = (%d, %v); entregas=%v (esperado um resumo por pessoa: mem e own)", n, err, tg.entregas)
 	}
-	contagem := map[string]int{}
-	for _, l := range tg.entregas[0].resumo.Linhas {
-		contagem[l.Descricao]++
-	}
-	for _, d := range []string{"Luz", "Agua", "Gas"} {
-		if contagem[d] != 1 {
-			t.Errorf("%s aparece %d vezes (esperado 1): %v", d, contagem[d], contagem)
+	var doMem, doDono []string // o mem so ve o que e dele; o dono ve o do s1 (como dono) e o do s2, juntos
+	for _, e := range tg.entregas {
+		var descs []string
+		for _, l := range e.resumo.Linhas {
+			descs = append(descs, l.Descricao)
 		}
+		sort.Strings(descs)
+		if len(descs) == 1 {
+			doMem = descs
+		} else {
+			doDono = descs
+		}
+	}
+	if !reflect.DeepEqual(doMem, []string{"Luz"}) {
+		t.Errorf("o resumo do mem = %v, esperado so a Luz dele (nada da outra pessoa)", doMem)
+	}
+	if !reflect.DeepEqual(doDono, []string{"Agua", "Gas", "Luz"}) {
+		t.Errorf("o resumo do dono = %v, esperado Agua, Gas e Luz, cada uma uma vez, dos dois espacos juntos", doDono)
 	}
 }
 

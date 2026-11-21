@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -112,13 +113,78 @@ func TestErroDoSSMNaoViraNaoConfigurado(t *testing.T) {
 	}
 }
 
-// Resposta que nao e 2xx: o erro leva o status e o corpo, nunca o token.
-func TestRespostaRuimDoTelegramNaoVazaOToken(t *testing.T) {
-	srv, _, _ := servidorTelegram(t, 400)
-	tg := novo(&ssmFalso{valor: texto("123:SEGREDO")}, "/p", srv.URL)
-	err := tg.EnviarTexto(context.Background(), "1", "x")
-	if err == nil || !strings.Contains(err.Error(), "telegram respondeu 400") || strings.Contains(err.Error(), "SEGREDO") {
-		t.Errorf("erro = %v", err)
+// V-T13: erro do Telegram. O corpo da resposta, a URL (com o token do bot) e o chat id nunca entram no erro.
+func servidorTelegramComCorpo(t *testing.T, status int, corpo string) (*httptest.Server, *int) {
+	chamadas := 0
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		chamadas++
+		w.WriteHeader(status)
+		_, _ = io.WriteString(w, corpo)
+	}))
+	t.Cleanup(s.Close)
+	return s, &chamadas
+}
+
+func TestErroDoTelegramNaoVazaCorpoTokenNemChatID(t *testing.T) {
+	corpo := `{"ok":false,"error_code":500,"description":"falha 123:SEGREDO no chat 987654321 http://x/bot123:SEGREDO"}`
+	for _, status := range []int{429, 500, 502} {
+		srv, chamadas := servidorTelegramComCorpo(t, status, strings.Replace(corpo, "500", strconv.Itoa(status), 1))
+		tg := novo(&ssmFalso{valor: texto("123:SEGREDO")}, "/p", srv.URL)
+		err := tg.EnviarTexto(context.Background(), "987654321", "x")
+		if err == nil || errors.Is(err, domain.ErrDestinoInvalido) || errors.Is(err, domain.ErrCredencialRecusada) {
+			t.Fatalf("%d: erro = %v, esperado um erro comum", status, err)
+		}
+		for _, proibido := range []string{"SEGREDO", "987654321", "falha", "http", "bot123"} {
+			if strings.Contains(err.Error(), proibido) {
+				t.Errorf("%d: o erro leva %q: %v", status, proibido, err)
+			}
+		}
+		if !strings.Contains(err.Error(), strconv.Itoa(status)) {
+			t.Errorf("%d: o erro deveria dizer o codigo HTTP: %v", status, err)
+		}
+		if *chamadas != 1 {
+			t.Errorf("%d: o erro foi repetido (%d chamadas)", status, *chamadas)
+		}
+	}
+}
+
+// 403 (bot bloqueado, conta apagada) e 400 "chat not found": o destino saiu, a rotina o apaga.
+func TestTelegramDevolveDestinoInvalidoNo403E400ChatNotFound(t *testing.T) {
+	casos := map[string]struct {
+		status int
+		corpo  string
+	}{
+		"403 bloqueado":      {403, `{"ok":false,"error_code":403,"description":"Forbidden: bot was blocked by the user"}`},
+		"403 conta apagada":  {403, `{"ok":false,"error_code":403,"description":"Forbidden: user is deactivated"}`},
+		"400 chat not found": {400, `{"ok":false,"error_code":400,"description":"Bad Request: chat not found"}`},
+	}
+	for nome, c := range casos {
+		srv, _ := servidorTelegramComCorpo(t, c.status, c.corpo)
+		err := novo(&ssmFalso{valor: texto("123:SEGREDO")}, "/p", srv.URL).EnviarTexto(context.Background(), "987654321", "x")
+		if !errors.Is(err, domain.ErrDestinoInvalido) {
+			t.Errorf("%s: erro = %v, esperado ErrDestinoInvalido", nome, err)
+		}
+		if err != nil && (strings.Contains(err.Error(), "SEGREDO") || strings.Contains(err.Error(), "987654321")) {
+			t.Errorf("%s: o erro vaza token ou chat id: %v", nome, err)
+		}
+	}
+}
+
+// Um 400 que nao e "chat not found" (texto grande demais, por exemplo) nao apaga o destino de ninguem.
+func TestTelegram400QueNaoEChatNotFoundNaoApagaODestino(t *testing.T) {
+	srv, _ := servidorTelegramComCorpo(t, 400, `{"ok":false,"error_code":400,"description":"Bad Request: message is too long"}`)
+	err := novo(&ssmFalso{valor: texto("123:SEGREDO")}, "/p", srv.URL).EnviarTexto(context.Background(), "1", "x")
+	if err == nil || errors.Is(err, domain.ErrDestinoInvalido) || !strings.Contains(err.Error(), "400") {
+		t.Errorf("erro = %v, esperado um erro comum com o 400", err)
+	}
+}
+
+// 401 e a credencial do bot (token revogado): a rotina pula o canal e nao apaga ninguem.
+func TestTelegram401DevolveCredencialRecusada(t *testing.T) {
+	srv, _ := servidorTelegramComCorpo(t, 401, `{"ok":false,"error_code":401,"description":"Unauthorized"}`)
+	err := novo(&ssmFalso{valor: texto("123:SEGREDO")}, "/p", srv.URL).EnviarTexto(context.Background(), "1", "x")
+	if !errors.Is(err, domain.ErrCredencialRecusada) || errors.Is(err, domain.ErrDestinoInvalido) || strings.Contains(err.Error(), "SEGREDO") {
+		t.Errorf("erro = %v, esperado ErrCredencialRecusada sem o token", err)
 	}
 }
 
@@ -131,51 +197,31 @@ func TestErroDeRedeNaoVazaOToken(t *testing.T) {
 	}
 }
 
-// D-T7: um resumo grande sai em partes, em ordem, pela API do bot; a 2a falha e a 3a ainda sai; o erro e o da 2a.
-func TestResumoGrandeSaiEmPartesEFalhaDeUmaNaoImpedeAsOutras(t *testing.T) {
-	var corpos []map[string]any
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		b, _ := io.ReadAll(r.Body)
-		var m map[string]any
-		_ = json.Unmarshal(b, &m)
-		corpos = append(corpos, m)
-		if len(corpos) == 2 {
-			w.WriteHeader(400)
-			_, _ = io.WriteString(w, `{"ok":false,"description":"segunda recusada"}`)
-			return
-		}
-		w.WriteHeader(200)
-	}))
-	defer srv.Close()
+// R11: o resumo sai numa mensagem so, com a contagem, pela API do bot.
+func TestEnviarMandaUmaMensagemSoComAContagem(t *testing.T) {
+	srv, caminhos, corpos := servidorTelegram(t, 200)
 	tg := novo(&ssmFalso{valor: texto("123:ABC")}, "/p", srv.URL)
-
 	var linhas []domain.LinhaAviso
 	for i := 0; i < 100; i++ {
 		linhas = append(linhas, domain.LinhaAviso{Kind: domain.AvisoAntes, N: 3, Venc: "2026-10-10", Tipo: "saida", Descricao: "Conta de teste numero " + strings.Repeat("x", 40), Valor: 10, Banco: "ITAU"})
 	}
-	err := tg.Enviar(context.Background(), "111111", domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhas})
-	if len(corpos) < 3 {
-		t.Fatalf("esperadas 3 partes ou mais, saiu %d", len(corpos))
+	if err := tg.Enviar(context.Background(), "111111", domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhas}); err != nil {
+		t.Fatal(err)
 	}
-	if err == nil || !strings.Contains(err.Error(), "telegram respondeu 400") || !strings.Contains(err.Error(), "segunda recusada") {
-		t.Errorf("erro = %v, esperado o da 2a parte", err)
+	if len(*caminhos) != 1 {
+		t.Fatalf("esperada 1 mensagem, saiu %d", len(*caminhos))
 	}
-	for i, c := range corpos {
-		if c["chat_id"] != "111111" || !strings.HasPrefix(c["text"].(string), "🔔 Avisos de 07/10/2026 ("+string(rune('1'+i))+"/") {
-			t.Errorf("parte %d fora de ordem ou sem cabecalho: %.60q", i+1, c["text"])
-		}
+	c := (*corpos)[0]
+	if c["chat_id"] != "111111" || c["text"] != "🔔 Avisos de 07/10/2026: 100 a vencer. Abra o app para ver o que é cada um." {
+		t.Errorf("corpo = %v", c)
 	}
 }
 
-// D-T8: sem token, a 1a parte devolve ErrCanalNaoConfigurado e nenhuma outra e tentada.
-func TestSemTokenNenhumaParteETentada(t *testing.T) {
+// Sem token, o canal devolve ErrCanalNaoConfigurado e nada e enviado.
+func TestSemTokenNadaEEnviado(t *testing.T) {
 	srv, caminhos, _ := servidorTelegram(t, 200)
 	tg := novo(&ssmFalso{}, "/p", srv.URL)
-	var linhas []domain.LinhaAviso
-	for i := 0; i < 100; i++ {
-		linhas = append(linhas, domain.LinhaAviso{Kind: domain.AvisoAntes, N: 3, Venc: "2026-10-10", Tipo: "saida", Descricao: strings.Repeat("y", 60), Valor: 10, Banco: "ITAU"})
-	}
-	err := tg.Enviar(context.Background(), "1", domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhas})
+	err := tg.Enviar(context.Background(), "1", domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: []domain.LinhaAviso{{Kind: domain.AvisoHoje}}})
 	if !errors.Is(err, domain.ErrCanalNaoConfigurado) || len(*caminhos) != 0 {
 		t.Errorf("erro = %v, chamadas = %v", err, *caminhos)
 	}

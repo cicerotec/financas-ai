@@ -122,8 +122,12 @@ só existe no front não protege nada (veja [`arquitetura.md`](arquitetura.md)).
   `.ai/specs/**/*.json`, que são fictícios), `web/config.js`, `web/config.dev.js` e `samconfig.toml`. Exportações reais
   ficam em `/local/`, também ignorado.
 - O ambiente `dev` usa **dados fictícios** (`scripts/dados-ficticios.py`), em stack, tabela e login próprios.
-- **Telegram é um terceiro:** o resumo diário leva a **descrição, o valor e o banco** dos lançamentos futuros para o chat
-  de cada pessoa. É uma escolha de produto (os avisos), mas significa que esses dados saem da AWS.
+- **Telegram é um terceiro, e só recebe a contagem (item 66, fase 1; decisão do dono, 2026-11-20):** o aviso diário leva uma linha
+  (`2 atrasados · 1 vence hoje · 3 a vencer`), **sem descrição, valor, meio de pagamento, data de vencimento nem nome de espaço ou de
+  pessoa**, como o push. Antes ele levava a descrição, o valor e o banco de cada lançamento futuro, e isso saía da AWS; deixou de sair.
+  A rotina agrupa por **pessoa e destino**: duas pessoas que dividem um chat ou um token recebem mensagens separadas, e uma nunca vê a
+  contagem da outra. **O que ainda vale até a fase 2:** o chat id é digitado pela pessoa (`PUT /perfil`), então nada prova que o chat é
+  dela; o link de vínculo do item 66 fecha isso. Um erro do Telegram nunca leva ao log o token, a URL, o corpo da resposta nem o chat id.
 - **Logs** (CloudWatch, retenção de 14 dias): pelo que o código faz hoje, registram `sub`, papel e ação nas negações,
   contagens da rotina de avisos e mensagens de erro. Nenhum `log` imprime token, e-mail ou corpo da requisição; a regra é
   manter assim (veja "Regras ao mexer").
@@ -177,7 +181,7 @@ manual.
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
 | `excluirDoTotal` montado pelo front a partir do nome do status | **Fechada na fase A do item 41 (2026-10-24):** o servidor calcula `excluirDoTotal` pelo catálogo e o valor do corpo é descartado; o front ainda o envia, ignorado | item 41 (fase C tira o envio) |
 | Campos opcionais do lançamento gravados como vêm | Valor inesperado persiste. **`faturaAjuste` já é validado** (só `-1`, `0` ou `+1`, e só em crédito; item 33a, fase A, 2026-10-24); os outros campos opcionais seguem como vêm | itens 33 e 41 |
-| Resumo do Telegram acima de 4096 caracteres | **Fechada no item 34:** o canal divide em partes de até 4000 letras | item 28, item 34 |
+| Resumo do Telegram acima de 4096 caracteres | **Fechada no item 34 e superada no item 66:** o resumo é uma linha de contagem, sem divisão em partes | item 28, item 34, item 66 |
 
 ## Regras ao mexer (propostas, a confirmar com o dono)
 - **Rota nova exige ação nova** em `auth/authz.go`, com o que owner e member podem, **e teste** em `auth/authz_test.go`, **e uma linha em [`api.md`](api.md)**
