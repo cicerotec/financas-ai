@@ -2,7 +2,7 @@
 
 Este documento diz **o quê e por quê**. O `plan.md` e o `spec.md` só nascem depois que o dono aprovar este intent e responder "Para o dono decidir".
 
-**Estado:** rascunho para aprovação (2026-11-20). Nada implementado. **`plan.md` e `spec.md` escritos em 2026-11-20** (rascunho; decisões D1 a D5 do plan esperam o dono). É o **item 66** do `BACKLOG.md` e pré-requisito do item 65 (abrir o app ao público). Toca a tela de aviso do **item 47** (componente reutilizável): o `plan.md` diz qual dos dois vem primeiro.
+**Estado:** rascunho para aprovação (2026-11-20). Nada implementado. **`plan.md` e `spec.md` escritos e revisados em 2026-11-20** (rascunho; D1 e D7 decididas; D2 a D6 do plan esperam o dono). É o **item 66** do `BACKLOG.md` e pré-requisito do item 65 (abrir o app ao público). Toca a tela de aviso do **item 47** (componente reutilizável): o `plan.md` diz qual dos dois vem primeiro.
 
 ## O problema
 
@@ -32,7 +32,7 @@ Este documento diz **o quê e por quê**. O `plan.md` e o `spec.md` só nascem d
 ## O que isto toca (e o que o dono precisa saber)
 
 - **Rota pública nova.** O Telegram chama o servidor (webhook) sem token do Cognito. É a **segunda exceção** ao "sem token é `401`" (a primeira é `POST /mfa/recuperar`) e [`security.md`](../../security.md) exige decisão do dono, ação própria em `auth/authz.go` e teste de que nenhuma outra rota ficou pública. A barreira é o **`secret_token`** que o Telegram devolve num cabeçalho, comparado em tempo constante, mais o limite de tentativas do estilo do MFA.
-- **Dado novo no DynamoDB** (guardrails: discutir antes): o **código de vínculo** (guardado só como hash, com validade e uso único). O `chat id` já tem lugar no vínculo (`telegramChatId`). Nada é criado antes da conversa.
+- **Dado novo no DynamoDB** (guardrails: discutir antes): o **código de vínculo** (guardado só como hash, com validade e uso único), **um item por pessoa na partição `USER#<sub>` que já existe, no molde do `MFACODIGOS#PENDENTE`** (decidido em 2026-11-20, plan D1): nenhuma partição nova, o próximo código substitui o anterior e nada acumula. O `chat id` já tem lugar no vínculo (`telegramChatId`). Nada é criado antes da conversa.
 - **O bot do `dev` e o da produção passam a ser dois.** Hoje os dois ambientes usam o mesmo bot ([`security.md`](../../security.md), "Segredos"); um bot só aceita **um** endereço de webhook. Precisa de um segundo bot (BotFather), com token e `secret_token` por ambiente no SSM e um script como `guardar-fcm.ps1` para registrar o webhook sem imprimir segredo. Permissão nova de SSM exige atualizar as roles do Actions **antes** do merge.
 - **Tela:** o cartão **Avisos no Telegram** de Listas muda (o campo do Id some ou fica só para quem já tem; entram o botão e os estados "Aguardando você tocar em Iniciar", "Ligado", "Link expirou"). Mudança de tela: **demo aprovada antes do código** (parte de `demo-push-v2-telegram-chave`, a padrão de Avisos). O front só exibe; **não monta texto de aviso nem decide quem recebe** (AD-7).
 - **Rotas** (contrato na seção "API" do [`spec.md`](spec.md)): **gerar o código** (autenticada, ação própria, linha no [`api.md`](../../api.md)), o **webhook** (pública) e o estado dos canais. *(Emenda do [`plan.md`](plan.md), decisão D4: o estado dos canais **não é uma rota nova**; vai em `GET /me`, que o app já lê na subida, como `canais: {telegram, push}`, sem leitura nova, e `GET /me` deixa de devolver o chat id.)* Nada devolve token, chat id nem dado de aparelho.
@@ -48,10 +48,13 @@ Este documento diz **o quê e por quê**. O `plan.md` e o `spec.md` só nascem d
 - **Um bot por ambiente** (o do `dev` é novo, criado pelo dono no BotFather).
 - **Ligar um aviso sem canal ativo informa e oferece ligar um canal numa janela por cima da tela**, sem bloquear o salvar e sem ir a Listas (conversa de 2026-11-20). O 🔔 "sem canal ativo" é a **fase 2**.
 
+- **A rotina agrupa por pessoa** (2026-11-20, na revisão do arquiteto): "é melhor estranhar do que ferir regra de privacidade". Plan D7 e spec R13.
+- **Chat id antigo: só o do dono existe**; ele refaz o vínculo e a exceção fecha (2026-11-20).
+
 ## Limites (o que fica de fora)
 
 - **WhatsApp e e-mail.** Outros canais, outras features (o WhatsApp também exigirá provar a posse do número; este desenho serve de modelo).
-- **Quem recebe e quando** (o criador do lançamento e o dono do espaço, às 8h) e o **horário por pessoa**: como hoje.
+- **Quem recebe e quando** (o criador do lançamento e o dono do espaço, às 8h) e o **horário por pessoa**: como hoje. **Uma exceção (dono, 2026-11-20): a rotina agrupa por pessoa** (plan D7). Hoje ela junta por chat ou token, o que mistura pessoas diferentes que dividem o destino; passa a juntar só os spaces da mesma pessoa, sem dizer de qual space vem cada contagem.
 - **Idempotência da entrega** e a **Lambda de 30 s em série**: seguem aceitas do item 34. **Agravante a medir antes de abrir ao público:** o Telegram limita a cerca de 30 mensagens por segundo no total e 1 por segundo por chat; com centenas de usuários o envio das 8h deixa de caber numa Lambda (item 65).
 - **Comandos além de `/start` e `/parar`**, botões ou menus no bot, e resposta a texto livre.
 - **Várias contas Telegram por pessoa** e vincular grupo ou canal.
@@ -75,7 +78,9 @@ Este documento diz **o quê e por quê**. O `plan.md` e o `spec.md` só nascem d
 |---|---|---|
 | Rota autenticada por padrão | `POST` do webhook é público | Decisão do dono, ação própria, teste de que nenhuma outra rota ficou pública |
 | Privacidade por padrão | O Telegram continua um terceiro (agora só vê a contagem) | Nada: a contagem é o padrão decidido |
-| Isolamento por pessoa | Chat ids digitados antes da feature não têm prova de posse e seguem recebendo (só a contagem) até serem refeitos | O dono refaz o vínculo pelo link (ou, se não for possível, por script dele); fecha quando não restar chat id sem prova |
+| Isolamento por pessoa | Chat ids digitados antes da feature não têm prova de posse e seguem recebendo (só a contagem) até serem refeitos. **Hoje só existe o do dono** | O dono refaz o vínculo pelo link (V-T31; ou, se não for possível, por script dele). **Fecha aí**: a partir da fase 3 o servidor recusa Id digitado, então nenhum Id sem prova nasce de novo. Sem marcador nem campo novo |
+| Privacidade por padrão | A confirmação "Ligado ✓" leva o apelido da pessoa no Telegram (plan D6) | Decisão do dono; sem apelido, nenhum nome |
+| Isolamento entre pessoas | A rotina de hoje mistura as contagens de pessoas que dividem um chat ou token | Fecha na fase 1, com o agrupamento por pessoa (plan D7) |
 
 ## Custo
 
@@ -94,4 +99,4 @@ Telegram e FCM não cobram. O webhook roda na Lambda de hoje (algumas invocaçõ
 
 ## Para o dono decidir
 
-Nada em aberto para começar o `plan.md`. As perguntas foram respondidas em 2026-11-20 (ver "Decisões já tomadas") e o item é o **66** do `BACKLOG.md`. O que o `plan.md` ainda precisa decidir com o dono: a ordem frente ao item 47 e o dado novo do código de vínculo no DynamoDB.
+Nada em aberto para começar o `plan.md`. As perguntas foram respondidas em 2026-11-20 (ver "Decisões já tomadas") e o item é o **66** do `BACKLOG.md`. O dado novo do código de vínculo (D1) e o agrupamento por pessoa (D7) estão decididos. O que o `plan.md` ainda precisa decidir com o dono: D2 (`/parar` e o bloqueio na hora), D3 (a ordem frente ao item 47), D4 (`GET /me` com `canais`), D5 (limites e texto da contagem) e D6 (o apelido na confirmação "Ligado ✓").
