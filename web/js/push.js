@@ -25,6 +25,7 @@ function criarPush(env){
     erroDesligar: 'Não consegui desligar agora. Tente de novo.'
   };
   const n = x => (x === 1 ? FRASE.unico : x + ' aparelhos recebem avisos neste espaço.');
+  let redesenharCartao = () => {}; // o cartao de Listas se redesenha quando outra tela (a janela Ligar um canal) muda o estado
 
   // ---------- o que fica no aparelho (so a escolha por espaco, a data do ultimo registro e a impressao do token) ----------
   const lerTudo = () => {
@@ -82,6 +83,12 @@ function criarPush(env){
     try { await env.api.remover(token, sid); } catch (e) { return daApi(e, FRASE.redeDesligar, FRASE.erroDesligar); }
     esquecer(sid);
     return {ok: true};
+  }
+  // Chamado pela janela "Ligar um canal" (spec telegram-vinculo, R18): a mesma explicacao e o mesmo registro do cartao de Listas, sem mexer no cartao.
+  // {ok:false, cancelou:true} se a pessoa disser "Agora nao" na explicacao (nada foi pedido ao Android).
+  async function ligarDaJanela(){
+    if(!(await env.explicar())) return {ok: false, cancelou: true};
+    return ligar(env.sid());
   }
   async function testar(){
     try { await env.api.testar('push'); return {ok: true}; }
@@ -162,6 +169,7 @@ function criarPush(env){
       contagem = null; aviso(''); botoes(false, false, false); desenhar();
       env.toast('✓ Este aparelho não recebe mais avisos');
     }
+    redesenharCartao = () => { desenhar(); botoes(ligadoNo(env.sid()), false, false); };
     sec.hidden = false;
     sw.onchange = () => {
       const quer = sw.checked;
@@ -196,7 +204,7 @@ function criarPush(env){
     Promise.resolve().then(manterRegistro).catch(() => {});
     return ok;
   }
-  return {iniciar, ligarCartao, ligar, desligar, testar, manterRegistro, sair, ligadoNo, disponivel: () => !!Plugin};
+  return {iniciar, ligarCartao, ligar, ligarDaJanela, desligar, testar, manterRegistro, sair, ligadoNo, atualizarCartao: () => redesenharCartao(), disponivel: () => !!Plugin};
 }
 
 if(typeof module !== 'undefined' && module.exports) module.exports = criarPush;

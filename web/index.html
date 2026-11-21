@@ -579,6 +579,26 @@
   <div class="mf-rodape"><button class="primary" type="button" id="mfRecEnviar">Desligar a verificação</button><button class="primary" type="button" id="mfRecEntrar" hidden>Entrar</button></div>
 </div>
 
+<!-- Ligar um canal (spec telegram-vinculo, R18; demos demo-avisar-v3-canal, demo-lancar-v9-aviso-canal e demo-cartao-v5-aviso-canal): janela de baixo por cima da tela atual -->
+<div class="lc-ov" id="lcOv" hidden>
+  <div class="lc-sheet" role="dialog" aria-modal="true" aria-labelledby="lcT">
+    <h3 id="lcT">Ligar um canal</h3>
+    <p class="lc-mm" id="lcMm"></p>
+    <div class="lc-botoes" id="lcBotoes">
+      <button type="button" id="lcTg"><span>Telegram</span><small id="lcTgS">Numa conversa do Telegram</small></button>
+      <button type="button" id="lcPush" hidden><span>Neste aparelho</span><small id="lcPushS">Notificação do app</small></button>
+    </div>
+    <div class="lc-box" id="lcAguarda" hidden>
+      <b>Aguardando você tocar em Iniciar no Telegram</b>
+      <p class="lc-t" id="lcTempo"></p>
+      <div class="lc-linha"><button type="button" id="lcIniciei">Já iniciei</button><button type="button" id="lcCancelar">Cancelar</button></div>
+      <a class="tg-abrir" id="lcAbrir" target="_blank" rel="noopener" hidden>Abrir o Telegram</a>
+    </div>
+    <p class="lc-msg" id="lcMsg" role="status"></p>
+    <button type="button" class="lc-fechar" id="lcFechar">Fechar</button>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="modalOverlay">
   <div class="modal-box">
     <p id="modalMsg"></p>
@@ -602,6 +622,7 @@
 <script src="js/nativo.js"></script>
 <script src="js/push.js"></script>
 <script src="js/telegram.js"></script>
+<script src="js/canais.js"></script>
 <script src="js/seguranca-conta.js"></script>
 <script src="js/app.js"></script>
 <script src="js/usuario.js"></script>
