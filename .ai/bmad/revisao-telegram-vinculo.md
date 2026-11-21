@@ -1,7 +1,7 @@
 ---
 name: 'Revisão da spec telegram-vinculo'
 type: review
-status: aplicada em 2026-11-20 em intent.md, plan.md, spec.md e na spine; pendentes D2 a D5; D6 decidida (apelido), P13 conferido (UUID) e emendas à spine aprovadas em 2026-11-20
+status: aplicada em 2026-11-20 em intent.md, plan.md, spec.md e na spine; D2 a D7 decididas, P13 conferido (UUID) e emendas à spine aprovadas pelo dono em 2026-11-20; nada pendente
 created: '2026-11-20'
 target: '.ai/specs/telegram-vinculo/{intent,plan,spec}.md'
 sources: ['.ai/bmad/arquitetura-avisos-canais.md', 'backend/service/avisos.go (lido em 2026-11-20)', 'backend/repository/ (consultas, MFACODIGOS#)', 'template.yaml (sem TTL, Deny em HIST#*)', 'app-android/capacitor.config.json']
@@ -46,6 +46,6 @@ Feita pelo Winston (arquiteto do metodo-ai) em 2026-11-20, com as lentes adversa
 
 ## Pendências
 
-1. **Plan D2 a D5:** `/parar`, ordem frente ao item 47, `GET /me` sem `telegramChatId` e limites. (D6, o apelido na confirmação, foi decidida em 2026-11-20.)
+1. **Plan D2 a D6:** decididas pelo dono em 2026-11-20 (`/parar` sem índice, o 66 antes do 47, `GET /me` com `canais` e sem `telegramChatId`, limites do plan, apelido na confirmação).
 2. **P13:** conferido pelo dono em 2026-11-20: o `sub` do `dev` é UUID.
 3. **Não verificado:** como o roteador repassa os cabeçalhos do Function URL ao controller (spec R28 e V-T3).

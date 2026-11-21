@@ -2,7 +2,7 @@
 
 Este documento diz **o quê e por quê**. O `plan.md` e o `spec.md` só nascem depois que o dono aprovar este intent e responder "Para o dono decidir".
 
-**Estado:** rascunho para aprovação (2026-11-20). Nada implementado. **`plan.md` e `spec.md` escritos e revisados em 2026-11-20** (rascunho; D1 e D7 decididas; D2 a D6 do plan esperam o dono). É o **item 66** do `BACKLOG.md` e pré-requisito do item 65 (abrir o app ao público). Toca a tela de aviso do **item 47** (componente reutilizável): o `plan.md` diz qual dos dois vem primeiro.
+**Estado:** rascunho para aprovação (2026-11-20). Nada implementado. **`plan.md` e `spec.md` escritos e revisados em 2026-11-20** (rascunho; D1 a D7 decididas pelo dono em 2026-11-20). É o **item 66** do `BACKLOG.md` e pré-requisito do item 65 (abrir o app ao público). Toca a tela de aviso do **item 47** (componente reutilizável): o `plan.md` diz qual dos dois vem primeiro.
 
 ## O problema
 
@@ -99,4 +99,4 @@ Telegram e FCM não cobram. O webhook roda na Lambda de hoje (algumas invocaçõ
 
 ## Para o dono decidir
 
-Nada em aberto para começar o `plan.md`. As perguntas foram respondidas em 2026-11-20 (ver "Decisões já tomadas") e o item é o **66** do `BACKLOG.md`. O dado novo do código de vínculo (D1) e o agrupamento por pessoa (D7) estão decididos. O que o `plan.md` ainda precisa decidir com o dono: D2 (`/parar` e o bloqueio na hora), D3 (a ordem frente ao item 47), D4 (`GET /me` com `canais`), D5 (limites e texto da contagem) e D6 (o apelido na confirmação "Ligado ✓").
+Nada em aberto para começar o `plan.md`. As perguntas foram respondidas em 2026-11-20 (ver "Decisões já tomadas") e o item é o **66** do `BACKLOG.md`. O dado novo do código de vínculo (D1) e o agrupamento por pessoa (D7) estão decididos, e também D2 (sem `/parar` apagando e sem índice), D3 (o 66 vem antes do 47), D4 (`GET /me` com `canais`, sem `telegramChatId`), D5 (limites e texto do plan) e D6 (o apelido na confirmação "Ligado ✓"). **Nada em aberto.**
