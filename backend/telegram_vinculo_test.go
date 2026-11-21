@@ -719,8 +719,8 @@ func TestGetMeDevolveOEstadoDosCanais(t *testing.T) {
 		if canais["telegram"] != quer[0] || canais["push"] != quer[1] {
 			t.Errorf("%s: canais = %v, esperado telegram=%v push=%v", sub, canais, quer[0], quer[1])
 		}
-		if _, tem := esp["telegramChatId"]; !tem {
-			t.Errorf("%s: na fase 2 o telegramChatId ainda vem", sub)
+		if _, tem := esp["telegramChatId"]; tem {
+			t.Errorf("%s: o telegramChatId nunca mais chega ao navegador", sub)
 		}
 		if f.queries != 1 || f.leituras != 2 { // a Query dos espacos e o META do espaco, como antes: nenhuma leitura nova
 			t.Errorf("%s: %d Query e %d leituras no total, esperado 1 e 2", sub, f.queries, f.leituras)

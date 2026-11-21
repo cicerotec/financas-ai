@@ -61,8 +61,7 @@ func TestCamadasRespeitamAsDependencias(t *testing.T) {
 func TestDomainEServiceNaoNomeiamCanaisDeAviso(t *testing.T) {
 	proibidas := map[string]bool{"telegram": true, "fcm": true, "firebase": true, "push": true}
 	excecoes := map[string]string{
-		"domain/espaco.go":     "Espaco.TelegramChatID: o contrato de GET /me (AD-9)",
-		"domain/perfil.go":     "MudancaPerfil.ChatID e o cadastro do chat id (AD-9)",
+		"domain/espaco.go":     "CanaisLigados.Telegram: o estado dos canais em GET /me (AD-9)",
 		"service/perfil.go":    "PUT /perfil recebe telegramChatId (AD-9)",
 		"service/aparelhos.go": "registrar aparelho de push e do push por natureza (AD-5)",
 	}

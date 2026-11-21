@@ -54,7 +54,7 @@ function atualizarCampoFatura(){
   document.getElementById('fFaturaDica').textContent = padrao>0 ? 'Registros com esta forma de pagamento já vão para a próxima fatura.' : (padrao<0 ? 'Registros com esta forma de pagamento já entram na fatura anterior (a que fecha neste mês).' : '');
 }
 // ---------- aviso (Telegram): controles reutilizados pelo formulario (prefixo f) e pela janela de repeticao (pv) ----------
-function telegramVinculado(){ return !!(window.financasApi && financasApi.telegramChatId && financasApi.telegramChatId()); }
+function telegramVinculado(){ return !!(window.financasApi && financasApi.canais && financasApi.canais().telegram); } // o estado vem de GET /me (canais.telegram)
 const avisoVisivel = { f: ()=>dataFuturaForm(), pv: ()=>true };
 function htmlAviso(p){
   const dias = [[7,'7 dias antes'],[3,'3 dias antes'],[1,'1 dia antes'],[0,'No dia']];
@@ -77,7 +77,7 @@ function atualizarAviso(p){
   w.classList.toggle('hidden', !mostrar);
   document.getElementById(p+'AvisoOpcoes').classList.toggle('hidden', !marcado);
   document.getElementById(p+'AvisoDica').textContent = (mostrar && marcado && !telegramVinculado())
-    ? 'Você ainda não vinculou o Telegram: o aviso é guardado, mas só chega depois que você cadastrar o chat id em Listas.' : '';
+    ? 'Você ainda não ligou o Telegram: o aviso é guardado, mas só chega depois que você ligar o Telegram em Listas.' : '';
 }
 // null = sem aviso; 'incompleto' = marcado sem nenhum dia nem "insistir"
 function lerAviso(p){
@@ -1045,7 +1045,7 @@ async function init(){
   if(window.financasApi && financasApi.definirApelido){
     document.getElementById('perfilNome').value = (financasApi.apelido && financasApi.apelido()) || '';
     usAtualizar();
-    if(typeof TelegramApp !== 'undefined' && TelegramApp) TelegramApp.ligarCartao(); // a chave do Telegram segue o Id que o servidor mandou
+    if(typeof TelegramApp !== 'undefined' && TelegramApp) TelegramApp.ligarCartao(); // a chave do Telegram segue o que o servidor mandou (canais.telegram)
   } else {
     document.getElementById('perfilCard').classList.add('hidden'); // sem perfil nesta versão da API
     document.getElementById('telegramCard').classList.add('hidden');

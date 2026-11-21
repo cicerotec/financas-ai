@@ -24,19 +24,21 @@ se marcado, **todo dia** depois dele até o lançamento deixar de ser evento fut
 ## Configuração única (sua)
 1. **Criar o bot:** no Telegram, converse com o `@BotFather`, envie `/newbot`, escolha nome e usuário. Ele devolve o
    **token** (`123456:ABC...`). Não o compartilhe nem o coloque no repositório.
-2. **Guardar o token no SSM** (SecureString; um por ambiente, pode ser o mesmo bot ou bots diferentes):
-   ```bash
-   aws ssm put-parameter --region sa-east-1 --type SecureString --name /financas/prod/telegram-token --value "<token>"
-   aws ssm put-parameter --region sa-east-1 --type SecureString --name /financas/dev/telegram-token  --value "<token>"
+2. **Guardar o token no SSM** (SecureString; **um bot por ambiente**: um bot aceita um webhook só, então o `dev` nunca usa o bot da produção). Use o script, que lê o token sem mostrá-lo e recusa o mesmo token nos dois ambientes (só o dono o roda):
+   ```powershell
+   .\scripts\guardar-telegram.ps1 -Ambiente prod
+   .\scripts\guardar-telegram.ps1 -Ambiente dev
    ```
 3. **Atualizar as roles do Actions** (nova permissão para criar a regra de agendamento) antes do próximo deploy:
    ```bash
    aws cloudformation deploy --stack-name financas-gha-dev  --template-file infra/github-oidc.yaml --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Ambiente=dev  Repositorio=cicerotec@24279229/financas-ai@1394222228 --region sa-east-1
    aws cloudformation deploy --stack-name financas-gha-prod --template-file infra/github-oidc.yaml --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Ambiente=prod Repositorio=cicerotec@24279229/financas-ai@1394222228 --region sa-east-1
    ```
-4. **Cada pessoa:** abre o bot no Telegram e toca em **Iniciar** (o bot só consegue escrever depois disso), descobre o
-   próprio **chat id** (converse com o `@userinfobot`, que responde com o `Id`) e cola no app em *Configurações → Avisos*.
-   O botão **Enviar aviso de teste** confirma que chegou.
+4. **Registrar o webhook** de cada ambiente, **depois do deploy** (gera o segredo, registra o webhook e grava o segredo e o usuário do bot no SSM; recusa um bot que já tem outro webhook):
+   ```powershell
+   .\scripts\registrar-webhook-telegram.ps1 -Ambiente dev
+   ```
+5. **Cada pessoa:** em *Listas → Avisos no Telegram* liga a chave **Receber avisos no Telegram**. O app abre o Telegram; a pessoa toca em **Iniciar** e volta ao app, que mostra **Ligado** (o chat id nunca é digitado nem aparece). O link vale 10 minutos e uma vez; **Já iniciei** confere na hora e **Cancelar** desiste. O botão **Enviar aviso de teste** confirma que chegou. Quem tem mais de um espaço liga o Telegram em cada um. Desligar a chave apaga o destino do servidor; **para parar na hora, bloqueie o bot** (as mensagens cessam na rotina das 8h seguinte).
 
 ## Push no app (fase 4 do item 54)
 - Segundo canal do despachante: a notificação do app Android, pelo Firebase Cloud Messaging. Cada aparelho registra o seu token (`PUT /spaces/{sid}/push`), guardado no campo `pushTokens` do vínculo da pessoa no espaço, e a rotina das 8h o recebe como destino, igual ao chat id do Telegram.

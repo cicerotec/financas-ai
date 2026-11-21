@@ -1,154 +1,217 @@
-// Testes da chave do Telegram em Listas / Avisos (demo-push-v2-telegram-chave): DOM e API de mentira.
+// Testes do cartao Avisos no Telegram por link (demo-listas-v11-telegram-vinculo, spec telegram-vinculo R17): DOM e API de mentira.
 // Rode com: node web/telegram.test.js
 const assert = require('assert');
 const criarTelegram = require('./js/telegram.js');
 
-function mem(init){ const d = Object.assign({}, init); return {d, getItem: k => (k in d ? d[k] : null), setItem: (k, v) => { d[k] = String(v); }, removeItem: k => { delete d[k]; }}; }
+const LIMITE = 10 * 60 * 1000;
+function mem(init){ const d = Object.assign({}, init); return {d, gravou: [], getItem: k => (k in d ? d[k] : null), setItem(k, v){ d[k] = String(v); this.gravou.push(k); }, removeItem: k => { delete d[k]; }}; }
 
 function montar(op){
   op = op || {};
-  const ev = [], dom = {}, toasts = [], arm = mem(op.mem);
-  let salvo = op.chatId || '';
-  const el = id => dom[id] || (dom[id] = {id, checked: false, disabled: false, hidden: false, value: '', textContent: '', focus(){ ev.push('foco'); }, classList: {_r: false, toggle(c, v){ this._r = !!v; }}});
+  const ev = [], dom = {}, toasts = [], arm = mem(op.mem), timers = [], voltas = [];
+  let canais = {telegram: !!op.ligado, push: false}, agora = 5000000;
+  const el = id => dom[id] || (dom[id] = {id, checked: false, disabled: false, hidden: false, href: '', textContent: '', classList: {_r: false, toggle(c, v){ this._r = !!v; }}});
   const env = {
     el,
-    chatId: () => salvo,
-    definir: async id => {
-      ev.push('definir:' + id);
-      if(op.aoDefinir) op.aoDefinir(dom);
-      if(op.erro) throw op.erro;
-      salvo = id; return id;
+    canais: () => canais,
+    gerarLink: async () => {
+      ev.push('gerarLink');
+      if(op.antesDoLink) op.antesDoLink(dom);
+      if(op.erroLink) throw op.erroLink;
+      return {url: 'https://t.me/bot_de_teste?start=CODIGO', expiraEm: op.expiraEm !== undefined ? op.expiraEm : new Date(agora + LIMITE).toISOString()};
     },
+    recarregarCanais: async () => { ev.push('reler'); if(op.erroReler) throw op.erroReler; return Object.assign({}, canais); },
+    desligar: async () => { ev.push('desligar'); if(op.erroDesligar) throw op.erroDesligar; canais = Object.assign({}, canais, {telegram: false}); },
     testar: async () => { ev.push('testar'); if(op.erroTeste) throw op.erroTeste; },
-    armazenamento: arm, sid: () => 's1',
+    abrir: url => { ev.push('abrir:' + url); return op.abre !== false; },
+    armazenamento: arm,
+    agora: () => agora,
+    intervalo: f => { timers.push(f); ev.push('intervalo'); return timers.length; },
+    limpar: id => { timers[id - 1] = null; ev.push('limpar'); },
+    aoVoltar: cb => voltas.push(cb),
     toast: (m, e) => toasts.push([m, !!e]),
     aoMudar: () => ev.push('aoMudar')
   };
   const t = criarTelegram(env);
-  return {t, ev, dom, toasts, arm, ruim: () => dom.telegramMsg.classList._r};
+  return {
+    t, ev, dom, toasts, arm,
+    ruim: () => dom.telegramMsg.classList._r,
+    servidorLigou: () => { canais = Object.assign({}, canais, {telegram: true}); },
+    passa: ms => { agora += ms; },
+    tique: () => timers.forEach(f => f && f()),
+    voltaAoApp: () => voltas.forEach(f => f()),
+    liga: async () => { dom.swTelegram.checked = true; await dom.swTelegram.onchange(); },
+    desliga: async () => { dom.swTelegram.checked = false; await dom.swTelegram.onchange(); }
+  };
 }
 const erroServidor = (codigo, texto) => Object.assign(new Error(texto), {code: codigo});
+const sem = (m, ...ids) => ids.every(i => m.dom[i] === undefined);
 
 (async () => {
   // sem a pagina (sem o cartao): nada acontece
-  assert.strictEqual(criarTelegram({el: () => null, chatId: () => ''}).ligarCartao(), false);
+  assert.strictEqual(criarTelegram({el: () => null, canais: () => ({})}).ligarCartao(), false);
 
-  // sem Id salvo: chave desligada e so ela a mostra (sem campo, sem teste)
+  // desligado: so a chave; sem campo de Id, sem Salvar, sem "Agora nao"
   let m = montar();
   assert.strictEqual(m.t.ligarCartao(), true);
-  assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.tgCampos.hidden, m.dom.btnTesteTelegram.hidden], [false, true, true]);
+  assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.tgAguarda.hidden, m.dom.tgAcoes.hidden, m.dom.btnTesteTelegram.hidden], [false, true, true, true]);
   assert.strictEqual(m.dom.tgApoio.textContent, 'Vale só para você, neste espaço.');
+  assert.ok(sem(m, 'telegramChatId', 'tgCampos', 'btnSalvarTelegram', 'btnTgAgoraNao', 'tgAjuda'), 'o cartao nao tem mais o campo do Id nem o Salvar');
 
-  // com Id salvo (o servidor mandou): chave ligada, o Id no campo, teste a vista, "Agora nao" escondido
-  m = montar({chatId: '123456789'});
+  // ligado (o servidor mandou canais.telegram): chave ligada e o teste a vista
+  m = montar({ligado: true});
   m.t.ligarCartao();
-  assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.tgCampos.hidden, m.dom.btnTesteTelegram.hidden, m.dom.btnTgAgoraNao.hidden, m.dom.telegramChatId.value], [true, false, false, true, '123456789']);
-  assert.strictEqual(m.dom.tgApoio.textContent, 'Os avisos deste espaco chegam neste Telegram.'.replace('espaco', 'espaço'));
+  assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.tgAguarda.hidden, m.dom.tgAcoes.hidden, m.dom.btnTesteTelegram.hidden, m.dom.btnTgLigar.hidden], [true, true, false, false, true]);
+  assert.strictEqual(m.dom.tgApoio.textContent, 'Os avisos deste espaço chegam no seu Telegram.');
 
-  // ligar: abre a explicacao e o campo; a chave NAO liga e nada vai ao servidor antes do Salvar
+  // ligar: pede o link (so no toque), abre a url e fica aguardando com o tempo restante; a chave fica marcada enquanto o link e pedido
+  m = montar({antesDoLink: dom => { assert.deepStrictEqual([dom.swTelegram.checked, dom.swTelegram.disabled, dom.telegramMsg.textContent], [true, true, 'Pedindo o link…']); }});
+  m.t.ligarCartao();
+  assert.ok(!m.ev.includes('gerarLink'), 'nenhum link e pedido antes do toque');
+  await m.liga();
+  assert.deepStrictEqual(m.ev.filter(e => e !== 'intervalo'), ['gerarLink', 'abrir:https://t.me/bot_de_teste?start=CODIGO']);
+  assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.swTelegram.disabled, m.dom.tgAguarda.hidden, m.dom.tgAcoes.hidden, m.t.estadoAgora()], [true, false, false, true, 'aguardando']);
+  assert.strictEqual(m.dom.tgApoio.textContent, 'Falta tocar em Iniciar no Telegram.');
+  assert.strictEqual(m.dom.tgTempo.textContent, 'O link vale por mais 10:00 (10 minutos no total).');
+  assert.strictEqual(m.dom.tgAbrir.hidden, true, 'a janela abriu: nao precisa do link na tela');
+  m.passa(2 * 60 * 1000 + 3000); m.tique();
+  assert.strictEqual(m.dom.tgTempo.textContent, 'O link vale por mais 7:57 (10 minutos no total).');
+
+  // Ja iniciei com o Iniciar ainda nao chegado: "Ainda nao chegou" e CONTINUA aguardando, com o tempo restante
+  await m.dom.btnTgIniciei.onclick();
+  assert.deepStrictEqual([m.dom.telegramMsg.textContent, m.t.estadoAgora(), m.dom.tgAguarda.hidden], ['Ainda não chegou. Toque em Iniciar no Telegram e volte aqui.', 'aguardando', false]);
+  assert.strictEqual(m.ev.filter(e => e === 'reler').length, 1);
+
+  // o Iniciar chegou: Ja iniciei le o servidor e a chave vira "Ligado"
+  m.servidorLigou();
+  await m.dom.btnTgIniciei.onclick();
+  assert.strictEqual(m.t.estadoAgora(), 'ligado');
+  assert.deepStrictEqual([m.dom.tgAguarda.hidden, m.dom.btnTesteTelegram.hidden, m.dom.tgApoio.textContent], [true, false, 'Os avisos deste espaço chegam no seu Telegram.']);
+  assert.deepStrictEqual(m.toasts, [['✓ Avisos no Telegram ligados', false]]);
+  assert.ok(m.ev.includes('aoMudar') && m.ev.includes('limpar'), 'a tela de baixo e avisada e o relogio para');
+
+  // sem conexao ao conferir: a frase em vermelho e continua aguardando
+  m = montar({erroReler: new Error('x')});
+  m.t.ligarCartao(); await m.liga();
+  await m.dom.btnTgIniciei.onclick();
+  assert.deepStrictEqual([m.dom.telegramMsg.textContent, m.ruim(), m.t.estadoAgora()], ['Não consegui conferir agora (sem conexão). Tente de novo.', true, 'aguardando']);
+
+  // voltar ao primeiro plano enquanto aguarda: UMA releitura, e em silencio quando ainda nao chegou
   m = montar();
   m.t.ligarCartao();
-  m.dom.swTelegram.checked = true;
-  await m.dom.swTelegram.onchange();
-  assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.tgCampos.hidden, m.dom.tgAjuda.hidden, m.dom.btnTgAgoraNao.hidden], [false, false, false, false]);
-  assert.strictEqual(m.dom.telegramMsg.textContent, 'Cole o seu Id e toque em Salvar.');
-  assert.ok(!m.ev.some(e => e.startsWith('definir')), 'nada vai ao servidor antes do Salvar');
+  m.voltaAoApp();
+  assert.ok(!m.ev.includes('reler'), 'desligado: voltar ao app nao le nada');
+  await m.liga();
+  m.voltaAoApp(); await Promise.resolve(); await Promise.resolve();
+  assert.strictEqual(m.ev.filter(e => e === 'reler').length, 1);
+  assert.strictEqual(m.dom.telegramMsg.textContent, '', 'ainda nao chegou: a releitura silenciosa nao diz nada');
+  m.servidorLigou();
+  m.voltaAoApp(); await Promise.resolve(); await Promise.resolve();
+  assert.strictEqual(m.t.estadoAgora(), 'ligado');
+  m.voltaAoApp(); await Promise.resolve();
+  assert.strictEqual(m.ev.filter(e => e === 'reler').length, 2, 'ligado: nao rele mais ao voltar');
+  // sem sondagem por tempo: o relogio andar nunca le o servidor
+  m = montar(); m.t.ligarCartao(); await m.liga();
+  for(let i = 0; i < 5; i++){ m.passa(30000); m.tique(); }
+  assert.ok(!m.ev.includes('reler'), 'o tempo passar nao rele o servidor');
 
-  // Salvar vazio nao desvincula por engano
-  await m.dom.btnSalvarTelegram.onclick();
-  assert.ok(!m.ev.some(e => e.startsWith('definir')) && m.ruim());
-  assert.strictEqual(m.dom.telegramMsg.textContent, 'Cole o Id do Telegram ou desligue a chave.');
-
-  // Agora nao fecha sem ligar
-  await m.dom.btnTgAgoraNao.onclick();
-  assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.tgCampos.hidden, m.dom.telegramMsg.textContent], [false, true, '']);
-
-  // Salvar: o servidor recebe o Id como foi digitado (sem o front validar), so depois a chave liga
+  // o link vence (10 minutos): "O link venceu", chave desligada e o botao Ligar Telegram
   m = montar();
-  m.t.ligarCartao();
-  m.dom.swTelegram.checked = true; await m.dom.swTelegram.onchange();
-  m.dom.telegramChatId.value = ' 987654321 ';
-  await m.dom.btnSalvarTelegram.onclick();
-  assert.ok(m.ev.includes('definir:987654321'));
-  assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.btnTesteTelegram.hidden, m.dom.tgAjuda.hidden, m.dom.btnTgAgoraNao.hidden], [true, false, true, true]);
-  assert.strictEqual(m.dom.telegramMsg.textContent, 'Salvo ✓ Use "Enviar aviso de teste" para conferir.');
-  assert.ok(m.toasts.some(t => t[0] === '✓ Avisos no Telegram ligados') && m.ev.includes('aoMudar'));
+  m.t.ligarCartao(); await m.liga();
+  m.passa(LIMITE); m.tique();
+  assert.deepStrictEqual([m.t.estadoAgora(), m.dom.swTelegram.checked, m.dom.tgAguarda.hidden, m.dom.btnTgLigar.hidden, m.dom.btnTgLigar.textContent, m.dom.tgAcoes.hidden],
+    ['desligado', false, true, false, 'Ligar Telegram', false]);
+  assert.deepStrictEqual([m.dom.telegramMsg.textContent, m.ruim()], ['O link venceu: toque em Ligar Telegram de novo.', true]);
+  m.ev.length = 0;
+  await m.dom.btnTgLigar.onclick(); // ligar de novo
+  assert.deepStrictEqual([m.ev[0], m.t.estadoAgora(), m.dom.btnTgLigar.hidden], ['gerarLink', 'aguardando', true]);
 
-  // o servidor recusa o Id (frase dele) ou nao ha rede: a chave continua desligada, a frase em vermelho
-  m = montar({erro: erroServidor(400, 'o chat id do Telegram tem so numeros (ex.: 123456789)')});
-  m.t.ligarCartao();
-  m.dom.swTelegram.checked = true; await m.dom.swTelegram.onchange();
-  m.dom.telegramChatId.value = 'abc';
-  await m.dom.btnSalvarTelegram.onclick();
-  assert.deepStrictEqual([m.dom.swTelegram.checked, m.ruim(), m.dom.telegramMsg.textContent], [false, true, 'o chat id do Telegram tem so numeros (ex.: 123456789)']);
-  assert.ok(!m.ev.includes('aoMudar'));
-  m = montar({erro: new TypeError('Failed to fetch')});
-  m.t.ligarCartao();
-  m.dom.swTelegram.checked = true; await m.dom.swTelegram.onchange();
-  m.dom.telegramChatId.value = '12345';
-  await m.dom.btnSalvarTelegram.onclick();
-  assert.deepStrictEqual([m.dom.swTelegram.checked, m.ruim(), m.dom.telegramMsg.textContent], [false, true, 'Não consegui salvar agora (sem conexão). Tente de novo.']);
+  // Cancelar sai do aguardando sem falar com o servidor (o link ja gerado vale ate vencer)
+  m = montar(); m.t.ligarCartao(); await m.liga();
+  m.ev.length = 0;
+  await m.dom.btnTgCancelar.onclick();
+  assert.deepStrictEqual([m.t.estadoAgora(), m.dom.swTelegram.checked, m.dom.tgAguarda.hidden, m.dom.telegramMsg.textContent], ['desligado', false, true, '']);
+  assert.ok(!m.ev.some(e => e === 'gerarLink' || e === 'desligar' || e === 'reler'));
+  // tocar na chave ligada durante o aguardando tambem cancela
+  m = montar(); m.t.ligarCartao(); await m.liga(); await m.desliga();
+  assert.strictEqual(m.t.estadoAgora(), 'desligado');
 
-  // desligar: espera o servidor (a chave so muda depois), apaga o Id e some o campo
-  let durante = null;
-  m = montar({chatId: '123456789', aoDefinir: dom => { durante = [dom.swTelegram.checked, dom.swTelegram.disabled]; }});
-  m.t.ligarCartao();
-  m.dom.swTelegram.checked = false;
-  await m.dom.swTelegram.onchange();
-  assert.deepStrictEqual(durante, [true, true], 'durante a chamada a chave continua ligada e travada');
-  assert.ok(m.ev.includes('definir:'), 'desligar manda o Id vazio');
-  assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.swTelegram.disabled, m.dom.tgCampos.hidden, m.dom.telegramChatId.value], [false, false, true, '']);
-  assert.ok(m.toasts.some(t => t[0] === '✓ Telegram desligado (o Id fica só neste aparelho)') && m.ev.includes('aoMudar'));
-  assert.deepStrictEqual(JSON.parse(m.arm.d['financas.telegram']), {s1: '123456789'}, 'o Id fica so neste aparelho, por espaco');
-  // ligar de novo: o campo vem preenchido com o ultimo Id, a chave NAO liga e nada vai ao servidor antes do Salvar
-  m.dom.swTelegram.checked = true; await m.dom.swTelegram.onchange();
-  assert.deepStrictEqual([m.dom.telegramChatId.value, m.dom.swTelegram.checked, m.dom.telegramMsg.textContent], ['123456789', false, 'Usei o último Id deste aparelho. Toque em Salvar para ligar.']);
-  const antes = m.ev.length;
-  await m.dom.btnSalvarTelegram.onclick();
-  assert.deepStrictEqual(m.ev.slice(antes, antes + 1), ['definir:123456789']);
-  assert.strictEqual(m.dom.swTelegram.checked, true);
-  assert.strictEqual(m.arm.d['financas.telegram'], undefined, 'com o Id no servidor, o aparelho nao guarda copia');
+  // erros do link: 503 (nao configurado), 429 (limite), rede e a frase do servidor para outro codigo; o botao vira "Tentar de novo"
+  const casos = [
+    [erroServidor(503, 'o Telegram ainda nao foi configurado no servidor'), 'O Telegram ainda não foi configurado no servidor.'],
+    [erroServidor(429, 'muitos links pedidos'), 'Muitos links pedidos: tente de novo mais tarde.'],
+    [new Error('Failed to fetch'), 'Não consegui pedir o link agora (sem conexão). Tente de novo.'],
+    [erroServidor(500, 'erro interno'), 'erro interno']
+  ];
+  for(const [erro, texto] of casos){
+    m = montar({erroLink: erro});
+    m.t.ligarCartao(); await m.liga();
+    assert.deepStrictEqual([m.dom.telegramMsg.textContent, m.ruim(), m.t.estadoAgora(), m.dom.swTelegram.checked, m.dom.swTelegram.disabled, m.dom.btnTgLigar.textContent, m.dom.btnTgLigar.hidden],
+      [texto, true, 'desligado', false, false, 'Tentar de novo', false], 'erro ' + erro.message);
+    assert.ok(!m.ev.some(e => e.startsWith('abrir')), 'sem link nada abre');
+  }
 
-  // quem ja tem outro Id lembrado em outro espaco nao o perde ao desligar este
-  m = montar({chatId: '111111', mem: {'financas.telegram': '{"s2":"222222"}'}});
-  m.t.ligarCartao(); m.dom.swTelegram.checked = false; await m.dom.swTelegram.onchange();
-  assert.deepStrictEqual(JSON.parse(m.arm.d['financas.telegram']), {s1: '111111', s2: '222222'});
-  // sem Id lembrado, ligar abre o campo vazio com a explicacao de sempre; armazenamento quebrado nao atrapalha
-  m = montar({mem: {'financas.telegram': 'lixo{'}});
-  m.t.ligarCartao(); m.dom.swTelegram.checked = true; await m.dom.swTelegram.onchange();
-  assert.deepStrictEqual([m.dom.telegramChatId.value, m.dom.telegramMsg.textContent], ['', 'Cole o seu Id e toque em Salvar.']);
+  // a janela foi bloqueada pelo navegador: a propria tela oferece o link para tocar
+  m = montar({abre: false});
+  m.t.ligarCartao(); await m.liga();
+  assert.deepStrictEqual([m.dom.tgAbrir.hidden, m.dom.tgAbrir.href, m.t.estadoAgora()], [false, 'https://t.me/bot_de_teste?start=CODIGO', 'aguardando']);
+  m.servidorLigou(); await m.dom.btnTgIniciei.onclick();
+  assert.strictEqual(m.dom.tgAbrir.hidden, true);
 
-  // desligar sem rede: continua ligada, com a frase em vermelho (e nada e lembrado)
-  m = montar({chatId: '123456789', erro: new TypeError('Failed to fetch')});
-  m.t.ligarCartao();
-  m.dom.swTelegram.checked = false;
-  await m.dom.swTelegram.onchange();
-  assert.strictEqual(m.arm.d['financas.telegram'], undefined);
-  assert.deepStrictEqual([m.dom.swTelegram.checked, m.dom.swTelegram.disabled, m.dom.tgCampos.hidden, m.ruim(), m.t.ligadoAgora()], [true, false, false, true, true]);
-  assert.strictEqual(m.dom.telegramMsg.textContent, 'Não consegui desligar agora (sem conexão). Tente de novo.');
-  assert.strictEqual(m.dom.telegramChatId.value, '123456789');
+  // o prazo e o do servidor (expiraEm); relogio do aparelho que destoa cai nos 10 minutos a partir de agora
+  m = montar({expiraEm: new Date(5000000 + 3 * 60 * 1000).toISOString()});
+  m.t.ligarCartao(); await m.liga();
+  assert.strictEqual(m.dom.tgTempo.textContent, 'O link vale por mais 3:00 (10 minutos no total).');
+  for(const ruim of [new Date(5000000 - 60000).toISOString(), 'lixo', undefined, null, new Date(5000000 + 5 * 3600 * 1000).toISOString()]){
+    m = montar({expiraEm: ruim});
+    m.t.ligarCartao(); await m.liga();
+    assert.strictEqual(m.dom.tgTempo.textContent, 'O link vale por mais 10:00 (10 minutos no total).', 'expiraEm ' + ruim);
+  }
 
-  // o teste
-  m = montar({chatId: '123456789'});
-  m.t.ligarCartao();
-  await m.dom.btnTesteTelegram.onclick();
-  assert.ok(m.ev.includes('testar') && m.dom.telegramMsg.textContent === 'Enviado ✓ Confira o Telegram.' && !m.ruim());
-  m = montar({chatId: '123456789', erroTeste: erroServidor(400, 'cadastre o seu chat id do Telegram primeiro')});
-  m.t.ligarCartao();
-  await m.dom.btnTesteTelegram.onclick();
-  assert.deepStrictEqual([m.ruim(), m.dom.telegramMsg.textContent], [true, '⚠️ cadastre o seu chat id do Telegram primeiro']);
-  m = montar({chatId: '123456789', erroTeste: new TypeError('x')});
-  m.t.ligarCartao();
-  await m.dom.btnTesteTelegram.onclick();
-  assert.strictEqual(m.dom.telegramMsg.textContent, '⚠️ Não consegui enviar o teste (sem conexão).');
-
-  // atualizar: a chave segue o Id que o servidor manda (troca de espaco, nova leitura)
-  m = montar();
-  m.t.ligarCartao();
-  assert.strictEqual(m.dom.swTelegram.checked, false);
-  m = montar({chatId: '555555'});
-  m.t.ligarCartao();
+  // recarregar o app no meio: o estado vem do servidor (atualizar), o aguardando nao sobrevive
+  m = montar(); m.t.ligarCartao(); await m.liga();
+  m.servidorLigou();
   assert.strictEqual(m.t.atualizar(), true);
+  assert.deepStrictEqual([m.t.estadoAgora(), m.dom.tgAguarda.hidden, m.dom.swTelegram.checked], ['ligado', true, true]);
+  m = montar(); m.t.ligarCartao(); await m.liga();
+  assert.strictEqual(m.t.atualizar(), false);
+  assert.deepStrictEqual([m.t.estadoAgora(), m.dom.tgAguarda.hidden, m.dom.swTelegram.checked], ['desligado', true, false]);
 
-  console.log('telegram.test.js: ok');
+  // desligar: o servidor apaga o destino; so depois a chave desliga; nenhum chat id em lugar nenhum
+  m = montar({ligado: true}); m.t.ligarCartao();
+  await m.desliga();
+  assert.deepStrictEqual([m.ev.includes('desligar'), m.t.estadoAgora(), m.dom.swTelegram.checked, m.dom.btnTesteTelegram.hidden, m.dom.tgAcoes.hidden], [true, 'desligado', false, true, true]);
+  assert.deepStrictEqual(m.toasts, [['✓ Telegram desligado', false]]);
+  assert.ok(m.ev.includes('aoMudar'));
+  // sem conexao: continua ligada, frase em vermelho
+  m = montar({ligado: true, erroDesligar: new Error('x')}); m.t.ligarCartao();
+  await m.desliga();
+  assert.deepStrictEqual([m.t.estadoAgora(), m.dom.swTelegram.checked, m.dom.telegramMsg.textContent, m.ruim()], ['ligado', true, 'Não consegui desligar agora (sem conexão). Tente de novo.', true]);
+  m = montar({ligado: true, erroDesligar: erroServidor(500, 'erro interno')}); m.t.ligarCartao();
+  await m.desliga();
+  assert.strictEqual(m.dom.telegramMsg.textContent, 'erro interno');
+
+  // aviso de teste
+  m = montar({ligado: true}); m.t.ligarCartao();
+  await m.dom.btnTesteTelegram.onclick();
+  assert.deepStrictEqual([m.dom.telegramMsg.textContent, m.ruim(), m.ev.includes('testar')], ['Enviado ✓ Confira o Telegram.', false, true]);
+  m = montar({ligado: true, erroTeste: new Error('x')}); m.t.ligarCartao();
+  await m.dom.btnTesteTelegram.onclick();
+  assert.deepStrictEqual([m.dom.telegramMsg.textContent, m.ruim()], ['⚠️ Não consegui enviar o teste (sem conexão).', true]);
+  m = montar({ligado: true, erroTeste: erroServidor(400, 'ligue o Telegram em Listas, Avisos, primeiro')}); m.t.ligarCartao();
+  await m.dom.btnTesteTelegram.onclick();
+  assert.strictEqual(m.dom.telegramMsg.textContent, '⚠️ ligue o Telegram em Listas, Avisos, primeiro');
+
+  // nenhum chat id e lido, mostrado, guardado ou lembrado: o Id lembrado de antes e APAGADO ao subir e nada novo e gravado em nenhum fluxo
+  m = montar({mem: {'financas.telegram': '{"s1":"123456789"}', 'outra': 'fica'}});
+  m.t.ligarCartao();
+  assert.strictEqual(m.arm.d['financas.telegram'], undefined, 'o Id lembrado de antes some ao subir');
+  assert.strictEqual(m.arm.d.outra, 'fica');
+  await m.liga(); m.servidorLigou(); await m.dom.btnTgIniciei.onclick(); await m.desliga();
+  assert.deepStrictEqual(m.arm.gravou, [], 'nenhum fluxo grava nada no aparelho');
+  assert.ok(Object.values(m.dom).every(d => !('value' in d) || d.value === undefined), 'nenhum campo de Id');
+  m = montar({mem: {'financas.telegram': 'lixo{'}}); m.t.ligarCartao();
+  assert.strictEqual(m.arm.d['financas.telegram'], undefined);
+
+  console.log('telegram.test.js ok');
 })().catch(e => { console.error(e); process.exit(1); });

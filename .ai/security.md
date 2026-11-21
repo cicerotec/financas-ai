@@ -78,7 +78,7 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `fechamento.ler` (inclui `GET /saldos`, o saldo de cada meio calculado pelo servidor) | sim | sim |
 | `fechamento.conferir`, `.reabrir` (o `PUT /fechamentos` e a ação `fechamento.escrever` saíram na fase C do item 40) | sim | **não** (só vê) |
 | `aparencia.ler` / `.escrever` | sim | sim, **só a dela** |
-| `perfil.editar` (o próprio nome e chat id do Telegram) | sim | sim |
+| `perfil.editar` (o próprio nome e o **desligar** do Telegram: `telegramChatId` vazio apaga o destino; um Id não vazio é `400`, o chat id só nasce pelo link) | sim | sim |
 | `seq.ler` | sim | sim |
 | `avisos.testar` (mensagem de teste para o próprio Telegram ou, com `{"canal":"push"}`, para os próprios aparelhos) | sim | sim |
 | `push.registrar`, `push.remover` (o aparelho do app no próprio vínculo) e `push.sair` (tira o aparelho de todos os espaços da pessoa) | sim | sim |
@@ -134,8 +134,7 @@ só existe no front não protege nada (veja [`arquitetura.md`](arquitetura.md)).
   (`2 atrasados · 1 vence hoje · 3 a vencer`), **sem descrição, valor, meio de pagamento, data de vencimento nem nome de espaço ou de
   pessoa**, como o push. Antes ele levava a descrição, o valor e o banco de cada lançamento futuro, e isso saía da AWS; deixou de sair.
   A rotina agrupa por **pessoa e destino**: duas pessoas que dividem um chat ou um token recebem mensagens separadas, e uma nunca vê a
-  contagem da outra. **O que ainda vale até a fase 2:** o chat id é digitado pela pessoa (`PUT /perfil`), então nada prova que o chat é
-  dela; o link de vínculo do item 66 fecha isso. Um erro do Telegram nunca leva ao log o token, a URL, o corpo da resposta nem o chat id.
+  contagem da outra. **O chat id deixou de ser digitado (item 66, fase 3):** `PUT /perfil` recusa um `telegramChatId` não vazio (`400`) e só o vínculo por link o grava, com o `chat.id` que o próprio Telegram mandou; `GET /me` **não devolve mais o chat id** (só `canais: {telegram, push}`), então ele nunca chega ao navegador nem fica no aparelho (o `financas.telegram` de antes é apagado ao abrir o app). Um front antigo, em cache ou instalado, que ainda mande o Id recebe `400` até atualizar. Um erro do Telegram nunca leva ao log o token, a URL, o corpo da resposta nem o chat id.
 - **Logs** (CloudWatch, retenção de 14 dias): pelo que o código faz hoje, registram `sub`, papel e ação nas negações,
   contagens da rotina de avisos e mensagens de erro. Nenhum `log` imprime token, e-mail ou corpo da requisição; a regra é
   manter assim (veja "Regras ao mexer").
