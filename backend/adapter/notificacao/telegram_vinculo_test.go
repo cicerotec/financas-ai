@@ -148,3 +148,20 @@ func TestErroDoSSMNoSegredoNaoViraNaoConfigurado(t *testing.T) {
 		t.Errorf("erro = %v", err)
 	}
 }
+
+// Parametro que nao existe no SSM (ambiente ainda sem bot) e "nao configurado" (503), nao falha de infraestrutura (500). Qualquer outro erro do SSM segue sendo falha.
+func TestParametroInexistenteNoSSMEhNaoConfigurado(t *testing.T) {
+	ausente := &ssmFalso{err: &types.ParameterNotFound{}}
+	for nome, chamada := range map[string]func(*Telegram) error{
+		"token":   func(tg *Telegram) error { _, err := tg.Pronto(context.Background()); return err },
+		"segredo": func(tg *Telegram) error { _, err := tg.SegredoDoWebhook(context.Background()); return err },
+		"usuario": func(tg *Telegram) error { _, err := tg.UsuarioDoBot(context.Background()); return err },
+		"enviar":  func(tg *Telegram) error { return tg.EnviarTexto(context.Background(), "1", "oi") },
+	} {
+		tg := NovoTelegram(ausente, paramToken)
+		tg.UsarVinculo(paramSegredo, paramUsuario)
+		if err := chamada(tg); !errors.Is(err, domain.ErrCanalNaoConfigurado) {
+			t.Errorf("%s: erro = %v, esperado ErrCanalNaoConfigurado", nome, err)
+		}
+	}
+}
