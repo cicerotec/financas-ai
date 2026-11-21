@@ -7,14 +7,16 @@ paradigm: 'Portas e adaptadores (hexagonal) sobre as camadas já fechadas do fin
 scope: 'Como um canal de aviso (Telegram hoje, push FCM na spec app-android-push) entra no backend sem vazar para domain e service, e o que a spec do push precisa mudar para respeitar isso'
 status: final
 created: '2026-11-13'
-updated: '2026-11-14'
-binds: ['R1-R24 de .ai/specs/app-android-push/spec.md', 'item 34 (despachante de avisos)']
-sources: ['financas-ai/.ai/arquitetura.md', 'financas-ai/.ai/guardrails.md', 'financas-ai/.ai/specs/app-android-push/{intent,plan,spec}.md', 'financas-ai/backend (código lido em 2026-11-13)']
+updated: '2026-11-20'
+binds: ['R1-R24 de .ai/specs/app-android-push/spec.md', 'item 34 (despachante de avisos)', 'R1-R28 de .ai/specs/telegram-vinculo/spec.md (emendas de 2026-11-20)']
+sources: ['financas-ai/.ai/arquitetura.md', 'financas-ai/.ai/guardrails.md', 'financas-ai/.ai/specs/app-android-push/{intent,plan,spec}.md', 'financas-ai/backend (código lido em 2026-11-13)', '.ai/bmad/revisao-telegram-vinculo.md']
 ---
 
 # Architecture Spine: Canais de aviso do financas-ai
 
-Spine do metodo-ai, revisada por dois revisores independentes e aprovada pelo dono em 2026-11-14. Onde divergir de `arquitetura.md` ou `guardrails.md`, a divergência vai ao dono antes de qualquer código.
+Spine do metodo-ai, revisada por dois revisores independentes e aprovada pelo dono em 2026-11-14 (as emendas de 2026-11-20, em 2026-11-20). Onde divergir de `arquitetura.md` ou `guardrails.md`, a divergência vai ao dono antes de qualquer código.
+
+**Emendas de 2026-11-20** (AD-1, AD-2, AD-4, AD-9, AD-10 e a nova AD-11), vindas da revisão da spec `telegram-vinculo`: escritas pelo arquiteto e **repassadas ao agente do projeto por ordem do dono em 2026-11-20**. Estão marcadas "Emenda 2026-11-20" no corpo e reunidas na seção "Emendas de 2026-11-20", no fim.
 
 ## Design Paradigm
 
@@ -37,7 +39,7 @@ Portas e adaptadores. O `service` declara as portas (`service.Canal`, `LeitorCon
 | Dependências por construtor, sem global | `arquitetura.md`, "Camadas" | AD-6 |
 | Canal novo é um adaptador novo registrado no `main` | `arquitetura.md`, "Avisos: um despachante" | Falso hoje para o push; AD-1 a AD-3 o tornam verdadeiro |
 | O limite de 4096 do Telegram é problema do adaptador | `arquitetura.md`, "Avisos: um despachante" | AD-1 |
-| Nenhuma chave ou campo novo no DynamoDB sem o dono | `arquitetura.md`, princípio 3 | `pushTokens` já aprovado (2026-11-13); nada além |
+| Nenhuma chave ou campo novo no DynamoDB sem o dono | `arquitetura.md`, princípio 3 | `pushTokens` já aprovado (2026-11-13); **emenda 2026-11-20:** o item `USER#<sub>` / `LINK#<canal>` (o código de vínculo, um por pessoa e por canal) aprovado pelo dono; nada além. Chave ou campo novo passa pelas quatro perguntas do `guardrails.md` |
 | O front não decide quem recebe nem o que dizer | `guardrails.md` | AD-7 |
 
 ## Invariants & Rules
@@ -60,6 +62,7 @@ graph TD
 - **Binds:** `domain/aviso_resumo.go`, `adapter/notificacao/*`, R7, R9, R18.
 - **Prevents:** formato de um canal em `domain` (hoje `LimiteTelegram`, `PartesDoResumo`, `MontarResumo`, `Texto()` e `TextoDeTeste`, todos no formato do Telegram) e o push repetindo o erro com `TextoDoPush`.
 - **Rule:** `domain` guarda só o que é regra: `ResumoAvisos`, `LinhaAviso`, ordem, agrupamento e `Contagens` (AD-3). Montar texto, dividir em partes e o limite de 4000 letras vão para `adapter/notificacao/telegram.go`; o texto do push é montado em `fcm.go`. **Custo do PR 0:** movem-se junto `domain/aviso_resumo_test.go` inteiro e as partes de `service/despachante_test.go` e `service/avisos_test.go` que usam o canal falso com texto.
+- **Emenda 2026-11-20 (spec `telegram-vinculo`, R11):** o Telegram deixa de montar partes e de ter o limite de 4000 letras: a mensagem é **uma linha de contagem**, e `telegram.go` e `fcm.go` usam a **mesma função** da frase da contagem (num arquivo comum do pacote `adapter/notificacao`). Texto de teste e o `Mensagem` do MFA seguem fixos. `domain` continua sem texto de canal.
 
 ### AD-2 — O service trata o canal como valor opaco
 
@@ -71,6 +74,7 @@ graph TD
   - Erros que atravessam o service: `domain.ErrCanalNaoConfigurado` (503), `domain.ErrDestinoInvalido` (AD-4) e **`domain.ErrEntregaFalhou`** (502). O service embrulha em `ErrEntregaFalhou` qualquer outro erro do canal, como hoje faz com `ErrTelegramRecusou`; o adaptador não precisa tipá-lo.
   - Sem destino do canal pedido: `ErroValidacao` com texto sem o nome do canal; a frase que o cita vem do controller (`resposta.go`, tabela canal → frase).
   - `Testar` envia ao único endereço, se o canal tem um (Telegram), ou a **todos** os aparelhos da pessoa no espaço, se tem vários (push, R13).
+  - **Emenda 2026-11-20:** as frases do canal na tabela canal → frase de `controller/resposta.go` (`controller/avisos.go`) mudam para o Telegram ("ligue o Telegram em Listas, Avisos, primeiro" e "o Telegram recusou a mensagem: tente de novo, ou ligue o Telegram de novo em Listas"); as do push não mudam (spec R16).
 
 ### AD-3 — A regra "o push só conta" é do domain; o texto é do adaptador
 
@@ -88,6 +92,9 @@ graph TD
   - Porta, declarada no service: `RemovedorDeDestinos.RemoverDestino(ctx, sid, sub, canal, endereco) error`.
   - **Emenda ao R12:** para R11, a rotina guarda, por `Destino`, a lista dos vínculos `(sid, sub)` de onde ele saiu. O agrupamento por destino não muda; a rotina passa a lembrar a origem.
 - `ErrDestinoInvalido` e `RemoverDestino` **não existem** no código; nascem na fase 1 do push, não no PR 0.
+- **Emenda 2026-11-20 (spec `telegram-vinculo`, R12 e R13):**
+  - O Telegram **passa a devolver** `ErrDestinoInvalido` (`403` e `400 chat not found`); o `401` do bot devolve `ErrCredencialRecusada`. "Telegram: nunca, hoje" deixa de valer.
+  - **O agrupamento da rotina é por pessoa:** a chave de `porDestino` passa de `Destino{canal, endereço}` para **`(Destino, sub)`**. Spaces da mesma pessoa no mesmo chat ou token viram uma mensagem (contagem somada, sem dizer de qual space); pessoas diferentes nunca se misturam. A origem `(sid, sub)` por destino segue como está. Vale a todos os canais. Decisão do dono, 2026-11-20: "é melhor estranhar do que ferir regra de privacidade".
 
 ### AD-5 — Aparelhos são um assunto próprio
 
@@ -118,6 +125,7 @@ graph TD
 - **Binds:** `GET /me`, `PUT /spaces/{sid}/perfil`, `domain.Espaco.TelegramChatID`.
 - **Prevents:** abstração de "contatos por canal" desenhada com dois exemplos que não se parecem.
 - **Rule:** o Telegram é um valor que a pessoa digita; o push é um valor que o aparelho registra. Cada um mantém a sua rota e o seu campo (`telegramChatId`, `pushTokens`). Mapa genérico canal-endereço na API só com um terceiro canal. **[ADOPTED]** `pushTokens` no vínculo (dono, 2026-11-13): o mesmo token é replicado por espaço, e remover percorre os vínculos (R5, R11).
+- **Emenda 2026-11-20 (spec `telegram-vinculo`):** o Telegram **deixa de ser "um valor que a pessoa digita"**: o chat id vem do próprio Telegram, provado pelo vínculo por link, e `PUT /perfil` recusa Id digitado (só apagar passa). O estado dos canais vai em **`GET /me`** como `canais: {telegram, push}` (booleanos, sem leitura nova), e `telegramChatId` **deixa de ser devolvido**. O mapa genérico de destinos na API continua esperando o terceiro canal: `canais` é um conjunto de booleanos por canal, não um mapa canal-endereço.
 
 ### AD-10 — Operação do canal: visível, por ambiente, sem segredo
 
@@ -128,6 +136,19 @@ graph TD
   - Credencial por ambiente (`/financas/<ambiente>/fcm-credencial`). Trocar a credencial é rodar `guardar-fcm.ps1` de novo; o token de acesso em cache vale até 1 h, e depois disso o processo lê a nova.
   - O app tem um `google-services.json` com os dois pacotes (`dev` e `prod`); cada build usa o seu pacote (P9).
   - Custo: FCM sem custo; parâmetro SSM padrão sem custo; o envio roda dentro da Lambda de hoje (30 s, série).
+  - **Emenda 2026-11-20 (spec `telegram-vinculo`, R23, R24 e R27):** o Telegram também tem credencial por ambiente, e **um bot por ambiente** (um bot aceita um webhook só). Parâmetros SSM por ambiente: `/financas/<amb>/telegram-token`, `telegram-webhook-secret` e `telegram-bot-usuario`. Dois scripts do dono, nunca rodados pela IA: guardar o token (`Read-Host -AsSecureString`) e registrar o webhook (gera o segredo; **grava o segredo e o usuário só depois de o `setWebhook` responder `ok`**; recusa um bot que já tem outro webhook). O segredo é lido com cache de no máximo 5 minutos.
+
+### AD-11 — Vínculo de canal por código: o serviço não nomeia o canal (emenda 2026-11-20)
+
+- **Binds:** `service/vinculos.go` (novo), `controller/` do vínculo e do webhook, `repository/` do `LINK#`, `auth/authz.go`, R3 a R6, R28 de `telegram-vinculo/spec.md`.
+- **Prevents:** a regra de provar a posse de um endereço (hoje o chat id do Telegram, amanhã o número do WhatsApp) vazar o nome do canal para o `service`, e cada canal novo inventar o seu desenho de código e de chave.
+- **Rule:**
+  - **`service.Vinculos`** gera e consome o código de vínculo e grava o endereço que o canal provou. Recebe `canal` como valor opaco e `(código, canal, endereço)`; **não nomeia o canal** e **não ganha exceção** no teste de nomes (AD-8). Quem sabe o que é `/start`, `t.me` e `secret_token` é o `controller` do webhook (parse do update, escolha dos textos fixos) e o adaptador.
+  - **A porta do repositório** (`RepositorioVinculos`) é declarada no service, implementada em `repository/` e injetada pelo construtor (AD-6, nenhum `Usar*` novo).
+  - **Um item por pessoa e por canal**, na partição que já existe: `PK = USER#<sub>`, `SK = LINK#<canal>`, com `sid`, `hash`, `expiraEm` e `criadoEm`. Gerar um código novo **substitui** o anterior; usar o apaga. Nunca há `Scan`, índice nem `Query` sobre ele: só `GetItem`, `PutItem` e `DeleteItem` pela chave exata. O molde é o `MFACODIGOS#PENDENTE`.
+  - **O código leva o `sub` empacotado** (16 bytes) mais 16 bytes aleatórios (128 bits), em base64 de URL (43 caracteres; o `?start=` do Telegram aceita 64): o webhook acha o item pela chave exata sem índice. A barreira é o aleatório, guardado só como hash e comparado em tempo constante; uso único por exclusão condicional.
+  - **Rota pública (a segunda, depois do `POST /mfa/recuperar`):** reconhecida por `auth.RotaPublica` (método e caminho exatos), com a barreira do segredo do webhook conferida **antes** de ler o corpo e de qualquer acesso ao banco; falha fechada.
+  - **O WhatsApp reaproveita o desenho** (`LINK#whatsapp`), com a prova da posse do número no lugar do `/start`; é feature à parte.
 
 ## Consistency Conventions
 
@@ -187,6 +208,8 @@ Ordem proposta: **PR 0** (remédio, sem dado novo) → fase 1 do push → fases 
 | R14 a R17, R19, R20 (plugin, tela, Sair) | `app-android/`, `web/js/` | AD-7 (spec; sem decisão arquitetural nova) |
 | R18 (só a contagem) | `domain.Contagens`, `fcm.go` | AD-3 |
 | R21, R23 (segredos e log) | `scripts/guardar-fcm.ps1`, `template.yaml` | AD-10 |
+| **`telegram-vinculo`** (emenda 2026-11-20): gerar o link, webhook público, `LINK#`, `canais` em `GET /me` | `service/vinculos.go`, `controller/`, `repository/` (`LINK#`), `auth/authz.go`, `template.yaml`, `scripts/` | AD-11, AD-9, AD-10, AD-8 |
+| **`telegram-vinculo`**: contagem no Telegram, destino recusado, agrupamento por pessoa | `adapter/notificacao/telegram.go` e `fcm.go`, `service/avisos.go` | AD-1, AD-3, AD-4 |
 
 ## Emendas à spec do push
 
@@ -199,7 +222,24 @@ A spine contradiz a spec nestes pontos; o agente do projeto atualiza a spec ante
 | R13 | Padrão do canal é do controller; canal desconhecido é 400; `Testar` envia a todos os aparelhos (AD-2) |
 | R6 e R11 | Mapa canal ↔ campo único em `repository/destinos.go` (AD-4) |
 
+## Emendas de 2026-11-20 (spec `telegram-vinculo`)
+
+Escritas pelo arquiteto a partir da revisão da spec `telegram-vinculo` e repassadas ao agente do projeto por ordem do dono em 2026-11-20. Cada uma também está marcada no corpo da AD.
+
+| Decisão | Mudança |
+|---|---|
+| Inherited Invariants | O item `USER#<sub>` / `LINK#<canal>` entra como o segundo dado novo aprovado no vínculo de canais; chave ou campo novo passa pelas quatro perguntas do `guardrails.md` |
+| AD-1 | O Telegram manda uma linha de contagem; partes e o limite de 4000 saem; a frase da contagem é uma função comum de `telegram.go` e `fcm.go` |
+| AD-2 | As frases do canal Telegram em `controller/` mudam (R16); `Testar` não muda |
+| AD-4 | O Telegram passa a devolver `ErrDestinoInvalido`; o agrupamento da rotina é por `(destino, sub)`, a origem `(sid, sub)` segue |
+| AD-9 | O Telegram é provado por link e não mais digitado; `canais` em `GET /me`; `telegramChatId` deixa de ser devolvido; o mapa genérico segue esperando o terceiro canal |
+| AD-10 | O Telegram tem credencial por ambiente (token, segredo do webhook, usuário do bot); um bot por ambiente; scripts do dono |
+| **AD-11 (nova)** | Vínculo de canal por código: `service.Vinculos` não nomeia o canal; um item `LINK#<canal>` por pessoa; rota pública protegida pelo segredo do webhook; o WhatsApp reaproveita |
+
 ## Open Questions
+
+- **O `sub` do pool é UUID?** (P13 da spec `telegram-vinculo`.) **Resolvida em 2026-11-20: o `sub` de um usuário do `dev` é UUID.** O código de vínculo empacota o `sub` em 16 bytes.
+- **Dois vínculos de pessoas diferentes no mesmo chat.** O agrupamento por pessoa os separa, mas quem toca num link alheio passa a receber os avisos de outra pessoa (a confirmação "Ligado ✓" leva o apelido, decisão D6 do plan, tomada em 2026-11-20) e só o bloqueio do bot para na hora.
 
 - **Para o dono: R15 registra o token a cada abertura.** Cada `PUT` por espaço ligado é uma escrita, e a tabela tem 5 WCU provisionados (`template.yaml:46`). O estouro do guardrails (2026-10-27) foi de **leitura**; escrita mínima custa 1 WCU. Antes da fase 3, medir ou aceitar; alternativa: registrar só com token novo (`onNewToken`) ou a cada 7 dias. Hoje a spec manda a cada abertura e a spine não a muda.
 - **Tamanho do item do vínculo.** R2 aceita token de até 1024 caracteres, e 5 tokens podem passar de 4 KB; o "nenhuma leitura nova" do R6 vale em número de chamadas, não em unidades de leitura. [ASSUMPTION] um token real do FCM tem bem menos que isso; confirmar no `dev`.

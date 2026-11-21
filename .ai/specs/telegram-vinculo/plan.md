@@ -66,7 +66,7 @@ Como construir o que o [`intent.md`](intent.md) pede, a partir do código de hoj
 | **D3** | **Ordem frente ao item 47** (tela de aviso como componente). Os dois mexem nos rótulos e no balão da tela Avisar | O 66 vem **primeiro** (pré-requisito de abrir ao público), mexendo só em rótulos, balão e na janela; o 47 depois reaproveita. O `plan.md` do 47 anota a dependência |
 | **D4** | **`GET /me` leva `canais` e perde `telegramChatId`** (em vez de uma rota de estado dos canais, como a intent previa). Muda o contrato de uma rota que o app lê na subida | Aprovar: não custa leitura nova e tira o chat id do navegador |
 | D5 | Limites: código vale **10 min**; **5 gerações por hora** por pessoa; **10 tentativas por hora** por chat do Telegram; texto da contagem do Telegram (frase em "Desenho") | Os da tabela; o texto sai da demo |
-| D6 | **A confirmação "Ligado ✓" leva o apelido** da pessoa que gerou o link (não o nome do espaço), para quem tocou num link alheio reconhecer de quem são os avisos. É um dado da conta numa mensagem do Telegram, uma **exceção à privacidade por padrão**, pequena (o apelido é o que a pessoa escolheu mostrar) | Aprovar; sem apelido, o texto diz "deste espaço". Alternativa: nenhum nome (e a pessoa liga sem saber a quem) |
+| D6 | **A confirmação "Ligado ✓" leva o apelido** da pessoa que gerou o link (não o nome do espaço), para quem tocou num link alheio reconhecer de quem são os avisos. É um dado da conta numa mensagem do Telegram, uma **exceção à privacidade por padrão**, pequena (o apelido é o que a pessoa escolheu mostrar) | **Decidido (2026-11-20): leva o apelido**; sem apelido, o texto diz "deste espaço" |
 | **D7** | **Agrupamento da rotina: por pessoa.** **Decidido pelo dono em 2026-11-20.** Chave `(destino, sub)`: spaces da mesma pessoa viram uma mensagem; pessoas diferentes nunca se misturam. Alternativas: manter por destino (mistura pessoas) ou por space (duas mensagens iguais e sem identificação) | Decidido: "é melhor estranhar do que ferir regra de privacidade" |
 
 ## Premissas
@@ -81,7 +81,7 @@ Levantadas por quem escreveu o roteiro, lendo o código. **Não são a revisão 
 | P4 | **O Telegram aceita a resposta no corpo do webhook** (`method: sendMessage`) | Se não aceitar o `chat_id` ou o texto, a pessoa liga mas não vê a confirmação; o app mostra "Ligado" mesmo assim (lido de `GET /me`). Confirmar no `dev` | R8 |
 | P5 | **Tocar no link em um chat que já existe manda `/start <código>` na hora** (sem o botão Iniciar) | Se o cliente só abrisse o chat, o código não chegaria e a pessoa teria de enviar o `/start` à mão: o texto da tela diz o que fazer quando passam 10 minutos. **Conferir no aparelho** (inclui quem já tinha o bot) | R6, R17 |
 | P6 | **O payload do `?start=` aceita só letras, números, `_` e `-`, até 64 caracteres** | Os 43 caracteres do código cabem; se o limite for menor, o código encurta (e perde bits do aleatório): conferir no `dev` antes de fechar o tamanho | R2 |
-| P13 | **O `sub` do Cognito deste pool é um UUID** (empacota em 16 bytes) | Se não for, o código não cabe nos 64 caracteres com o `sub` dentro; o desenho cai para o plano B (campos no vínculo, com o `sid` no link, que também depende do formato dele). **Conferir um `sub` do `dev` antes da fase 2**; o gerar recusa um `sub` que não seja UUID | R2 |
+| P13 | **O `sub` do Cognito deste pool é um UUID** (empacota em 16 bytes) | Se não for, o código não cabe nos 64 caracteres com o `sub` dentro; o desenho cai para o plano B (campos no vínculo, com o `sid` no link, que também depende do formato dele). **Conferido pelo dono em 2026-11-20: o `sub` de um usuário do `dev` é UUID.** O gerar recusa um `sub` que não seja UUID | R2 |
 | P7 | **`403` do Telegram significa que a pessoa saiu** (bot bloqueado, conta apagada) e `400 chat not found` que o chat não existe mais | Se o Telegram usar `403` para outra coisa (por exemplo, o bot sem permissão num grupo), um destino válido seria apagado e a pessoa ficaria sem aviso até religar. Só chats privados são ligados, então esse caso não ocorre; **conferir os textos no `dev`** | R12 |
 | P8 | **`GET /me` já lê o item inteiro do vínculo** (`Query` de `EspacosDe`) | Se um dia ela projetasse só alguns campos, `canais` ficaria sempre falso: o teste conta as leituras e confere `canais` | R14 |
 | P9 | **O front antigo ainda manda o Id e espera `telegramChatId`**: o da PWA em cache **e o do app Android, que embute o bundle** (`webDir: "www"`, sem `server.url`) e só muda com um build novo | Depois da fase 3, o front antigo recebe `400` ao salvar e vê o Telegram como desligado até atualizar. Aceito: só o dono usa o aviso, e ele atualiza o app; front e backend vão no **mesmo release**. Se houver outros usuários antes, manter `telegramChatId` em `GET /me` por uma versão custaria a promessa de o chat id nunca chegar ao navegador | R15 |
@@ -113,9 +113,9 @@ Levantadas por quem escreveu o roteiro, lendo o código. **Não são a revisão 
 | Código gerado e nunca usado acumular na tabela | Não acumula: há **um item por pessoa**, que o próximo código substitui (D1, opção C). O teto é o número de pessoas |
 | O `sub` aparecer no link que o Telegram vê | É um identificador opaco, sem dado pessoal; a barreira é o aleatório de 128 bits (spec R2). Anotado como exceção pequena |
 
-## Emendas à spine `arquitetura-avisos-canais` (a aprovar pelo dono)
+## Emendas à spine `arquitetura-avisos-canais` (aprovadas pelo dono em 2026-11-20)
 
-A spine está `final`; esta feature contradiz três decisões dela. O agente do projeto atualiza `.ai/bmad/arquitetura-avisos-canais.md` antes da fase 1, e a spine do metodo-ai ganha a mesma nota.
+A spine está `final`; esta feature contradiz três decisões dela. As emendas já estão em `.ai/bmad/arquitetura-avisos-canais.md` (AD-1, AD-2, AD-4, AD-9, AD-10 e a nova AD-11), marcadas "Emenda 2026-11-20".
 
 | Decisão | Mudança |
 |---|---|

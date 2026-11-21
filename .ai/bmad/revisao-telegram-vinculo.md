@@ -1,7 +1,7 @@
 ---
 name: 'Revisão da spec telegram-vinculo'
 type: review
-status: aplicada em 2026-11-20 em intent.md, plan.md e spec.md; pendentes D2 a D6, P13 e a aprovação das emendas à spine
+status: aplicada em 2026-11-20 em intent.md, plan.md, spec.md e na spine; pendentes D2 a D5; D6 decidida (apelido), P13 conferido (UUID) e emendas à spine aprovadas em 2026-11-20
 created: '2026-11-20'
 target: '.ai/specs/telegram-vinculo/{intent,plan,spec}.md'
 sources: ['.ai/bmad/arquitetura-avisos-canais.md', 'backend/service/avisos.go (lido em 2026-11-20)', 'backend/repository/ (consultas, MFACODIGOS#)', 'template.yaml (sem TTL, Deny em HIST#*)', 'app-android/capacitor.config.json']
@@ -24,10 +24,10 @@ Feita pelo Winston (arquiteto do metodo-ai) em 2026-11-20, com as lentes adversa
 |---|---|---|
 | A1 | A exclusão condicional que falha gasta WCU; a promessa "nenhuma escrita sem código válido" era falsa | spec R6 (lê antes, `GetItem`; escrita só com código que existe) |
 | A2 | Religar trocava o chat id em silêncio | spec R6a (aviso fixo ao chat antigo) |
-| A3 | A confirmação não dizia a quem o chat foi ligado; `/parar` não desliga | spec R7 e R8; plan D6 (apelido, **pendente do dono**) |
+| A3 | A confirmação não dizia a quem o chat foi ligado; `/parar` não desliga | spec R7 e R8; plan D6 (apelido, **decidido**) |
 | A4 | Chat ids sem prova | dissolvido (ver decisões); `intent.md` tabela de exceções |
 | A5 | Faltavam as camadas do serviço do vínculo | spec R28; plan "Desenho" |
-| A6 | A spine contradizia a feature | `plan.md` "Emendas à spine"; spine amendada no metodo-ai (**aguarda aprovação do dono; esta cópia em `.ai/bmad/` ainda não tem as emendas**) |
+| A6 | A spine contradizia a feature | `plan.md` "Emendas à spine"; spine amendada e **copiada para `.ai/bmad/arquitetura-avisos-canais.md` em 2026-11-20** (AD-1, AD-2, AD-4, AD-9, AD-10 e a nova AD-11) |
 | A7 | Segredo do webhook em cache quebra a rotação | spec R4 (cache de no máximo 5 minutos), V-T3a |
 | A8 | O link podia ser gerado antes de o webhook existir | spec R3 (503 sem o segredo) e R24 (script grava por último) |
 | A9 | Reentrega do Telegram gerava mensagens contraditórias | spec R5 (`update_id`), V-T5a |
@@ -46,7 +46,6 @@ Feita pelo Winston (arquiteto do metodo-ai) em 2026-11-20, com as lentes adversa
 
 ## Pendências
 
-1. **Plan D2 a D6:** `/parar`, ordem frente ao item 47, `GET /me` sem `telegramChatId`, limites e o apelido na confirmação.
-2. **P13:** conferir um `sub` do `dev` (UUID) antes da fase 2.
-3. **Spine:** aprovar as emendas (AD-1, AD-2, AD-4, AD-9, AD-10 e a nova AD-11) e copiá-las para `.ai/bmad/arquitetura-avisos-canais.md`.
-4. **Não verificado:** como o roteador repassa os cabeçalhos do Function URL ao controller (spec R28 e V-T3).
+1. **Plan D2 a D5:** `/parar`, ordem frente ao item 47, `GET /me` sem `telegramChatId` e limites. (D6, o apelido na confirmação, foi decidida em 2026-11-20.)
+2. **P13:** conferido pelo dono em 2026-11-20: o `sub` do `dev` é UUID.
+3. **Não verificado:** como o roteador repassa os cabeçalhos do Function URL ao controller (spec R28 e V-T3).
