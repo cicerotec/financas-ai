@@ -20,7 +20,10 @@ function criarCanais(env){
     tgLigado: '✓ Avisos no Telegram ligados',
     pushLigado: '✓ Avisos neste aparelho ligados',
     dicaT: 'Você ainda não tem um canal ativo para receber este aviso',
-    dicaS: 'O aviso é guardado, mas fica mudo até você ligar um canal.'
+    dicaS: 'O aviso é guardado, mas fica mudo até você ligar um canal.',
+    semCanalSelo: 'Sem canal ativo',
+    semCanalDica: 'Sem canal ativo: este aviso não chega a ninguém até você ligar um canal.',
+    semCanalFolha: 'Este aviso está sem canal ativo: não chega a ninguém até você ligar um canal.'
   };
   const LIMITE = 10 * 60 * 1000; // o link vale 10 minutos e uma vez (R2)
   const FECHA_DEPOIS = 900;      // a janela fecha sozinha um instante depois de o canal ligar
@@ -138,6 +141,20 @@ function criarCanais(env){
     alvo.querySelector('[data-lc=seguir]').onclick = () => { alvo.innerHTML = ''; if(aoContinuar) aoContinuar(); };
   }
 
+  // ---------- o sino das linhas de Historico e Futuros (R22a) ----------
+  // O sino de um lancamento com aviso (e a linha de aviso da fatura) diz "Sem canal ativo" quando o espaco nao tem Telegram nem aparelho; com qualquer canal, e o sino de
+  // sempre. O estado e o de GET /me (canais), o mesmo da subida: nenhuma chamada por linha. `titulo` ja vem escapado (os prazos do aviso).
+  function chip(titulo){
+    if(semCanal()) return ` <span class="chip sem-canal" title="Aviso: ${titulo}. ${FRASE.semCanalDica}">🔔 ${FRASE.semCanalSelo}</span>`;
+    return ` <span class="chip" title="Aviso: ${titulo}">🔔</span>`;
+  }
+  const fraseDaFatura = () => (semCanal() ? '<span class="sem-canal-txt"> · ' + FRASE.semCanalSelo + '</span>' : '');
+  // A janela de acoes de uma linha com aviso: sem canal, o aviso e o botao que abre a janela Ligar um canal (o toque na linha ja abre esta janela).
+  function avisoDaFolha(temAviso){
+    if(!(temAviso && semCanal())) return '';
+    return '<p class="av-sem">' + FRASE.semCanalFolha + '</p><button type="button" class="fut-ac pri" data-ligar-canal="1">Ligar um canal</button>';
+  }
+
   function ligarJanela(){
     if(!env.el('lcOv') || !env.el('lcTg')) return false;
     pronto = true;
@@ -150,7 +167,7 @@ function criarCanais(env){
     env.aoVoltar(() => { if(aberta && passo === 'aguardando') reler(true); }); // uma releitura ao voltar ao primeiro plano, so enquanto aguarda
     return true;
   }
-  return {ligarJanela, abrir, fechar, dica, semCanal, estaAberta: () => aberta, passoAgora: () => passo};
+  return {ligarJanela, abrir, fechar, dica, semCanal, chip, fraseDaFatura, avisoDaFolha, estaAberta: () => aberta, passoAgora: () => passo};
 }
 
 if(typeof module !== 'undefined' && module.exports) module.exports = criarCanais;
