@@ -61,7 +61,7 @@ Rota de espaço (`/spaces/{sid}/...`) também exige vínculo da pessoa com o esp
 | GET | `/spaces/{sid}/historico` | `historico.ler` | sim | só o que criou | ID token | specs/historico/spec.md |
 | PUT | `/spaces/{sid}/meios/{meio}` | `meio.escrever` | sim | não | ID token | specs/meios-de-pagamento/spec.md |
 | DELETE | `/spaces/{sid}/meios/{meio}` | `meio.escrever` | sim | não | ID token | specs/meios-de-pagamento/spec.md |
-| PUT | `/spaces/{sid}/perfil` | `perfil.editar` | sim | sim | ID token | specs/app-multiusuario/intent.md |
+| PUT | `/spaces/{sid}/perfil` | `perfil.editar` | sim | sim | ID token | specs/telegram-vinculo/spec.md |
 | PUT | `/spaces/{sid}/push` | `push.registrar` | sim | sim | ID token | specs/app-android-push/spec.md |
 | POST | `/spaces/{sid}/push/remover` | `push.remover` | sim | sim | ID token | specs/app-android-push/spec.md |
 | GET | `/spaces/{sid}/recorrencias` | `tx.ler` | sim | sim | ID token | specs/recorrencia/spec.md |

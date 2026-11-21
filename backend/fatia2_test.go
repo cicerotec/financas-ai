@@ -161,18 +161,18 @@ func TestF2ContadorQuebradoNaoDerrubaAEscrita(t *testing.T) {
 // F2-T6: perfil (a rota exige o vinculo para ter papel; o 404 do UPDATE condicional vem chamando o controller direto).
 func TestF2Perfil(t *testing.T) {
 	f := cenario(t)
-	st, d := chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"apelido":"Maria","telegramChatId":"123456789"}`)
-	esperar(t, "grava os dois", st, 200)
-	if d["apelido"] != "Maria" || d["telegramChatId"] != "123456789" {
+	st, d := chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"apelido":"Maria","telegramChatId":""}`)
+	esperar(t, "grava o apelido e desliga o destino", st, 200)
+	if d["apelido"] != "Maria" || d["telegramChatId"] != "" {
 		t.Errorf("resposta = %v", d)
 	}
 	vinc := f.ler(t, "USER#mem", "SPACE#s1")
-	if vinc["apelido"] != "Maria" || vinc["telegramChatId"] != "123456789" || vinc["role"] != "member" {
+	if vinc["apelido"] != "Maria" || vinc["telegramChatId"] != nil || vinc["role"] != "member" {
 		t.Errorf("vinculo = %v", vinc)
 	}
-	st, d = chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":"abc"}`)
-	esperar(t, "chat id invalido", st, 400)
-	if d["erro"] != "o chat id do Telegram tem so numeros (ex.: 123456789)" {
+	st, d = chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":"123456789"}`)
+	esperar(t, "o Id digitado e recusado", st, 400)
+	if d["erro"] != "O Telegram agora é ligado pelo link, em Listas." {
 		t.Errorf("erro = %v", d["erro"])
 	}
 	st, _ = chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":123}`)

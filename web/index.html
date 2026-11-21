@@ -291,10 +291,15 @@
     <div class="ap-subs">
       <div class="ap-sub" id="telegramCard">
         <div class="ap-st">Avisos no Telegram</div>
-        <p class="muted">Receba os avisos dos lançamentos futuros numa conversa do Telegram.</p>
+        <p class="muted">Receba os avisos dos lançamentos futuros numa conversa do Telegram. A mensagem diz só quantos são, como “2 atrasados · 1 vence hoje”; o que é cada um você vê ao abrir o app.</p>
         <label class="fut-sw seg-sw"><input type="checkbox" role="switch" id="swTelegram"><span>Receber avisos no Telegram<small id="tgApoio">Vale só para você, neste espaço.</small></span></label>
-        <p class="muted" id="tgAjuda" hidden>Abra o bot do app no Telegram e toque em Iniciar; depois descubra o seu Id conversando com o @userinfobot e cole aqui.</p>
-        <div class="row" id="tgCampos" hidden><input id="telegramChatId" inputmode="numeric" maxlength="21" placeholder="ex: 123456789"><button class="ghost" id="btnSalvarTelegram">Salvar</button><button class="ghost" id="btnTesteTelegram" hidden>Enviar aviso de teste</button><button class="ghost" id="btnTgAgoraNao" hidden>Agora não</button></div>
+        <div class="tg-box" id="tgAguarda" hidden>
+          <b>Aguardando você tocar em Iniciar no Telegram</b>
+          <p class="muted" id="tgTempo"></p>
+          <div class="row"><button class="ghost" id="btnTgIniciei" type="button">Já iniciei</button><button class="ghost" id="btnTgCancelar" type="button">Cancelar</button></div>
+          <a class="tg-abrir" id="tgAbrir" target="_blank" rel="noopener" hidden>Abrir o Telegram</a>
+        </div>
+        <div class="row tg-acoes" id="tgAcoes" hidden><button class="ghost" id="btnTesteTelegram" type="button" hidden>Enviar aviso de teste</button><button class="ghost" id="btnTgLigar" type="button" hidden>Ligar Telegram</button></div>
         <p class="seg-msg" id="telegramMsg" role="status"></p>
       </div>
       <!-- push (item 54, fase 4; demo-push-v1): so no app Android; web/js/push.js tira o hidden -->

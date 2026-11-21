@@ -29,16 +29,3 @@ func TestNormalizarApelido(t *testing.T) {
 		}
 	}
 }
-
-func TestChatIDValido(t *testing.T) {
-	for _, ok := range []string{"12345", "123456789", "-1001234567890", strings.Repeat("9", 20)} {
-		if !ChatIDValido(ok) {
-			t.Errorf("ChatIDValido(%q) deveria aceitar", ok)
-		}
-	}
-	for _, ruim := range []string{"", "1234", "abc12345", "12 345", "+12345", strings.Repeat("9", 21), "--12345"} {
-		if ChatIDValido(ruim) {
-			t.Errorf("ChatIDValido(%q) deveria recusar", ruim)
-		}
-	}
-}

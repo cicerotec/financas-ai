@@ -425,43 +425,54 @@ func TestEntradaDistingueAgendamentoDeHTTP(t *testing.T) {
 
 // ---------- vinculo do Telegram e mensagem de teste ----------
 
-func TestPerfilGuardaOChatIDDoTelegram(t *testing.T) {
+// V-T16 (spec telegram-vinculo, R15): o Id do Telegram nao se digita mais; so o link o grava. Id nao vazio e 400, nada chega ao banco; vazio (o desligar)
+// apaga o campo; o apelido segue como sempre.
+const fraseDoIdDigitado = "O Telegram agora é ligado pelo link, em Listas."
+
+func TestPerfilRecusaOChatIDDigitado(t *testing.T) {
 	f := cenario(t)
-	st, d := chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":" 123456789 "}`)
-	esperar(t, "salvar chat id", st, 200)
-	if d["telegramChatId"] != "123456789" {
-		t.Errorf("resposta = %v", d)
+	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member", "apelido": "Ana", "telegramChatId": "222222"})
+	for _, corpo := range []string{`{"telegramChatId":" 123456789 "}`, `{"telegramChatId":"-1001234567890"}`, `{"telegramChatId":"abc"}`, `{"telegramChatId":"12"}`,
+		`{"telegramChatId":"999999"}`, `{"apelido":"Bia","telegramChatId":"123456789"}`} {
+		e := f.escritas
+		st, d := chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, corpo)
+		if st != 400 || d["erro"] != fraseDoIdDigitado {
+			t.Errorf("%s: %d %v, esperado 400 com a frase do link", corpo, st, d["erro"])
+		}
+		if f.escritas != e {
+			t.Errorf("%s: um Id digitado chegou ao banco", corpo)
+		}
 	}
-	if got := f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"]; got != "123456789" {
-		t.Errorf("gravado = %v", got)
+	if v := f.ler(t, "USER#mem", "SPACE#s1"); v["telegramChatId"] != "222222" || v["apelido"] != "Ana" {
+		t.Errorf("vinculo mudou: %v", v)
 	}
-	// junto com o apelido, na mesma chamada
-	st, _ = chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"apelido":"Ana","telegramChatId":"-1001234567890"}`)
-	esperar(t, "apelido e chat id", st, 200)
-	v := f.ler(t, "USER#mem", "SPACE#s1")
-	if v["apelido"] != "Ana" || v["telegramChatId"] != "-1001234567890" {
-		t.Errorf("vinculo = %v", v)
-	}
-	// so o apelido nao mexe no chat id
-	chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"apelido":"Bia"}`)
-	if got := f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"]; got != "-1001234567890" {
-		t.Errorf("chat id mudou sem querer: %v", got)
-	}
-	// vazio remove
-	chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":""}`)
-	if _, tem := f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"]; tem {
-		t.Error("chat id deveria ter sido removido")
-	}
-	// invalidos
-	for _, ruim := range []string{`{"telegramChatId":"abc"}`, `{"telegramChatId":"12"}`, `{"telegramChatId":123456}`, `{"telegramChatId":"1 2 3 4 5 6"}`, `{}`} {
+	// nao texto e entrada vazia seguem 400
+	for _, ruim := range []string{`{"telegramChatId":123456}`, `{"telegramChatId":null}`, `{}`} {
 		if st, _ := chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, ruim); st != 400 {
 			t.Errorf("%s deveria ser 400, foi %d", ruim, st)
 		}
 	}
-	// cada pessoa so mexe no proprio
-	chamar(t, "own", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":"999999"}`)
-	if _, tem := f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"]; tem {
-		t.Error("o dono nao pode alterar o chat id do membro")
+	// so o apelido nao mexe no destino
+	st, d := chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"apelido":"Bia"}`)
+	esperar(t, "so o apelido", st, 200)
+	if d["apelido"] != "Bia" || f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"] != "222222" {
+		t.Errorf("resposta = %v, vinculo = %v", d, f.ler(t, "USER#mem", "SPACE#s1"))
+	}
+	// cada pessoa so mexe no proprio: o dono desligar o dele nao apaga o do membro
+	chamar(t, "own", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":""}`)
+	if f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"] != "222222" {
+		t.Error("o dono nao pode apagar o destino do membro")
+	}
+	// vazio e o desligar: apaga o campo
+	st, d = chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":""}`)
+	esperar(t, "desligar", st, 200)
+	if _, tem := f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"]; tem || d["telegramChatId"] != "" {
+		t.Errorf("o destino deveria ter sido apagado: resposta %v", d)
+	}
+	// e dai a chave volta a ficar desligada em GET /me
+	_, me := chamar(t, "mem", "GET", "me", nil, "")
+	if c := me["espacos"].([]any)[0].(map[string]any)["canais"].(map[string]any); c["telegram"] != false {
+		t.Errorf("canais = %v", c)
 	}
 }
 
@@ -489,16 +500,25 @@ func TestMensagemDeTeste(t *testing.T) {
 	esperar(t, "fora do espaco", st, 403)
 }
 
-func TestGetMeDevolveOChatID(t *testing.T) {
+// V-T15 (spec telegram-vinculo, R14): o chat id nunca mais chega ao navegador; GET /me so diz se ha canal.
+func TestGetMeNaoDevolveOChatID(t *testing.T) {
 	f := cenario(t)
 	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member", "telegramChatId": "222222"})
 	st, d := chamar(t, "mem", "GET", "me", nil, "")
 	esperar(t, "me", st, 200)
 	esp := d["espacos"].([]any)[0].(map[string]any)
-	if esp["telegramChatId"] != "222222" {
-		t.Errorf("espaco = %v", esp)
+	if _, tem := esp["telegramChatId"]; tem {
+		t.Errorf("o chat id chegou ao navegador: %v", esp)
+	}
+	if c, _ := esp["canais"].(map[string]any); c["telegram"] != true || c["push"] != false {
+		t.Errorf("canais = %v", esp["canais"])
+	}
+	if strings.Contains(strings.Join([]string{st2s(d)}, ""), "222222") {
+		t.Errorf("o chat id aparece em algum lugar da resposta: %v", d)
 	}
 }
+
+func st2s(d doc) string { b, _ := json.Marshal(d); return string(b) }
 
 func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 	linhas := []domain.LinhaAviso{{Kind: avisoHoje, Venc: "2026-10-07", Tipo: "saida", Descricao: "Luz", Valor: 10, Banco: "ITAU"}}
