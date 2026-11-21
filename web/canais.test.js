@@ -213,6 +213,27 @@ const pronta = op => { const m = montar(op); assert.strictEqual(m.c.ligarJanela(
   // alvo ausente nao quebra
   m.c.dica(null, true);
 
+  // ---------- o sino de Historico e Futuros (R22a) ----------
+  m = pronta();
+  assert.strictEqual(m.c.chip('1d antes, no dia'), ' <span class="chip sem-canal" title="Aviso: 1d antes, no dia. Sem canal ativo: este aviso não chega a ninguém até você ligar um canal.">🔔 Sem canal ativo</span>', 'sem nenhum canal o sino diz Sem canal ativo');
+  assert.strictEqual(m.c.fraseDaFatura(), '<span class="sem-canal-txt"> · Sem canal ativo</span>');
+  assert.ok(m.c.avisoDaFolha(true).includes('Este aviso está sem canal ativo') && m.c.avisoDaFolha(true).includes('data-ligar-canal'), 'a janela de acoes oferece Ligar um canal');
+  assert.strictEqual(m.c.avisoDaFolha(false), '', 'sem aviso na linha, a janela de acoes nao fala de canal');
+  // com QUALQUER canal ligado (inclusive so o push) o sino e o de sempre, sem texto
+  for(const canais of [{telegram: true}, {push: true}, {telegram: true, push: true}]){
+    m = pronta({canais});
+    assert.strictEqual(m.c.chip('no dia'), ' <span class="chip" title="Aviso: no dia">🔔</span>', JSON.stringify(canais));
+    assert.strictEqual(m.c.fraseDaFatura(), '');
+    assert.strictEqual(m.c.avisoDaFolha(true), '');
+  }
+  // o estado e o de GET /me (canais): trocar o estado muda o sino na proxima leitura, sem chamada nenhuma por linha
+  m = pronta();
+  const antesDoSino = m.ev.length;
+  m.c.chip('x'); m.c.chip('y'); m.c.chip('z');
+  assert.strictEqual(m.ev.length, antesDoSino, 'desenhar o sino nao chama a API');
+  m.liga({push: true});
+  assert.ok(!m.c.chip('x').includes('Sem canal ativo'));
+
   // ---------- rotulos neutros e previa fixa (R19 e R20), no codigo do app ----------
   const app = fs.readFileSync(path.join(__dirname, 'js', 'app.js'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
@@ -232,6 +253,17 @@ const pronta = op => { const m = montar(op); assert.strictEqual(m.c.ligarJanela(
   const fechar = corpo('fecharCamadaTopo');
   assert.ok(fechar.indexOf("camadaVisivel('lcOv')") > fechar.indexOf("camadaVisivel('modalOverlay')") && fechar.indexOf("clicar('#lcFechar')") > fechar.indexOf("camadaVisivel('lcOv')"), 'o voltar fecha a janela pelo botao dela, logo abaixo do modal de confirmacao');
   assert.ok(fechar.indexOf("camadaVisivel('lcOv')") < fechar.indexOf('if(pv)'), 'a janela fecha antes da tela cheia que ela cobre');
+
+  // o sino do app usa o componente; a janela de acoes e a linha da fatura tambem; e trocar os canais redesenha as listas ja carregadas
+  const chipApp = corpo('chipAviso');
+  assert.ok(chipApp.includes('CanaisApp.chip('), 'chipAviso delega ao componente (R22a)');
+  assert.ok(!/await|fetch|financasApi\.recarregar/.test(chipApp), 'o sino nao le nada do servidor');
+  assert.ok(app.includes('CanaisApp.fraseDaFatura()') && app.includes("fut-sino${semCanalFat?' sem-canal':''}"), 'a linha da fatura diz Sem canal ativo');
+  assert.strictEqual(app.split('avisoSemCanalDaFolha(').length - 1, 3, 'as janelas de acoes do lancamento e da fatura usam o aviso (2 usos + a definicao)');
+  assert.strictEqual(app.split("[data-ligar-canal]").length - 1, 2, 'as duas janelas de acoes abrem Ligar um canal');
+  const atualizar = corpo('atualizarCanais');
+  assert.ok(atualizar.includes('renderFuturos()') && atualizar.includes("abaAtual()==='historico'"), 'ligar um canal redesenha Futuros e Historico, so o que ja esta carregado');
+  assert.ok(html.includes('class="lc-ov"') && fs.readFileSync(path.join(__dirname, 'css', 'app.css'), 'utf8').includes('.chip.sem-canal'), 'o selo tem estilo');
 
   console.log('canais.test.js ok');
 })().catch(e => { console.error(e); process.exit(1); });

@@ -115,6 +115,8 @@ function atualizarCampoAviso(){ atualizarAviso('f'); atualizarCampoRepetir(); }
 function atualizarCanais(){
   atualizarCampoAviso();
   if(pv && pv.tela==='avi') pvRender(false);
+  if(futurosDados) renderFuturos(); // o sino das linhas de Futuros e Historico depende dos canais (R22a); so relê o que ja esta carregado
+  if(abaAtual()==='historico') renderHistorico();
   if(typeof TelegramApp !== 'undefined' && TelegramApp) TelegramApp.atualizar();
   if(typeof PushApp !== 'undefined' && PushApp) PushApp.atualizarCartao();
 }
@@ -2381,6 +2383,7 @@ function chipAviso(l){
   if(!a || typeof a !== 'object' || !l.previsto) return '';
   const dias = (Array.isArray(a.dias) ? a.dias : []).map(d=>d===0?'no dia':d+'d antes');
   if(a.insistir) dias.push('todo dia depois');
+  if(typeof CanaisApp !== 'undefined' && CanaisApp) return CanaisApp.chip(esc(dias.join(', '))); // sem canal ativo o sino diz "Sem canal ativo" (R22a)
   return ` <span class="chip" title="Aviso: ${esc(dias.join(', '))}">🔔</span>`;
 }
 
@@ -2493,10 +2496,11 @@ function abrirAcoesFuturo(id){
   ov.className = 'fut-ov'; ov.id = 'futOv';
   ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Ações de ${esc(l.descricao)}">
     <h3>${esc(l.descricao)}</h3><p class="mm">${fmtMoeda(Math.abs(valorAssinado(l)))} · ${dataBR(l)} · ${esc(l.banco||'-')}</p>
-    ${acoesDoEvento(l).map(a=>a.desab
+    ${avisoSemCanalDaFolha(!!chipAviso(l))}${acoesDoEvento(l).map(a=>a.desab
       ? `<button type="button" class="fut-ac com-sub" aria-disabled="true">${a.t}<small>${esc(a.motivo)}</small></button>`
       : `<button type="button" class="fut-ac${a.perigo?' perigo':''}${a.pri?' pri':''}${a.sub?' com-sub':''}" data-acao="${a.k}" data-id="${esc(l.id)}">${a.t}${a.sub?`<small>${esc(a.sub)}</small>`:''}</button>`).join('')}</div>`;
   ov.addEventListener('click', e=>{
+    if(e.target.closest('[data-ligar-canal]')){ fecharAcoesFuturo(); if(typeof CanaisApp !== 'undefined' && CanaisApp) CanaisApp.abrir(); return; }
     const b = e.target.closest('button[data-acao]');
     if(b){ fecharAcoesFuturo(); executarAcaoRegistro(b.dataset.acao, b.dataset.id); return; }
     if(e.target === ov) fecharAcoesFuturo();
@@ -2505,6 +2509,8 @@ function abrirAcoesFuturo(id){
   const primeiro = ov.querySelector('.fut-ac');
   if(primeiro) primeiro.focus();
 }
+// Sem canal ativo, a janela de acoes de uma linha com aviso diz isso e oferece Ligar um canal (spec telegram-vinculo, R22a; demos de Futuros v4 e Historico v5).
+function avisoSemCanalDaFolha(temAviso){ return (typeof CanaisApp !== 'undefined' && CanaisApp) ? CanaisApp.avisoDaFolha(temAviso) : ''; }
 function fecharAcoesFuturo(){ const o = document.getElementById('futOv'); if(o) o.remove(); }
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape') fecharAcoesFuturo(); });
 
@@ -2937,16 +2943,17 @@ function htmlFaturaFuturo(f){
   const pagador = f.pagador ? esc(f.pagador) : 'a definir';
   const nome = `Fatura ${esc(f.rotulo)} · ${esc(f.meio)}`;
   const botao = ehOwner() ? botaoAcao('avisarFatura','avisar','Avisar',chave)+botaoAcao('pagarFatura','confirmar','Já paguei',chave,'pri') : '';
-  const sino = f.aviso ? `🔔 ${esc(Recorrencia.fraseAviso({on:true, dias:f.aviso.dias, insistir:f.aviso.insistir}))}` : '';
+  const semCanalFat = !!(f.aviso && typeof CanaisApp !== 'undefined' && CanaisApp && CanaisApp.semCanal());
+  const sino = f.aviso ? `🔔 ${esc(Recorrencia.fraseAviso({on:true, dias:f.aviso.dias, insistir:f.aviso.insistir}))}${typeof CanaisApp !== 'undefined' && CanaisApp ? CanaisApp.fraseDaFatura() : ''}` : '';
   return `<div class="fut-row" style="--cor:var(--faint)">
     <button type="button" class="fut-m" data-fut-abrir="${chave}" aria-haspopup="dialog">
-      <span class="l"><span class="d">${nome}</span><span class="mt">${dia} · ${pagador} · ${f.estado}</span>${sino?`<span class="mt fut-sino">${sino}</span>`:''}</span>
+      <span class="l"><span class="d">${nome}</span><span class="mt">${dia} · ${pagador} · ${f.estado}</span>${sino?`<span class="mt fut-sino${semCanalFat?' sem-canal':''}">${sino}</span>`:''}</span>
       <span class="r">${valor}${prazo}</span>
       <span class="fut-mais" aria-hidden="true">${PONTOS_FUT}</span>
     </button>
     <div class="fut-dk" tabindex="0">
       <span>${dia}</span>
-      <span class="dd"><span class="dl"><span class="d" title="${nome}">${nome}</span></span><span class="sub">${f.estado==='aberta'?'ainda cresce a cada compra':'fechada'}</span>${sino?`<span class="sub fut-sino">${sino}</span>`:''}</span>
+      <span class="dd"><span class="dl"><span class="d" title="${nome}">${nome}</span></span><span class="sub">${f.estado==='aberta'?'ainda cresce a cada compra':'fechada'}</span>${sino?`<span class="sub fut-sino${semCanalFat?' sem-canal':''}">${sino}</span>`:''}</span>
       <span class="bk" title="${pagador}">${pagador}</span>
       <span class="st"><span class="muted">${f.estado}</span></span>
       <span class="v">${valor}${prazo}</span>
@@ -2962,8 +2969,9 @@ function abrirAcoesFatura(chave){
   ov.className = 'fut-ov'; ov.id = 'futOv';
   ov.innerHTML = `<div class="fut-sheet" role="dialog" aria-modal="true" aria-label="Ações da fatura ${esc(f.rotulo)}">
     <h3>Fatura ${esc(f.rotulo)} · ${esc(f.meio)}</h3><p class="mm">${fmtMoeda(f.valor)} · vence ${fmtDataCompleta(f.vencimento)} · ${f.estado}</p>
-    ${ehOwner() ? `<button type="button" class="fut-ac pri" data-acao="pagarFatura" data-id="${esc(chave)}">Já paguei</button><button type="button" class="fut-ac" data-acao="avisarFatura" data-id="${esc(chave)}">Avisar</button>` : '<p class="muted" style="margin:8px">Só o dono lança o pagamento da fatura.</p>'}</div>`;
+    ${avisoSemCanalDaFolha(!!f.aviso)}${ehOwner() ? `<button type="button" class="fut-ac pri" data-acao="pagarFatura" data-id="${esc(chave)}">Já paguei</button><button type="button" class="fut-ac" data-acao="avisarFatura" data-id="${esc(chave)}">Avisar</button>` : '<p class="muted" style="margin:8px">Só o dono lança o pagamento da fatura.</p>'}</div>`;
   ov.addEventListener('click', e=>{
+    if(e.target.closest('[data-ligar-canal]')){ fecharAcoesFuturo(); if(typeof CanaisApp !== 'undefined' && CanaisApp) CanaisApp.abrir(); return; }
     const b = e.target.closest('button[data-acao]');
     if(b){ fecharAcoesFuturo(); executarAcaoRegistro(b.dataset.acao, b.dataset.id); return; }
     if(e.target === ov) fecharAcoesFuturo();
