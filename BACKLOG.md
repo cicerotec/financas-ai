@@ -32,6 +32,7 @@ com o salto para o registro real. **Ao concluir um item, marque `[x]` no registr
 pendentes: nenhum.
 
 - [\[Infra\] - 65 - **\[Próximo\] App multiusuário (proteção antes de abrir, cadastro com convite, espaço próprio, isolamento):**](#item-65)
+- [\[Backend\] - 66 - **\[Próximo\] Vínculo do Telegram por link, aviso só com a contagem e "ligar um canal" nas telas de aviso:**](#item-66)
 - [\[UX/UI\] - 42 - **\[Próximo\] Filtro único (tags, bancos, status e combos) e lista da consulta da Tendências:**](#item-42)
 - [\[UX/UI\] - 47 - **\[Próximo\] Tela de aviso como componente reutilizável:**](#item-47)
 - [\[UX/UI\] - 63 - **\[Próximo\] Avisar a falta de rede em toda tela:**](#item-63)
@@ -283,6 +284,14 @@ DynamoDB sem discutir com o dono.**
   **Roteiro em [`.ai/specs/avisos-despachante/`](.ai/specs/avisos-despachante/intent.md) (rascunho de 2026-11-13).** Decidido em 2026-11-13: este item vem **inteiro antes** do push (fase 4 do [item 54](#item-54)); "inteiro" = despachante, divisão da mensagem longa do
   Telegram e isolamento de falha, com o Telegram como único canal real (e-mail e WhatsApp sem código agora); quem assina o quê é deduzido de quem tem destino; nenhum campo novo no DynamoDB.
   **Feito em 2026-11-13 (PR 429) e conferido no `dev` (D-T14 do spec):** um resumo curto chegou numa mensagem só, no formato de sempre, e um resumo fictício de 60 avisos chegou em partes `(1/n)`, na ordem; os logs da rotina trazem só contagens (sem chat id nem descrição). Pendente de teste real: o `prod` ainda não rodou a rotina nova.
+- 66. [ ] <a id="item-66"></a>**[Próximo] Vínculo do Telegram por link, aviso só com a contagem e "ligar um canal" nas telas de aviso (2026-11-20; intent, plan e spec em rascunho em [`.ai/specs/telegram-vinculo/`](.ai/specs/telegram-vinculo/intent.md), com as decisões D1 a D5 do plan à espera do dono; pré-requisito do [item 65](#item-65), porque o app será aberto ao público):**
+  hoje ligar o Telegram pede ao usuário que descubra e digite o chat id (sem prova de que o chat é dele) e o resumo leva descrição, valor e meio de pagamento a um terceiro. Decidido com o dono em 2026-11-20:
+  **vínculo por link** (`t.me/<bot>?start=<código>`, código de uso único e vida curta; o chat id vem do próprio Telegram e só vale chat privado), com **webhook** (rota pública nova, `secret_token`) e **um bot por ambiente**;
+  o aviso do Telegram **só com a contagem**, como o push, para todos; o **campo do Id some para todos** e o servidor deixa de aceitar chat id digitado (o dono refaz o cadastro pelo link; se não der, ajusta por script dele);
+  as **telas de aviso deixam de falar só em Telegram** e, ao ligar um aviso **sem canal ativo**, informam e abrem por cima da tela a janela **Ligar um canal** (sem bloquear o salvar e sem ir a Listas), com o estado "há canal ativo" vindo do servidor, por espaço.
+  **Fase 2:** o 🔔 de Histórico e Futuros diz "sem canal ativo". Pede dado novo no DynamoDB (o código de vínculo, a discutir), rotas novas (webhook público, gerar código, estado dos canais) com linha no `api.md`, **demo antes** de cada tela
+  (Listas, Lançar, Repetir/Prever/Estender, fatura do cartão) e um segundo bot no BotFather. Toca a tela de aviso do [item 47](#item-47): os dois itens se encontram na janela e nos rótulos, então o `plan.md` diz qual vem primeiro.
+  O limite do Telegram (cerca de 30 mensagens por segundo) contra a Lambda de 30 s em série entra como risco do item 65.
 - 43. [x] <a id="item-43"></a>**Meios de pagamento: o dono cria, desativa e remove (concluído em 2026-11-03: fase A no #347 e fase B no #348; conferido em dev pelo dono; rascunho de 2026-10-24):** o que o dono chama de **meio de pagamento** (conta, carteira, vale, cartão:
   `SODEXO-REF-IBM`, `DINHEIRO`, `CARTEIRA`...) é o `banco` gravado, com um **de-para só de exibição em `domain/`** (o Dynamo não muda, o campo continua `banco`).
   **O dono cria e desativa meios pelo app** (dado do espaço, não do produto); o front nunca conhece os nomes. Um meio desativado (por exemplo, o `SODEXO` quando o dono sair da

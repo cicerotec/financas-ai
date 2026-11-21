@@ -35,7 +35,7 @@ Leia `.ai/README.md` e cada documento de primeiro nível que ele lista (`specs/`
 - **Git:** antes da aprovação do dono não se commita nem se envia nada. Aprovado: teste, commite **e em seguida** `git push origin <branch>`, na mesma tarefa, sem esperar pedido (o push abre o PR). Commit sem push deixa a tarefa pela metade: um pedido de commit do dono ("commite") já é a aprovação, então faça o commit e o push juntos, sem perguntar se pode enviar. Mantra, sempre nesta ordem: `git fetch`, `git checkout develop`, `git pull`, `git checkout -b <prefixo>/<assunto>`. Prefixos: `feature/`, `fix/`, `bug/`, `docs/`, `chore/`. Nunca commitar em `develop` ou `main`. PR mergeado: não envie mais nada para a branch. Um assunto por branch e por PR. **Se o ambiente da sessão impuser outro nome de branch, avise antes de usá-la.**
 - **Tela:** nenhuma alteração de tela entra no código sem demo aprovada; a demo parte da última versão da tela.
 - **O front não decide:** regra de negócio, saldo, totais e lista de status vêm do backend; o front só exibe.
-- **DynamoDB:** não crie, renomeie nem remova chave ou campo sem discutir com o dono.
+- **DynamoDB:** não crie, renomeie nem remova chave ou campo sem discutir com o dono. A conversa começa pelas quatro perguntas do `.ai/guardrails.md` (já existe? quem lê e como? como cresce e como sai? há precedente?), respondidas por escrito no `plan.md`.
 - **Cada tela lê só o que é dela** (`web/carga.test.js` garante).
 - **Nomes na tela:** `banco` aparece como "Meio de pagamento" e `status` como "Forma de pagamento", por extenso.
 - **Provas:** não escreva "provavelmente" sobre o que dá para ler no código ou no log; leia e mostre a evidência. Bug: reproduza antes de corrigir.

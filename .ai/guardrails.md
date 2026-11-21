@@ -25,7 +25,25 @@ Referência: [`arquitetura.md`](arquitetura.md) (decisões de 2026-10-10).
   teste `arquitetura_test.go` falha se um pacote importar o que não pode (por exemplo, `service` importando a AWS).
   Código novo entra na pasta da sua responsabilidade; o que ainda está na raiz migra por fatia (item 32).
 - **Não crie, renomeie nem remova chave ou campo no DynamoDB sem discutir com o dono.** Cada campo (como
-  `faturaAjuste`) carrega uma decisão que não é óbvia no código.
+  `faturaAjuste`) carrega uma decisão que não é óbvia no código. **A conversa começa por quatro perguntas, e as
+  respostas vão por escrito no `plan.md` da feature, numa tabela de padrões de acesso, antes de qualquer código:**
+  1. **Já existe?** O dado é uma variação de algo que o projeto já guarda? Um aviso é um item de `AVISOS#`; uma
+     recorrência é um lançamento comum com data futura. Chave nova só se a resposta for "não existe", dita com o
+     que foi procurado.
+  2. **Quem lê, por qual chave, quantos itens e em que ordem?** Toda leitura nomeada: a tela ou rotina, a chave
+     exata ou a consulta, quantos itens volta e como são ordenados ou limitados. Se a tela precisa dos "últimos N"
+     ou de um período, a chave tem de permitir isso sem ler a partição inteira. Não pode haver `Scan` nem leitura
+     de partição inteira para responder a uma tela (os 5 RCU não aguentam).
+  3. **Como cresce e como sai?** Quantos itens existem com 1 pessoa, com 1.000 e com a carga do passado inteiro.
+     Todo item tem de poder ser apagado ou substituído **por chave exata**, ou a feature diz qual regra o expira.
+     Dado que entra e não sai não é aprovado (a tabela não tem TTL).
+  4. **Existe precedente a copiar?** Procure no `modelo-de-dados/README.md` e em `repository/` um item com o mesmo
+     papel (por exemplo, o `MFACODIGOS#PENDENTE`: um por pessoa, que o próximo substitui). Se existir, copie o
+     desenho; se não, diga por que o novo não cabe no que existe.
+
+  Campo novo em item que já existe passa pelas mesmas quatro perguntas (a 2 vale para quem lê o item inteiro, como
+  `GET /me`). Sem as respostas escritas e a aprovação do dono, a chave ou o campo não nasce, e **carga em massa de
+  dado antigo é medida antes**: o volume da carga entra na pergunta 3.
 - Nada se sobrescreve sem versão no histórico (item 31 do backlog).
 - **Cada tela lê só o que é dela, e só quando está aberta (2026-10-27).** A subida (tela Lançar) lê `listas`, `aparencia`,
   `tags` e `combos` e nada mais. Os 1000 lançamentos são do Histórico e da Tendências (`sobDemanda` em `web/api.js`,
