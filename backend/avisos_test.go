@@ -115,40 +115,16 @@ func TestDiaBRUsaOFusoDeSaoPaulo(t *testing.T) {
 
 // ---------- texto ----------
 
-func TestMoeda(t *testing.T) {
-	for in, quer := range map[float64]string{
-		0: "R$ 0,00", 5: "R$ 5,00", 1234.5: "R$ 1.234,50", 1234567.891: "R$ 1.234.567,89", -42.1: "-R$ 42,10", 999.999: "R$ 1.000,00",
-	} {
-		if got := moeda(in); got != quer {
-			t.Errorf("moeda(%v) = %q, esperado %q", in, got, quer)
-		}
-	}
-}
-
-func TestMontarResumoOrdenaAtrasadosPrimeiro(t *testing.T) {
+// V-T11 (ponta a ponta): o canal do Telegram so ve a contagem; descricao, valor e meio de pagamento ficam de fora.
+func TestTextoDoTelegramSoTemAContagem(t *testing.T) {
 	linhas := []domain.LinhaAviso{
 		{Kind: avisoAntes, N: 3, Venc: "2026-10-10", Tipo: "saida", Descricao: "Condomínio", Valor: 800, Banco: "ITAU"},
 		{Kind: avisoAtrasado, N: 2, Venc: "2026-10-05", Tipo: "saida", Descricao: "Internet", Valor: 120, Banco: "NUBANK"},
 		{Kind: avisoHoje, Venc: "2026-10-07", Tipo: "entrada", Descricao: "Aluguel", Valor: 2500, Banco: "ITAU"},
 	}
-	r := notificacao.MontarResumo("", "2026-10-07", linhas)
-	ordem := []string{"Atrasado há 2 dias (05/10/2026): Internet — R$ 120,00 (NUBANK)", "A receber hoje (07/10/2026): Aluguel", "Vence em 3 dias (10/10/2026): Condomínio — R$ 800,00 (ITAU)"}
-	ult := -1
-	for _, trecho := range ordem {
-		i := strings.Index(r, trecho)
-		if i < 0 {
-			t.Fatalf("resumo sem %q:\n%s", trecho, r)
-		}
-		if i < ult {
-			t.Errorf("fora de ordem em %q:\n%s", trecho, r)
-		}
-		ult = i
-	}
-	if !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
-		t.Errorf("cabecalho inesperado:\n%s", r)
-	}
-	if !strings.Contains(notificacao.MontarResumo("", "2026-10-07", []domain.LinhaAviso{{Kind: avisoAntes, N: 1, Venc: "2026-10-08", Descricao: " "}}), "Vence em 1 dia (08/10/2026): (sem descrição)") {
-		t.Error("singular e descricao vazia")
+	r := notificacao.TextoDoTelegram(domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhas})
+	if r != "🔔 Avisos de 07/10/2026: 1 atrasado · 1 vence hoje · 1 a vencer. Abra o app para ver o que é cada um." {
+		t.Errorf("texto inesperado: %q", r)
 	}
 }
 
@@ -233,12 +209,14 @@ func TestImportacaoEmLoteSincronizaOAviso(t *testing.T) {
 type envio struct{ chat, texto string }
 
 // trocaEnvio troca o envio real por um que guarda as mensagens.
-// notifFalso e o canal "telegram" dos testes: formata o resumo como o Telegram de verdade (notificacao.PartesDoResumo), guarda as
-// mensagens (ou falha com o erro dado). Fica no despachante do Servidor montado em cenario().
+// notifFalso e o canal "telegram" dos testes: formata o resumo como o Telegram de verdade (notificacao.TextoDoTelegram), guarda as
+// mensagens (ou falha com o erro dado). Fica no despachante do Servidor montado em cenario(). recusados lista os enderecos que o
+// canal diz nao existirem mais (domain.ErrDestinoInvalido), como o Telegram faz com um chat que bloqueou o bot.
 type notifFalso struct {
-	nome     string
-	falhaCom error
-	enviados []envio
+	nome      string
+	falhaCom  error
+	recusados map[string]bool
+	enviados  []envio
 }
 
 func (n *notifFalso) Nome() string { return n.nome }
@@ -247,9 +225,10 @@ func (n *notifFalso) Enviar(_ context.Context, chat string, r domain.ResumoAviso
 	if n.falhaCom != nil {
 		return n.falhaCom
 	}
-	for _, texto := range notificacao.PartesDoResumo(r, notificacao.LimiteTelegram) {
-		n.enviados = append(n.enviados, envio{chat, texto})
+	if n.recusados[chat] {
+		return domain.ErrDestinoInvalido
 	}
+	n.enviados = append(n.enviados, envio{chat, notificacao.TextoDoTelegram(r)})
 	return nil
 }
 
@@ -259,11 +238,11 @@ var notifTeste, _ = service.NovoDespachante(canalTeste, canalPushTeste)
 
 // trocaEnvio zera as mensagens guardadas e, se falhaCom, faz o envio falhar ate o fim do teste.
 func trocaEnvio(t *testing.T, falhaCom error) *[]envio {
-	canalTeste.enviados, canalTeste.falhaCom = nil, falhaCom
-	canalPushTeste.enviados, canalPushTeste.falhaCom = nil, nil
+	canalTeste.enviados, canalTeste.falhaCom, canalTeste.recusados = nil, falhaCom, nil
+	canalPushTeste.enviados, canalPushTeste.falhaCom, canalPushTeste.recusados = nil, nil, nil
 	t.Cleanup(func() {
-		canalTeste.enviados, canalTeste.falhaCom = nil, nil
-		canalPushTeste.enviados, canalPushTeste.falhaCom = nil, nil
+		canalTeste.enviados, canalTeste.falhaCom, canalTeste.recusados = nil, nil, nil
+		canalPushTeste.enviados, canalPushTeste.falhaCom, canalPushTeste.recusados = nil, nil, nil
 	})
 	return &canalTeste.enviados
 }
@@ -309,8 +288,13 @@ func TestRotinaAvisaCriadorEDonoUmaVezCada(t *testing.T) {
 		chats[e.chat] = e.texto
 	}
 	for _, chat := range []string{"111111", "222222"} {
-		if !strings.Contains(chats[chat], "Vence em 3 dias (10/10/2026): Conta de luz — R$ 230,50 (ITAU)") {
+		if chats[chat] != "🔔 Avisos de 07/10/2026: 1 a vencer. Abra o app para ver o que é cada um." {
 			t.Errorf("chat %s recebeu %q", chat, chats[chat])
+		}
+		for _, proibido := range []string{"Conta de luz", "230", "ITAU", "10/10/2026"} {
+			if strings.Contains(chats[chat], proibido) {
+				t.Errorf("chat %s recebeu %q, que e dado do lancamento: %q", chat, proibido, chats[chat])
+			}
 		}
 	}
 
@@ -344,7 +328,7 @@ func TestRotinaInsistirAvisaAtrasadoAteResolver(t *testing.T) {
 	f, id := cenarioAvisos(t)
 	chamar(t, "mem", "PUT", "spaces/s1/tx/"+id, map[string]string{"de": "2026-10-10T12:00:00.000Z"}, `{"aviso":{"dias":[],"insistir":true}}`)
 	env := trocaEnvio(t, nil)
-	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-10-13")); n != 2 || !strings.Contains((*env)[0].texto, "Atrasado há 3 dias (10/10/2026)") {
+	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-10-13")); n != 2 || !strings.Contains((*env)[0].texto, "1 atrasado") {
 		t.Fatalf("atrasado: %d, %v", n, *env)
 	}
 	// pagou: confirmar tira o marcador previsto, para de avisar
@@ -518,7 +502,7 @@ func TestGetMeDevolveOChatID(t *testing.T) {
 
 func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 	linhas := []domain.LinhaAviso{{Kind: avisoHoje, Venc: "2026-10-07", Tipo: "saida", Descricao: "Luz", Valor: 10, Banco: "ITAU"}}
-	if r := notificacao.MontarResumo(domain.MarcaAmbiente("dev"), "2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10/2026\n") {
+	if r := notificacao.TextoDoTelegram(domain.ResumoAvisos{Hoje: "2026-10-07", Marca: domain.MarcaAmbiente("dev"), Linhas: linhas}); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10/2026: ") {
 		t.Errorf("resumo do dev sem [DEV]:\n%s", r)
 	}
 	f := cenario(t)
@@ -531,7 +515,7 @@ func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 	}
 
 	for _, amb := range []string{"prod", ""} {
-		if r := notificacao.MontarResumo(domain.MarcaAmbiente(amb), "2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
+		if r := notificacao.TextoDoTelegram(domain.ResumoAvisos{Hoje: "2026-10-07", Marca: domain.MarcaAmbiente(amb), Linhas: linhas}); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026: ") {
 			t.Errorf("ambiente %q nao deve ter [DEV]:\n%s", amb, r)
 		}
 	}

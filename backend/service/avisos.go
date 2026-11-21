@@ -136,6 +136,13 @@ func (s *Avisos) Remover(ctx context.Context, sid, id string) {
 // vinculo e o par (espaco, pessoa) de onde um destino saiu.
 type vinculo struct{ sid, sub string }
 
+// paraPessoa e a chave de agrupamento da rotina: o destino e a pessoa que o recebe (spec telegram-vinculo, R13). Os spaces da mesma
+// pessoa no mesmo destino viram uma mensagem so; pessoas diferentes nunca se misturam, mesmo dividindo o chat ou o aparelho.
+type paraPessoa struct {
+	Destino
+	sub string
+}
+
 // placarDoCanal soma o que aconteceu com um canal numa rodada (so contagens vao ao log).
 type placarDoCanal struct{ enviados, recusados, falhas, falhasAoApagar int }
 
@@ -162,13 +169,14 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 
 	espacos := map[string]*contextoEspaco{}
 	cache := map[string][]Destino{} // sid|sub -> destinos (vazio = sem vinculo ou sem destino)
-	porDestino := map[Destino][]domain.LinhaAviso{}
-	origens := map[Destino]map[vinculo]bool{} // de quais vinculos cada destino saiu nesta rodada (para apagar o que o canal recusar)
+	porDestino := map[paraPessoa][]domain.LinhaAviso{}
+	origens := map[paraPessoa]map[vinculo]bool{} // de quais vinculos de cada pessoa o destino saiu nesta rodada (para apagar o que o canal recusar)
 	lembrar := func(d Destino, sid, sub string) {
-		if origens[d] == nil {
-			origens[d] = map[vinculo]bool{}
+		k := paraPessoa{d, sub}
+		if origens[k] == nil {
+			origens[k] = map[vinculo]bool{}
 		}
-		origens[d][vinculo{sid, sub}] = true
+		origens[k][vinculo{sid, sub}] = true
 	}
 
 	destinosDe := func(sid, sub string) []Destino {
@@ -229,7 +237,8 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 				if esp.ownerSub != "" {
 					for _, d := range destinosDe(sid, esp.ownerSub) {
 						lembrar(d, sid, esp.ownerSub)
-						porDestino[d] = append(porDestino[d], linha)
+						k := paraPessoa{d, esp.ownerSub}
+						porDestino[k] = append(porDestino[k], linha)
 					}
 				}
 			}
@@ -263,18 +272,19 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 		linha := domain.LinhaAviso{Kind: kind, N: n, Venc: venc, Tipo: tipo, Descricao: desc, Valor: valor, Banco: banco}
 
 		criador, _ := tx["criadoPor"].(string)
-		vistos := map[Destino]bool{} // a mesma linha nao vai duas vezes ao mesmo destino (criador igual ao dono, ou mesmo chat)
+		vistos := map[paraPessoa]bool{} // a mesma linha nao vai duas vezes ao mesmo destino da mesma pessoa (criador igual ao dono)
 		for _, sub := range []string{criador, esp.ownerSub} {
 			if sub == "" {
 				continue
 			}
 			for _, d := range destinosDe(sid, sub) {
 				lembrar(d, sid, sub)
-				if vistos[d] {
+				k := paraPessoa{d, sub}
+				if vistos[k] {
 					continue
 				}
-				vistos[d] = true
-				porDestino[d] = append(porDestino[d], linha)
+				vistos[k] = true
+				porDestino[k] = append(porDestino[k], linha)
 			}
 		}
 	}
@@ -285,23 +295,27 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 		}
 	}
 
-	// os grupos saem em ordem estavel (canal e endereco): a iteracao de mapa e aleatoria
-	destinos := make([]Destino, 0, len(porDestino))
-	for d := range porDestino {
-		destinos = append(destinos, d)
+	// os grupos saem em ordem estavel (canal, endereco e pessoa): a iteracao de mapa e aleatoria
+	destinos := make([]paraPessoa, 0, len(porDestino))
+	for k := range porDestino {
+		destinos = append(destinos, k)
 	}
 	sort.Slice(destinos, func(i, j int) bool {
 		if destinos[i].Canal != destinos[j].Canal {
 			return destinos[i].Canal < destinos[j].Canal
 		}
-		return destinos[i].Endereco < destinos[j].Endereco
+		if destinos[i].Endereco != destinos[j].Endereco {
+			return destinos[i].Endereco < destinos[j].Endereco
+		}
+		return destinos[i].sub < destinos[j].sub
 	})
 
 	enviados := 0
 	parados := map[string]bool{} // canais sem configuracao (ou com a credencial recusada) nesta rodada: o resto dos grupos deles e pulado
 	placar := map[string]*placarDoCanal{}
 	marca := domain.MarcaAmbiente(s.ambiente)
-	for _, d := range destinos {
+	for _, k := range destinos {
+		d := k.Destino
 		if parados[d.Canal] {
 			continue
 		}
@@ -311,7 +325,7 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 			placar[d.Canal] = pl
 		}
 		// nenhuma linha de log leva o destino, o texto ou o valor: so o nome do canal e contagens
-		err := s.despachante.Entregar(ctx, d, domain.ResumoAvisos{Hoje: hoje, Marca: marca, Linhas: porDestino[d]})
+		err := s.despachante.Entregar(ctx, d, domain.ResumoAvisos{Hoje: hoje, Marca: marca, Linhas: porDestino[k]})
 		switch {
 		case errors.Is(err, domain.ErrCanalNaoConfigurado):
 			parados[d.Canal] = true
@@ -321,7 +335,7 @@ func (s *Avisos) Rodar(ctx context.Context) (int, error) {
 			log.Printf("avisos: canal %s: CREDENCIAL RECUSADA; nada enviado por ele (renove a credencial do canal)", d.Canal)
 		case errors.Is(err, domain.ErrDestinoInvalido):
 			pl.recusados++
-			for v := range origens[d] {
+			for v := range origens[k] {
 				if s.removedor == nil {
 					break
 				}

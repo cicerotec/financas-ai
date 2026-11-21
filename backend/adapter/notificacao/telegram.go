@@ -66,25 +66,21 @@ func (t *Telegram) tokenDoBot(ctx context.Context) (string, error) {
 // Nome e o nome do canal no despachante.
 func (t *Telegram) Nome() string { return "telegram" }
 
-// Enviar entrega o resumo ao chat id, em uma ou mais mensagens (PartesDoResumo). As partes saem em ordem; a falha de
-// uma nao impede as seguintes, e o erro devolvido e o da primeira que falhou. Sem token, a primeira parte ja devolve
-// ErrCanalNaoConfigurado e nenhuma outra e tentada.
+// Enviar entrega o resumo ao chat id, numa mensagem so (TextoDoTelegram). Sem token, devolve ErrCanalNaoConfigurado e nada e enviado.
 func (t *Telegram) Enviar(ctx context.Context, chatID string, r domain.ResumoAvisos) error {
-	var primeiro error
-	for _, texto := range PartesDoResumo(r, LimiteTelegram) {
-		if err := t.EnviarTexto(ctx, chatID, texto); err != nil {
-			if errors.Is(err, domain.ErrCanalNaoConfigurado) {
-				return err
-			}
-			if primeiro == nil {
-				primeiro = err
-			}
-		}
-	}
-	return primeiro
+	return t.EnviarTexto(ctx, chatID, TextoDoTelegram(r))
 }
 
-// EnviarTexto manda um texto para o chat id, numa mensagem so.
+// respostaDeErro e o que se le do corpo de uma resposta de erro do Telegram. So o codigo e o motivo do 400 servem para decidir; nada
+// disso vai para um erro ou para o log (o texto livre pode trazer o chat id ou o token).
+type respostaDeErro struct {
+	ErrorCode   int    `json:"error_code"`
+	Description string `json:"description"`
+}
+
+// EnviarTexto manda um texto para o chat id, numa mensagem so. Erros: 403 (bot bloqueado, conta apagada) e 400 "chat not found" sao
+// domain.ErrDestinoInvalido; 401 (token do bot recusado) e domain.ErrCredencialRecusada; o resto leva so o codigo HTTP e o error_code,
+// nunca a URL, o token, o corpo da resposta nem o chat id. Nenhum erro e repetido.
 func (t *Telegram) EnviarTexto(ctx context.Context, chatID, texto string) error {
 	token, err := t.tokenDoBot(ctx)
 	if err != nil {
@@ -102,9 +98,20 @@ func (t *Telegram) EnviarTexto(ctx context.Context, chatID, texto string) error 
 		return errors.New("falha de rede ao chamar o Telegram")
 	}
 	defer res.Body.Close()
-	if res.StatusCode/100 != 2 {
-		b, _ := io.ReadAll(io.LimitReader(res.Body, 300))
-		return fmt.Errorf("telegram respondeu %d: %s", res.StatusCode, strings.TrimSpace(string(b)))
+	if res.StatusCode/100 == 2 {
+		return nil
 	}
-	return nil
+	var e respostaDeErro
+	_ = json.NewDecoder(io.LimitReader(res.Body, 64<<10)).Decode(&e)
+	switch {
+	case res.StatusCode == http.StatusForbidden,
+		res.StatusCode == http.StatusBadRequest && strings.Contains(strings.ToLower(e.Description), "chat not found"):
+		return domain.ErrDestinoInvalido
+	case res.StatusCode == http.StatusUnauthorized:
+		return fmt.Errorf("o Telegram recusou a credencial do bot (%d): %w", res.StatusCode, domain.ErrCredencialRecusada)
+	}
+	if e.ErrorCode != 0 && e.ErrorCode != res.StatusCode {
+		return fmt.Errorf("telegram respondeu %d (error_code %d)", res.StatusCode, e.ErrorCode)
+	}
+	return fmt.Errorf("telegram respondeu %d", res.StatusCode)
 }

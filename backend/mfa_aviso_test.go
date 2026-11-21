@@ -197,5 +197,5 @@ func TestTextoDoAvisoDeSeguranca(t *testing.T) {
 func repoEspacosDe(f *bancoFake) *repository.Espacos  { return repository.NewEspacos(f, "") }
 func repoContatosDe(f *bancoFake) *repository.Pessoas { return repository.NewPessoas(f, "") }
 func notifTelegramTexto(r domain.ResumoAvisos) []string {
-	return notificacao.PartesDoResumo(r, notificacao.LimiteTelegram)
+	return []string{notificacao.TextoDoTelegram(r)}
 }

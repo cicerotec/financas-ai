@@ -103,15 +103,15 @@ func TestRotinaAvisaAFatura(t *testing.T) {
 	}
 	n, _ := rodarAvisos(context.Background(), agoraBR("2026-11-04"))
 	if n != 1 || len(*env) != 1 || (*env)[0].chat != "111111" ||
-		!strings.Contains((*env)[0].texto, "Vence em 1 dia (05/11/2026): Fatura out/26 · CARTAO-A — R$ 135,50 (CARTAO-A)") {
+		(*env)[0].texto != "🔔 Avisos de 04/11/2026: 1 a vencer. Abra o app para ver o que é cada um." {
 		t.Fatalf("1 dia antes: %d %v", n, *env)
 	}
 	*env = nil
-	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-11-05")); n != 1 || !strings.Contains((*env)[0].texto, "Vence hoje (05/11/2026): Fatura out/26") {
+	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-11-05")); n != 1 || !strings.Contains((*env)[0].texto, "1 vence hoje") {
 		t.Fatalf("no dia: %d %v", n, *env)
 	}
 	*env = nil
-	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-11-08")); n != 1 || !strings.Contains((*env)[0].texto, "Atrasado há 3 dias (05/11/2026): Fatura out/26") {
+	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-11-08")); n != 1 || !strings.Contains((*env)[0].texto, "1 atrasado") {
 		t.Fatalf("insistindo: %d %v", n, *env)
 	}
 	// passados 60 dias de atraso o item sai e nada e enviado
@@ -181,8 +181,13 @@ func TestResumoJuntaFaturaELancamento(t *testing.T) {
 	esperar(t, "criar", c, 201)
 	env := trocaEnvio(t, nil)
 	n, _ := rodarAvisos(context.Background(), agoraBR("2026-11-04"))
-	if n != 1 || len(*env) != 1 || !strings.Contains((*env)[0].texto, "Fatura out/26") || !strings.Contains((*env)[0].texto, "Condominio") {
-		t.Errorf("uma mensagem com os dois: %d %v", n, *env)
+	if n != 1 || len(*env) != 1 || !strings.Contains((*env)[0].texto, "2 a vencer") {
+		t.Errorf("uma mensagem com os dois, somados na contagem: %d %v", n, *env)
+	}
+	for _, proibido := range []string{"Fatura", "out/26", "CARTAO-A", "135", "Condominio", "480", "ITAU"} {
+		if len(*env) == 1 && strings.Contains((*env)[0].texto, proibido) {
+			t.Errorf("o aviso da fatura e do lancamento so levam a contagem, mas o texto leva %q: %q", proibido, (*env)[0].texto)
+		}
 	}
 }
 

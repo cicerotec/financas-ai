@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -55,24 +54,11 @@ func TextoDoPush(c domain.ContagemAvisos) (titulo, corpo string) {
 	if c.Teste {
 		return titulo, "Teste: os avisos vão chegar aqui."
 	}
-	var partes []string
-	if c.Atrasados > 0 {
-		partes = append(partes, plural(c.Atrasados, "atrasado", "atrasados"))
-	}
-	if c.Hoje > 0 {
-		if c.Hoje == 1 {
-			partes = append(partes, "1 vence hoje")
-		} else {
-			partes = append(partes, fmt.Sprintf("%d vencem hoje", c.Hoje))
-		}
-	}
-	if c.AVencer > 0 {
-		partes = append(partes, fmt.Sprintf("%d a vencer", c.AVencer))
-	}
-	if len(partes) == 0 {
+	frase := FraseDaContagem(c)
+	if frase == "" {
 		return titulo, "Você tem avisos de hoje."
 	}
-	return titulo, strings.Join(partes, " · ")
+	return titulo, frase
 }
 
 // textoDaNotificacao e o titulo e o corpo de um resumo: so as contagens e, no aviso de seguranca (spec mfa-opcional, R35), o texto fixo, sem dado nenhum.

@@ -2,7 +2,6 @@ package main
 
 import (
 	"financas/auth"
-	"financas/adapter/notificacao"
 	"financas/domain"
 )
 
@@ -22,7 +21,6 @@ var (
 
 	decidirAviso = domain.DecidirAviso
 	diaBR        = domain.DiaBR
-	moeda        = notificacao.Moeda
 )
 
 type kindAviso = domain.KindAviso

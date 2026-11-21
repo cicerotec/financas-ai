@@ -30,7 +30,7 @@ func TestF4RotinaLeODiaPeloRelogio(t *testing.T) {
 		t.Fatalf("07/10 em SP: enviados=%v err=%v, esperado 2", d["enviados"], err)
 	}
 	for _, e := range *env {
-		if !strings.Contains(e.texto, "Avisos de 07/10/2026") || !strings.Contains(e.texto, "Vence em 3 dias") {
+		if !strings.Contains(e.texto, "Avisos de 07/10/2026") || !strings.Contains(e.texto, "1 a vencer") {
 			t.Errorf("resumo inesperado: %q", e.texto)
 		}
 	}
@@ -81,16 +81,19 @@ func TestF4ServiceDeAvisosSemTimeNow(t *testing.T) {
 	}
 }
 
-// Quando o criador e o dono usam o mesmo chat, o chat recebe um resumo so, e a linha aparece uma vez.
-func TestF4MesmoChatRecebeUmResumoSo(t *testing.T) {
+// D7 (spec telegram-vinculo, R13): o criador e o dono sao pessoas diferentes que dividem o chat. Cada um recebe a sua mensagem, com a
+// sua contagem: pessoas diferentes nunca se misturam, mesmo no mesmo chat.
+func TestF4PessoasDiferentesNoMesmoChatRecebemMensagensSeparadas(t *testing.T) {
 	f, _ := cenarioAvisos(t)
 	env := trocaEnvio(t, nil)
 	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member", "telegramChatId": "111111"}) // o mesmo do dono
 	n, err := rodarAvisos(context.Background(), agoraBR("2026-10-07"))
-	if err != nil || n != 1 || len(*env) != 1 {
-		t.Fatalf("enviados=%d mensagens=%d err=%v, esperado 1 e 1", n, len(*env), err)
+	if err != nil || n != 2 || len(*env) != 2 {
+		t.Fatalf("enviados=%d mensagens=%d err=%v, esperado 2 e 2 (uma por pessoa)", n, len(*env), err)
 	}
-	if c := strings.Count((*env)[0].texto, "•"); c != 1 {
-		t.Errorf("a linha deveria aparecer uma vez, apareceu %d:\n%s", c, (*env)[0].texto)
+	for _, e := range *env {
+		if e.chat != "111111" || !strings.Contains(e.texto, "1 a vencer") || strings.Contains(e.texto, "2 a vencer") {
+			t.Errorf("cada pessoa recebe a propria contagem, sem somar a da outra: %v", e)
+		}
 	}
 }
