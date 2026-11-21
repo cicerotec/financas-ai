@@ -31,8 +31,10 @@ type Servidor struct {
 	estadoMFA *controller.EstadoMFA            // GET /me/mfa: o estado do MFA e a lista de codigos, lidos do login e do banco (spec mfa-opcional, R37)
 	codigos   *controller.CodigosDeRecuperacao // lista de codigos de recuperacao do MFA (gerar e confirmar; spec mfa-opcional)
 	recup     *controller.Recuperacao          // rota PUBLICA: recuperacao do MFA (auth.RotaPublica; spec mfa-opcional)
+	telegram  *controller.Telegram             // gerar o link do vinculo e o webhook PUBLICO do bot (auth.RotaPublica; spec telegram-vinculo)
 
 	repoCodigos *repository.CodigosDeRecuperacao // para religar a recuperacao a outra identidade (usarIdentidade)
+	vinculos    *service.Vinculos                // para religar o vinculo ao bot (usarBot)
 	relogio     service.Relogio
 	segAvisos   *service.AvisosDeSeguranca
 }
@@ -81,6 +83,8 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, despachante *
 		codigos:   controller.NewCodigosDeRecuperacao(service.NewCodigosDeRecuperacao(repository.NewCodigosDeRecuperacao(db, table), segAvisos, rel)),
 		recup:     controller.NewRecuperacao(service.NewRecuperacao(identidadeIndisponivel{}, repository.NewCodigosDeRecuperacao(db, table), segAvisos, rel)),
 	}
+	s.vinculos = service.NewVinculos(repository.NewVinculos(db, table), rel) // o codigo de vinculo de um canal; entra pelo construtor (AD-6, AD-11)
+	s.telegram = controller.NewTelegram(s.vinculos, botIndisponivel{})
 	s.repoCodigos, s.relogio, s.segAvisos = repository.NewCodigosDeRecuperacao(db, table), rel, segAvisos
 	return s
 }
@@ -89,6 +93,23 @@ func novoServidor(db dynamoAPI, table string, rel service.Relogio, despachante *
 func (s *Servidor) usarIdentidade(id service.Identidade) {
 	s.recup = controller.NewRecuperacao(service.NewRecuperacao(id, s.repoCodigos, s.segAvisos, s.relogio))
 	s.estadoMFA = controller.NewEstadoMFA(service.NewEstadoMFA(id, s.repoCodigos))
+}
+
+// usarBot liga o vinculo e o webhook ao bot do Telegram (o adaptador, no main; um falso, nos testes). Ate la nada esta configurado: o link responde 503 e
+// o webhook responde 401 a tudo.
+func (s *Servidor) usarBot(bot controller.BotDoTelegram) {
+	s.telegram = controller.NewTelegram(s.vinculos, bot)
+}
+
+// botIndisponivel e o bot de antes de o main liga-lo: nada configurado, falha fechada.
+type botIndisponivel struct{}
+
+func (botIndisponivel) Pronto(context.Context) (string, error) { return "", domain.ErrCanalNaoConfigurado }
+func (botIndisponivel) SegredoDoWebhook(context.Context) (string, error) {
+	return "", domain.ErrCanalNaoConfigurado
+}
+func (botIndisponivel) EnviarTexto(context.Context, string, string) error {
+	return domain.ErrCanalNaoConfigurado
 }
 
 // identidadeIndisponivel e a identidade de antes de o main ligar o Cognito: nao acha ninguem, entao a recuperacao so responde a falha.

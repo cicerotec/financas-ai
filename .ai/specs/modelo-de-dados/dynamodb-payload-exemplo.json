@@ -516,6 +516,15 @@
         }
       ],
       "expiraEm": 1763586000
+    },
+    {
+      "PK": "USER#sub-demo-dono",
+      "SK": "LINK#telegram",
+      "canal": "telegram",
+      "sid": "demo-familia",
+      "hash": "b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0",
+      "expiraEm": 1763650200,
+      "criadoEm": "2026-11-20T14:20:00Z"
     }
   ]
 }

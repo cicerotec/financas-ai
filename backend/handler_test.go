@@ -34,6 +34,11 @@ type bancoFake struct {
 	falharQuerySemInicio error          // faz falhar so o Query que comeca do inicio dos tempos (SK a partir de TX#)
 	falharContador       error
 	antesDoPut           func(*dynamodb.PutItemInput)
+	// vinculo do Telegram (spec telegram-vinculo): quantas leituras e escritas chegaram ao banco, e um gancho que roda depois de um GetItem (simula
+	// outra execucao consumindo o codigo entre a leitura e a exclusao).
+	leituras, escritas int
+	queries            int // so as Query (o item do codigo de vinculo nunca e listado: so GetItem, PutItem e DeleteItem pela chave exata)
+	depoisDoGet        func(pk, sk string)
 }
 
 func novoBancoFake() *bancoFake {
@@ -47,13 +52,19 @@ func (f *bancoFake) GetItem(_ context.Context, in *dynamodb.GetItemInput, _ ...f
 	if f.falharLeitura != nil {
 		return nil, f.falharLeitura
 	}
-	it, ok := f.itens[chave(sv(in.Key["PK"]), sv(in.Key["SK"]))]
+	f.leituras++
+	pk, sk := sv(in.Key["PK"]), sv(in.Key["SK"])
+	it, ok := f.itens[chave(pk, sk)]
+	if f.depoisDoGet != nil {
+		defer f.depoisDoGet(pk, sk)
+	}
 	if !ok {
 		return &dynamodb.GetItemOutput{}, nil
 	}
 	return &dynamodb.GetItemOutput{Item: it}, nil
 }
 func (f *bancoFake) PutItem(_ context.Context, in *dynamodb.PutItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
+	f.escritas++
 	if f.falharPut != nil {
 		return nil, f.falharPut
 	}
@@ -85,6 +96,21 @@ func (f *bancoFake) PutItem(_ context.Context, in *dynamodb.PutItemInput, _ ...f
 	return &dynamodb.PutItemOutput{}, nil
 }
 func (f *bancoFake) DeleteItem(_ context.Context, in *dynamodb.DeleteItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
+	f.escritas++
+	if aws.ToString(in.ConditionExpression) == "#h = :h AND expiraEm > :agora" && in.ExpressionAttributeNames["#h"] == "hash" { // codigo de vinculo: so sai se ainda e o do hash e nao venceu; devolve o item
+		it, existe := f.itens[chave(sv(in.Key["PK"]), sv(in.Key["SK"]))]
+		bom := existe && it["hash"] != nil && sv(it["hash"]) == sv(in.ExpressionAttributeValues[":h"])
+		if bom {
+			exp, _ := strconv.ParseInt(it["expiraEm"].(*types.AttributeValueMemberN).Value, 10, 64)
+			agora, _ := strconv.ParseInt(in.ExpressionAttributeValues[":agora"].(*types.AttributeValueMemberN).Value, 10, 64)
+			bom = exp > agora
+		}
+		if !bom {
+			return nil, &types.ConditionalCheckFailedException{}
+		}
+		delete(f.itens, chave(sv(in.Key["PK"]), sv(in.Key["SK"])))
+		return &dynamodb.DeleteItemOutput{Attributes: it}, nil
+	}
 	if aws.ToString(in.ConditionExpression) == "listaId = :id" { // lista de codigos do MFA: so apaga se ainda e a do listaId pedido
 		it, existe := f.itens[chave(sv(in.Key["PK"]), sv(in.Key["SK"]))]
 		if !existe || it["listaId"] == nil || sv(it["listaId"]) != sv(in.ExpressionAttributeValues[":id"]) {
@@ -99,6 +125,7 @@ func (f *bancoFake) DeleteItem(_ context.Context, in *dynamodb.DeleteItemInput, 
 // attribute_not_exists(PK) e (SK) sao entendidas); se qualquer uma falha, nada muda e volta
 // TransactionCanceledException. Dois itens da mesma chave na mesma transacao tambem sao recusados.
 func (f *bancoFake) TransactWriteItems(_ context.Context, in *dynamodb.TransactWriteItemsInput, _ ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error) {
+	f.escritas++
 	if gancho := f.antesDaTransacao; gancho != nil {
 		f.antesDaTransacao = nil
 		gancho()
@@ -152,6 +179,7 @@ func (f *bancoFake) TransactWriteItems(_ context.Context, in *dynamodb.TransactW
 	return &dynamodb.TransactWriteItemsOutput{}, nil
 }
 func (f *bancoFake) BatchWriteItem(_ context.Context, in *dynamodb.BatchWriteItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.BatchWriteItemOutput, error) {
+	f.escritas++
 	for _, reqs := range in.RequestItems {
 		for _, w := range reqs {
 			if w.PutRequest != nil {
@@ -164,6 +192,7 @@ func (f *bancoFake) BatchWriteItem(_ context.Context, in *dynamodb.BatchWriteIte
 
 // UpdateItem: so o que o perfil usa. Sem o item, falha como a condicao attribute_exists(PK) do DynamoDB.
 func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
+	f.escritas++
 	k := chave(sv(in.Key["PK"]), sv(in.Key["SK"]))
 	if aws.ToString(in.UpdateExpression) == "ADD seq :um" { // contador do espaco: cria o item se nao existir
 		if f.falharContador != nil {
@@ -192,6 +221,10 @@ func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, 
 	if !ok {
 		return nil, &types.ConditionalCheckFailedException{}
 	}
+	antes := map[string]types.AttributeValue{}
+	for nome, v := range it {
+		antes[nome] = v
+	}
 	// "SET a = :x, b = :y" e/ou "REMOVE a, b" (o que o perfil usa)
 	expr := aws.ToString(in.UpdateExpression)
 	for _, parte := range strings.Split(expr, "REMOVE") {
@@ -210,7 +243,11 @@ func (f *bancoFake) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, 
 			}
 		}
 	}
-	return &dynamodb.UpdateItemOutput{}, nil
+	out := &dynamodb.UpdateItemOutput{}
+	if in.ReturnValues == types.ReturnValueAllOld { // o valor de antes (religar o Telegram avisa o chat antigo)
+		out.Attributes = antes
+	}
+	return out, nil
 }
 
 // updateAparelho simula o UpdateItem dos aparelhos (repository/destinos.go): "ADD pushTokens :t" com o limite como condicao da gravacao
@@ -264,6 +301,8 @@ func (f *bancoFake) updateAparelho(in *dynamodb.UpdateItemInput, k, expr string)
 
 // Query: entende "PK = :pk AND SK BETWEEN :a AND :b" e "PK = :pk AND begins_with(SK, :s)".
 func (f *bancoFake) Query(_ context.Context, in *dynamodb.QueryInput, _ ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error) {
+	f.leituras++
+	f.queries++
 	if f.falharLeitura != nil {
 		return nil, f.falharLeitura
 	}

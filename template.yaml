@@ -124,6 +124,8 @@ Resources:
           AMBIENTE: !Ref Ambiente
           TELEGRAM_TOKEN_PARAM: !If [EhDev, /financas/dev/telegram-token, /financas/prod/telegram-token]
           FCM_CREDENCIAL_PARAM: !If [EhDev, /financas/dev/fcm-credencial, /financas/prod/fcm-credencial]
+          TELEGRAM_WEBHOOK_SECRET_PARAM: !If [EhDev, /financas/dev/telegram-webhook-secret, /financas/prod/telegram-webhook-secret]
+          TELEGRAM_BOT_USUARIO_PARAM: !If [EhDev, /financas/dev/telegram-bot-usuario, /financas/prod/telegram-bot-usuario]
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref Table }
         # token do bot do Telegram (SecureString criado a mao; ver .ai/avisos.md). Sem o parametro, os avisos nao saem.
@@ -131,6 +133,10 @@ Resources:
         # credencial do Firebase para o push (JSON da conta de servico, SecureString guardado por scripts/guardar-fcm.ps1; spec app-android-push, R8 e R21).
         # Um parametro por ambiente. Sem ele o canal push fica "nao configurado" e o resto dos avisos segue.
         - SSMParameterReadPolicy: { ParameterName: !If [EhDev, financas/dev/fcm-credencial, financas/prod/fcm-credencial] }
+        # vinculo do Telegram por link (spec telegram-vinculo, R23): o segredo do webhook (SecureString) e o usuario do bot (texto), gravados por
+        # scripts/registrar-webhook-telegram.ps1. Um par por ambiente; so a leitura desses dois. Sem eles o link responde 503 e o webhook recusa tudo.
+        - SSMParameterReadPolicy: { ParameterName: !If [EhDev, financas/dev/telegram-webhook-secret, financas/prod/telegram-webhook-secret] }
+        - SSMParameterReadPolicy: { ParameterName: !If [EhDev, financas/dev/telegram-bot-usuario, financas/prod/telegram-bot-usuario] }
         # historico de versoes imutavel (.ai/specs/historico): a Lambda so acrescenta versoes em HIST#<espaco>; editar ou
         # apagar uma versao e negado por IAM. O Deny vale por item (dynamodb:LeadingKeys e a PK), entao a escrita em
         # SPACE#... continua livre, inclusive o Delete da chave antiga quando a data de um lancamento muda.

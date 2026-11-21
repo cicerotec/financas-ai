@@ -1404,6 +1404,33 @@
           }
         }
       }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {
+            "S": "USER#sub-demo-dono"
+          },
+          "SK": {
+            "S": "LINK#telegram"
+          },
+          "canal": {
+            "S": "telegram"
+          },
+          "sid": {
+            "S": "demo-familia"
+          },
+          "hash": {
+            "S": "b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0"
+          },
+          "expiraEm": {
+            "N": "1763650200"
+          },
+          "criadoEm": {
+            "S": "2026-11-20T14:20:00Z"
+          }
+        }
+      }
     }
   ]
 }
