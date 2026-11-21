@@ -27,12 +27,13 @@ Rota de espaço (`/spaces/{sid}/...`) também exige vínculo da pessoa com o esp
 
 | Método | Caminho | Ação | Owner | Member | Token | Spec |
 |---|---|---|---|---|---|---|
-| GET | `/me` | `me` | — | — | ID token | specs/app-multiusuario/intent.md |
+| GET | `/me` | `me` | — | — | ID token | specs/telegram-vinculo/spec.md |
 | GET | `/me/mfa` | `mfa.ler` | — | — | ID token | specs/mfa-opcional/spec.md |
 | POST | `/me/mfa/codigos` | `mfa.gerar` | — | — | ID token | specs/mfa-opcional/spec.md |
 | POST | `/me/mfa/codigos/confirmar` | `mfa.confirmar` | — | — | ID token | specs/mfa-opcional/spec.md |
 | POST | `/mfa/recuperar` | `mfa.recuperar` | — | — | nenhum | specs/mfa-opcional/spec.md |
 | POST | `/push/sair` | `push.sair` | — | — | ID token | specs/app-android-push/spec.md |
+| POST | `/telegram/webhook` | `telegram.webhook` | — | — | nenhum | specs/telegram-vinculo/spec.md |
 | GET | `/spaces/{sid}/aparencia` | `aparencia.ler` | sim | sim | ID token | arquitetura.md |
 | PUT | `/spaces/{sid}/aparencia` | `aparencia.escrever` | sim | sim | ID token | arquitetura.md |
 | POST | `/spaces/{sid}/avisos/teste` | `avisos.testar` | sim | sim | ID token | avisos.md |
@@ -60,7 +61,7 @@ Rota de espaço (`/spaces/{sid}/...`) também exige vínculo da pessoa com o esp
 | GET | `/spaces/{sid}/historico` | `historico.ler` | sim | só o que criou | ID token | specs/historico/spec.md |
 | PUT | `/spaces/{sid}/meios/{meio}` | `meio.escrever` | sim | não | ID token | specs/meios-de-pagamento/spec.md |
 | DELETE | `/spaces/{sid}/meios/{meio}` | `meio.escrever` | sim | não | ID token | specs/meios-de-pagamento/spec.md |
-| PUT | `/spaces/{sid}/perfil` | `perfil.editar` | sim | sim | ID token | specs/app-multiusuario/intent.md |
+| PUT | `/spaces/{sid}/perfil` | `perfil.editar` | sim | sim | ID token | specs/telegram-vinculo/spec.md |
 | PUT | `/spaces/{sid}/push` | `push.registrar` | sim | sim | ID token | specs/app-android-push/spec.md |
 | POST | `/spaces/{sid}/push/remover` | `push.remover` | sim | sim | ID token | specs/app-android-push/spec.md |
 | GET | `/spaces/{sid}/recorrencias` | `tx.ler` | sim | sim | ID token | specs/recorrencia/spec.md |
@@ -70,6 +71,7 @@ Rota de espaço (`/spaces/{sid}/...`) também exige vínculo da pessoa com o esp
 | GET | `/spaces/{sid}/seq` | `seq.ler` | sim | sim | ID token | arquitetura.md |
 | GET | `/spaces/{sid}/status` | `tx.ler` | sim | sim | ID token | specs/futuros-previsto/spec.md |
 | POST | `/spaces/{sid}/tags` | `tags.adicionar` | sim | sim | ID token | arquitetura.md |
+| POST | `/spaces/{sid}/telegram/vinculo` | `telegram.vincular` | sim | sim | ID token | specs/telegram-vinculo/spec.md |
 | POST | `/spaces/{sid}/transferencias` | `tx.criar` | sim | sim | ID token | arquitetura.md |
 | GET | `/spaces/{sid}/tx` | `tx.ler` | sim | sim | ID token | arquitetura.md |
 | POST | `/spaces/{sid}/tx` | `tx.criar` | sim | sim | ID token | arquitetura.md |

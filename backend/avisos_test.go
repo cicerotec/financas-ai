@@ -115,40 +115,16 @@ func TestDiaBRUsaOFusoDeSaoPaulo(t *testing.T) {
 
 // ---------- texto ----------
 
-func TestMoeda(t *testing.T) {
-	for in, quer := range map[float64]string{
-		0: "R$ 0,00", 5: "R$ 5,00", 1234.5: "R$ 1.234,50", 1234567.891: "R$ 1.234.567,89", -42.1: "-R$ 42,10", 999.999: "R$ 1.000,00",
-	} {
-		if got := moeda(in); got != quer {
-			t.Errorf("moeda(%v) = %q, esperado %q", in, got, quer)
-		}
-	}
-}
-
-func TestMontarResumoOrdenaAtrasadosPrimeiro(t *testing.T) {
+// V-T11 (ponta a ponta): o canal do Telegram so ve a contagem; descricao, valor e meio de pagamento ficam de fora.
+func TestTextoDoTelegramSoTemAContagem(t *testing.T) {
 	linhas := []domain.LinhaAviso{
 		{Kind: avisoAntes, N: 3, Venc: "2026-10-10", Tipo: "saida", Descricao: "Condomínio", Valor: 800, Banco: "ITAU"},
 		{Kind: avisoAtrasado, N: 2, Venc: "2026-10-05", Tipo: "saida", Descricao: "Internet", Valor: 120, Banco: "NUBANK"},
 		{Kind: avisoHoje, Venc: "2026-10-07", Tipo: "entrada", Descricao: "Aluguel", Valor: 2500, Banco: "ITAU"},
 	}
-	r := notificacao.MontarResumo("", "2026-10-07", linhas)
-	ordem := []string{"Atrasado há 2 dias (05/10/2026): Internet — R$ 120,00 (NUBANK)", "A receber hoje (07/10/2026): Aluguel", "Vence em 3 dias (10/10/2026): Condomínio — R$ 800,00 (ITAU)"}
-	ult := -1
-	for _, trecho := range ordem {
-		i := strings.Index(r, trecho)
-		if i < 0 {
-			t.Fatalf("resumo sem %q:\n%s", trecho, r)
-		}
-		if i < ult {
-			t.Errorf("fora de ordem em %q:\n%s", trecho, r)
-		}
-		ult = i
-	}
-	if !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
-		t.Errorf("cabecalho inesperado:\n%s", r)
-	}
-	if !strings.Contains(notificacao.MontarResumo("", "2026-10-07", []domain.LinhaAviso{{Kind: avisoAntes, N: 1, Venc: "2026-10-08", Descricao: " "}}), "Vence em 1 dia (08/10/2026): (sem descrição)") {
-		t.Error("singular e descricao vazia")
+	r := notificacao.TextoDoTelegram(domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhas})
+	if r != "🔔 Avisos de 07/10/2026: 1 atrasado · 1 vence hoje · 1 a vencer. Abra o app para ver o que é cada um." {
+		t.Errorf("texto inesperado: %q", r)
 	}
 }
 
@@ -233,12 +209,14 @@ func TestImportacaoEmLoteSincronizaOAviso(t *testing.T) {
 type envio struct{ chat, texto string }
 
 // trocaEnvio troca o envio real por um que guarda as mensagens.
-// notifFalso e o canal "telegram" dos testes: formata o resumo como o Telegram de verdade (notificacao.PartesDoResumo), guarda as
-// mensagens (ou falha com o erro dado). Fica no despachante do Servidor montado em cenario().
+// notifFalso e o canal "telegram" dos testes: formata o resumo como o Telegram de verdade (notificacao.TextoDoTelegram), guarda as
+// mensagens (ou falha com o erro dado). Fica no despachante do Servidor montado em cenario(). recusados lista os enderecos que o
+// canal diz nao existirem mais (domain.ErrDestinoInvalido), como o Telegram faz com um chat que bloqueou o bot.
 type notifFalso struct {
-	nome     string
-	falhaCom error
-	enviados []envio
+	nome      string
+	falhaCom  error
+	recusados map[string]bool
+	enviados  []envio
 }
 
 func (n *notifFalso) Nome() string { return n.nome }
@@ -247,9 +225,10 @@ func (n *notifFalso) Enviar(_ context.Context, chat string, r domain.ResumoAviso
 	if n.falhaCom != nil {
 		return n.falhaCom
 	}
-	for _, texto := range notificacao.PartesDoResumo(r, notificacao.LimiteTelegram) {
-		n.enviados = append(n.enviados, envio{chat, texto})
+	if n.recusados[chat] {
+		return domain.ErrDestinoInvalido
 	}
+	n.enviados = append(n.enviados, envio{chat, notificacao.TextoDoTelegram(r)})
 	return nil
 }
 
@@ -259,11 +238,11 @@ var notifTeste, _ = service.NovoDespachante(canalTeste, canalPushTeste)
 
 // trocaEnvio zera as mensagens guardadas e, se falhaCom, faz o envio falhar ate o fim do teste.
 func trocaEnvio(t *testing.T, falhaCom error) *[]envio {
-	canalTeste.enviados, canalTeste.falhaCom = nil, falhaCom
-	canalPushTeste.enviados, canalPushTeste.falhaCom = nil, nil
+	canalTeste.enviados, canalTeste.falhaCom, canalTeste.recusados = nil, falhaCom, nil
+	canalPushTeste.enviados, canalPushTeste.falhaCom, canalPushTeste.recusados = nil, nil, nil
 	t.Cleanup(func() {
-		canalTeste.enviados, canalTeste.falhaCom = nil, nil
-		canalPushTeste.enviados, canalPushTeste.falhaCom = nil, nil
+		canalTeste.enviados, canalTeste.falhaCom, canalTeste.recusados = nil, nil, nil
+		canalPushTeste.enviados, canalPushTeste.falhaCom, canalPushTeste.recusados = nil, nil, nil
 	})
 	return &canalTeste.enviados
 }
@@ -309,8 +288,13 @@ func TestRotinaAvisaCriadorEDonoUmaVezCada(t *testing.T) {
 		chats[e.chat] = e.texto
 	}
 	for _, chat := range []string{"111111", "222222"} {
-		if !strings.Contains(chats[chat], "Vence em 3 dias (10/10/2026): Conta de luz — R$ 230,50 (ITAU)") {
+		if chats[chat] != "🔔 Avisos de 07/10/2026: 1 a vencer. Abra o app para ver o que é cada um." {
 			t.Errorf("chat %s recebeu %q", chat, chats[chat])
+		}
+		for _, proibido := range []string{"Conta de luz", "230", "ITAU", "10/10/2026"} {
+			if strings.Contains(chats[chat], proibido) {
+				t.Errorf("chat %s recebeu %q, que e dado do lancamento: %q", chat, proibido, chats[chat])
+			}
 		}
 	}
 
@@ -344,7 +328,7 @@ func TestRotinaInsistirAvisaAtrasadoAteResolver(t *testing.T) {
 	f, id := cenarioAvisos(t)
 	chamar(t, "mem", "PUT", "spaces/s1/tx/"+id, map[string]string{"de": "2026-10-10T12:00:00.000Z"}, `{"aviso":{"dias":[],"insistir":true}}`)
 	env := trocaEnvio(t, nil)
-	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-10-13")); n != 2 || !strings.Contains((*env)[0].texto, "Atrasado há 3 dias (10/10/2026)") {
+	if n, _ := rodarAvisos(context.Background(), agoraBR("2026-10-13")); n != 2 || !strings.Contains((*env)[0].texto, "1 atrasado") {
 		t.Fatalf("atrasado: %d, %v", n, *env)
 	}
 	// pagou: confirmar tira o marcador previsto, para de avisar
@@ -441,43 +425,54 @@ func TestEntradaDistingueAgendamentoDeHTTP(t *testing.T) {
 
 // ---------- vinculo do Telegram e mensagem de teste ----------
 
-func TestPerfilGuardaOChatIDDoTelegram(t *testing.T) {
+// V-T16 (spec telegram-vinculo, R15): o Id do Telegram nao se digita mais; so o link o grava. Id nao vazio e 400, nada chega ao banco; vazio (o desligar)
+// apaga o campo; o apelido segue como sempre.
+const fraseDoIdDigitado = "O Telegram agora é ligado pelo link, em Listas."
+
+func TestPerfilRecusaOChatIDDigitado(t *testing.T) {
 	f := cenario(t)
-	st, d := chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":" 123456789 "}`)
-	esperar(t, "salvar chat id", st, 200)
-	if d["telegramChatId"] != "123456789" {
-		t.Errorf("resposta = %v", d)
+	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member", "apelido": "Ana", "telegramChatId": "222222"})
+	for _, corpo := range []string{`{"telegramChatId":" 123456789 "}`, `{"telegramChatId":"-1001234567890"}`, `{"telegramChatId":"abc"}`, `{"telegramChatId":"12"}`,
+		`{"telegramChatId":"999999"}`, `{"apelido":"Bia","telegramChatId":"123456789"}`} {
+		e := f.escritas
+		st, d := chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, corpo)
+		if st != 400 || d["erro"] != fraseDoIdDigitado {
+			t.Errorf("%s: %d %v, esperado 400 com a frase do link", corpo, st, d["erro"])
+		}
+		if f.escritas != e {
+			t.Errorf("%s: um Id digitado chegou ao banco", corpo)
+		}
 	}
-	if got := f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"]; got != "123456789" {
-		t.Errorf("gravado = %v", got)
+	if v := f.ler(t, "USER#mem", "SPACE#s1"); v["telegramChatId"] != "222222" || v["apelido"] != "Ana" {
+		t.Errorf("vinculo mudou: %v", v)
 	}
-	// junto com o apelido, na mesma chamada
-	st, _ = chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"apelido":"Ana","telegramChatId":"-1001234567890"}`)
-	esperar(t, "apelido e chat id", st, 200)
-	v := f.ler(t, "USER#mem", "SPACE#s1")
-	if v["apelido"] != "Ana" || v["telegramChatId"] != "-1001234567890" {
-		t.Errorf("vinculo = %v", v)
-	}
-	// so o apelido nao mexe no chat id
-	chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"apelido":"Bia"}`)
-	if got := f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"]; got != "-1001234567890" {
-		t.Errorf("chat id mudou sem querer: %v", got)
-	}
-	// vazio remove
-	chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":""}`)
-	if _, tem := f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"]; tem {
-		t.Error("chat id deveria ter sido removido")
-	}
-	// invalidos
-	for _, ruim := range []string{`{"telegramChatId":"abc"}`, `{"telegramChatId":"12"}`, `{"telegramChatId":123456}`, `{"telegramChatId":"1 2 3 4 5 6"}`, `{}`} {
+	// nao texto e entrada vazia seguem 400
+	for _, ruim := range []string{`{"telegramChatId":123456}`, `{"telegramChatId":null}`, `{}`} {
 		if st, _ := chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, ruim); st != 400 {
 			t.Errorf("%s deveria ser 400, foi %d", ruim, st)
 		}
 	}
-	// cada pessoa so mexe no proprio
-	chamar(t, "own", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":"999999"}`)
-	if _, tem := f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"]; tem {
-		t.Error("o dono nao pode alterar o chat id do membro")
+	// so o apelido nao mexe no destino
+	st, d := chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"apelido":"Bia"}`)
+	esperar(t, "so o apelido", st, 200)
+	if d["apelido"] != "Bia" || f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"] != "222222" {
+		t.Errorf("resposta = %v, vinculo = %v", d, f.ler(t, "USER#mem", "SPACE#s1"))
+	}
+	// cada pessoa so mexe no proprio: o dono desligar o dele nao apaga o do membro
+	chamar(t, "own", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":""}`)
+	if f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"] != "222222" {
+		t.Error("o dono nao pode apagar o destino do membro")
+	}
+	// vazio e o desligar: apaga o campo
+	st, d = chamar(t, "mem", "PUT", "spaces/s1/perfil", nil, `{"telegramChatId":""}`)
+	esperar(t, "desligar", st, 200)
+	if _, tem := f.ler(t, "USER#mem", "SPACE#s1")["telegramChatId"]; tem || d["telegramChatId"] != "" {
+		t.Errorf("o destino deveria ter sido apagado: resposta %v", d)
+	}
+	// e dai a chave volta a ficar desligada em GET /me
+	_, me := chamar(t, "mem", "GET", "me", nil, "")
+	if c := me["espacos"].([]any)[0].(map[string]any)["canais"].(map[string]any); c["telegram"] != false {
+		t.Errorf("canais = %v", c)
 	}
 }
 
@@ -505,20 +500,29 @@ func TestMensagemDeTeste(t *testing.T) {
 	esperar(t, "fora do espaco", st, 403)
 }
 
-func TestGetMeDevolveOChatID(t *testing.T) {
+// V-T15 (spec telegram-vinculo, R14): o chat id nunca mais chega ao navegador; GET /me so diz se ha canal.
+func TestGetMeNaoDevolveOChatID(t *testing.T) {
 	f := cenario(t)
 	f.colocar(t, doc{"PK": "USER#mem", "SK": "SPACE#s1", "role": "member", "telegramChatId": "222222"})
 	st, d := chamar(t, "mem", "GET", "me", nil, "")
 	esperar(t, "me", st, 200)
 	esp := d["espacos"].([]any)[0].(map[string]any)
-	if esp["telegramChatId"] != "222222" {
-		t.Errorf("espaco = %v", esp)
+	if _, tem := esp["telegramChatId"]; tem {
+		t.Errorf("o chat id chegou ao navegador: %v", esp)
+	}
+	if c, _ := esp["canais"].(map[string]any); c["telegram"] != true || c["push"] != false {
+		t.Errorf("canais = %v", esp["canais"])
+	}
+	if strings.Contains(strings.Join([]string{st2s(d)}, ""), "222222") {
+		t.Errorf("o chat id aparece em algum lugar da resposta: %v", d)
 	}
 }
 
+func st2s(d doc) string { b, _ := json.Marshal(d); return string(b) }
+
 func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 	linhas := []domain.LinhaAviso{{Kind: avisoHoje, Venc: "2026-10-07", Tipo: "saida", Descricao: "Luz", Valor: 10, Banco: "ITAU"}}
-	if r := notificacao.MontarResumo(domain.MarcaAmbiente("dev"), "2026-10-07", linhas); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10/2026\n") {
+	if r := notificacao.TextoDoTelegram(domain.ResumoAvisos{Hoje: "2026-10-07", Marca: domain.MarcaAmbiente("dev"), Linhas: linhas}); !strings.HasPrefix(r, "🔔 [DEV] Avisos de 07/10/2026: ") {
 		t.Errorf("resumo do dev sem [DEV]:\n%s", r)
 	}
 	f := cenario(t)
@@ -531,7 +535,7 @@ func TestMensagensDoDevTemMarcaDev(t *testing.T) {
 	}
 
 	for _, amb := range []string{"prod", ""} {
-		if r := notificacao.MontarResumo(domain.MarcaAmbiente(amb), "2026-10-07", linhas); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026\n") {
+		if r := notificacao.TextoDoTelegram(domain.ResumoAvisos{Hoje: "2026-10-07", Marca: domain.MarcaAmbiente(amb), Linhas: linhas}); strings.Contains(r, "[DEV]") || !strings.HasPrefix(r, "🔔 Avisos de 07/10/2026: ") {
 			t.Errorf("ambiente %q nao deve ter [DEV]:\n%s", amb, r)
 		}
 	}

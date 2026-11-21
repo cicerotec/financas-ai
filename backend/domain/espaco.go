@@ -7,5 +7,10 @@ type Espaco struct {
 	Nome           string // o do META do espaco; se nao houver, o proprio id
 	Role           any
 	Apelido        any // como veio do banco (texto ou ausente): a resposta HTTP repete o que existe hoje
-	TelegramChatID any
+	// Canais diz, por canal, se o vinculo tem destino (spec telegram-vinculo, R14): chat id nao vazio, ao menos um aparelho. So booleanos: o front
+	// so exibe, nunca decide quem recebe, e o chat id nunca chega ao navegador.
+	Canais CanaisLigados
 }
+
+// CanaisLigados e o estado dos canais de aviso de uma pessoa num espaco.
+type CanaisLigados struct{ Telegram, Push bool }

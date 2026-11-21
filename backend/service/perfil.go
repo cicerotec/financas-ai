@@ -15,14 +15,14 @@ type RepositorioPerfil interface {
 	AtualizarPerfil(ctx context.Context, sid, sub string, m domain.MudancaPerfil) error
 }
 
-// Perfil e o nome de exibicao (apelido) e o chat id do Telegram de cada pessoa. Ficam no vinculo dela com o espaco, ao lado
-// do papel, e cada pessoa so altera o proprio.
+// Perfil e o nome de exibicao (apelido) de cada pessoa e o "desligar" do Telegram (o chat id vazio). Ficam no vinculo dela com o espaco, ao lado
+// do papel, e cada pessoa so altera o proprio. O chat id so nasce pelo vinculo por link (service.Vinculos), nunca digitado.
 type Perfil struct{ repo RepositorioPerfil }
 
 func NewPerfil(repo RepositorioPerfil) *Perfil { return &Perfil{repo: repo} }
 
-// Editar: PUT /spaces/{sid}/perfil. Altera o apelido e/ou o telegramChatId de quem fez a chamada. Devolve os campos
-// recebidos, ja normalizados.
+// Editar: PUT /spaces/{sid}/perfil. Altera o apelido e/ou apaga o telegramChatId (so vazio) de quem fez a chamada. Devolve os campos
+// recebidos, ja normalizados. telegramChatId nao vazio e recusado.
 func (s *Perfil) Editar(ctx context.Context, sid, sub string, body domain.Doc) (domain.Doc, error) {
 	apelidoBruto, temApelido := body["apelido"]
 	chatBruto, temChat := body["telegramChatId"]
@@ -49,10 +49,10 @@ func (s *Perfil) Editar(ctx context.Context, sid, sub string, body domain.Doc) (
 			return nil, &ErroValidacao{"informe o telegramChatId como texto"}
 		}
 		chat := strings.TrimSpace(bruto)
-		if chat != "" && !domain.ChatIDValido(chat) {
-			return nil, &ErroValidacao{"o chat id do Telegram tem so numeros (ex.: 123456789)"}
+		if chat != "" { // o Id nao se digita mais: o chat id e o do proprio Telegram, gravado so pelo vinculo por link (spec telegram-vinculo, R15)
+			return nil, &ErroValidacao{"O Telegram agora é ligado pelo link, em Listas."}
 		}
-		m.ChatID = &chat
+		m.ChatID = &chat // vazio e o desligar: apaga o destino
 		resposta["telegramChatId"] = chat
 	}
 	if err := s.repo.AtualizarPerfil(ctx, sid, sub, m); err != nil {

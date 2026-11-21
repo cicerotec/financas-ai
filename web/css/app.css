@@ -1203,15 +1203,50 @@ html.bloqueado header,html.bloqueado main,html.bloqueado .ab{visibility:hidden;}
 .seg-msg{margin:2px 4px 0;font-size:13px;color:var(--muted);}
 .seg-msg.ruim{color:var(--danger);}
 .seg-msg:empty{display:none;}
-/* Avisos (cartao mestre, demos .ai/demos/arquivo/demo-push-v1.html e .ai/demos/demo-push-v2-telegram-chave.html): o Telegram e o aparelho sao subsecoes; a caixa tira 14 px de cada lado,
-   entao o campo do Id e os botoes do Telegram ganham linhas proprias */
+/* Avisos (cartao mestre, demos .ai/demos/arquivo/demo-push-v1.html e .ai/demos/demo-listas-v11-telegram-vinculo.html): o Telegram e o aparelho sao subsecoes; a caixa tira 14 px de cada lado,
+   entao os botoes do Telegram ganham linhas proprias */
 #avisosCard .ap-sub[hidden]{display:none;}
-#telegramCard .row{flex-wrap:wrap;}
-#telegramCard .row input{flex:1 1 100%;}
-#telegramCard .row .ghost{flex:1 1 0;}
-#telegramCard .row{margin-top:8px;gap:8px;}
-#telegramCard .ghost{min-height:44px;}
-#tgCampos[hidden],#telegramCard p[hidden],#telegramCard button[hidden]{display:none;}
+#telegramCard [hidden]{display:none !important;}
+.tg-box{margin-top:6px;padding:12px;border-radius:12px;background:var(--accent-bg);}
+.tg-box b{font-size:14px;}
+.tg-box .muted{margin:4px 0 10px;}
+.tg-box .row{gap:8px;}
+.tg-box .ghost,.tg-acoes .ghost{min-height:44px;}
+.tg-abrir{display:block;margin-top:10px;font-size:13px;color:var(--accent);text-decoration:underline;}
+.tg-acoes{margin-top:8px;gap:8px;flex-wrap:wrap;}
+.tg-acoes .ghost{flex:1 1 0;}
+/* Ligar um canal e aviso de "sem canal ativo" (spec telegram-vinculo, R18 e R19; demos demo-avisar-v3-canal, demo-lancar-v9-aviso-canal e demo-cartao-v5-aviso-canal).
+   A janela fica logo abaixo do modal de confirmacao (.modal-overlay, 80), que abre a explicacao do aparelho, e acima da .tc (70). */
+.lc-dica{margin:10px 0;padding:12px;border-radius:12px;background:var(--accent-bg);font-size:13px;line-height:1.4;color:var(--text);}
+.lc-dica b{display:block;font-size:14px;margin-bottom:2px;}
+.lc-dica .lc-acoes{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.lc-dica button{flex:1 1 130px;min-height:44px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--text);font:inherit;font-weight:600;cursor:pointer;padding:0 12px;}
+.lc-dica button.pri{background:var(--accent);color:var(--accent-ink);border-color:transparent;}
+.lc-ov{position:fixed;inset:0;z-index:79;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;}
+.lc-ov[hidden]{display:none;}
+.lc-sheet{background:var(--card);color:var(--text);width:100%;max-width:560px;margin:0 auto;border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:92vh;overflow:auto;}
+.lc-sheet h3{text-align:center;margin:0;font-size:17px;font-weight:600;}
+.lc-mm{text-align:center;color:var(--muted);font-size:13px;margin:6px 4px 0;}
+.lc-botoes{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;}
+.lc-botoes button{flex:1 1 150px;min-height:64px;border-radius:14px;border:1px solid var(--border);background:var(--card);color:var(--text);font:inherit;font-weight:600;cursor:pointer;padding:8px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+.lc-botoes button small{font-weight:400;font-size:12px;color:var(--muted);}
+.lc-botoes button:disabled{opacity:.6;cursor:wait;}
+.lc-box{margin-top:14px;padding:12px;border-radius:12px;background:var(--accent-bg);}
+.lc-box b{font-size:14px;}
+.lc-box .lc-t{margin:4px 0 10px;color:var(--muted);font-size:12px;}
+.lc-box .lc-linha{display:flex;gap:8px;}
+.lc-box .lc-linha button{flex:1;min-height:44px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text);font:inherit;cursor:pointer;}
+.lc-msg{margin:10px 4px 0;font-size:13px;color:var(--muted);text-align:center;}
+.lc-msg.ruim{color:var(--danger);}
+.lc-msg:empty{display:none;}
+.lc-fechar{display:block;width:100%;margin-top:12px;min-height:52px;border-radius:14px;border:0;background:var(--ck);color:var(--text);font:inherit;font-weight:600;cursor:pointer;}
+.lc-ov [hidden]{display:none !important;}
+.tc-previa{padding:12px 16px;font-size:13px;}
+.tc-previa .l{color:var(--faint);margin:0 0 6px;}
+/* O sino de um aviso sem canal ativo em Futuros e no Historico (spec telegram-vinculo, R22a; demos demo-futuros-v4-sem-canal e demo-historico-v5-sem-canal) */
+.chip.sem-canal{background:var(--danger-bg);color:var(--danger);font-weight:600;border-color:transparent;}
+.fut-sino.sem-canal{color:var(--danger);}
+.fut-sheet .av-sem{margin:0 8px 6px;color:var(--danger);font-size:13px;}
 .ps-acoes{margin-top:8px;gap:8px;flex-wrap:wrap;}
 .ps-acoes .ghost{min-height:44px;}
 .ps-acoes[hidden],.ps-acoes button[hidden]{display:none;}

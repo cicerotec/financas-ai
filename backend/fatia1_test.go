@@ -23,8 +23,11 @@ func TestF1GetMe(t *testing.T) {
 	for _, e := range d["espacos"].([]any) {
 		m := e.(map[string]any)
 		nomes[m["id"].(string)] = m["nome"].(string)
-		if _, ok := m["telegramChatId"]; !ok {
-			t.Errorf("a resposta perdeu a chave telegramChatId: %v", m)
+		if _, ok := m["telegramChatId"]; ok {
+			t.Errorf("a resposta ainda leva o telegramChatId: %v", m)
+		}
+		if _, ok := m["canais"]; !ok {
+			t.Errorf("a resposta perdeu a chave canais: %v", m)
 		}
 	}
 	if nomes["s1"] != "Familia" || nomes["s2"] != "s2" || len(nomes) != 2 {

@@ -78,10 +78,11 @@ O papel vem do item `USER#<sub> / SPACE#<sid>` (campo `role`); sem esse vínculo
 | `fechamento.ler` (inclui `GET /saldos`, o saldo de cada meio calculado pelo servidor) | sim | sim |
 | `fechamento.conferir`, `.reabrir` (o `PUT /fechamentos` e a ação `fechamento.escrever` saíram na fase C do item 40) | sim | **não** (só vê) |
 | `aparencia.ler` / `.escrever` | sim | sim, **só a dela** |
-| `perfil.editar` (o próprio nome e chat id do Telegram) | sim | sim |
+| `perfil.editar` (o próprio nome e o **desligar** do Telegram: `telegramChatId` vazio apaga o destino; um Id não vazio é `400`, o chat id só nasce pelo link) | sim | sim |
 | `seq.ler` | sim | sim |
 | `avisos.testar` (mensagem de teste para o próprio Telegram ou, com `{"canal":"push"}`, para os próprios aparelhos) | sim | sim |
 | `push.registrar`, `push.remover` (o aparelho do app no próprio vínculo) e `push.sair` (tira o aparelho de todos os espaços da pessoa) | sim | sim |
+| `telegram.vincular` (`POST /spaces/{sid}/telegram/vinculo`: gera o link que liga o Telegram, **só no próprio vínculo**; o `sub` vem do token) | sim | sim |
 
 **Rotas fora de `/spaces/{sid}` e a rota pública do MFA. Implementadas em 2026-11-19** ([`specs/mfa-opcional/spec.md`](specs/mfa-opcional/spec.md), R4 e R25 a R36).**
 Hoje `atender` valida o token **antes** de classificar qualquer rota, então uma rota sem token responde `401`. Há **quatro rotas** do MFA, cada uma com ação própria em `auth/authz.go` e teste (e uma linha em [`api.md`](api.md)):
@@ -93,10 +94,17 @@ Hoje `atender` valida o token **antes** de classificar qualquer rota, então uma
 | `POST /me/mfa/codigos/confirmar` (promove a pendente a ativa e apaga a anterior; idempotente; `409 lista_substituida`) | `mfa.confirmar` | qualquer pessoa autenticada, sempre pelo `sub` do token | ID token, como hoje |
 | `POST /mfa/recuperar` (um código da lista ativa desliga o MFA da pessoa) | `mfa.recuperar` | **qualquer um**, sem token | **nenhum** |
 
-- **A rota pública é a única exceção ao "sem token é `401`", por método e caminho exatos.** `auth.RotaPublica(metodo, p)` devolve `true` **só** para `POST` `["mfa","recuperar"]`; a ação `mfa.recuperar` **não** é listada em `Permitido` para nenhum papel. Em `atender`, o método e o caminho são quebrados **antes** de `VerificarToken`; se a rota for essa, o roteador a entrega ao controller **sem ler o cabeçalho `authorization`** (um token inválido nela não muda a resposta); senão tudo segue como hoje. **`token.go` e `VerificarToken` não mudam**, e nenhuma outra rota muda de comportamento. Testes: só aquele método e caminho é público; toda rota autenticada sem token segue `401`; o log não diz `sem-token` numa chamada atendida.
+- **Há duas exceções ao "sem token é `401`", por método e caminho exatos** (a do MFA e a do webhook do Telegram, abaixo). `auth.RotaPublica(metodo, p)` devolve `true` **só** para `POST` `["mfa","recuperar"]` e `POST` `["telegram","webhook"]`; as ações `mfa.recuperar` e `telegram.webhook` **não** são listadas em `Permitido` para nenhum papel. Em `atender`, o método e o caminho são quebrados **antes** de `VerificarToken`; se a rota for uma dessas, o roteador a entrega ao controller **sem ler o cabeçalho `authorization`** (um token inválido nela não muda a resposta); senão tudo segue como hoje. **`token.go` e `VerificarToken` não mudam**, e nenhuma outra rota muda de comportamento. Testes: só aquele método e caminho é público; toda rota autenticada sem token segue `401`; o log não diz `sem-token` numa chamada atendida.
 - **A rota pública só desliga o MFA** (`AdminSetUserMFAPreference`): nunca cria sessão, nunca devolve token, nunca altera a senha. Responde **uma só resposta de falha** (mesmo status e corpo) para e-mail sem conta, pessoa sem MFA, código errado ou usado, limite estourado, corpo inválido e falha interna; entrada mínima antes de qualquer trabalho (corpo acima de 2 KiB, JSON inválido ou campo faltando respondem igual).
 - **Limite de tentativas, em memória, sem DynamoDB** (R29): por par (pessoa, origem), 10 falhas por hora bloqueiam o par por 1 hora, e por origem, 30 chamadas por minuto. A origem é `r.RequestContext.HTTP.SourceIP` do evento da Function URL, **nunca** cabeçalho (`x-forwarded-for` é de quem chama). A rota **só grava no DynamoDB ao usar um código válido**: e-mail sem conta, formato de código inválido, par bloqueado e código errado não gravam nada, e e-mail sem conta nem lê. Um código vale uma vez, mesmo sob concorrência (escrita condicional), e a marca de usado é desfeita se o Cognito falhar, para um código não ser queimado por falha do Cognito. A comparação do hash é em tempo constante.
 - O código só vale para o **usuário (`sub`) a que foi gerado**; o código de uma pessoa nunca desliga o MFA de outra.
+
+**O webhook do Telegram (a segunda rota pública; item 66, fase 2, [`specs/telegram-vinculo/spec.md`](specs/telegram-vinculo/spec.md), R3 a R10).**
+- `POST /telegram/webhook` chega sem token do Cognito. **A barreira é o segredo** que o Telegram manda no cabeçalho `x-telegram-bot-api-secret-token`, comparado **em tempo constante** (pelos SHA-256) com o parâmetro `/financas/<amb>/telegram-webhook-secret` do SSM, lido com **cache de no máximo 5 minutos** (rodar o script de registro de novo gera outro segredo). **Falha fechada:** sem segredo configurado, ou cabeçalho ausente, vazio ou diferente, a resposta é `401 {"erro":"nao autenticado"}` **antes de ler o corpo e de qualquer acesso ao DynamoDB**. Ao que o segredo autenticou o webhook responde sempre `200`, e o corpo nunca diz se um código existiu.
+- **Entrada mínima:** corpo acima de 16 KiB, JSON inválido, atualização sem `message` ou `text` e chat que não é privado respondem `200 {}` sem trabalho; o mesmo `update_id` na mesma instância é ignorado (o Telegram reenvia se a Lambda demora). O código de vínculo é conferido do mais barato ao mais caro: **formato** (sem tocar o banco), **limite de 10 tentativas por hora por chat** (em memória), **leitura** (1 RCU, **sem escrita** para um código que não existe: a tabela tem 5 WCU) e **exclusão condicional** (o código vale uma vez, mesmo sob concorrência) antes de gravar o chat id.
+- **O código** tem 43 caracteres: o `sub` empacotado em 16 bytes (**não é segredo**) e 16 bytes aleatórios (128 bits); só o SHA-256 do aleatório fica no banco, em **um item por pessoa** (`USER#<sub>` / `LINK#telegram`, que o próximo código substitui), válido por 10 minutos. Gerar o link é limitado a 5 por hora por pessoa (em memória, melhor esforço).
+- **O chat id vem só do Telegram**, nunca do corpo de uma rota autenticada. **Religar avisa o chat antigo** com um texto fixo, para um link vazado não trocar o destino em silêncio. A confirmação "Ligado ✓" leva o apelido que a própria pessoa deu ao vínculo (exceção pequena à privacidade por padrão, decisão D6). **Nenhuma linha de log leva chat id, texto da mensagem, código, `sub`, `sid`, segredo nem corpo**; o rótulo é `acao=telegram.webhook rota=telegram`.
+- **Quem toca num link alheio** passa a receber a contagem do espaço de quem o gerou; só o bloqueio do bot para na hora, e as mensagens cessam na rotina das 8h seguinte (`403` apaga o destino). `/parar` não apaga o destino (D2: sem índice reverso).
 
 Dois detalhes que contam:
 - **Registro sem `criadoPor` não é de ninguém:** só o owner mexe nele (`ehDono`).
@@ -122,8 +130,11 @@ só existe no front não protege nada (veja [`arquitetura.md`](arquitetura.md)).
   `.ai/specs/**/*.json`, que são fictícios), `web/config.js`, `web/config.dev.js` e `samconfig.toml`. Exportações reais
   ficam em `/local/`, também ignorado.
 - O ambiente `dev` usa **dados fictícios** (`scripts/dados-ficticios.py`), em stack, tabela e login próprios.
-- **Telegram é um terceiro:** o resumo diário leva a **descrição, o valor e o banco** dos lançamentos futuros para o chat
-  de cada pessoa. É uma escolha de produto (os avisos), mas significa que esses dados saem da AWS.
+- **Telegram é um terceiro, e só recebe a contagem (item 66, fase 1; decisão do dono, 2026-11-20):** o aviso diário leva uma linha
+  (`2 atrasados · 1 vence hoje · 3 a vencer`), **sem descrição, valor, meio de pagamento, data de vencimento nem nome de espaço ou de
+  pessoa**, como o push. Antes ele levava a descrição, o valor e o banco de cada lançamento futuro, e isso saía da AWS; deixou de sair.
+  A rotina agrupa por **pessoa e destino**: duas pessoas que dividem um chat ou um token recebem mensagens separadas, e uma nunca vê a
+  contagem da outra. **O chat id deixou de ser digitado (item 66, fase 3):** `PUT /perfil` recusa um `telegramChatId` não vazio (`400`) e só o vínculo por link o grava, com o `chat.id` que o próprio Telegram mandou; `GET /me` **não devolve mais o chat id** (só `canais: {telegram, push}`), então ele nunca chega ao navegador nem fica no aparelho (o `financas.telegram` de antes é apagado ao abrir o app). Um front antigo, em cache ou instalado, que ainda mande o Id recebe `400` até atualizar. Um erro do Telegram nunca leva ao log o token, a URL, o corpo da resposta nem o chat id.
 - **Logs** (CloudWatch, retenção de 14 dias): pelo que o código faz hoje, registram `sub`, papel e ação nas negações,
   contagens da rotina de avisos e mensagens de erro. Nenhum `log` imprime token, e-mail ou corpo da requisição; a regra é
   manter assim (veja "Regras ao mexer").
@@ -135,7 +146,8 @@ só existe no front não protege nada (veja [`arquitetura.md`](arquitetura.md)).
 - **Nenhuma chave de acesso AWS no CI:** o GitHub Actions troca o token OIDC por credenciais temporárias.
 - Segredo **nunca** em prompt, chat, commit, linha de comando ou log. Se aparecer, revogar (para o bot: `/revoke` no
   BotFather e gravar o novo no SSM).
-- Os dois ambientes usam o **mesmo bot**; as mensagens do dev começam com `[DEV]`.
+- **Um bot por ambiente (item 66, R27):** um bot do Telegram aceita **um webhook só**, então o `dev` e a produção **não podem dividir o bot** (registrar o webhook do `dev` tiraria o da produção do ar). Cada ambiente tem o token em `/financas/<ambiente>/telegram-token`, o segredo do webhook em `/financas/<ambiente>/telegram-webhook-secret` (SecureString) e o usuário do bot em `/financas/<ambiente>/telegram-bot-usuario` (texto), gravados por `scripts/guardar-telegram.ps1` e `scripts/registrar-webhook-telegram.ps1`, **que só o dono roda** (o segundo recusa um bot que já tem outro webhook). **Enquanto o dono não criar o bot do `dev` e rodar os scripts, o link responde `503` e o webhook recusa tudo** (falha fechada). As mensagens do dev começam com `[DEV]`.
+- A Lambda só lê esses três parâmetros (uma `SSMParameterReadPolicy` do nome exato para cada um), como já fazia com o token.
 
 ## Infraestrutura
 - **Front:** S3 privado (bloqueio total de acesso público) servido só pelo CloudFront via OAC; a política do bucket aceita
@@ -177,14 +189,14 @@ manual.
 | Role de dev alcança pool e CloudFront de prod pelas ações listadas | Proteção é o `environment` dev só aceitar a `develop` | `infra/github-oidc.yaml` |
 | `excluirDoTotal` montado pelo front a partir do nome do status | **Fechada na fase A do item 41 (2026-10-24):** o servidor calcula `excluirDoTotal` pelo catálogo e o valor do corpo é descartado; o front ainda o envia, ignorado | item 41 (fase C tira o envio) |
 | Campos opcionais do lançamento gravados como vêm | Valor inesperado persiste. **`faturaAjuste` já é validado** (só `-1`, `0` ou `+1`, e só em crédito; item 33a, fase A, 2026-10-24); os outros campos opcionais seguem como vêm | itens 33 e 41 |
-| Resumo do Telegram acima de 4096 caracteres | **Fechada no item 34:** o canal divide em partes de até 4000 letras | item 28, item 34 |
+| Resumo do Telegram acima de 4096 caracteres | **Fechada no item 34 e superada no item 66:** o resumo é uma linha de contagem, sem divisão em partes | item 28, item 34, item 66 |
 
 ## Regras ao mexer (propostas, a confirmar com o dono)
 - **Rota nova exige ação nova** em `auth/authz.go`, com o que owner e member podem, **e teste** em `auth/authz_test.go`, **e uma linha em [`api.md`](api.md)**
   (o índice das rotas; `backend/api_doc_test.go` falha o `go test ./...` se a rota existir sem linha, se a linha não existir no código ou se a ação ou o papel divergirem de `auth.Permitido`). Nunca
   liberar por padrão.
 - **Não afrouxar a validação do token** (`algoritmo`, `iss`, `aud`, `exp`, `token_use`) nem passar a aceitar o access token
-  sem decisão do dono. A única exceção ao "sem token é `401`" é `auth.RotaPublica` (hoje, no desenho do MFA, só `POST /mfa/recuperar`), por método e caminho exatos, **antes** do `VerificarToken`, sem mexer nele.
+  sem decisão do dono. As únicas exceções ao "sem token é `401`" são as de `auth.RotaPublica` (hoje `POST /mfa/recuperar` e `POST /telegram/webhook`), por método e caminho exatos, **antes** do `VerificarToken`, sem mexer nele.
   Qualquer rota nova sem token exige decisão do dono, ação própria, e teste de que nenhuma outra rota ganhou a liberação.
 - **Toda escrita confere o papel no servidor**, mesmo que o front já esconda o botão.
 - **O cliente nunca manda número derivado como verdade** (decisão de 2026-10-18). Saldo, cache de fechamento, totais,

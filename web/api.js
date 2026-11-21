@@ -85,6 +85,7 @@
     if (!lista.length) { const e = new Error('Sua conta ainda nao tem um espaco. Rode scripts/seed.sh.'); e.codigo = 'sem_espaco'; throw e; }
     const guardado = localStorage.getItem('financas.space');
     ESPACO = lista.find((e) => e.id === guardado) || lista[0];
+    ESPACO.canais = canaisDe(ESPACO);
     ESPACOS = lista;
     return ESPACO;
   }
@@ -100,11 +101,25 @@
     return ESPACO.apelido;
   }
 
-  // Chat id do Telegram de quem esta logado (para onde vao os avisos). Vazio desvincula.
-  async function definirTelegram(chatId) {
-    const { body } = await api('PUT', (await base()) + '/perfil', { telegramChatId: String(chatId || '').trim() });
-    ESPACO.telegramChatId = body.telegramChatId || '';
-    return ESPACO.telegramChatId;
+  // Telegram ligado por link (spec .ai/specs/telegram-vinculo, R3, R14 e R17). O chat id nunca chega ao navegador: GET /me so diz, por espaco, se ha canal
+  // ligado (canais: {telegram, push}, booleanos). O front so exibe isso; quem decide quem recebe e o servidor.
+  const canaisDe = (e) => { const c = (e && e.canais) || {}; return { telegram: !!c.telegram, push: !!c.push }; };
+  // Pede o link ao servidor (so no toque; a pessoa gera um por vez). Erros: 503 (bot nao configurado), 429 (links demais na hora); a frase e do servidor.
+  async function gerarLinkTelegram() {
+    const { body } = await api('POST', (await base()) + '/telegram/vinculo');
+    return body; // { url, expiraEm }
+  }
+  // Relê GET /me e atualiza so o estado dos canais do espaco atual (depois do Iniciar, ao voltar ao app e depois de desligar).
+  async function recarregarCanais() {
+    const { body } = await api('GET', '/me');
+    const e = (body.espacos || []).find((x) => ESPACO && x.id === ESPACO.id);
+    if (e && ESPACO) ESPACO.canais = canaisDe(e);
+    return canaisDe(ESPACO);
+  }
+  // Desligar: o chat id vazio apaga o destino do servidor (PUT /perfil, R15).
+  async function desligarTelegram() {
+    await api('PUT', (await base()) + '/perfil', { telegramChatId: '' });
+    ESPACO.canais = Object.assign(canaisDe(ESPACO), { telegram: false });
   }
   // canal: so "push" (aparelhos da pessoa neste espaco); sem ele e o Telegram, como sempre. O texto da frase vem do servidor.
   async function testarAviso(canal) {
@@ -641,8 +656,10 @@
     sair: () => Promise.resolve().then(() => Sessao.sair()).catch(() => {}), // no app, a falha aparece na Abertura
     entrar: () => Promise.resolve().then(() => Sessao.entrar()).catch(() => {}),
     definirApelido,
-    telegramChatId: () => (ESPACO && ESPACO.telegramChatId) || '',
-    definirTelegram,
+    canais: () => canaisDe(ESPACO),
+    gerarLinkTelegram,
+    recarregarCanais,
+    desligarTelegram,
     testarAviso,
     mfaEstado,
     mfaGerarLista,

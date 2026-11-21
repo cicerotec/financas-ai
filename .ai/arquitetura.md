@@ -58,8 +58,8 @@ backend/
   auth/          token do Cognito (token.go) e permissões por papel (authz.go)
   repository/    adaptador DynamoDB: dynamo.go (a interface do cliente e as chaves), lancamento.go (inclui a listagem),
                  espacos.go (papel e espaços da pessoa), config.go (configurações e aparência), contador.go (o _seq),
-                 perfil.go (apelido e chat id no vínculo), saldos.go (fechamento mensal por banco) e avisos.go (o item auxiliar
-                 dos avisos). É o único lugar com PK, SK e expressões
+                 perfil.go (apelido e chat id no vínculo), saldos.go (fechamento mensal por banco), avisos.go (o item auxiliar
+                 dos avisos) e vinculos.go (o código de vínculo de um canal, `LINK#<canal>`, item 66). É o único lugar com PK, SK e expressões
   service/       regra de uso. Declara as interfaces de que precisa (Repositorio, Efeitos); não importa AWS nem HTTP
   controller/    um controller por assunto: chama o service e traduz o erro em resposta. resposta.go tem o tipo Resp,
                  Out, Erro e a tradução dos erros do service em status HTTP. Não toca o banco
@@ -131,10 +131,11 @@ qual canal está por trás. *(Implementado no item 34 com os nomes `Canal` e `De
 - O core manda **conteúdo estruturado**, não texto formatado. O limite de 4096 caracteres do Telegram (limitação
   conhecida do item 28) vira problema do adaptador do Telegram.
 - Falha de um canal não derruba os outros: `ErrCanalNaoConfigurado` pula o resto dos grupos daquele canal (uma linha de log por rodada). O
-  agrupamento (um resumo por **destino** por dia, juntando os espaços, sem nome de espaço) ficou na rotina, em ordem estável. A idempotência de
+  agrupamento (um resumo por **pessoa e destino** por dia, juntando os espaços da mesma pessoa, sem nome de espaço; pessoas diferentes nunca se misturam, item 66) ficou na rotina, em ordem estável. A idempotência de
   entrega **não foi feita** (aviso em dobro se o agendamento disparar duas vezes), por decisão do item 34.
 - Sem canal assinado, o despachante simplesmente não entrega; o service não tem caso especial.
 - **Canal é vocabulário do controller, do adaptador e do repository, não de `domain` e `service`** (spine de 2026-11-14, [`bmad/arquitetura-avisos-canais.md`](bmad/arquitetura-avisos-canais.md)): texto, limite e divisão da mensagem vivem em `adapter/notificacao/`; o `service` trata o canal como valor opaco (`Testar(ctx, sid, sub, canal)`) e só devolve `ErrCanalNaoConfigurado`, `ErrEntregaFalhou`, `ErrCanalDesconhecido` e `ErrSemDestino`; as frases por canal estão em `controller/avisos.go`. O `arquitetura_test.go` falha se `domain/` ou `service/` nomearem `telegram`, `fcm`, `firebase` ou `push` (exceções fixas e nomeadas no teste).
+  **Item 66 (vínculo do Telegram por link, fase 2):** `service.Vinculos` gera e consome o código de vínculo e trata o canal como valor opaco (nem `telegram`, nem `t.me`, nem `/start`, sem exceção nova no teste de nomes); a URL do link, o parse do update e os textos fixos do bot estão em `controller/telegram.go`, o segredo do webhook e o usuário do bot em `adapter/notificacao/telegram.go`, e a única chave que guarda o código é `repository/vinculos.go`. `GET /me` devolve `canais: {telegram, push}` (booleanos, da mesma `Query` de `EspacosDe`, sem leitura nova).
 
 ## Histórico imutável e versionado
 

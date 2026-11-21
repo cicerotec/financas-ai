@@ -68,7 +68,9 @@ func (r *Espacos) EspacosDe(ctx context.Context, sub string) ([]domain.Espaco, e
 				nome = n
 			}
 		}
-		res = append(res, domain.Espaco{ID: id, Nome: nome, Role: d["role"], Apelido: d["apelido"], TelegramChatID: d["telegramChatId"]})
+		chat, _ := d[campoTelegram].(string)
+		res = append(res, domain.Espaco{ID: id, Nome: nome, Role: d["role"], Apelido: d["apelido"],
+			Canais: domain.CanaisLigados{Telegram: chat != "", Push: len(textosDe(d[campoPush])) > 0}}) // do mesmo item que a Query ja trouxe: nenhuma leitura nova
 	}
 	return res, nil
 }
