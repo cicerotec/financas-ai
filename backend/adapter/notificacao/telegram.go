@@ -17,6 +17,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	ssmtypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
 
 	"financas/domain"
 )
@@ -76,12 +77,21 @@ func (t *Telegram) lerParametro(ctx context.Context, nome string) (string, error
 	}
 	out, err := t.ssm.GetParameter(ctx, &ssm.GetParameterInput{Name: aws.String(nome), WithDecryption: aws.Bool(true)})
 	if err != nil {
-		return "", fmt.Errorf("ler parametro no SSM: %w", err)
+		return "", erroDoParametro("ler parametro no SSM", err)
 	}
 	if out.Parameter == nil || out.Parameter.Value == nil || strings.TrimSpace(*out.Parameter.Value) == "" {
 		return "", domain.ErrCanalNaoConfigurado
 	}
 	return strings.TrimSpace(*out.Parameter.Value), nil
+}
+
+// erroDoParametro: parametro que nao existe e canal nao configurado (o ambiente ainda nao tem bot); qualquer outro erro do SSM e falha de infraestrutura.
+func erroDoParametro(contexto string, err error) error {
+	var ausente *ssmtypes.ParameterNotFound
+	if errors.As(err, &ausente) {
+		return domain.ErrCanalNaoConfigurado
+	}
+	return fmt.Errorf("%s: %w", contexto, err)
 }
 
 // lerComCache devolve o parametro, lido de novo so depois de cacheDoParametro. Valor fora do formato conta como nao configurado (falha fechada).
@@ -137,7 +147,7 @@ func (t *Telegram) tokenDoBot(ctx context.Context) (string, error) {
 	}
 	out, err := t.ssm.GetParameter(ctx, &ssm.GetParameterInput{Name: aws.String(t.param), WithDecryption: aws.Bool(true)})
 	if err != nil {
-		return "", fmt.Errorf("ler token no SSM: %w", err)
+		return "", erroDoParametro("ler token no SSM", err)
 	}
 	if out.Parameter == nil || out.Parameter.Value == nil || strings.TrimSpace(*out.Parameter.Value) == "" {
 		return "", domain.ErrCanalNaoConfigurado
