@@ -103,7 +103,7 @@ func TestRotinaAvisaAFatura(t *testing.T) {
 	}
 	n, _ := rodarAvisos(context.Background(), agoraBR("2026-11-04"))
 	if n != 1 || len(*env) != 1 || (*env)[0].chat != "111111" ||
-		(*env)[0].texto != "🔔 Avisos de 04/11/2026: 1 a vencer. Abra o app para ver o que é cada um." {
+		(*env)[0].texto != "🔔 Avisos de 04/11/2026: 1 vence amanhã. Abra o app para ver o que é cada um." {
 		t.Fatalf("1 dia antes: %d %v", n, *env)
 	}
 	*env = nil
@@ -181,7 +181,7 @@ func TestResumoJuntaFaturaELancamento(t *testing.T) {
 	esperar(t, "criar", c, 201)
 	env := trocaEnvio(t, nil)
 	n, _ := rodarAvisos(context.Background(), agoraBR("2026-11-04"))
-	if n != 1 || len(*env) != 1 || !strings.Contains((*env)[0].texto, "2 a vencer") {
+	if n != 1 || len(*env) != 1 || !strings.Contains((*env)[0].texto, "2 vencem amanhã") {
 		t.Errorf("uma mensagem com os dois, somados na contagem: %d %v", n, *env)
 	}
 	for _, proibido := range []string{"Fatura", "out/26", "CARTAO-A", "135", "Condominio", "480", "ITAU"} {

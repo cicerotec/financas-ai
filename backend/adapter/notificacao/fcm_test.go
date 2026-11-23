@@ -109,7 +109,7 @@ func TestPushSoTemAContagem(t *testing.T) {
 		}
 	}
 	n := f.envios[0]["message"].(map[string]any)["notification"].(map[string]any)
-	if n["title"] != "Finanças" || n["body"] != "2 atrasados · 1 vence hoje · 2 a vencer" {
+	if n["title"] != "Finanças" || n["body"] != "2 atrasados · 1 vence hoje · 2 vencem nos próximos dias" {
 		t.Errorf("notificacao = %v", n)
 	}
 }
@@ -122,7 +122,11 @@ func TestTextoDoPushSingularPluralMarcaEZero(t *testing.T) {
 		{domain.ContagemAvisos{Atrasados: 1}, "Finanças", "1 atrasado"},
 		{domain.ContagemAvisos{Hoje: 1}, "Finanças", "1 vence hoje"},
 		{domain.ContagemAvisos{Hoje: 3}, "Finanças", "3 vencem hoje"},
-		{domain.ContagemAvisos{AVencer: 4, Marca: "[DEV] "}, "[DEV] Finanças", "4 a vencer"},
+		{domain.ContagemAvisos{Amanha: 1}, "Finanças", "1 vence amanhã"},
+		{domain.ContagemAvisos{Amanha: 2}, "Finanças", "2 vencem amanhã"},
+		{domain.ContagemAvisos{Proximos: 1}, "Finanças", "1 vence nos próximos dias"},
+		{domain.ContagemAvisos{Proximos: 4, Marca: "[DEV] "}, "[DEV] Finanças", "4 vencem nos próximos dias"},
+		{domain.ContagemAvisos{Atrasados: 1, Hoje: 1, Amanha: 2, Proximos: 3}, "Finanças", "1 atrasado · 1 vence hoje · 2 vencem amanhã · 3 vencem nos próximos dias"},
 		{domain.ContagemAvisos{Teste: true, Marca: "[DEV] "}, "[DEV] Finanças", "Teste: os avisos vão chegar aqui."},
 	} {
 		if titulo, corpo := TextoDoPush(c.in); titulo != c.titulo || corpo != c.body {

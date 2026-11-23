@@ -41,10 +41,10 @@ func TestRotinaSpacesDaMesmaPessoaNoMesmoChatViramUmaMensagem(t *testing.T) {
 		t.Fatalf("rodarAvisos = (%d, %v), esperado 2 resumos (um por pessoa)", n, err)
 	}
 	porChat := mensagensPorChat(*env)
-	if got := porChat["222222"]; len(got) != 1 || !strings.Contains(got[0], "2 a vencer") {
+	if got := porChat["222222"]; len(got) != 1 || !strings.Contains(got[0], "2 vencem nos próximos dias") {
 		t.Errorf("mem tem dois spaces no mesmo chat: uma mensagem com 2 a vencer, recebeu %q", got)
 	}
-	if got := porChat["111111"]; len(got) != 1 || !strings.Contains(got[0], "1 a vencer") {
+	if got := porChat["111111"]; len(got) != 1 || !strings.Contains(got[0], "1 vence nos próximos dias") {
 		t.Errorf("own so tem o s1: 1 a vencer, recebeu %q", got)
 	}
 	for _, e := range *env {
@@ -71,9 +71,9 @@ func TestRotinaPessoasDiferentesNoMesmoChatNuncaSeMisturam(t *testing.T) {
 	somaDeAVencer := 0
 	for _, m := range got {
 		switch {
-		case strings.Contains(m, "2 a vencer"):
+		case strings.Contains(m, "2 vencem nos próximos dias"):
 			somaDeAVencer += 2
-		case strings.Contains(m, "1 a vencer"):
+		case strings.Contains(m, "1 vence nos próximos dias"):
 			somaDeAVencer++
 		}
 	}
@@ -81,7 +81,7 @@ func TestRotinaPessoasDiferentesNoMesmoChatNuncaSeMisturam(t *testing.T) {
 		t.Errorf("mensagens = %q: esperada uma com 1 e outra com 2 a vencer", got)
 	}
 	for _, m := range got {
-		if strings.Contains(m, "3 a vencer") {
+		if strings.Contains(m, "3 vencem nos próximos dias") {
 			t.Errorf("uma mensagem somou as linhas das duas pessoas: %q", m)
 		}
 	}

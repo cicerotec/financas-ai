@@ -46,7 +46,7 @@ ou do `dev` é marcado **[aparelho]** ou **[dev]** e entra como roteiro manual n
 
 ### Conteúdo
 
-- **R18. Só a contagem.** `domain.Contagens(r)` devolve **só inteiros** (`Atrasados`, `Hoje`, `AVencer`) mais a marca e o `Teste`, e é a única coisa do resumo que o `fcm.go` lê; **o texto é montado em `fcm.go`** (AD-1 e AD-3). O corpo tem **só contagens** por situação: `N atrasado(s)`, `N vence(m) hoje`, `N a vencer`, na ordem atrasados, hoje, a vencer, separados por ` · `, omitindo o que for
+- **R18. Só a contagem.** `domain.Contagens(r)` devolve **só inteiros** (`Atrasados`, `Hoje`, `Amanha`, `Proximos`) mais a marca e o `Teste`, e é a única coisa do resumo que o `fcm.go` lê; **o texto é montado em `fcm.go`** (AD-1 e AD-3). O corpo tem **só contagens** por situação: `N atrasado(s)`, `N vence(m) hoje`, `N vence(m) amanhã` (falta 1 dia), `N vence(m) nos próximos dias` (os demais), na ordem atrasados, hoje, amanhã, próximos dias, separados por ` · `, omitindo o que for
   zero. O título é `Finanças` (`[DEV] Finanças` no `dev`, pela marca do ambiente). **Nenhuma descrição, valor, meio de pagamento, data, id, nome de espaço ou nome de pessoa** entra no texto, **mesmo que as linhas os tenham**.
   Entradas (a receber) contam na mesma situação do vencimento. O teste de aviso vira "Teste: os avisos vão chegar aqui.".
 

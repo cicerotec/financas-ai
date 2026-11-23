@@ -30,7 +30,7 @@ func TestF4RotinaLeODiaPeloRelogio(t *testing.T) {
 		t.Fatalf("07/10 em SP: enviados=%v err=%v, esperado 2", d["enviados"], err)
 	}
 	for _, e := range *env {
-		if !strings.Contains(e.texto, "Avisos de 07/10/2026") || !strings.Contains(e.texto, "1 a vencer") {
+		if !strings.Contains(e.texto, "Avisos de 07/10/2026") || !strings.Contains(e.texto, "1 vence nos próximos dias") {
 			t.Errorf("resumo inesperado: %q", e.texto)
 		}
 	}
@@ -92,7 +92,7 @@ func TestF4PessoasDiferentesNoMesmoChatRecebemMensagensSeparadas(t *testing.T) {
 		t.Fatalf("enviados=%d mensagens=%d err=%v, esperado 2 e 2 (uma por pessoa)", n, len(*env), err)
 	}
 	for _, e := range *env {
-		if e.chat != "111111" || !strings.Contains(e.texto, "1 a vencer") || strings.Contains(e.texto, "2 a vencer") {
+		if e.chat != "111111" || !strings.Contains(e.texto, "1 vence nos próximos dias") || strings.Contains(e.texto, "2 vencem nos próximos dias") {
 			t.Errorf("cada pessoa recebe a propria contagem, sem somar a da outra: %v", e)
 		}
 	}
