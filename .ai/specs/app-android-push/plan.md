@@ -30,7 +30,7 @@ levantou e **não a substitui**. O que o Firebase exige foi lido na documentaç�
 - **Rotas** (todas do próprio chamador; o `sub` vem do token, nunca do corpo):
   `PUT /spaces/{sid}/push` registra `{"token"}`; `POST /spaces/{sid}/push/remover` tira `{"token"}` daquele espaço; `POST /push/sair` tira `{"token"}` de **todos** os espaços da pessoa. Nenhuma devolve token.
 - **Canal `push` (`adapter/notificacao/fcm.go`).** `Nome()` é `"push"`. Formata **só a contagem**, no próprio `fcm.go`, a partir de `domain.Contagens` (**só inteiros**; AD-1 e AD-3): título `Finanças` (com `[DEV] ` no `dev`), corpo
-  `2 atrasados · 1 vence hoje · 3 a vencer` (some o que for zero). `ResumoAvisos{Teste: true}` vira "Teste: os avisos vão chegar aqui.".
+  `2 atrasados · 1 vence hoje · 1 vence amanhã · 2 vencem nos próximos dias` (some o que for zero). `ResumoAvisos{Teste: true}` vira "Teste: os avisos vão chegar aqui.".
 - **Autenticação no Firebase, sem biblioteca nova.** A credencial é o JSON da conta de serviço, no SSM (`FCM_CREDENCIAL_PARAM`, SecureString). O canal monta o JWT (RS256, `iss` = e-mail da conta, escopo
   `https://www.googleapis.com/auth/firebase.messaging`, `aud` = `https://oauth2.googleapis.com/token`, validade de até 1 h), troca por um token de acesso no endpoint de token (`grant_type` do tipo `jwt-bearer`) e o
   guarda em cache até pouco antes de vencer. O `project_id` vem do mesmo JSON. Depois envia `POST https://fcm.googleapis.com/v1/projects/<project_id>/messages:send` com `Authorization: Bearer`.

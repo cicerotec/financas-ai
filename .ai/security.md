@@ -131,7 +131,7 @@ só existe no front não protege nada (veja [`arquitetura.md`](arquitetura.md)).
   ficam em `/local/`, também ignorado.
 - O ambiente `dev` usa **dados fictícios** (`scripts/dados-ficticios.py`), em stack, tabela e login próprios.
 - **Telegram é um terceiro, e só recebe a contagem (item 66, fase 1; decisão do dono, 2026-11-20):** o aviso diário leva uma linha
-  (`2 atrasados · 1 vence hoje · 3 a vencer`), **sem descrição, valor, meio de pagamento, data de vencimento nem nome de espaço ou de
+  (`2 atrasados · 1 vence hoje · 1 vence amanhã · 2 vencem nos próximos dias`), **sem descrição, valor, meio de pagamento, data de vencimento nem nome de espaço ou de
   pessoa**, como o push. Antes ele levava a descrição, o valor e o banco de cada lançamento futuro, e isso saía da AWS; deixou de sair.
   A rotina agrupa por **pessoa e destino**: duas pessoas que dividem um chat ou um token recebem mensagens separadas, e uma nunca vê a
   contagem da outra. **O chat id deixou de ser digitado (item 66, fase 3):** `PUT /perfil` recusa um `telegramChatId` não vazio (`400`) e só o vínculo por link o grava, com o `chat.id` que o próprio Telegram mandou; `GET /me` **não devolve mais o chat id** (só `canais: {telegram, push}`), então ele nunca chega ao navegador nem fica no aparelho (o `financas.telegram` de antes é apagado ao abrir o app). Um front antigo, em cache ou instalado, que ainda mande o Id recebe `400` até atualizar. Um erro do Telegram nunca leva ao log o token, a URL, o corpo da resposta nem o chat id.

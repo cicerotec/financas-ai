@@ -21,7 +21,7 @@ func linhasCheias() []domain.LinhaAviso {
 func TestTextoDoTelegramEhSoAContagem(t *testing.T) {
 	r := domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhasCheias()}
 	got := TextoDoTelegram(r)
-	want := "🔔 Avisos de 07/10/2026: 2 atrasados · 1 vence hoje · 1 a vencer. Abra o app para ver o que é cada um."
+	want := "🔔 Avisos de 07/10/2026: 2 atrasados · 1 vence hoje · 1 vence nos próximos dias. Abra o app para ver o que é cada um."
 	if got != want {
 		t.Errorf("texto = %q, esperado %q", got, want)
 	}
@@ -35,13 +35,15 @@ func TestTextoDoTelegramEhSoAContagem(t *testing.T) {
 
 func TestTextoDoTelegramSingularPluralEZeroSome(t *testing.T) {
 	casos := map[string][]domain.LinhaAviso{
-		"1 atrasado":     {{Kind: domain.AvisoAtrasado}},
-		"2 atrasados":    {{Kind: domain.AvisoAtrasado}, {Kind: domain.AvisoAtrasado}},
-		"1 vence hoje":   {{Kind: domain.AvisoHoje}},
-		"3 vencem hoje":  {{Kind: domain.AvisoHoje}, {Kind: domain.AvisoHoje}, {Kind: domain.AvisoHoje}},
-		"1 a vencer":     {{Kind: domain.AvisoAntes}},
-		"4 a vencer":     {{Kind: domain.AvisoAntes}, {Kind: domain.AvisoAntes}, {Kind: domain.AvisoAntes}, {Kind: domain.AvisoAntes}},
-		"1 vence hoje · 1 a vencer": {{Kind: domain.AvisoAntes}, {Kind: domain.AvisoHoje}},
+		"1 atrasado":                 {{Kind: domain.AvisoAtrasado}},
+		"2 atrasados":                {{Kind: domain.AvisoAtrasado}, {Kind: domain.AvisoAtrasado}},
+		"1 vence hoje":               {{Kind: domain.AvisoHoje}},
+		"3 vencem hoje":              {{Kind: domain.AvisoHoje}, {Kind: domain.AvisoHoje}, {Kind: domain.AvisoHoje}},
+		"1 vence amanhã":             {{Kind: domain.AvisoAntes, N: 1}},
+		"2 vencem amanhã":            {{Kind: domain.AvisoAntes, N: 1}, {Kind: domain.AvisoAntes, N: 1}},
+		"1 vence nos próximos dias":  {{Kind: domain.AvisoAntes, N: 3}},
+		"4 vencem nos próximos dias": {{Kind: domain.AvisoAntes, N: 2}, {Kind: domain.AvisoAntes, N: 3}, {Kind: domain.AvisoAntes, N: 7}, {Kind: domain.AvisoAntes, N: 30}},
+		"1 vence hoje · 1 vence amanhã · 1 vence nos próximos dias": {{Kind: domain.AvisoAntes, N: 5}, {Kind: domain.AvisoHoje}, {Kind: domain.AvisoAntes, N: 1}},
 	}
 	for contagem, linhas := range casos {
 		got := TextoDoTelegram(domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhas})
@@ -52,15 +54,15 @@ func TestTextoDoTelegramSingularPluralEZeroSome(t *testing.T) {
 	}
 	// o que e zero nao aparece
 	got := TextoDoTelegram(domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: []domain.LinhaAviso{{Kind: domain.AvisoHoje}}})
-	if strings.Contains(got, "atrasado") || strings.Contains(got, "a vencer") || strings.Contains(got, "0 ") {
+	if strings.Contains(got, "atrasado") || strings.Contains(got, "amanhã") || strings.Contains(got, "próximos") || strings.Contains(got, "0 ") {
 		t.Errorf("zero deveria sumir: %q", got)
 	}
 }
 
 func TestTextoDoTelegramEntradasContamNaSituacaoDoVencimento(t *testing.T) {
-	linhas := []domain.LinhaAviso{{Kind: domain.AvisoAtrasado, Tipo: "entrada"}, {Kind: domain.AvisoHoje, Tipo: "entrada"}, {Kind: domain.AvisoAntes, Tipo: "entrada"}}
+	linhas := []domain.LinhaAviso{{Kind: domain.AvisoAtrasado, Tipo: "entrada"}, {Kind: domain.AvisoHoje, Tipo: "entrada"}, {Kind: domain.AvisoAntes, N: 1, Tipo: "entrada"}}
 	got := TextoDoTelegram(domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhas})
-	if !strings.Contains(got, "1 atrasado · 1 vence hoje · 1 a vencer") {
+	if !strings.Contains(got, "1 atrasado · 1 vence hoje · 1 vence amanhã") {
 		t.Errorf("as entradas contam como as saidas: %q", got)
 	}
 }
@@ -96,7 +98,7 @@ func TestTextoDoTelegramEhUmaMensagemCurtaPorMaiorQueSejaALista(t *testing.T) {
 	if n := len([]rune(got)); n > 200 || strings.Contains(got, "\n") || strings.Contains(got, "(1/") {
 		t.Errorf("deveria ser uma mensagem curta e sem partes (%d letras): %q", n, got)
 	}
-	if !strings.Contains(got, "500 a vencer") {
+	if !strings.Contains(got, "500 vencem nos próximos dias") {
 		t.Errorf("a contagem some: %q", got)
 	}
 }

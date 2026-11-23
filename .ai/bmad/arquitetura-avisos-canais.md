@@ -80,7 +80,7 @@ graph TD
 
 - **Binds:** R18, P-T7, `fcm.go`.
 - **Prevents:** duas versões da contagem; o adaptador do push ler descrição, valor ou meio de pagamento por conveniência.
-- **Rule:** `domain.Contagens(ResumoAvisos)` devolve só inteiros (`Atrasados`, `Hoje`, `AVencer`) mais `Marca` e `Teste`, e é a função que `fcm.go` usa do resumo. Entradas contam na situação do vencimento. A garantia de R18 é o P-T7 (que passa a testar o `fcm.go`); um teste de arquitetura que proíbe `LinhaAviso` em `fcm.go` é reforço, não garantia, porque não pega `r.Linhas[i].Descricao`.
+- **Rule:** `domain.Contagens(ResumoAvisos)` devolve só inteiros (`Atrasados`, `Hoje`, `Amanha`, `Proximos`) mais `Marca` e `Teste`, e é a função que `fcm.go` usa do resumo. Entradas contam na situação do vencimento. A garantia de R18 é o P-T7 (que passa a testar o `fcm.go`); um teste de arquitetura que proíbe `LinhaAviso` em `fcm.go` é reforço, não garantia, porque não pega `r.Linhas[i].Descricao`.
 
 ### AD-4 — Um dono para o mapa canal ↔ campo do vínculo
 

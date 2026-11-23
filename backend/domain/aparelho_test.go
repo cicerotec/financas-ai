@@ -23,13 +23,13 @@ func TestTokenAparelhoValido(t *testing.T) {
 
 func TestContagensSoTemInteiros(t *testing.T) {
 	r := ResumoAvisos{Marca: "[DEV] ", Linhas: []LinhaAviso{
-		{Kind: AvisoAtrasado}, {Kind: AvisoAtrasado, Tipo: "entrada"}, {Kind: AvisoHoje}, {Kind: AvisoAntes}, {Kind: AvisoAntes},
+		{Kind: AvisoAtrasado}, {Kind: AvisoAtrasado, Tipo: "entrada"}, {Kind: AvisoHoje}, {Kind: AvisoAntes, N: 1}, {Kind: AvisoAntes, N: 3}, {Kind: AvisoAntes, N: 7},
 	}}
 	c := Contagens(r)
-	if c.Atrasados != 2 || c.Hoje != 1 || c.AVencer != 2 || c.Marca != "[DEV] " || c.Teste {
+	if c.Atrasados != 2 || c.Hoje != 1 || c.Amanha != 1 || c.Proximos != 2 || c.Marca != "[DEV] " || c.Teste {
 		t.Errorf("contagens = %+v", c)
 	}
-	if c := Contagens(ResumoAvisos{Teste: true}); !c.Teste || c.Atrasados+c.Hoje+c.AVencer != 0 {
+	if c := Contagens(ResumoAvisos{Teste: true}); !c.Teste || c.Atrasados+c.Hoje+c.Amanha+c.Proximos != 0 {
 		t.Errorf("teste = %+v", c)
 	}
 }
