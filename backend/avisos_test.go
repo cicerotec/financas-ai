@@ -123,7 +123,7 @@ func TestTextoDoTelegramSoTemAContagem(t *testing.T) {
 		{Kind: avisoHoje, Venc: "2026-10-07", Tipo: "entrada", Descricao: "Aluguel", Valor: 2500, Banco: "ITAU"},
 	}
 	r := notificacao.TextoDoTelegram(domain.ResumoAvisos{Hoje: "2026-10-07", Linhas: linhas})
-	if r != "🔔 Avisos de 07/10/2026: 1 atrasado · 1 vence hoje · 1 a vencer. Abra o app para ver o que é cada um." {
+	if r != "🔔 Avisos de 07/10/2026: 1 atrasado · 1 vence hoje · 1 vence nos próximos dias. Abra o app para ver o que é cada um." {
 		t.Errorf("texto inesperado: %q", r)
 	}
 }
@@ -288,7 +288,7 @@ func TestRotinaAvisaCriadorEDonoUmaVezCada(t *testing.T) {
 		chats[e.chat] = e.texto
 	}
 	for _, chat := range []string{"111111", "222222"} {
-		if chats[chat] != "🔔 Avisos de 07/10/2026: 1 a vencer. Abra o app para ver o que é cada um." {
+		if chats[chat] != "🔔 Avisos de 07/10/2026: 1 vence nos próximos dias. Abra o app para ver o que é cada um." {
 			t.Errorf("chat %s recebeu %q", chat, chats[chat])
 		}
 		for _, proibido := range []string{"Conta de luz", "230", "ITAU", "10/10/2026"} {

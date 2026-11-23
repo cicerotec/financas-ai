@@ -21,11 +21,12 @@ const (
 
 // ContagemAvisos e tudo o que um canal que NAO mostra os detalhes (o push) pode ler de um resumo: so inteiros, a marca do ambiente e se
 // e teste. Descricao, valor, meio de pagamento e data ficam de fora de proposito (decisao do dono, 2026-11-13: a notificacao aparece na
-// tela bloqueada). Entradas (a receber) contam na situacao do vencimento, como as saidas.
+// tela bloqueada). Entradas (a receber) contam na situacao do vencimento, como as saidas. Os a vencer se dividem em Amanha (falta 1 dia) e
+// Proximos (os demais): "1 a vencer" sozinho nao diz se e amanha ou daqui a uma semana, e "amanha" nao expoe a data.
 type ContagemAvisos struct {
-	Atrasados, Hoje, AVencer int
-	Marca                    string
-	Teste                    bool
+	Atrasados, Hoje, Amanha, Proximos int
+	Marca                             string
+	Teste                             bool
 }
 
 // Contagens conta as linhas do resumo por situacao do vencimento.
@@ -38,7 +39,11 @@ func Contagens(r ResumoAvisos) ContagemAvisos {
 		case AvisoHoje:
 			c.Hoje++
 		default:
-			c.AVencer++
+			if l.N == 1 {
+				c.Amanha++
+			} else {
+				c.Proximos++
+			}
 		}
 	}
 	return c

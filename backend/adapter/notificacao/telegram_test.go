@@ -212,7 +212,7 @@ func TestEnviarMandaUmaMensagemSoComAContagem(t *testing.T) {
 		t.Fatalf("esperada 1 mensagem, saiu %d", len(*caminhos))
 	}
 	c := (*corpos)[0]
-	if c["chat_id"] != "111111" || c["text"] != "🔔 Avisos de 07/10/2026: 100 a vencer. Abra o app para ver o que é cada um." {
+	if c["chat_id"] != "111111" || c["text"] != "🔔 Avisos de 07/10/2026: 100 vencem nos próximos dias. Abra o app para ver o que é cada um." {
 		t.Errorf("corpo = %v", c)
 	}
 }
