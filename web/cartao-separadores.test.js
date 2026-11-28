@@ -32,7 +32,7 @@ function painel({ dono, cfgAberto, comprasAbertas, pagAberto, pagamentos, histor
     },
     cartoesResumo: { cartoes: [{ meio: 'Bradesco' }] },
     cartaoCfgAberto: cfgAberto, cartaoComprasAberto: comprasAbertas, cartaoPagAberto: pagAberto,
-    cartaoRecSel: null, msgCartao: '', listas: { banco: [] }, ehOwner: () => dono,
+    cartaoRecSel: null, cartaoMarcas: null, msgCartao: '', listas: { banco: [] }, ehOwner: () => dono,
     Recorrencia: { fraseAviso: () => '' }, marcaDesativado: () => '', MESES_NOME: ['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'],
   };
   vm.createContext(ctx);
@@ -50,7 +50,7 @@ for (const dono of [true, false]) for (const aberto of [true, false]) {
   assert.strictEqual(conta(h, /class="cc-sec"/g), dono ? 5 : 4, 'numero de secoes: ' + nome);
   // o titulo que recolhe esta dentro da secao, e a secao fecha depois do corpo: a linha nao depende de estar aberto
   for (const chave of ['compras', 'pag'].concat(dono ? ['cfg'] : [])) {
-    assert.ok(new RegExp('<div class="cc-sec"><button[^>]*data-tg="' + chave + '"').test(h), 'o titulo ' + chave + ' abre a secao: ' + nome);
+    assert.ok(new RegExp('<div class="cc-sec">(<div class="cc-cab">)?<button[^>]*data-tg="' + chave + '"').test(h), 'o titulo ' + chave + ' abre a secao: ' + nome);
   }
   // todo filho direto do painel e uma secao (nada solto entre as linhas)
   const fora = h.replace(/^<div class="sd-painel">/, '').replace(/<div class="cc-sec">[\s\S]*?(?=<div class="cc-sec">|<\/div>$)/g, '');

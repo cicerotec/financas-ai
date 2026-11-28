@@ -46,7 +46,7 @@ Como no Histórico: no modo seleção a **linha** tem `role="checkbox"`, `aria-c
 
 ## Para quem implementa
 
-- A tela segue a [`demo-cartao-v6-conferencia.html`](../../demos/demo-cartao-v6-conferencia.html), gerada da v5; o `padrao-de-telas.md` e o resumo do `guardrails.md` já a registram. Falta implementar em `web/`.
+- A tela segue a [`demo-cartao-v6-conferencia.html`](../../demos/demo-cartao-v6-conferencia.html), gerada da v5; o `padrao-de-telas.md` e o resumo do `guardrails.md` já a registram. Implementado em `web/` em 2026-11-27 (teste: `web/cartao-conferencia.test.js`).
 - A marca é estado em memória ligado ao id do lançamento, como o `selecaoHist`, e só sobrevive a uma nova renderização se o cartão, a fatura e os dados forem os mesmos.
 - A demo `demo-cartao-conferencia.html` desta pasta é o recorte aprovado primeiro; onde divergir deste texto (opacidade, acessibilidade), vale o texto e a v6.
 - API: sem rotas novas.
