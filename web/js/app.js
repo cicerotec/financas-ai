@@ -789,6 +789,7 @@ async function pvSalvarFatura(){
   try{
     if(padrao){
       await db.cartaoConfig(meio, {aviso: aviso || null});
+      apagarMarcas();
       fecharPrever();
       toast(aviso ? '✓ Aviso padrão salvo. Vale para as próximas faturas que ganharem vencimento' : '✓ Aviso padrão desligado');
       msgCartao = 'Salvo ✓';
@@ -1978,7 +1979,11 @@ function setupHandlers(){
     if(!mes.value) mes.value = document.getElementById('fData').value.slice(0,7);
   });
   document.getElementById('listaCartoes').addEventListener('click', onCartaoClick);
-  document.getElementById('btnAtualizarCartao').addEventListener('click', ()=>carregarCartoes(true));
+  document.getElementById('btnAtualizarCartao').addEventListener('click', ()=>{ apagarMarcas(); carregarCartoes(true); });
+  // no modo de conferencia a linha da compra e uma caixa de marcar: Enter e Espaco fazem o mesmo que o toque
+  document.getElementById('listaCartoes').addEventListener('keydown', e=>{
+    if((e.key==='Enter' || e.key===' ') && e.target.matches('.fx-rec[role="checkbox"]')){ e.preventDefault(); e.target.click(); }
+  });
   document.getElementById('btnAddCartao').addEventListener('click', adicionarCartaoUI);
   document.getElementById('tagBusca').addEventListener('input', e=>{ tagBusca = e.target.value; tagsAba = 'tags'; renderTagPicker(); });
   const cardTags = document.getElementById('tagsCard'), campoBusca = document.getElementById('tagBusca');
@@ -3654,6 +3659,9 @@ let cartaoUltimaCalc = 0;
 let cartaoErro = '';
 let msgCartao = '';
 let rascunhoFech = null;
+// Conferencia das compras (demo .ai/demos/demo-cartao-v6-conferencia.html): so orientacao visual, so em memoria; nada vai ao servidor nem ao aparelho.
+// null = fora da selecao; senao {meio, ids, retrato}. Mudou algo na aba Cartao de credito, as marcas saem; nao mudou, ficam.
+let cartaoMarcas = null;
 const MESES_ABREV = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 function pad2(n){ return String(n).padStart(2,'0'); }
 function diasNoMes(ym){ const [y,m]=ym.split('-').map(Number); return new Date(y,m,0).getDate(); }
@@ -3723,6 +3731,27 @@ function linhaCfg(chave, rotulo, valor, ym){
 function tituloRecolhivel(chave, texto, aberto){
   return `<button type="button" class="cfg-tit" data-tg="${chave}" aria-expanded="${aberto}">${texto} ${aberto?'▴':'▾'}</button>`;
 }
+function retratoCartao(){
+  const cfg = ((cartoesResumo && cartoesResumo.cartoes) || []).find(c=>c.meio===cartaoFatura.meio);
+  return JSON.stringify([cartaoFatura, cfg || null]);
+}
+function apagarMarcas(){ cartaoMarcas = null; }
+// chamada a cada desenho: outra fatura, outro cartao ou dado diferente do que foi marcado apaga as marcas
+function conferirMarcas(){ if(cartaoMarcas && cartaoFatura && cartaoMarcas.retrato !== retratoCartao()) apagarMarcas(); }
+function alternarSelecaoCartao(){
+  if(cartaoMarcas) apagarMarcas();
+  else if(cartaoFatura) cartaoMarcas = {meio: cartaoFatura.meio, ids: new Set(), retrato: retratoCartao()};
+  cartaoRecSel = null;
+}
+function alternarMarcaCompra(id){
+  if(!cartaoMarcas) return;
+  if(cartaoMarcas.ids.has(id)) cartaoMarcas.ids.delete(id); else cartaoMarcas.ids.add(id);
+}
+// o painel e redesenhado inteiro: quem usa o teclado (clique com detail 0) volta para o mesmo lugar
+function focarNoCartao(atributo, valor){
+  const alvo = [...document.querySelectorAll(`#listaCartoes [data-${atributo}]`)].find(x=>x.dataset[atributo]===valor);
+  if(alvo) alvo.focus({preventScroll:true});
+}
 function painelCartaoHtml(){
   const f = cartaoFatura;
   if(!f) return '<div class="sd-painel"><p class="muted">Carregando faturas...</p></div>';
@@ -3754,7 +3783,9 @@ function painelCartaoHtml(){
   if(f.historico) h += `<p class="muted">📁 Histórico: antes do início do controle deste cartão (${esc(f.inicio||'')}). Os lançamentos aparecem, mas a fatura não é conferida.</p>`;
   h += `<p class="muted" id="cMsg">${esc(msgCartao||'')}</p></div>`;
   // 3. as compras (recolhivel)
-  h += '<div class="cc-sec">' + tituloRecolhivel('compras', 'Compras', cartaoComprasAberto);
+  const linkSel = (cartaoComprasAberto && f.lancamentos.length)
+    ? `<button type="button" class="hist-sel${cartaoMarcas?' on':''}" data-marcar="1">${cartaoMarcas?'Selecionados · '+cartaoMarcas.ids.size:'Selecionar'}</button>` : '';
+  h += '<div class="cc-sec"><div class="cc-cab">' + tituloRecolhivel('compras', 'Compras', cartaoComprasAberto) + linkSel + '</div>';
   if(cartaoComprasAberto){
     if(!f.lancamentos.length) h += '<p class="muted">Nenhuma compra nesta fatura.</p>';
     f.lancamentos.forEach(r=>{
@@ -3763,8 +3794,11 @@ function painelCartaoHtml(){
     if(r.origem==='foi') tag = `<span class="fx-tag">foi para a ${r.ocupaOutraFatura>ym?'próxima':'anterior'} fatura</span>`;
     else if(r.origem==='veio') tag = `<span class="fx-tag">veio da ${r.ocupaOutraFatura<ym?'anterior':'próxima'} fatura</span>`;
     const estTag = r.estimado ? '<span class="fx-tag" style="margin-left:6px;">valor estimado</span>' : '';
-    h += `<div class="fx-rec ${fora?'fora':''}" data-rec="${esc(r.id)}"><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.dia)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${esc(r.descricao)}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.valor)}</span></div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
-    if(cartaoRecSel===r.id && r.podeMexer){
+    const sel = !!cartaoMarcas, marc = sel && cartaoMarcas.ids.has(r.id);
+    const caixa = sel ? ` role="checkbox" aria-checked="${marc}" tabindex="0"` : '';
+    const ck = sel ? `<span class="lote-ck${marc?' on':''}" aria-hidden="true">✓</span>` : '';
+    h += `<div class="fx-rec ${fora?'fora':''}${sel?' sel':''}" data-rec="${esc(r.id)}"${caixa}><div class="fx-lin"><span class="fx-d">${fmtDiaMes(r.dia)}</span><span class="fx-t" style="${fora?'text-decoration:line-through;':''}">${esc(r.descricao)}</span><span class="fx-v" style="${fora?'text-decoration:line-through;':''}">${fmtMoeda(r.valor)}</span>${ck}</div>${(tag||estTag)?'<div>'+tag+estTag+'</div>':''}`;
+    if(!sel && cartaoRecSel===r.id && r.podeMexer){
       const ops = [[0,'Pela data (normal)'],[1,'Passar para a próxima fatura'],[-1,'Trazer para a anterior']].filter(o=>o[0]!==r.ajuste);
       h += '<div class="fx-acoes">' + ops.map(o=>`<button class="ghost" data-ajuste="${esc(r.id)}|${o[0]}" style="font-size:12px;padding:4px 10px;">${o[1]}</button>`).join('') + '</div>';
     }
@@ -3828,6 +3862,7 @@ function painelCartaoHtml(){
 function renderCartao(){
   const el = document.getElementById('listaCartoes');
   if(!el) return;
+  conferirMarcas();
   const r = cartoesResumo, lista = ((r && r.cartoes) || []).filter(c=>!c.encerrado), n = lista.length; // o servidor marca encerrado o cartao desativado sem fatura (item 58)
   document.getElementById('cartaoTotal').textContent = (n && r) ? fmtMoeda(r.total) : '···';
   document.getElementById('cartaoSub').textContent = !r ? (cartaoErro || (cartaoCarregando ? 'Calculando...' : '')) :
@@ -3908,21 +3943,28 @@ async function editarCampoCartao(chave, ym, meio){
       if(n!==null && (isNaN(n) || n<0)){ await avisar('Valor inválido.'); return; }
       await db.cartaoFechamento(meio, ym, {valorBanco: n});
     }
+    apagarMarcas();
     msgCartao = 'Salvo ✓';
     await recarregarCartao();
   }catch(err){ await avisar(erroCartao(err)); }
 }
 function erroCartao(e){ return (e && (e.message || e.code)) || String(e); }
 async function onCartaoClick(e){
-  const el = e.target.closest('[data-cartao],[data-chip],[data-nav],[data-rec],[data-ajuste],[data-ed],[data-tg],[data-rm],[data-est],[data-cand],[data-regdif],[data-conferir],[data-desconferir]');
+  const el = e.target.closest('[data-cartao],[data-chip],[data-nav],[data-rec],[data-ajuste],[data-ed],[data-tg],[data-rm],[data-est],[data-cand],[data-regdif],[data-conferir],[data-desconferir],[data-marcar]');
   if(!el) return;
   const meio = cartaoAbertoMeio;
+  if(el.dataset.marcar){
+    alternarSelecaoCartao(); renderCartao();
+    if(e.detail===0) focarNoCartao('marcar', '1');
+    return;
+  }
   if(el.dataset.conferir || el.dataset.desconferir){
     const ym = el.dataset.conferir || el.dataset.desconferir;
     if(!meio) return;
     try{
       if(el.dataset.desconferir){
         await db.cartaoDesconferir(meio, ym);
+        apagarMarcas();
       } else {
         // quem decide se bate e o servidor: com diferenca (ou sem o valor do app) ele responde 409 e a pessoa escolhe conferir mesmo assim
         const jaConferida = !!(cartaoFatura && cartaoFatura.conferida);
@@ -3935,6 +3977,7 @@ async function onCartaoClick(e){
           resp = await db.cartaoConferir(meio, ym, true);
         }
         if(resp.status!==200){ await avisar((resp.body && resp.body.erro) || 'Não consegui conferir a fatura.'); return; }
+        apagarMarcas();
       }
     }catch(err){ await avisar('Não consegui salvar: ' + erroCartao(err)); }
     await recarregarCartao(); return;
@@ -3955,13 +3998,14 @@ async function onCartaoClick(e){
       await db.collection("lancamentos").doc(id).update({valor:n, valorEstimado:false});
       const c = lancamentosCache.find(x=>x.id===id); if(c){ c.valor = n; c.valorEstimado = false; }
       aplicarLocal(id, {valor:n, valorEstimado:false});
+      apagarMarcas();
     }catch(err){ await avisar('Não consegui corrigir o valor: ' + erroCartao(err)); }
     await recarregarCartao(); return;
   }
   if(el.dataset.cand!==undefined){
     const c = cartaoFatura && cartaoFatura.sugestoes[parseInt(el.dataset.cand,10)];
     if(!c) return;
-    try{ for(const a of c.acoes){ await ajustarFatura(a.id, a.faturaAjuste); } }
+    try{ for(const a of c.acoes){ await ajustarFatura(a.id, a.faturaAjuste); } apagarMarcas(); }
     catch(err){ await avisar('Não consegui ajustar a fatura: ' + erroCartao(err)); }
     cartaoRecSel = null; await recarregarCartao(); return;
   }
@@ -3969,7 +4013,7 @@ async function onCartaoClick(e){
     const ym = el.dataset.regdif, f = cartaoFatura;
     if(!f) return;
     if(!(await confirmarModal(`Registrar um lançamento de ${fmtMoeda(Math.abs(f.diferenca))} em ${meio}, em ${fmtDataCompleta(f.periodo.fim)} (fechamento)?`))) return;
-    try{ await db.cartaoDiferenca(meio, ym); }
+    try{ await db.cartaoDiferenca(meio, ym); apagarMarcas(); }
     catch(err){ await avisar('Não consegui registrar: ' + erroCartao(err)); }
     await recarregarCartao(); return;
   }
@@ -3979,10 +4023,20 @@ async function onCartaoClick(e){
     try{ await ajustarFatura(id, parseInt(n,10)); }catch(err){ await avisar('Não consegui ajustar a fatura: ' + erroCartao(err)); }
     await recarregarCartao(); return;
   }
-  if(el.dataset.rec){ cartaoRecSel = (cartaoRecSel===el.dataset.rec) ? null : el.dataset.rec; renderCartao(); return; }
+  if(el.dataset.rec){
+    const id = el.dataset.rec;
+    if(cartaoMarcas){
+      alternarMarcaCompra(id); renderCartao();
+      if(e.detail===0) focarNoCartao('rec', id);
+      return;
+    }
+    cartaoRecSel = (cartaoRecSel===id) ? null : id; renderCartao(); return;
+  }
   if(el.dataset.chip!==undefined || el.dataset.nav!==undefined){
     // o servidor mandou o mes de cada chip e dos botões ‹ ›: aqui só se pede a fatura escolhida
-    cartaoYmSel = el.dataset.chip || el.dataset.nav;
+    const pedida = el.dataset.chip || el.dataset.nav;
+    if(!cartaoFatura || pedida !== cartaoFatura.ym) apagarMarcas();
+    cartaoYmSel = pedida;
     cartaoRecSel = null; msgCartao = ''; rascunhoFech = null;
     try{ cartaoCarregando = true; renderCartao(); await carregarFatura(meio, cartaoYmSel); }
     catch(err){ await avisar('Não consegui ler a fatura: ' + erroCartao(err)); }
@@ -3991,6 +4045,7 @@ async function onCartaoClick(e){
   }
   if(el.dataset.cartao!==undefined){
     const nome = el.dataset.cartao;
+    if(cartaoMarcas && cartaoMarcas.meio !== nome) apagarMarcas(); // fechar ou reabrir o mesmo cartao nao muda nada
     cartaoRecSel = null; msgCartao = ''; rascunhoFech = null; cartaoYmSel = '';
     if(cartaoAbertoMeio===nome){ cartaoAbertoMeio = ''; cartaoFatura = null; renderCartao(); return; }
     cartaoAbertoMeio = nome; cartaoFatura = null; renderCartao();
@@ -4005,6 +4060,7 @@ async function onCartaoClick(e){
     if(!(await confirmarModal('Remover ' + b + ' da lista de cartões? Os lançamentos não são apagados, só as datas de fechamento configuradas.'))) return;
     try{
       await db.cartaoRemover(b);
+      apagarMarcas();
       cartaoAbertoMeio = ''; cartaoFatura = null;
       await recarregarCartao();
     }catch(err){ await avisar('Não consegui remover: ' + erroCartao(err)); }
@@ -4019,6 +4075,7 @@ async function adicionarCartaoUI(){
   try{
     msgEl.textContent = 'Salvando...';
     await db.cartaoAdicionar(banco, dia);
+    apagarMarcas();
     document.getElementById('ncDia').value = '';
     msgEl.textContent = 'Cartão adicionado ✓';
     await recarregarCartao();
