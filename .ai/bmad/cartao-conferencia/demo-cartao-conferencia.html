@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Demo — marcador de conferência nas compras do cartão</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--text:#1a1a1a;--muted:#6b6b6b;--border:#e3e2de;--accent:#2f6f4f;--accent-ink:#fff;--ck:#d3d6d2;}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#211f1e;--text:#eee;--muted:#9a9a9a;--border:#37352f;--accent:#5fb98a;--accent-ink:#0d1f16;--ck:#3b413d;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,sans-serif;max-width:480px;margin-inline:auto;padding:12px}
+h1{font-size:13px;color:var(--muted);font-weight:400;margin:0 0 10px}
+.sd-painel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+.cc-cab{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.cc-cab b{font-size:14px}
+/* mesmo estilo do .hist-sel do Histórico: texto verde enquanto fora da seleção, cinza dentro */
+.sel-btn{border:0;background:transparent;color:var(--accent);font:inherit;font-size:13px;font-weight:600;min-height:40px;padding:0 4px;cursor:pointer}
+.sel-btn.on{color:var(--muted);font-weight:400}
+.fx-rec{border-top:1px solid var(--border);cursor:pointer}
+.fx-lin{display:flex;gap:8px;align-items:center;min-height:44px}
+.fx-d{font-size:12px;color:var(--muted);width:42px}
+.fx-t{flex:1;font-size:14px;min-width:0}
+.fx-v{font-size:14px;font-weight:600;white-space:nowrap}
+/* círculo à direita, o mesmo .lote-ck do Histórico; só existe no modo seleção */
+.lote-ck{flex:none;width:28px;height:28px;border-radius:50%;background:var(--ck);display:none;place-items:center;color:transparent;font-size:16px;font-weight:700}
+.sel-modo .lote-ck{display:grid}
+.fx-rec.marcada .lote-ck{background:var(--accent);color:var(--accent-ink)}
+/* marcada: apagada, sem riscar (riscado já significa "foi para outra fatura") */
+.fx-rec.marcada .fx-d,.fx-rec.marcada .fx-t,.fx-rec.marcada .fx-v{opacity:.5}
+.fx-acoes{display:none;gap:6px;margin:0 0 8px 50px}
+.fx-rec.aberta .fx-acoes{display:flex}
+.fx-acoes button{font:inherit;font-size:12px;padding:4px 10px;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px}
+.nota{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5}
+</style>
+</head>
+<body>
+<h1>Cartão de crédito › Nubank › fatura atual</h1>
+<div class="sd-painel" id="painel">
+  <div class="cc-cab"><b>Compras</b><button class="sel-btn" id="selBtn"></button></div>
+  <div id="lista"></div>
+</div>
+<p class="nota">Selecionar liga os círculos. Tocar na linha marca ou desmarca. Selecionados limpa tudo e desliga. A marca fica só nesta tela: recarregar ou sair da aba apaga.</p>
+<script>
+const compras=[
+["18/11","Mercado Central","187,40"],["18/11","Uber *Trip","23,90"],["17/11","Farmácia São João","64,15"],
+["16/11","Netflix","55,90"],["16/11","Posto Ipiranga","210,00"],["15/11","Padaria Pão Quente","18,50"],
+["14/11","Amazon Marketplace","129,99"],["13/11","iFood","47,80"],["12/11","Spotify","21,90"],["11/11","Restaurante Sabor","96,00"]];
+let sel=null;      // null = fora da seleção; Set = dentro
+let aberta=null;   // linha com ações abertas (só fora da seleção)
+function render(){
+  const painel=document.getElementById('painel');
+  painel.classList.toggle('sel-modo',sel!==null);
+  const b=document.getElementById('selBtn');
+  b.textContent=sel===null?'Selecionar':`Selecionados · ${sel.size}`;
+  b.classList.toggle('on',sel!==null);
+  document.getElementById('lista').innerHTML=compras.map((c,i)=>`
+  <div class="fx-rec ${sel&&sel.has(i)?'marcada':''} ${aberta===i?'aberta':''}" data-i="${i}">
+    <div class="fx-lin">
+      <span class="fx-d">${c[0]}</span><span class="fx-t">${c[1]}</span><span class="fx-v">${c[2]}</span>
+      <span class="lote-ck" role="checkbox" aria-checked="${!!(sel&&sel.has(i))}" aria-label="${c[1]}">✓</span>
+    </div>
+    <div class="fx-acoes"><button>Passar para a próxima</button></div>
+  </div>`).join('');
+}
+document.getElementById('selBtn').addEventListener('click',()=>{
+  sel=sel===null?new Set():null;   // Selecionar liga; Selecionados limpa e desliga
+  aberta=null;render();
+});
+document.getElementById('lista').addEventListener('click',e=>{
+  if(e.target.closest('button'))return;
+  const r=e.target.closest('.fx-rec');if(!r)return;
+  const i=+r.dataset.i;
+  if(sel!==null){sel.has(i)?sel.delete(i):sel.add(i);}
+  else{aberta=aberta===i?null:i;}
+  render();
+});
+render();
+</script>
+</body>
+</html>
