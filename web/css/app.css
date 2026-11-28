@@ -310,6 +310,18 @@ svg text{fill:var(--text);font-size:10px;}
 .fx-d{font-size:12px;color:var(--muted);width:42px;}
 .fx-t{flex:1;font-size:14px;min-width:0;}
 .fx-v{font-size:14px;font-weight:600;white-space:nowrap;}
+/* conferencia das compras (demo-cartao-v6-conferencia): link ao lado do titulo; no modo, o circulo do Historico, vazio sem o ✓ */
+.cc-cab{display:flex;align-items:center;gap:10px;}
+.cc-cab .cfg-tit{flex:1;width:auto;min-width:0;}
+.cc-cab .hist-sel{flex:none;min-height:40px;margin:0;padding:0 2px;white-space:nowrap;}
+.cc-cab .hist-sel.on{color:var(--muted);font-weight:400;}
+.fx-rec.sel .fx-lin{min-height:44px;}
+.fx-rec .lote-ck{color:transparent;}
+.fx-rec .lote-ck.on{color:var(--accent-ink);}
+.fx-rec:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;}
+/* a compra fora da fatura continua apagada, mas o circulo fica com a cor inteira */
+.fx-rec.fora.sel{opacity:1;}
+.fx-rec.fora.sel .fx-d,.fx-rec.fora.sel .fx-t,.fx-rec.fora.sel .fx-v,.fx-rec.fora.sel .fx-tag{opacity:.6;}
 .fx-tag{font-size:11px;border:1px solid var(--border);border-radius:8px;padding:0 6px;margin:3px 0 0 50px;display:inline-block;}
 .fx-acoes{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px 50px;}
 body.papel-member .so-owner{display:none !important;}
